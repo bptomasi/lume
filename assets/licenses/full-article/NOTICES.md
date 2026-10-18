@@ -1,6 +1,7 @@
 # Full article extraction dependency notices
 
-This bundle covers the 32 dependency additions for full article extraction.
+This bundle covers the 33 dependency additions for full article extraction,
+including the published `tendril` decoder dependency restored in the lockfile.
 Lume's own code remains MIT. Existing dependencies retain their own licenses.
 
 The user approved the MPL-2.0 transitives for this integration on 2026-10-17.
@@ -46,6 +47,7 @@ license or advisory audit. See `docs/dependency-security.md` for release policy.
 | string_cache 0.9.0 | MIT OR Apache-2.0 | [LICENSE-APACHE](html5ever-LICENSE-APACHE.txt), [LICENSE-MIT](string_cache-LICENSE-MIT.txt) | [source](https://docs.rs/crate/string_cache/0.9.0/source/) |
 | string_cache_codegen 0.6.1 | MIT OR Apache-2.0 | [LICENSE-APACHE](html5ever-LICENSE-APACHE.txt), [LICENSE-MIT](string_cache-LICENSE-MIT.txt) | [source](https://docs.rs/crate/string_cache_codegen/0.6.1/source/) |
 | tendril 0.5.0 | MIT OR Apache-2.0 | [LICENSE-APACHE](html5ever-LICENSE-APACHE.txt), [LICENSE-MIT](tendril-LICENSE-MIT.txt) | [source](https://docs.rs/crate/tendril/0.5.0/source/) |
+| utf-8 0.7.6 | MIT OR Apache-2.0 | [LICENSE-APACHE](utf-8-LICENSE-APACHE.txt), [LICENSE-MIT](utf-8-LICENSE-MIT.txt) | [source](https://docs.rs/crate/utf-8/0.7.6/source/) |
 | utf8-width 0.1.8 | MIT | [LICENSE](html-escape-LICENSE.txt) | [source](https://docs.rs/crate/utf8-width/0.1.8/source/) |
 | web_atoms 0.2.4 | MIT OR Apache-2.0 | [LICENSE-APACHE](html5ever-LICENSE-APACHE.txt), [LICENSE-MIT](html5ever-LICENSE-MIT.txt) | [source](https://docs.rs/crate/web_atoms/0.2.4/source/) |
 

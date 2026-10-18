@@ -591,10 +591,13 @@ tools, inaccessible displays and failed assertions are errors. CI runs this
 through Xvfb and retains its evidence even on failure. It does not qualify
 the user's Wayland compositor or human perception of animation smoothness.
 
-Current validation uses the exact pinned toolchain with 41 temporary dependency
-source substitutions because registry DNS is unavailable in this environment.
-These paths are not product inputs. Loopback socket permissions prevent full
-HTTP qualification here. Details live in [validation](docs/validation.md),
+Earlier validation used 41 temporary dependency-source substitutions. Those
+results do not qualify the normal registry build: one substituted manifest
+omitted a dependency required by published `tendril` 0.5.0. Cargo.lock now
+includes its required `utf-8` 0.7.6 dependency. Standard commands retain
+`--locked`; normal release qualification must use published registry sources.
+Registry DNS and loopback socket restrictions currently prevent complete
+build/HTTP qualification in this environment. Details live in [validation](docs/validation.md),
 [architecture](docs/architecture.md) and [dependency policy](docs/dependency-security.md).
 
 Full article extraction adds MIT/Apache/Zlib dependencies and explicitly

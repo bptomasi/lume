@@ -1,5 +1,27 @@
 # Validation record — Lume
 
+## Published-registry lock correction — 2026-10-18
+
+This correction supersedes prior claims that the substituted sources and
+portable lock represented an equivalent registry build. A cached source
+labelled `tendril` 0.5.0 omitted its published `utf-8` dependency. Comparing
+package/version lists was insufficient to verify source equivalence.
+Previous native/benchmark/PTY results remain observations of the substituted
+build only; they do not establish that the published-crate build passes.
+
+Cargo resolved the existing manifest without path patches and added only
+`utf-8` 0.7.6, including its registry checksum and the `tendril` edge. All 266
+existing package identities/versions remain; the corrected graph has 267
+packages. There are no direct dependency upgrades, feature changes, Rust code
+changes or migrations. Upstream permissive license texts and the notices
+inventory were updated. `--locked` remains enabled in every standard gate.
+
+The original lock error was reproduced before correction. With the corrected
+lock, `make build` passes resolution and attempts to download published
+crates; it then fails because this executor cannot resolve `static.crates.io`.
+No path patches were re-enabled to claim success. Full compilation and native
+checks against published sources remain unqualified until downloads work.
+
 ## Review, centered fullscreen and precise wheel input — 2026-10-18
 
 Fullscreen now centers its text at **80 columns** by default. The independent

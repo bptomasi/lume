@@ -3,6 +3,30 @@
 Lume is an independent desktop/terminal reader. It does not require Miniflux,
 PostgreSQL, containers, an account, or a hosted service. Domain data stays local.
 
+## Published registry lock repair (2026-10-18)
+
+Restore `utf-8` 0.7.6 as a transitive dependency of published `tendril` 0.5.0.
+Cargo's existing registry index requires this edge; resolving the current
+manifest adds only that package and preserves every previously locked version.
+The crate has no dependencies or feature switches. Its checksum is pinned in
+Cargo.lock, and its MIT OR Apache-2.0 licenses fit the existing permissive
+policy. Both upstream license texts are retained in the extraction notices.
+
+The [upstream manifest](https://github.com/SimonSapin/rust-utf8/blob/master/Cargo.toml)
+identifies version 0.7.6, Simon Sapin as author and those licenses. The upstream
+repository is archived; this is a compatibility requirement of the pinned
+HTML parser rather than a new decoder selection. The addition does not
+establish an advisory audit or an active security-response guarantee.
+
+Earlier source substitutions are not a qualified registry baseline. The local
+source labelled `tendril` 0.5.0 omitted this published dependency, so equal
+package/version lists did not establish equivalent manifests or source.
+Release qualification must use published crates with their registry checksums,
+without path patches or rewriting a substituted lockfile into registry form.
+Keep `--locked` in build and verification commands. Source-substituted test
+results can describe that experiment only; they cannot qualify a normal
+registry build. No product code, direct version pin or accepted license changes.
+
 ## Real terminal qualification (2026-10-18)
 
 The terminal qualification harness uses Python's standard library and existing
