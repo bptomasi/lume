@@ -1,0 +1,20 @@
+//! Lume's reader core and adapters.
+//!
+//! Storage owns durable user data. Sources normalize feeds on a worker thread;
+//! the application owns navigation and delegates all terminal drawing to `ui`.
+
+pub mod app;
+pub mod catalog;
+pub mod clipboard;
+pub mod content;
+pub mod demo;
+pub mod exchange;
+pub mod external_editor;
+pub mod model;
+pub mod reader;
+pub mod search;
+pub mod source;
+pub mod store;
+pub mod ui;
+
+mod latest;

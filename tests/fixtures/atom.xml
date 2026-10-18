@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>urn:journal:rust</id>
+  <title>Rust Notes</title>
+  <updated>2026-10-16T10:00:00Z</updated>
+  <entry>
+    <id>urn:article:ownership</id>
+    <title>Ownership &amp; clarity</title>
+    <author><name>Ada</name></author>
+    <updated>2026-10-16T10:00:00Z</updated>
+    <link rel="self" href="/entry.atom"/>
+    <link rel="alternate" href="/ownership"/>
+    <content type="html">&lt;p&gt;A &lt;em&gt;small&lt;/em&gt; contract.&lt;/p&gt;</content>
+  </entry>
+</feed>

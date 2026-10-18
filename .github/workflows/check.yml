@@ -1,0 +1,41 @@
+name: Check Lume
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  reader:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install the pinned Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt
+      - name: Qualify local behavior
+        run: make check
+      - name: Qualify real HTTP
+        run: make check-http
+      - name: Build the release binary
+        if: ${{ !cancelled() }}
+        run: make build
+      - name: Install real terminal qualification tools
+        if: ${{ !cancelled() }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y alacritty xvfb xdotool xclip x11-apps
+      - name: Qualify input and cleanup in real Alacritty
+        if: ${{ !cancelled() }}
+        run: xvfb-run -a make check-alacritty ALACRITTY_ARGS="--artifacts /tmp/lume-alacritty-ci"
+      - name: Retain terminal qualification evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: alacritty-qualification
+          path: /tmp/lume-alacritty-ci
+          if-no-files-found: error
+          retention-days: 7

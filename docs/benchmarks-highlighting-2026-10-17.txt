@@ -1,0 +1,30 @@
+
+representative run 1
+polyglot input: 28920 bytes, 1260 code lines, first render 551.466 ms
+15-language article layout: 40 iterations, 3038.500 ms total, 75.963 ms/iteration
+wall_seconds=3.60 peak_rss_kib=149896
+
+representative run 2
+polyglot input: 28920 bytes, 1260 code lines, first render 545.380 ms
+15-language article layout: 40 iterations, 2858.424 ms total, 71.461 ms/iteration
+wall_seconds=3.41 peak_rss_kib=150220
+
+representative run 3
+polyglot input: 28920 bytes, 1260 code lines, first render 563.726 ms
+15-language article layout: 40 iterations, 3080.553 ms total, 77.014 ms/iteration
+wall_seconds=3.65 peak_rss_kib=150564
+
+stress run 1
+polyglot input: 144600 bytes, 6300 code lines, first render 876.868 ms
+15-language article layout: 40 iterations, 15555.142 ms total, 388.879 ms/iteration
+wall_seconds=16.45 peak_rss_kib=156616
+
+stress run 2
+polyglot input: 144600 bytes, 6300 code lines, first render 908.682 ms
+15-language article layout: 40 iterations, 14822.029 ms total, 370.551 ms/iteration
+wall_seconds=15.74 peak_rss_kib=157560
+
+stress run 3
+polyglot input: 144600 bytes, 6300 code lines, first render 834.905 ms
+15-language article layout: 40 iterations, 14494.004 ms total, 362.350 ms/iteration
+wall_seconds=15.34 peak_rss_kib=157204

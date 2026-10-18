@@ -1,0 +1,44 @@
+# The quiet elegance of doing less
+
+There is a particular kind of performance improvement that never appears in
+a clever inner loop. It comes from noticing that the loop does not need to
+run at all.
+
+A reader spends most of its life waiting for a person to think. That is not
+wasted time. The interface should be quiet enough to leave that thinking
+undisturbed.
+
+# Start with the shape of the work
+
+Imagine a library with ten thousand headlines. Moving the cursor should not
+parse ten thousand article bodies. Repainting a status line should not ask
+the network whether anything has changed.
+
+The responsibilities suggest a simpler arrangement:
+
+- Store article metadata separately from the content you are reading.
+- Collect feeds away from the input loop.
+- Keep the current article's formatted text until its width changes.
+- Draw when something changes, and let the terminal rest otherwise.
+
+# Make a promise you can test
+
+“Fast” is a feeling. A useful performance claim has a workload, an environment,
+a measurement and a baseline. Until those exist, describe the choices that
+bound the work instead of declaring victory.
+
+    request → collect → parse → transaction → notification
+       ↑                                         ↓
+    keyboard ←────────── local library ←──────────┘
+
+# A place for the unfinished thought
+
+You do not have to finish an idea when you first encounter it. Save the
+article in Deep dives. Leave a question in the comments. Come back when
+another piece of the puzzle arrives.
+
+The best reading tools make it easy to return.
+
+────────────────────
+Original demonstration article written for Lume. This is fictional sample
+content, not an attribution to an external publication.

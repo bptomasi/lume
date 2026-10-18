@@ -1,0 +1,199 @@
+  ── LAYOUT AND APPEARANCE ───────────────────────────────────────────
+  :settings       Live preview of themes, widths and visible panels
+                  j/k choose a field; h/l change its value
+                  Enter saves; Esc discards the preview
+  :theme lume     Default charcoal, ivory and amber
+  :theme nord / :theme gruvbox    Alternative dark palettes
+  Tab / Shift-Tab Move focus between expanded panels in saved order
+  Space b / :sidebar      Show or hide the library sidebar
+  Space a / :articles     Show or hide article headlines
+  Space v / :reader       Show or hide the reader
+  Space t / :annotations  Toggle position-ordered article notes
+  Ctrl-w          Open the contextual layout key guide
+  Ctrl-w h/j/k/l  Focus spatial neighbors in custom splits
+  Ctrl-w s / v    Split below / right, opening another pane
+  Ctrl-w J / K    Move focused pane below / above a neighbor
+  Ctrl-w u / r    Undo / redo layout changes (separate from article undo)
+  :panel-dock annotations reader below   Dock using either axis
+  :layout-columns Return to classic column geometry
+  :workspace list Show saved layouts; Reading, Study and Browse are seeded
+  :workspace save NAME / load NAME / delete NAME
+                  Profiles store layout only; the article stays selected.
+  Ctrl-w h/l      Previous / next expanded panel in classic columns (also k/j)
+  Alt-Left/Right  Move focused panel left / right directly
+  Ctrl-w H/L      Same move (or Ctrl-w, then Left/Right)
+                  Release Ctrl-w before pressing Shift-h / Shift-l.
+  Ctrl-w +/-      Resize by two columns; custom splits use two percentage points
+                  Also >/<. Collapsed siblings never absorb the resize.
+  Ctrl-w c / a    Collapse focused panel / expand article notes
+  :panel NAME     Toggle library, articles, reader or annotations
+  :panel-focus NAME       Expand and focus a panel
+  :panel-move left|right  Reorder focused panel
+  :panel-resize +4        Columns in classic layouts; percentage points in splits
+  :panel-close    Collapse focused panel, including Reader and notes
+  Every panel has a [−] button. Top [+] buttons reopen hidden panels.
+  All panels may be collapsed. Tab then restores the reader.
+  Space c / :compact      Switch headline density
+  Space z / :zen          Center the reading column
+  Z / F11 / :fullscreen   Expand article to the whole terminal
+  Esc             Leave fullscreen or cancel visual selection
+  :width 82       Prose width, 40–140 columns
+  :fullscreen-width 80    Centered fullscreen text, 40–140 columns
+  :sidebar-width 23       Library width, 16–48 columns
+  :articles-width 36      Headlines width, 24–80 columns
+  Small terminals show the focused panel. Tab reveals another panel.
+  Layout changes persist. Fullscreen keeps your chosen panel widths.
+
+  ── MOUSE AND PANEL GESTURES ────────────────────────────────────────
+  :mouse on|off|status     Capture preference / observed terminal events
+  Click           Focus a panel, open an article or jump to a note
+  Wheel           Scroll the panel under the pointer
+                  One reported event moves one row/item; no acceleration.
+                  Alacritty: [scrolling] multiplier = 1 for one notch/row.
+  Drag divider    Resize columns or rows; release saves, Esc cancels
+  Drag [≡]        Hold the corner grip; the pane follows the pointer
+                  Move in both axes; the rest of the workspace darkens.
+                  Neighbors slide aside to open the insertion slot.
+                  The panel's overlap triggers this before the pointer crosses.
+                  Move at least two columns or one row to start dragging.
+                  A thin blue line marks insertion. Target top/bottom edges
+                  to dock above/below; custom splits also accept left/right.
+                  Large panes use a compact card while held.
+                  A short transition settles it; new input interrupts it.
+                  Release elsewhere to return it without changing order.
+  Drag title      Same move; top tabs also accept drops, even collapsed
+                  Preview is blue; release saves; Esc cancels.
+                  Library refreshes do not interrupt panel moves.
+  Drag text       Select only within the reader, even across a divider
+  y / s / n       Yank / highlight / annotate the reader selection
+  Capture requires terminal mouse reporting; keyboard always works.
+  Alacritty: hold Shift for native terminal selection instead.
+  Mouse capture is suspended for external editors and restored on return.
+  Help, previews and pickers scroll; text editors retain keyboard input.
+
+  ── VIM READER MOTIONS ──────────────────────────────────────────────
+  j/k, arrows     Move by display row, keeping the desired column
+  h/l             Move by Unicode grapheme (including combining marks)
+  w / b / e       Next word start / previous start / word end
+  W / B / E       Same motions for whitespace-separated WORDs
+  ge / gE         Previous word / WORD end
+  0 / ^ / $       Row start / first nonblank / row end
+  g0 / g$ / g_    Row start / row end / last nonblank
+  gg / G          First / last row; 24G or 24gg goes to row 24
+  H / M / L       Top / middle / bottom of the visible reader
+  { / }           Previous / next blank-line paragraph boundary
+  fX / FX         Find character X forward / backward in this row
+  tX / TX         Stop before / after character X in this row
+  ; / ,           Repeat character find / repeat in reverse
+  %               Match a displayed bracket; 50% goes halfway down
+  Ctrl-d / u      Half page down / up
+  Ctrl-f / b      Full page down / up
+  Ctrl-e / y      Scroll viewport down / up by a row
+  zt / zz / zb    Put cursor row at top / center / bottom
+  zh / zl         Scroll code horizontally by one cell
+  zH / zL         Scroll code by half the reader width
+  5j / 3W / 2e    Counts apply to motions; Esc cancels a prefix/count
+  /               Find literal text inside the article
+  n / N           Next / previous reader search match
+  Ctrl-o          Previous reader jump; :jump-forward goes forward
+  :toc            Searchable heading outline; Enter jumps
+  :highlights TEXT        Find and jump to a saved highlight
+  :copy-code      Copy the whole code block under the cursor
+  :tables         Wide table inspector: h/l sideways, j/k vertically
+  Reader motions operate on displayed text, including private notes.
+  Bracket matching uses displayed characters, without language parsing.
+  This reader does not modify publisher text with Vim editing operators.
+
+  ── SELECTION AND NOTES ─────────────────────────────────────────────
+  v / V           Character / display-row visual selection
+  hjkl, w/W/e/E   Extend the selection with reader motions
+  viw / vaw       Select inner word / word with surrounding space
+  viW / vaW       Select inner WORD / WORD with surrounding space
+  vip / vap       Select inner paragraph / paragraph with blank rows
+  y               Yank exact selected text to terminal clipboard
+  s               Save visual selection as a highlight
+  n               In visual mode: write a note on the selected passage
+  :note           New private comment (also n outside the reader)
+  :edit-note      Edit selected note (also e outside the reader)
+  [ / ]           Select previous / next note
+  :delete-comment Delete selected note; u restores it and study material
+  :notebook       Browse highlights and their original source context
+  :annotations    Article-local notes, ordered by source position
+  In annotations: j/k or wheel selects; Enter or click jumps to source.
+  e edits, n creates a general note; D/Delete removes the note; u undoes.
+  Alternate sources, unplaced quotes and general notes are labeled.
+  Ambiguous/removed quotations stay saved; jumps never guess a position.
+  Ctrl-s          Save note/card editor; Esc discards the draft
+  Ctrl-e          External editor while editing a note or study card
+  Ctrl-z / r      Undo / redo editor text; arrows move the editor cursor
+  Reader e is a word motion; reader f starts a character find.
+  Use :edit-note and :favorite for those application actions here.
+
+  ── LISTS, SEARCH AND ORGANIZATION ───────────────────────────────────
+  :folder NAME    Create a folder; :folders browses personal folders
+  :save NAME      Save article into a folder, creating it if needed
+  :organize       Multi-folder picker: Space toggles, Enter commits
+  N               Outside reader: create an empty folder
+  :favorite       Toggle favorite; :favorites opens all favorites
+  f               Outside reader: toggle favorite
+  m / :mark-read / :mark-unread    Change read state
+  :read           Automatic Read folder; unread articles leave it
+  s / :queue      Toggle queue membership / open Read next
+  D / Delete      Move article to Trash; :restore-article restores it
+  :trash          Deleted articles remain recoverable with u
+  :pin            Pin/unpin selected sidebar destination
+  :move-up / :move-down    Customize sidebar order
+  :collapse feeds|lists|folders|pinned    Fold/unfold a sidebar group
+  :tags NAME... / :highlight-tags NAME...    Independent tags
+  :select-article / :select-page / :clear-selection
+  :bulk read|unread|favorite|unfavorite|queue|unqueue
+  :bulk folder NAME / :bulk tag NAME    One undo for the entire batch
+  :grouped / :related       Group duplicates / inspect occurrences
+  :continue / :since-last-visit      Resume reading / see new arrivals
+  /               Outside reader: search titles, bodies and annotations
+  Space f         Global article finder, from any panel
+  :smart          Create/edit a smart list; Ctrl-s saves the form
+  Queries support AND, OR, NOT, parentheses and quoted token phrases.
+  Example: (topic:kubernetes OR topic:ebpf) AND NOT title:webinar
+  Fields: title, body, source, author, notes, domain, tag, highlight-tag
+  Also: after:2026-10-01 before:2026-11-01 minutes:1..20 is:unread
+  Tab completes live query fields; Ctrl-Space completes the smart query.
+  :explain-search Shows the active query and saved-list conditions
+
+  ── SOURCES AND ARTICLE EXTRACTION ──────────────────────────────────
+  :feed URL / :discover URL    Subscribe / discover an advertised feed
+  :unfeed         Archive subscription, preserving articles and notes
+  r / :refresh    Update sources in the background
+  :source-health  Last attempt/success, error, retry deadline and rule
+  :fetch          Retrieve the original article without blocking reading
+  :content feed / :content full      Choose available cached content
+  :fetch-policy missing|always|manual    Per-source automatic policy
+  :extract-preview CSS_SELECTOR     Test a source-specific content rule
+                  Enter saves the displayed result; Esc discards it
+  :extract-preview auto     Preview automatic extraction again
+  Feed, Summary and Full badges describe the actual content source.
+  Short/obstructed extractions warn or fail, preserving a good cache.
+  o / Space o     Original article / article links in your browser
+
+  ── STUDY AND EXPORT ────────────────────────────────────────────────
+  :highlight-tags consensus oauth    Tag selected saved passage
+  :link-note ARTICLE_ID / :note-links    Link/browse related readings
+  :review         Due passage previews; Enter schedules seven days
+  :review-in DAYS Schedule selected passage for 1–3,650 days
+  :card Question | Answer   Create your own question and answer
+  :cards          Recall due cards; Enter reveals, then Enter reviews
+  :export-notes DIRECTORY    Incremental Markdown / Obsidian export
+  Existing local edits become reported conflicts and stay untouched.
+  :export PATH / :export-notebook PATH    New Markdown file exports
+  :import PATH / :export-opml PATH        Import/export subscriptions
+
+  ── COMMANDS AND CUSTOM KEYS ────────────────────────────────────────
+  :               Filter command menu; Tab completes; Enter applies
+  Ctrl-p / Space p          Command and destination palette
+  :bind ctrl-t toc          Bind a normal-mode key to an ex command
+  :unbind ctrl-t            Remove that custom binding
+  :help layout / :help vim  Jump to these guide sections
+  Help: j/k or arrows scroll, PageUp/PageDown page, g/G first/last
+  :undo / u       Undo a personal edit, even after restart
+  :q / Ctrl-c     Save session and quit; terminal state is restored
+  Notes, cached articles, lists and study material stay on this machine.

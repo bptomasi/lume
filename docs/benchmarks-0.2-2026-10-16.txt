@@ -1,0 +1,90 @@
+
+scenario=representative run=1
+lume baseline · articles=10000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 445.910 ms total, 11.148 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 16.207 ms total, 0.405 ms/iteration
+feed parse input · entries=200 · bytes=37726
+RSS decode + content normalization: 40 iterations, 33.584 ms total, 0.840 ms/iteration
+indexed body search + last page: 40 iterations, 519.287 ms total, 12.982 ms/iteration
+Markdown wrap + syntax highlight: 40 iterations, 1.767 ms total, 0.044 ms/iteration
+OPML decode + URL validation: 40 iterations, 34.021 ms total, 0.851 ms/iteration
+HTML5 discovery (100 advertised feeds): 40 iterations, 5.722 ms total, 0.143 ms/iteration
+stream notebook export (2 notes/article): 40 iterations, 960.391 ms total, 24.010 ms/iteration
+three-pane frame (144x44): 200 iterations, 43.693 ms total, 0.218 ms/iteration
+FTS live search + selected body: 40 iterations, 2438.045 ms total, 60.951 ms/iteration
+wall_s=5.69 peak_rss_kib=19364
+
+scenario=representative run=2
+lume baseline · articles=10000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 424.789 ms total, 10.620 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 14.146 ms total, 0.354 ms/iteration
+feed parse input · entries=200 · bytes=37726
+RSS decode + content normalization: 40 iterations, 28.940 ms total, 0.723 ms/iteration
+indexed body search + last page: 40 iterations, 471.996 ms total, 11.800 ms/iteration
+Markdown wrap + syntax highlight: 40 iterations, 1.696 ms total, 0.042 ms/iteration
+OPML decode + URL validation: 40 iterations, 30.992 ms total, 0.775 ms/iteration
+HTML5 discovery (100 advertised feeds): 40 iterations, 4.716 ms total, 0.118 ms/iteration
+stream notebook export (2 notes/article): 40 iterations, 935.046 ms total, 23.376 ms/iteration
+three-pane frame (144x44): 200 iterations, 41.763 ms total, 0.209 ms/iteration
+FTS live search + selected body: 40 iterations, 2311.556 ms total, 57.789 ms/iteration
+wall_s=5.38 peak_rss_kib=19588
+
+scenario=representative run=3
+lume baseline · articles=10000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 418.915 ms total, 10.473 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 14.441 ms total, 0.361 ms/iteration
+feed parse input · entries=200 · bytes=37726
+RSS decode + content normalization: 40 iterations, 30.728 ms total, 0.768 ms/iteration
+indexed body search + last page: 40 iterations, 451.293 ms total, 11.282 ms/iteration
+Markdown wrap + syntax highlight: 40 iterations, 1.549 ms total, 0.039 ms/iteration
+OPML decode + URL validation: 40 iterations, 29.617 ms total, 0.740 ms/iteration
+HTML5 discovery (100 advertised feeds): 40 iterations, 4.250 ms total, 0.106 ms/iteration
+stream notebook export (2 notes/article): 40 iterations, 911.616 ms total, 22.790 ms/iteration
+three-pane frame (144x44): 200 iterations, 43.174 ms total, 0.216 ms/iteration
+FTS live search + selected body: 40 iterations, 2335.701 ms total, 58.393 ms/iteration
+wall_s=5.39 peak_rss_kib=19292
+
+scenario=stress run=1
+lume baseline · articles=50000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 412.197 ms total, 10.305 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 14.157 ms total, 0.354 ms/iteration
+feed parse input · entries=2000 · bytes=379926
+RSS decode + content normalization: 40 iterations, 292.799 ms total, 7.320 ms/iteration
+indexed body search + last page: 40 iterations, 2589.215 ms total, 64.730 ms/iteration
+Markdown wrap + syntax highlight: 40 iterations, 1.778 ms total, 0.044 ms/iteration
+OPML decode + URL validation: 40 iterations, 159.313 ms total, 3.983 ms/iteration
+HTML5 discovery (100 advertised feeds): 40 iterations, 4.296 ms total, 0.107 ms/iteration
+stream notebook export (2 notes/article): 40 iterations, 7712.228 ms total, 192.806 ms/iteration
+three-pane frame (144x44): 200 iterations, 42.176 ms total, 0.211 ms/iteration
+FTS live search + selected body: 40 iterations, 11693.182 ms total, 292.330 ms/iteration
+wall_s=28.33 peak_rss_kib=24088
+
+scenario=stress run=2
+lume baseline · articles=50000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 415.170 ms total, 10.379 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 13.744 ms total, 0.344 ms/iteration
+feed parse input · entries=2000 · bytes=379926
+RSS decode + content normalization: 40 iterations, 276.092 ms total, 6.902 ms/iteration
+indexed body search + last page: 40 iterations, 2599.572 ms total, 64.989 ms/iteration
+Markdown wrap + syntax highlight: 40 iterations, 1.675 ms total, 0.042 ms/iteration
+OPML decode + URL validation: 40 iterations, 154.135 ms total, 3.853 ms/iteration
+HTML5 discovery (100 advertised feeds): 40 iterations, 4.696 ms total, 0.117 ms/iteration
+stream notebook export (2 notes/article): 40 iterations, 7910.477 ms total, 197.762 ms/iteration
+three-pane frame (144x44): 200 iterations, 44.602 ms total, 0.223 ms/iteration
+FTS live search + selected body: 40 iterations, 12497.643 ms total, 312.441 ms/iteration
+wall_s=29.10 peak_rss_kib=23872
+
+scenario=stress run=3
+lume baseline · articles=50000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 421.023 ms total, 10.526 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 13.813 ms total, 0.345 ms/iteration
+feed parse input · entries=2000 · bytes=379926
+RSS decode + content normalization: 40 iterations, 277.145 ms total, 6.929 ms/iteration
+indexed body search + last page: 40 iterations, 2636.420 ms total, 65.911 ms/iteration
+Markdown wrap + syntax highlight: 40 iterations, 1.625 ms total, 0.041 ms/iteration
+OPML decode + URL validation: 40 iterations, 153.513 ms total, 3.838 ms/iteration
+HTML5 discovery (100 advertised feeds): 40 iterations, 4.616 ms total, 0.115 ms/iteration
+stream notebook export (2 notes/article): 40 iterations, 7784.659 ms total, 194.616 ms/iteration
+three-pane frame (144x44): 200 iterations, 43.862 ms total, 0.219 ms/iteration
+FTS live search + selected body: 40 iterations, 12464.396 ms total, 311.610 ms/iteration
+wall_s=29.22 peak_rss_kib=23644

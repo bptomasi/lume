@@ -1,0 +1,10 @@
+# Less surface, more meaning
+
+An interface becomes easier to reuse when its names describe a stable
+capability. It becomes harder to reuse when options accumulate to represent
+unrelated workflows.
+
+Start with a concrete consumer. Add another only when its semantics fit.
+Generality is an outcome of evidence.
+
+This is original demonstration text.

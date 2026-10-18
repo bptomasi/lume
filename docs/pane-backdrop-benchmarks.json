@@ -1,0 +1,59 @@
+{
+  "checkpoint": "two-axis held-pane motion, dim backdrop and uniform normal surfaces",
+  "date": "2026-10-18",
+  "source_digest": "d94befa854c09500fc4d0e2afb5c201929db9189e508f181e8548fd59edd9fcf",
+  "source_digest_scope": "Sorted names + NUL + bytes + NUL: src, benches, examples, tests, assets, tools excluding pycache; Cargo/build/toolchain/format/lint/Make/launcher/gitignore. Portable Cargo.lock bytes.",
+  "environment": {
+    "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+    "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+    "build": "release, thin LTO, one codegen unit",
+    "sources": "41 temporary cached upstream source substitutions; unchanged 266-package graph; portable lockfile restored afterward",
+    "renderer": "Ratatui TestBackend; shared host, scheduling and caches uncontrolled"
+  },
+  "workloads": {
+    "ordinary": "7400 source bytes, 20 notes",
+    "stress": "74310 source bytes, 200 notes",
+    "capture": "40 actual MouseDown + interactive-frame captures per process",
+    "held": "200 actual diagonal drag + interactive frames per process; exact x/y and dimmed background checked",
+    "settling": "400 injected-time tick + interactive frames per process; immediate saved order and completion checked"
+  },
+  "limitations": [
+    "Fresh timings, no before/after speedup claim; earlier workloads had horizontal-only motion without backdrop dimming.",
+    "Frames measure composition work, excluding physical terminal transport/paint and the 16 ms animation polling interval.",
+    "Whole-process wall time and peak RSS include setup; RSS does not measure allocations.",
+    "Physical Alacritty and clean-registry qualification remain unavailable."
+  ],
+  "raw_trials": [
+    {
+      "size": "ordinary",
+      "trial": 1,
+      "log": "pane input: 7400 source bytes, 20 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=0.701 p95=0.840 p99=0.843 max=1.104 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.069 p95=1.089 p99=1.119 max=1.296 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.421 p95=0.457 p99=0.531 max=0.556 ms\npane capture + initial runtime frame: 40 samples, p50=0.208 p95=0.215 p99=0.219 max=0.332 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.253 p95=0.274 p99=0.280 max=0.291 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.232 p95=0.258 p99=0.263 max=0.344 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.183 p95=0.193 p99=0.219 max=0.276 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=0.438 p95=0.451 p99=0.503 max=0.603 ms\nprocess_wall_seconds=0.48 peak_rss_kib=19368\n"
+    },
+    {
+      "size": "ordinary",
+      "trial": 2,
+      "log": "pane input: 7400 source bytes, 20 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=0.757 p95=0.943 p99=1.024 max=1.114 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.032 p95=1.069 p99=1.083 max=1.091 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.408 p95=0.431 p99=0.531 max=0.763 ms\npane capture + initial runtime frame: 40 samples, p50=0.199 p95=0.234 p99=0.242 max=0.248 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.248 p95=0.273 p99=0.289 max=0.358 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.224 p95=0.252 p99=0.276 max=0.323 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.174 p95=0.183 p99=0.194 max=0.233 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=0.423 p95=0.440 p99=0.472 max=0.598 ms\nprocess_wall_seconds=0.47 peak_rss_kib=19264\n"
+    },
+    {
+      "size": "ordinary",
+      "trial": 3,
+      "log": "pane input: 7400 source bytes, 20 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=0.728 p95=0.914 p99=0.923 max=1.091 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.056 p95=1.150 p99=1.209 max=1.225 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.423 p95=0.437 p99=0.463 max=0.525 ms\npane capture + initial runtime frame: 40 samples, p50=0.210 p95=0.220 p99=0.221 max=0.244 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.259 p95=0.284 p99=0.317 max=0.372 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.236 p95=0.262 p99=0.286 max=0.329 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.184 p95=0.189 p99=0.199 max=0.235 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=0.440 p95=0.464 p99=0.529 max=0.635 ms\nprocess_wall_seconds=0.48 peak_rss_kib=19428\n"
+    },
+    {
+      "size": "stress",
+      "trial": 1,
+      "log": "pane input: 74310 source bytes, 200 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=3.449 p95=3.831 p99=4.300 max=4.634 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.071 p95=1.138 p99=1.150 max=1.153 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.426 p95=0.490 p99=0.522 max=0.654 ms\npane capture + initial runtime frame: 40 samples, p50=0.200 p95=0.227 p99=0.234 max=0.242 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.250 p95=0.277 p99=0.297 max=0.305 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.226 p95=0.262 p99=0.286 max=0.340 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.175 p95=0.211 p99=0.225 max=0.232 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=2.180 p95=2.314 p99=2.409 max=2.590 ms\nprocess_wall_seconds=1.10 peak_rss_kib=22748\n"
+    },
+    {
+      "size": "stress",
+      "trial": 2,
+      "log": "pane input: 74310 source bytes, 200 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=3.565 p95=3.651 p99=3.988 max=4.016 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.120 p95=1.172 p99=1.189 max=1.198 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.444 p95=0.477 p99=0.561 max=0.670 ms\npane capture + initial runtime frame: 40 samples, p50=0.210 p95=0.217 p99=0.228 max=0.234 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.256 p95=0.279 p99=0.293 max=0.354 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.234 p95=0.263 p99=0.272 max=0.417 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.183 p95=0.192 p99=0.204 max=0.323 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=2.240 p95=2.344 p99=2.510 max=2.609 ms\nprocess_wall_seconds=1.12 peak_rss_kib=22492\n"
+    },
+    {
+      "size": "stress",
+      "trial": 3,
+      "log": "pane input: 74310 source bytes, 200 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=3.436 p95=3.654 p99=3.713 max=3.756 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.066 p95=1.599 p99=1.624 max=2.059 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.424 p95=0.457 p99=0.552 max=0.637 ms\npane capture + initial runtime frame: 40 samples, p50=0.201 p95=0.219 p99=0.223 max=0.231 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.245 p95=0.270 p99=0.282 max=0.337 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.224 p95=0.253 p99=0.277 max=0.342 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.176 p95=0.190 p99=0.214 max=0.231 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=2.172 p95=2.260 p99=2.392 max=2.481 ms\nprocess_wall_seconds=1.09 peak_rss_kib=23108\n"
+    }
+  ]
+}

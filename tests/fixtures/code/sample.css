@@ -1,0 +1,4 @@
+.message::before {
+    content: "hello";
+    color: #a6bf91;
+}

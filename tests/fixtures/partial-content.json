@@ -1,0 +1,21 @@
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "Partial JSON journal",
+  "items": [
+    {
+      "id": "empty-html",
+      "content_html": "<p> </p>",
+      "summary": "A useful plain summary."
+    },
+    {
+      "id": "text-alternative",
+      "content_html": "<script>discard()</script>",
+      "content_text": "Vec<T> remains literal."
+    },
+    {
+      "id": "empty-text",
+      "content_text": " \n ",
+      "summary": "A second plain summary."
+    }
+  ]
+}

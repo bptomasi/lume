@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Systems Journal</title>
+    <link>https://journal.example/</link>
+    <description>Computing essays</description>
+    <item>
+      <guid isPermaLink="false">article-42</guid>
+      <title>Cache &amp; consequence</title>
+      <link>https://journal.example/cache</link>
+      <pubDate>Thu, 15 Oct 2026 12:00:00 GMT</pubDate>
+      <description>A short summary.</description>
+      <content:encoded><![CDATA[
+        <h2>Why cache?</h2>
+        <p>Keep <strong>one</strong> copy &amp; measure.</p>
+        <pre>let answer = 42;
+    use_it(answer);</pre>
+      ]]></content:encoded>
+    </item>
+  </channel>
+</rss>

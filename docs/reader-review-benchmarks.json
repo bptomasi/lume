@@ -1,0 +1,440 @@
+{
+  "date": "2026-10-18",
+  "environment": {
+    "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "kernel": "Linux 7.1.8+deb13-amd64 x86_64 GNU/Linux",
+    "cpu": "Intel Core Ultra 7 155H",
+    "sqlite_python_diagnostic_version": "3.46.1",
+    "build": "release, thin LTO, one codegen unit",
+    "renderer": "Ratatui TestBackend; physical terminal not instrumented",
+    "storage": "private temporary SQLite; process RSS, not allocation counts",
+    "control": "Three fresh processes per size; scheduling and caches uncontrolled"
+  },
+  "command": "target/release/deps/reader-<build> --expansion-only [--stress]",
+  "representative_articles": 2001,
+  "stress_articles": 20001,
+  "correctness": "Every timed action validates its result; setup excluded from operation timers",
+  "limitations": [
+    "No repeated pre-change baseline: these results do not establish a speedup.",
+    "No live network throughput or GUI Alacritty latency measurement.",
+    "Process wall/RSS include setup; zero filesystem counters do not mean zero SQLite writes.",
+    "An anchored-page workload was added; complete-process totals include that additional work."
+  ],
+  "checkpoint": "correctness review",
+  "preceding_checkpoint": "reader-expansion-benchmarks.json",
+  "source_digest": "283a8407f0aa20123124444a1a86352dd989803c628761322068658a80d0372c",
+  "trials": {
+    "representative": [
+      {
+        "trial": 1,
+        "operations": {
+          "boolean field search + complete count/page": {
+            "iterations": 40,
+            "total_ms": 82.656,
+            "ms_per_iteration": 2.066
+          },
+          "anchored filtered page + stable target": {
+            "iterations": 40,
+            "total_ms": 112.969,
+            "ms_per_iteration": 2.824
+          },
+          "reviewable CSS article extraction": {
+            "iterations": 40,
+            "total_ms": 4.398,
+            "ms_per_iteration": 0.11
+          },
+          "captured favorite batch + atomic undo": {
+            "iterations": 40,
+            "total_ms": 116.436,
+            "ms_per_iteration": 2.911
+          },
+          "user card creation/review + complete undo": {
+            "iterations": 40,
+            "total_ms": 32.756,
+            "ms_per_iteration": 0.819
+          },
+          "unchanged incremental notebook reconciliation": {
+            "iterations": 40,
+            "total_ms": 64.392,
+            "ms_per_iteration": 1.61
+          }
+        },
+        "latencies": {
+          "reader motion to frame": {
+            "samples": 200,
+            "p50_ms": 0.167,
+            "p95_ms": 0.191,
+            "p99_ms": 0.247
+          },
+          "cached article selection/open to frame": {
+            "samples": 200,
+            "p50_ms": 8.891,
+            "p95_ms": 9.195,
+            "p99_ms": 9.659
+          },
+          "responsive resize/reflow to themed frame": {
+            "samples": 200,
+            "p50_ms": 1.024,
+            "p95_ms": 1.07,
+            "p99_ms": 1.187
+          },
+          "reader input/frame during publisher writes": {
+            "samples": 200,
+            "p50_ms": 0.178,
+            "p95_ms": 0.185,
+            "p99_ms": 0.223
+          }
+        },
+        "concurrent_publisher_batches": 7,
+        "process": {
+          "wall_seconds": 2.77,
+          "peak_rss_kib": 24348,
+          "filesystem_inputs": 0,
+          "filesystem_outputs": 0
+        }
+      },
+      {
+        "trial": 2,
+        "operations": {
+          "boolean field search + complete count/page": {
+            "iterations": 40,
+            "total_ms": 84.79,
+            "ms_per_iteration": 2.12
+          },
+          "anchored filtered page + stable target": {
+            "iterations": 40,
+            "total_ms": 114.868,
+            "ms_per_iteration": 2.872
+          },
+          "reviewable CSS article extraction": {
+            "iterations": 40,
+            "total_ms": 4.407,
+            "ms_per_iteration": 0.11
+          },
+          "captured favorite batch + atomic undo": {
+            "iterations": 40,
+            "total_ms": 116.158,
+            "ms_per_iteration": 2.904
+          },
+          "user card creation/review + complete undo": {
+            "iterations": 40,
+            "total_ms": 33.453,
+            "ms_per_iteration": 0.836
+          },
+          "unchanged incremental notebook reconciliation": {
+            "iterations": 40,
+            "total_ms": 67.106,
+            "ms_per_iteration": 1.678
+          }
+        },
+        "latencies": {
+          "reader motion to frame": {
+            "samples": 200,
+            "p50_ms": 0.175,
+            "p95_ms": 0.197,
+            "p99_ms": 0.233
+          },
+          "cached article selection/open to frame": {
+            "samples": 200,
+            "p50_ms": 8.94,
+            "p95_ms": 9.28,
+            "p99_ms": 10.303
+          },
+          "responsive resize/reflow to themed frame": {
+            "samples": 200,
+            "p50_ms": 1.031,
+            "p95_ms": 1.071,
+            "p99_ms": 1.11
+          },
+          "reader input/frame during publisher writes": {
+            "samples": 200,
+            "p50_ms": 0.175,
+            "p95_ms": 0.342,
+            "p99_ms": 0.375
+          }
+        },
+        "concurrent_publisher_batches": 6,
+        "process": {
+          "wall_seconds": 2.8,
+          "peak_rss_kib": 24520,
+          "filesystem_inputs": 0,
+          "filesystem_outputs": 0
+        }
+      },
+      {
+        "trial": 3,
+        "operations": {
+          "boolean field search + complete count/page": {
+            "iterations": 40,
+            "total_ms": 84.535,
+            "ms_per_iteration": 2.113
+          },
+          "anchored filtered page + stable target": {
+            "iterations": 40,
+            "total_ms": 113.07,
+            "ms_per_iteration": 2.827
+          },
+          "reviewable CSS article extraction": {
+            "iterations": 40,
+            "total_ms": 4.589,
+            "ms_per_iteration": 0.115
+          },
+          "captured favorite batch + atomic undo": {
+            "iterations": 40,
+            "total_ms": 114.203,
+            "ms_per_iteration": 2.855
+          },
+          "user card creation/review + complete undo": {
+            "iterations": 40,
+            "total_ms": 32.968,
+            "ms_per_iteration": 0.824
+          },
+          "unchanged incremental notebook reconciliation": {
+            "iterations": 40,
+            "total_ms": 67.604,
+            "ms_per_iteration": 1.69
+          }
+        },
+        "latencies": {
+          "reader motion to frame": {
+            "samples": 200,
+            "p50_ms": 0.175,
+            "p95_ms": 0.196,
+            "p99_ms": 0.228
+          },
+          "cached article selection/open to frame": {
+            "samples": 200,
+            "p50_ms": 8.834,
+            "p95_ms": 9.214,
+            "p99_ms": 9.448
+          },
+          "responsive resize/reflow to themed frame": {
+            "samples": 200,
+            "p50_ms": 0.977,
+            "p95_ms": 1.018,
+            "p99_ms": 1.036
+          },
+          "reader input/frame during publisher writes": {
+            "samples": 200,
+            "p50_ms": 0.165,
+            "p95_ms": 0.178,
+            "p99_ms": 0.218
+          }
+        },
+        "concurrent_publisher_batches": 5,
+        "process": {
+          "wall_seconds": 2.75,
+          "peak_rss_kib": 24584,
+          "filesystem_inputs": 0,
+          "filesystem_outputs": 0
+        }
+      }
+    ],
+    "stress": [
+      {
+        "trial": 1,
+        "operations": {
+          "boolean field search + complete count/page": {
+            "iterations": 40,
+            "total_ms": 905.158,
+            "ms_per_iteration": 22.629
+          },
+          "anchored filtered page + stable target": {
+            "iterations": 40,
+            "total_ms": 1369.321,
+            "ms_per_iteration": 34.233
+          },
+          "reviewable CSS article extraction": {
+            "iterations": 40,
+            "total_ms": 83.715,
+            "ms_per_iteration": 2.093
+          },
+          "captured favorite batch + atomic undo": {
+            "iterations": 40,
+            "total_ms": 1216.314,
+            "ms_per_iteration": 30.408
+          },
+          "user card creation/review + complete undo": {
+            "iterations": 40,
+            "total_ms": 17.317,
+            "ms_per_iteration": 0.433
+          },
+          "unchanged incremental notebook reconciliation": {
+            "iterations": 40,
+            "total_ms": 661.618,
+            "ms_per_iteration": 16.54
+          }
+        },
+        "latencies": {
+          "reader motion to frame": {
+            "samples": 200,
+            "p50_ms": 0.177,
+            "p95_ms": 0.204,
+            "p99_ms": 0.228
+          },
+          "cached article selection/open to frame": {
+            "samples": 200,
+            "p50_ms": 107.882,
+            "p95_ms": 109.589,
+            "p99_ms": 110.673
+          },
+          "responsive resize/reflow to themed frame": {
+            "samples": 200,
+            "p50_ms": 7.876,
+            "p95_ms": 8.214,
+            "p99_ms": 8.589
+          },
+          "reader input/frame during publisher writes": {
+            "samples": 200,
+            "p50_ms": 0.171,
+            "p95_ms": 0.348,
+            "p99_ms": 0.358
+          }
+        },
+        "concurrent_publisher_batches": 3,
+        "process": {
+          "wall_seconds": 29.95,
+          "peak_rss_kib": 26196,
+          "filesystem_inputs": 0,
+          "filesystem_outputs": 0
+        }
+      },
+      {
+        "trial": 2,
+        "operations": {
+          "boolean field search + complete count/page": {
+            "iterations": 40,
+            "total_ms": 888.591,
+            "ms_per_iteration": 22.215
+          },
+          "anchored filtered page + stable target": {
+            "iterations": 40,
+            "total_ms": 1368.397,
+            "ms_per_iteration": 34.21
+          },
+          "reviewable CSS article extraction": {
+            "iterations": 40,
+            "total_ms": 80.335,
+            "ms_per_iteration": 2.008
+          },
+          "captured favorite batch + atomic undo": {
+            "iterations": 40,
+            "total_ms": 1199.938,
+            "ms_per_iteration": 29.998
+          },
+          "user card creation/review + complete undo": {
+            "iterations": 40,
+            "total_ms": 16.805,
+            "ms_per_iteration": 0.42
+          },
+          "unchanged incremental notebook reconciliation": {
+            "iterations": 40,
+            "total_ms": 652.164,
+            "ms_per_iteration": 16.304
+          }
+        },
+        "latencies": {
+          "reader motion to frame": {
+            "samples": 200,
+            "p50_ms": 0.17,
+            "p95_ms": 0.18,
+            "p99_ms": 0.196
+          },
+          "cached article selection/open to frame": {
+            "samples": 200,
+            "p50_ms": 107.166,
+            "p95_ms": 109.411,
+            "p99_ms": 117.325
+          },
+          "responsive resize/reflow to themed frame": {
+            "samples": 200,
+            "p50_ms": 8.005,
+            "p95_ms": 8.23,
+            "p99_ms": 8.456
+          },
+          "reader input/frame during publisher writes": {
+            "samples": 200,
+            "p50_ms": 0.174,
+            "p95_ms": 0.21,
+            "p99_ms": 0.295
+          }
+        },
+        "concurrent_publisher_batches": 3,
+        "process": {
+          "wall_seconds": 29.71,
+          "peak_rss_kib": 25832,
+          "filesystem_inputs": 0,
+          "filesystem_outputs": 0
+        }
+      },
+      {
+        "trial": 3,
+        "operations": {
+          "boolean field search + complete count/page": {
+            "iterations": 40,
+            "total_ms": 907.147,
+            "ms_per_iteration": 22.679
+          },
+          "anchored filtered page + stable target": {
+            "iterations": 40,
+            "total_ms": 1370.199,
+            "ms_per_iteration": 34.255
+          },
+          "reviewable CSS article extraction": {
+            "iterations": 40,
+            "total_ms": 81.568,
+            "ms_per_iteration": 2.039
+          },
+          "captured favorite batch + atomic undo": {
+            "iterations": 40,
+            "total_ms": 1209.699,
+            "ms_per_iteration": 30.242
+          },
+          "user card creation/review + complete undo": {
+            "iterations": 40,
+            "total_ms": 16.732,
+            "ms_per_iteration": 0.418
+          },
+          "unchanged incremental notebook reconciliation": {
+            "iterations": 40,
+            "total_ms": 648.143,
+            "ms_per_iteration": 16.204
+          }
+        },
+        "latencies": {
+          "reader motion to frame": {
+            "samples": 200,
+            "p50_ms": 0.174,
+            "p95_ms": 0.182,
+            "p99_ms": 0.232
+          },
+          "cached article selection/open to frame": {
+            "samples": 200,
+            "p50_ms": 108.524,
+            "p95_ms": 111.075,
+            "p99_ms": 111.59
+          },
+          "responsive resize/reflow to themed frame": {
+            "samples": 200,
+            "p50_ms": 8.001,
+            "p95_ms": 8.319,
+            "p99_ms": 8.481
+          },
+          "reader input/frame during publisher writes": {
+            "samples": 200,
+            "p50_ms": 0.171,
+            "p95_ms": 0.182,
+            "p99_ms": 0.21
+          }
+        },
+        "concurrent_publisher_batches": 3,
+        "process": {
+          "wall_seconds": 30.09,
+          "peak_rss_kib": 26236,
+          "filesystem_inputs": 0,
+          "filesystem_outputs": 0
+        }
+      }
+    ]
+  }
+}

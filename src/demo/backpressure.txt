@@ -1,0 +1,12 @@
+# Bounded by design
+
+A queue connects two different rates of work. If a producer can always
+append, the consumer has no way to say that it needs time.
+
+A bounded queue makes that conversation explicit. The application must
+decide whether to wait, coalesce, discard, or report that it is busy.
+
+For a feed reader, another refresh request rarely needs another full pass.
+One outstanding request is enough.
+
+This is original demonstration text.

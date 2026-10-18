@@ -1,0 +1,255 @@
+[
+    {
+        "name": "01 · Kubernetes",
+        "filter": {
+            "text": "kubernetes"
+        }
+    },
+    {
+        "name": "02 · System architecture",
+        "filter": {
+            "text": "architecture"
+        },
+        "previous_name": "02 · Arquitetura de sistemas"
+    },
+    {
+        "name": "03 · Microservices",
+        "filter": {
+            "text": "microservice"
+        },
+        "previous_name": "03 · Microserviços"
+    },
+    {
+        "name": "04 · OAuth and authentication",
+        "filter": {
+            "text": "oauth"
+        },
+        "previous_name": "04 · OAuth e autenticação"
+    },
+    {
+        "name": "05 · OpenID Connect",
+        "filter": {
+            "text": "openid"
+        }
+    },
+    {
+        "name": "06 · Authorization and RBAC",
+        "filter": {
+            "text": "rbac"
+        },
+        "previous_name": "06 · Autorização e RBAC"
+    },
+    {
+        "name": "07 · PostgreSQL",
+        "filter": {
+            "text": "postgres"
+        }
+    },
+    {
+        "name": "08 · Databases and transactions",
+        "filter": {
+            "text": "transaction"
+        },
+        "previous_name": "08 · Bancos e transações"
+    },
+    {
+        "name": "09 · Kafka and events",
+        "filter": {
+            "text": "kafka"
+        },
+        "previous_name": "09 · Kafka e eventos"
+    },
+    {
+        "name": "10 · Data and pipelines",
+        "filter": {
+            "text": "pipeline"
+        },
+        "previous_name": "10 · Dados e pipelines"
+    },
+    {
+        "name": "11 · CDC and replication",
+        "filter": {
+            "text": "cdc"
+        },
+        "previous_name": "11 · CDC e replicação"
+    },
+    {
+        "name": "12 · SRE and incidents",
+        "filter": {
+            "text": "incident"
+        },
+        "previous_name": "12 · SRE e incidentes"
+    },
+    {
+        "name": "13 · Observability",
+        "filter": {
+            "text": "observability"
+        },
+        "previous_name": "13 · Observabilidade"
+    },
+    {
+        "name": "14 · Linux and performance",
+        "filter": {
+            "text": "linux"
+        },
+        "previous_name": "14 · Linux e desempenho"
+    },
+    {
+        "name": "15 · Networking",
+        "filter": {
+            "text": "network"
+        },
+        "previous_name": "15 · Redes"
+    },
+    {
+        "name": "16 · GitOps",
+        "filter": {
+            "text": "gitops"
+        }
+    },
+    {
+        "name": "17 · TLS and certificates",
+        "filter": {
+            "text": "tls"
+        },
+        "previous_name": "17 · TLS e certificados"
+    },
+    {
+        "name": "18 · DNS",
+        "filter": {
+            "text": "dns"
+        }
+    },
+    {
+        "name": "21 · Transformers",
+        "filter": {
+            "text": "transformer"
+        }
+    },
+    {
+        "name": "22 · LLMs",
+        "filter": {
+            "text": "llm"
+        }
+    },
+    {
+        "name": "23 · Model training",
+        "filter": {
+            "text": "training"
+        }
+    },
+    {
+        "name": "24 · Fine-tuning",
+        "filter": {
+            "text": "fine-tuning"
+        }
+    },
+    {
+        "name": "25 · RAG and retrieval",
+        "filter": {
+            "text": "retrieval"
+        }
+    },
+    {
+        "name": "26 · Inference and serving",
+        "filter": {
+            "text": "inference"
+        }
+    },
+    {
+        "name": "27 · Model evaluation",
+        "filter": {
+            "text": "evaluation"
+        }
+    },
+    {
+        "name": "28 · AI agents",
+        "filter": {
+            "text": "agent"
+        }
+    },
+    {
+        "name": "29 · Multimodal models",
+        "filter": {
+            "text": "multimodal"
+        }
+    },
+    {
+        "name": "30 · AI infrastructure",
+        "filter": {
+            "text": "gpu"
+        }
+    },
+    {
+        "name": "35 · eBPF and tracing",
+        "filter": {
+            "text": "ebpf"
+        }
+    },
+    {
+        "name": "36 · Cilium and Hubble",
+        "filter": {
+            "text": "cilium"
+        }
+    },
+    {
+        "name": "37 · CNI and pod networking",
+        "filter": {
+            "text": "cni"
+        }
+    },
+    {
+        "name": "38 · Network policy",
+        "filter": {
+            "text": "network policy"
+        }
+    },
+    {
+        "name": "39 · Container internals",
+        "filter": {
+            "text": "container"
+        }
+    },
+    {
+        "name": "40 · Infrastructure as code",
+        "filter": {
+            "text": "terraform"
+        }
+    },
+    {
+        "name": "41 · Kernel programming",
+        "filter": {
+            "text": "kernel"
+        }
+    },
+    {
+        "name": "42 · Routing and BGP",
+        "filter": {
+            "text": "bgp"
+        }
+    },
+    {
+        "name": "43 · Kubernetes controllers",
+        "filter": {
+            "text": "controller"
+        }
+    },
+    {
+        "name": "44 · Storage and filesystems",
+        "filter": {
+            "text": "filesystem"
+        }
+    },
+    {
+        "name": "45 · Scheduling and resources",
+        "filter": {
+            "text": "scheduler"
+        }
+    },
+    {
+        "name": "46 · Software supply chain",
+        "filter": {
+            "text": "supply chain"
+        }
+    }
+]

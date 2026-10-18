@@ -1,0 +1,60 @@
+{
+  "checkpoint": "backdrop-masked rounded corners and animated live neighbor insertion",
+  "date": "2026-10-18",
+  "source_digest": "34f664777b63ff5c719749d84b1c9d06742ce18204356e4b70b08d786050c19a",
+  "source_digest_scope": "Sorted names + NUL + bytes + NUL: src, benches, examples, tests, assets, tools excluding pycache; Cargo/build/toolchain/format/lint/Make/launcher/gitignore. Portable Cargo.lock bytes.",
+  "environment": {
+    "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+    "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+    "build": "release, thin LTO, one codegen unit",
+    "sources": "41 temporary cached upstream source substitutions; unchanged 266-package graph; portable lockfile restored afterward",
+    "renderer": "Ratatui TestBackend; shared host, scheduling and caches uncontrolled"
+  },
+  "workloads": {
+    "ordinary": "7400 source bytes, 20 notes",
+    "stress": "74310 source bytes, 200 notes",
+    "capture": "40 actual MouseDown + interactive frames per process; held and visible neighbor captures bounded to 20000 cells each and 40000 cells in total",
+    "held": "200 actual diagonal drag + interactive frames per process; exact x/y, dimmed background, all captured corners and every visible moved corner checked",
+    "settling": "400 injected-time tick + interactive frames per process; immediate saved order and completion checked",
+    "neighbor_insertion": "400 controlled-time neighbor ticks + real frames across 40 gestures per process; final neighbor x and unchanged durable order checked"
+  },
+  "limitations": [
+    "New compositor draws captured neighbors and masks corner backgrounds; fresh measurements with no before/after speedup claim.",
+    "Frames measure composition work, excluding physical terminal transport/paint and the 16 ms animation polling interval.",
+    "Whole-process wall time and peak RSS include setup; RSS does not measure allocations.",
+    "Physical Alacritty and clean-registry qualification remain unavailable."
+  ],
+  "raw_trials": [
+    {
+      "size": "ordinary",
+      "trial": 1,
+      "log": "pane input: 7400 source bytes, 20 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=0.759 p95=0.898 p99=0.965 max=1.125 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.252 p95=1.270 p99=1.382 max=1.389 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.440 p95=0.487 p99=0.564 max=0.593 ms\npane capture + initial runtime frame: 40 samples, p50=0.229 p95=0.239 p99=0.258 max=0.323 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.287 p95=0.323 p99=0.489 max=0.492 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.270 p95=0.294 p99=0.302 max=0.413 ms\nneighbor insertion tick + frozen-cell runtime frame: 400 samples, p50=0.268 p95=0.315 p99=0.346 max=0.576 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.190 p95=0.199 p99=0.220 max=0.225 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=0.455 p95=0.518 p99=0.552 max=0.630 ms\nprocess_wall_seconds=0.66 peak_rss_kib=19088\n"
+    },
+    {
+      "size": "ordinary",
+      "trial": 2,
+      "log": "pane input: 7400 source bytes, 20 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=0.759 p95=0.862 p99=0.872 max=1.103 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.277 p95=1.348 p99=1.349 max=1.488 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.436 p95=0.498 p99=0.642 max=0.852 ms\npane capture + initial runtime frame: 40 samples, p50=0.232 p95=0.257 p99=0.258 max=0.289 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.284 p95=0.314 p99=0.515 max=0.537 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.269 p95=0.299 p99=0.323 max=0.362 ms\nneighbor insertion tick + frozen-cell runtime frame: 400 samples, p50=0.271 p95=0.317 p99=0.337 max=0.410 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.192 p95=0.199 p99=0.208 max=0.294 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=0.458 p95=0.476 p99=0.519 max=0.614 ms\nprocess_wall_seconds=0.66 peak_rss_kib=19452\n"
+    },
+    {
+      "size": "ordinary",
+      "trial": 3,
+      "log": "pane input: 7400 source bytes, 20 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=0.756 p95=0.918 p99=0.919 max=1.042 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.246 p95=1.339 p99=1.380 max=1.537 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.429 p95=0.460 p99=0.522 max=0.532 ms\npane capture + initial runtime frame: 40 samples, p50=0.222 p95=0.235 p99=0.249 max=0.250 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.275 p95=0.299 p99=0.320 max=0.400 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.260 p95=0.286 p99=0.308 max=0.323 ms\nneighbor insertion tick + frozen-cell runtime frame: 400 samples, p50=0.256 p95=0.301 p99=0.315 max=0.322 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.180 p95=0.189 p99=0.197 max=0.225 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=0.434 p95=0.481 p99=0.524 max=0.602 ms\nprocess_wall_seconds=0.64 peak_rss_kib=19020\n"
+    },
+    {
+      "size": "stress",
+      "trial": 1,
+      "log": "pane input: 74310 source bytes, 200 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=3.601 p95=3.741 p99=3.755 max=3.760 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.239 p95=1.263 p99=1.296 max=1.320 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.443 p95=0.462 p99=0.560 max=0.744 ms\npane capture + initial runtime frame: 40 samples, p50=0.222 p95=0.247 p99=0.248 max=0.278 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.273 p95=0.300 p99=0.319 max=0.333 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.257 p95=0.286 p99=0.299 max=0.362 ms\nneighbor insertion tick + frozen-cell runtime frame: 400 samples, p50=0.259 p95=0.305 p99=0.325 max=0.349 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.180 p95=0.203 p99=0.209 max=0.213 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=2.244 p95=2.370 p99=2.504 max=2.547 ms\nprocess_wall_seconds=1.35 peak_rss_kib=22860\n"
+    },
+    {
+      "size": "stress",
+      "trial": 2,
+      "log": "pane input: 74310 source bytes, 200 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=3.550 p95=3.727 p99=3.745 max=3.804 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.248 p95=1.285 p99=1.288 max=1.329 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.441 p95=0.471 p99=0.551 max=0.704 ms\npane capture + initial runtime frame: 40 samples, p50=0.222 p95=0.233 p99=0.238 max=0.303 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.272 p95=0.298 p99=0.323 max=0.404 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.259 p95=0.284 p99=0.290 max=0.302 ms\nneighbor insertion tick + frozen-cell runtime frame: 400 samples, p50=0.259 p95=0.369 p99=0.507 max=0.625 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.191 p95=0.282 p99=0.367 max=0.426 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=2.267 p95=2.495 p99=3.441 max=4.045 ms\nprocess_wall_seconds=1.37 peak_rss_kib=23040\n"
+    },
+    {
+      "size": "stress",
+      "trial": 3,
+      "log": "pane input: 74310 source bytes, 200 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=3.636 p95=5.459 p99=5.628 max=5.867 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=1.247 p95=1.309 p99=1.322 max=1.352 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.449 p95=0.500 p99=0.802 max=0.932 ms\npane capture + initial runtime frame: 40 samples, p50=0.223 p95=0.249 p99=0.267 max=0.306 ms\nheld-pane motion + frozen-cell runtime frame: 200 samples, p50=0.277 p95=0.307 p99=0.388 max=0.572 ms\nsettling tick + frozen-cell runtime frame: 400 samples, p50=0.260 p95=0.301 p99=0.376 max=0.540 ms\nneighbor insertion tick + frozen-cell runtime frame: 400 samples, p50=0.267 p95=0.320 p99=0.390 max=0.435 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.192 p95=0.206 p99=0.216 max=0.227 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=2.433 p95=2.566 p99=2.807 max=3.128 ms\nprocess_wall_seconds=1.41 peak_rss_kib=22708\n"
+    }
+  ]
+}

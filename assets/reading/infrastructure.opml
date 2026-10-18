@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Lume — Platforms, kernels and networks</title>
+  </head>
+  <body>
+    <outline text="Developer platforms and delivery">
+      <outline
+        text="Backstage"
+        type="rss"
+        xmlUrl="https://backstage.io/blog/rss.xml"
+        htmlUrl="https://backstage.io/blog/"
+        description="Developer portals, software catalogs, platform adoption and engineering workflows."
+      />
+      <outline
+        text="Crossplane"
+        type="rss"
+        xmlUrl="https://blog.crossplane.io/rss/"
+        htmlUrl="https://blog.crossplane.io/"
+        description="Control planes, compositions, infrastructure APIs and platform engineering."
+      />
+      <outline
+        text="Flux"
+        type="rss"
+        xmlUrl="https://fluxcd.io/blog/index.xml"
+        htmlUrl="https://fluxcd.io/blog/"
+        description="GitOps reconciliation, delivery automation, tenancy and Kubernetes operations."
+      />
+      <outline
+        text="Tekton"
+        type="rss"
+        xmlUrl="https://tekton.dev/blog/index.xml"
+        htmlUrl="https://tekton.dev/blog/"
+        description="Cloud-native CI/CD pipelines, build provenance and software delivery."
+      />
+      <outline
+        text="OpenCost"
+        type="rss"
+        xmlUrl="https://opencost.io/blog/rss.xml"
+        htmlUrl="https://opencost.io/blog/"
+        description="Kubernetes cost allocation, resource efficiency and infrastructure economics."
+      />
+      <outline
+        text="Flatcar Container Linux"
+        type="rss"
+        xmlUrl="https://www.flatcar.org/blog/index.xml"
+        htmlUrl="https://www.flatcar.org/blog/"
+        description="Immutable Linux hosts, container infrastructure, updates and operating-system engineering."
+      />
+    </outline>
+    <outline text="Kernel development and container internals">
+      <outline
+        text="Bootlin"
+        type="rss"
+        xmlUrl="https://bootlin.com/feed/"
+        htmlUrl="https://bootlin.com/"
+        description="Linux drivers, kernel subsystems, embedded systems and upstream engineering."
+      />
+      <outline
+        text="Kernel developer blogs"
+        type="rss"
+        xmlUrl="https://people.kernel.org/read/feed/"
+        htmlUrl="https://people.kernel.org/read"
+        description="First-hand Linux kernel development, maintainer perspectives and systems internals."
+      />
+      <outline
+        text="iximiuz"
+        type="rss"
+        xmlUrl="https://iximiuz.com/feed.atom"
+        htmlUrl="https://labs.iximiuz.com/"
+        description="Linux namespaces, containers, runtimes, networking and practical debugging."
+      />
+    </outline>
+    <outline text="Programmable networks and Internet engineering">
+      <outline
+        text="eBPF.io"
+        type="rss"
+        xmlUrl="https://ebpf.io/blog/rss.xml"
+        htmlUrl="https://ebpf.io/blog/"
+        description="eBPF development, kernel tracing, programmable networking and production case studies."
+      />
+      <outline
+        text="APNIC Blog"
+        type="rss"
+        xmlUrl="https://blog.apnic.net/feed/"
+        htmlUrl="https://blog.apnic.net/"
+        description="BGP, IPv6, DNS, routing security, measurements and Internet operations."
+      />
+      <outline
+        text="ipSpace.net"
+        type="rss"
+        xmlUrl="https://blog.ipspace.net/atom.xml"
+        htmlUrl="https://blog.ipspace.net/"
+        description="Routing, overlays, data-center networks, automation and protocol design."
+      />
+    </outline>
+  </body>
+</opml>

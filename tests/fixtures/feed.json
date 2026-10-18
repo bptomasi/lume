@@ -1,0 +1,14 @@
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "Computing Notes",
+  "home_page_url": "https://notes.example/",
+  "items": [
+    {
+      "id": "note-1",
+      "url": "https://notes.example/types",
+      "title": "Types without markup",
+      "content_text": "Vec<T> keeps <T> as plain text.\n\nAnd paragraphs.",
+      "date_published": "2026-10-16T09:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# Leave a trace of a thought
+
+Reading is not only collecting conclusions. A question, disagreement or
+connection to an earlier idea can be more useful than a summary.
+
+Press n to write a private comment. Save it with Ctrl-s. Add this article to
+a list with a.
+
+This demonstration is separate from your real library. Explore freely.

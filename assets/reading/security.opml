@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Lume — Security research</title>
+  </head>
+  <body>
+    <outline text="Security">
+      <outline
+        text="Google Project Zero"
+        type="rss"
+        xmlUrl="https://projectzero.google/feed.xml"
+        htmlUrl="https://projectzero.google/"
+        description="Exploit chains, memory safety, browser and operating-system vulnerabilities."
+      />
+      <outline
+        text="PortSwigger Research"
+        type="rss"
+        xmlUrl="https://portswigger.net/research/rss"
+        htmlUrl="https://portswigger.net/research"
+        description="Web exploitation, request smuggling, cache poisoning and authentication flaws."
+      />
+      <outline
+        text="Trail of Bits"
+        type="rss"
+        xmlUrl="https://blog.trailofbits.com/index.xml"
+        htmlUrl="https://blog.trailofbits.com/"
+        description="Audits, fuzzing, compilers, cryptography and software supply chains."
+      />
+      <outline
+        text="Zero Day Initiative"
+        type="rss"
+        xmlUrl="https://www.zerodayinitiative.com/blog?format=rss"
+        htmlUrl="https://www.zerodayinitiative.com/blog"
+        description="Vulnerability root causes, Pwn2Own research and patch analysis."
+      />
+      <outline
+        text="Cisco Talos"
+        type="rss"
+        xmlUrl="https://blog.talosintelligence.com/rss/"
+        htmlUrl="https://blog.talosintelligence.com/"
+        description="Vulnerability research, malware analysis and incident response."
+      />
+      <outline
+        text="Qualys Threat Research"
+        type="rss"
+        xmlUrl="https://blog.qualys.com/vulnerabilities-threat-research/feed"
+        htmlUrl="https://blog.qualys.com/vulnerabilities-threat-research"
+        description="Linux vulnerabilities, root-cause analysis and remediation."
+      />
+      <outline
+        text="GitHub Vulnerability Research"
+        type="rss"
+        xmlUrl="https://github.blog/security/vulnerability-research/feed/"
+        htmlUrl="https://github.blog/security/vulnerability-research/"
+        description="Open-source vulnerabilities, CodeQL and supply-chain research."
+      />
+      <outline
+        text="Google Security Blog"
+        type="rss"
+        xmlUrl="https://security.googleblog.com/feeds/posts/default"
+        htmlUrl="https://security.googleblog.com/"
+        description="Security engineering, vulnerability research and mitigations."
+      />
+    </outline>
+  </body>
+</opml>

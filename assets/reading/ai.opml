@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Lume — Artificial intelligence</title>
+  </head>
+  <body>
+    <outline text="Artificial intelligence">
+      <outline
+        text="Hugging Face"
+        type="rss"
+        xmlUrl="https://huggingface.co/blog/feed.xml"
+        htmlUrl="https://huggingface.co/blog"
+        description="Transformers, open models, datasets, fine-tuning and inference tutorials."
+      />
+      <outline
+        text="Google Research"
+        type="rss"
+        xmlUrl="https://research.google/blog/rss/"
+        htmlUrl="https://research.google/blog/"
+        description="Machine learning, language models, algorithms and research systems."
+      />
+      <outline
+        text="Google DeepMind"
+        type="rss"
+        xmlUrl="https://deepmind.google/blog/rss.xml"
+        htmlUrl="https://deepmind.google/blog/"
+        description="Foundation models, multimodal learning, reasoning and AI research."
+      />
+      <outline
+        text="Berkeley AI Research"
+        type="rss"
+        xmlUrl="https://bair.berkeley.edu/blog/feed.xml"
+        htmlUrl="https://bair.berkeley.edu/blog/"
+        description="Research explainers on learning, robotics, language and generative models."
+      />
+      <outline
+        text="Stanford AI Lab"
+        type="rss"
+        xmlUrl="https://ai.stanford.edu/blog/feed.xml"
+        htmlUrl="https://ai.stanford.edu/blog/"
+        description="Machine learning, NLP, representation learning and AI research."
+      />
+      <outline
+        text="Lilian Weng"
+        type="rss"
+        xmlUrl="https://lilianweng.github.io/index.xml"
+        htmlUrl="https://lilianweng.github.io/"
+        description="Detailed explainers on transformers, training, agents and generative models."
+      />
+      <outline
+        text="Jay Alammar"
+        type="rss"
+        xmlUrl="https://jalammar.github.io/feed.xml"
+        htmlUrl="https://jalammar.github.io/"
+        description="Visual explanations of attention, transformers, embeddings and language models."
+      />
+      <outline
+        text="Sebastian Raschka"
+        type="rss"
+        xmlUrl="https://magazine.sebastianraschka.com/feed"
+        htmlUrl="https://magazine.sebastianraschka.com/"
+        description="LLM architectures, implementation, training, evaluations and paper analysis."
+      />
+      <outline
+        text="The Gradient"
+        type="rss"
+        xmlUrl="https://thegradient.pub/rss/"
+        htmlUrl="https://thegradient.pub/"
+        description="Research perspectives, deep learning and critical analysis of AI."
+      />
+      <outline
+        text="PyTorch"
+        type="rss"
+        xmlUrl="https://pytorch.org/feed/"
+        htmlUrl="https://pytorch.org/blog/"
+        description="Training frameworks, distributed workloads, compilers and model performance."
+      />
+      <outline
+        text="Chip Huyen"
+        type="rss"
+        xmlUrl="https://huyenchip.com/feed.xml"
+        htmlUrl="https://huyenchip.com/"
+        description="AI engineering, evaluation, inference, data and production ML systems."
+      />
+      <outline
+        text="TensorFlow"
+        type="rss"
+        xmlUrl="https://blog.tensorflow.org/feeds/posts/default"
+        htmlUrl="https://blog.tensorflow.org/"
+        description="Model training, deployment, tooling and machine-learning infrastructure."
+      />
+      <outline
+        text="arXiv — AI, NLP and machine learning"
+        type="rss"
+        xmlUrl="https://rss.arxiv.org/rss/cs.CL+cs.LG+cs.AI"
+        htmlUrl="https://info.arxiv.org/help/rss.html"
+        description="Daily paper abstracts across AI, NLP and ML; high volume, not full papers."
+      />
+      <outline
+        text="OpenAI"
+        type="rss"
+        xmlUrl="https://openai.com/news/rss.xml"
+        htmlUrl="https://openai.com/news/"
+        description="Model releases, research, evaluations and AI systems; includes product news."
+      />
+    </outline>
+  </body>
+</opml>

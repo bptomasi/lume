@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Bounded queues and careful recovery</title>
+  </head>
+  <body>
+    <nav><a href="/">Unrelated navigation marker</a></nav>
+    <main>
+      <article class="post-content">
+        <h1>Bounded queues and careful recovery</h1>
+        <p>
+          A queue separates accepting work from completing it. That separation
+          is useful only when both sides understand the resource budget. An
+          unbounded queue can hide a slow consumer until memory becomes the
+          limiting resource, while a bounded queue makes admission an explicit
+          decision. A producer needs an answer when capacity is exhausted.
+        </p>
+        <h2>Preserve the contract</h2>
+        <p>
+          Consider a collector that refreshes many independent subscriptions.
+          Its network requests may take seconds, even though switching the
+          selected article should remain interactive. Moving collection away
+          from the input loop removes that direct dependency. It does not make
+          requests faster, so measurement and honest failure reporting remain
+          part of the design. Keep the last useful result when a request fails.
+        </p>
+        <pre><code class="language-rust">fn admit&lt;T&gt;(item: T) -&gt; Result&lt;T, T&gt; {
+    Ok(item)
+}</code></pre>
+        <p>
+          Durable identity matters when results arrive later. Capture the
+          article identity and URL before submitting a request, then validate
+          both again before committing. A change in selection must never
+          redirect a completed result into a different article. The same rule
+          applies to a passage captured before opening a private note editor.
+        </p>
+        <pre data-language="sql">SELECT body
+FROM article_documents
+WHERE article_id = 42;</pre>
+        <p>
+          Transactions provide a useful boundary between a downloaded document
+          and its search index. Readers should see a complete previous version
+          or a complete replacement. Personal notes and the original feed
+          remain independent from this cache, which makes recovery and source
+          comparison possible without losing the reader's work.
+        </p>
+        <table>
+          <tr><th>Resource</th><th>Policy</th></tr>
+          <tr><td>Queue</td><td>Bounded admission</td></tr>
+          <tr><td>Cache</td><td>Preserve on failure</td></tr>
+        </table>
+        <p>
+          Follow the <a href="../reference#recovery">recovery reference</a>
+          for a second worked example. Tests should assert preserved data and
+          credible failure behavior, rather than merely confirming that a
+          method was called. Benchmarks should separate setup from the work
+          being measured and check the returned result on every iteration.
+        </p>
+        <script>invisibleTrackingMarker()</script>
+      </article>
+    </main>
+    <aside>Unrelated sidebar marker</aside>
+    <footer>Unrelated footer marker</footer>
+  </body>
+</html>

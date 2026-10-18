@@ -1,0 +1,474 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Lume — Computing and infrastructure</title>
+  </head>
+  <body>
+    <outline text="Kubernetes and cloud native">
+      <outline
+        text="Kubernetes Blog"
+        type="rss"
+        xmlUrl="https://kubernetes.io/feed.xml"
+        htmlUrl="https://kubernetes.io/blog/"
+        description="Cluster internals, scheduling, storage and Kubernetes operations."
+      />
+      <outline
+        text="CNCF"
+        type="rss"
+        xmlUrl="https://www.cncf.io/feed/"
+        htmlUrl="https://www.cncf.io/blog/"
+        description="Cloud-native projects, adoption reports and platform engineering."
+      />
+      <outline
+        text="Cilium"
+        type="rss"
+        xmlUrl="https://cilium.io/blog/rss.xml"
+        htmlUrl="https://cilium.io/blog/"
+        description="Container networking, eBPF, network policies and observability."
+      />
+      <outline
+        text="Istio"
+        type="rss"
+        xmlUrl="https://istio.io/latest/feed.xml"
+        htmlUrl="https://istio.io/latest/blog/"
+        description="Service meshes, interservice traffic, mTLS and traffic policies."
+      />
+      <outline
+        text="etcd"
+        type="rss"
+        xmlUrl="https://etcd.io/blog/index.xml"
+        htmlUrl="https://etcd.io/blog/"
+        description="Consensus, distributed storage and Kubernetes control-plane infrastructure."
+      />
+      <outline
+        text="AWS Containers"
+        type="rss"
+        xmlUrl="https://aws.amazon.com/blogs/containers/feed/"
+        htmlUrl="https://aws.amazon.com/blogs/containers/"
+        description="Production containers and Kubernetes operations; includes AWS products."
+      />
+      <outline
+        text="Last Week in Kubernetes Development"
+        type="rss"
+        xmlUrl="https://lwkd.info/feed.xml"
+        htmlUrl="https://lwkd.info/"
+        description="Weekly pull requests, code changes and Kubernetes development."
+      />
+    </outline>
+    <outline text="Architecture and distributed systems">
+      <outline
+        text="InfoQ Architecture &amp; Design"
+        type="rss"
+        xmlUrl="https://feed.infoq.com/architecture-design"
+        htmlUrl="https://www.infoq.com/architecture-design/"
+        description="Architecture, scalability, patterns and engineering case studies."
+      />
+      <outline
+        text="Martin Fowler"
+        type="rss"
+        xmlUrl="https://martinfowler.com/feed.atom"
+        htmlUrl="https://martinfowler.com/"
+        description="Architecture patterns, integration, system evolution and engineering practices."
+      />
+      <outline
+        text="Microservices.io"
+        type="rss"
+        xmlUrl="https://microservices.io/feed.xml"
+        htmlUrl="https://microservices.io/"
+        description="Microservices patterns, sagas, distributed transactions and decomposition."
+      />
+      <outline
+        text="Netflix Technology Blog"
+        type="rss"
+        xmlUrl="https://netflixtechblog.com/feed"
+        htmlUrl="https://netflixtechblog.com/"
+        description="Architecture at scale, internal platforms, data and reliability."
+      />
+      <outline
+        text="Slack Engineering"
+        type="rss"
+        xmlUrl="https://slack.engineering/feed/"
+        htmlUrl="https://slack.engineering/"
+        description="Infrastructure, performance, databases and service operations."
+      />
+      <outline
+        text="Dropbox Tech"
+        type="rss"
+        xmlUrl="https://dropbox.tech/feed"
+        htmlUrl="https://dropbox.tech/"
+        description="Storage, distributed systems, performance and infrastructure."
+      />
+      <outline
+        text="Meta Engineering"
+        type="rss"
+        xmlUrl="https://engineering.fb.com/feed/"
+        htmlUrl="https://engineering.fb.com/"
+        description="Databases, networking, infrastructure and large-scale systems."
+      />
+      <outline
+        text="Spotify Engineering"
+        type="rss"
+        xmlUrl="https://engineering.atspotify.com/feed/"
+        htmlUrl="https://engineering.atspotify.com/"
+        description="Platforms, backend systems, data and production engineering practices."
+      />
+      <outline
+        text="AWS Architecture"
+        type="rss"
+        xmlUrl="https://aws.amazon.com/blogs/architecture/feed/"
+        htmlUrl="https://aws.amazon.com/blogs/architecture/"
+        description="Architecture decisions, resilience and case studies; includes AWS products."
+      />
+      <outline
+        text="All Things Distributed"
+        type="rss"
+        xmlUrl="https://www.allthingsdistributed.com/atom.xml"
+        htmlUrl="https://www.allthingsdistributed.com/"
+        description="Distributed systems, infrastructure decisions and cloud architecture."
+      />
+      <outline
+        text="Marc Brooker"
+        type="rss"
+        xmlUrl="https://brooker.co.za/blog/rss.xml"
+        htmlUrl="https://brooker.co.za/blog/"
+        description="Probability, simulation, concurrency, performance and distributed systems."
+      />
+    </outline>
+    <outline text="Authentication, authorization and security">
+      <outline
+        text="Keycloak"
+        type="rss"
+        xmlUrl="https://www.keycloak.org/rss.xml"
+        htmlUrl="https://www.keycloak.org/blog/"
+        description="Identity, OpenID Connect, OAuth, federation and Keycloak operations."
+      />
+      <outline
+        text="Auth0"
+        type="rss"
+        xmlUrl="https://auth0.com/blog/rss.xml"
+        htmlUrl="https://auth0.com/blog/"
+        description="Authentication, OAuth, tokens and application security; includes products."
+      />
+      <outline
+        text="authentik"
+        type="rss"
+        xmlUrl="https://goauthentik.io/blog/rss.xml"
+        htmlUrl="https://goauthentik.io/blog/"
+        description="SSO, identity, authentication and application integration."
+      />
+      <outline
+        text="OpenFGA"
+        type="rss"
+        xmlUrl="https://openfga.dev/blog/rss.xml"
+        htmlUrl="https://openfga.dev/blog/"
+        description="Fine-grained authorization models, implementation and access relationships."
+      />
+      <outline
+        text="OpenSSF"
+        type="rss"
+        xmlUrl="https://openssf.org/feed/"
+        htmlUrl="https://openssf.org/blog/"
+        description="Software supply chains, dependencies, provenance and project practices."
+      />
+      <outline
+        text="AWS Security"
+        type="rss"
+        xmlUrl="https://aws.amazon.com/blogs/security/feed/"
+        htmlUrl="https://aws.amazon.com/blogs/security/"
+        description="IAM, credentials, certificates and infrastructure security; includes AWS."
+      />
+    </outline>
+    <outline text="Databases">
+      <outline
+        text="Planet PostgreSQL"
+        type="rss"
+        xmlUrl="https://planet.postgresql.org/rss20.xml"
+        htmlUrl="https://planet.postgresql.org/"
+        description="PostgreSQL community articles, internals, operations, SQL and performance."
+      />
+      <outline
+        text="Crunchy Data"
+        type="rss"
+        xmlUrl="https://www.crunchydata.com/blog/rss.xml"
+        htmlUrl="https://www.crunchydata.com/blog"
+        description="PostgreSQL execution plans, extensions, maintenance and performance."
+      />
+      <outline
+        text="pgMustard"
+        type="rss"
+        xmlUrl="https://www.pgmustard.com/blog?format=rss"
+        htmlUrl="https://www.pgmustard.com/blog"
+        description="EXPLAIN, query optimization, indexes and PostgreSQL diagnostics."
+      />
+      <outline
+        text="Percona"
+        type="rss"
+        xmlUrl="https://www.percona.com/blog/feed/"
+        htmlUrl="https://www.percona.com/blog/"
+        description="Database operations, replication, performance and observability."
+      />
+      <outline
+        text="ScyllaDB"
+        type="rss"
+        xmlUrl="https://www.scylladb.com/feed/"
+        htmlUrl="https://www.scylladb.com/blog/"
+        description="Distributed databases, storage, consistency and performance; includes products."
+      />
+      <outline
+        text="Neon"
+        type="rss"
+        xmlUrl="https://neon.com/blog/rss.xml"
+        htmlUrl="https://neon.com/blog"
+        description="PostgreSQL compute/storage separation and serverless operations."
+      />
+      <outline
+        text="ClickHouse"
+        type="rss"
+        xmlUrl="https://clickhouse.com/rss.xml"
+        htmlUrl="https://clickhouse.com/blog"
+        description="Columnar engines, query execution and large-scale analytics."
+      />
+      <outline
+        text="AWS Database"
+        type="rss"
+        xmlUrl="https://aws.amazon.com/blogs/database/feed/"
+        htmlUrl="https://aws.amazon.com/blogs/database/"
+        description="Database migrations, operations and architectures on AWS."
+      />
+    </outline>
+    <outline text="Data, events and pipelines">
+      <outline
+        text="Confluent Developer"
+        type="rss"
+        xmlUrl="https://developer.confluent.io/blog/rss.xml"
+        htmlUrl="https://developer.confluent.io/blog/"
+        description="Kafka, Flink, schemas, watermarks and event-processing engineering."
+      />
+      <outline
+        text="Debezium"
+        type="rss"
+        xmlUrl="https://debezium.io/blog.atom"
+        htmlUrl="https://debezium.io/blog/"
+        description="CDC, connectors, change replication and event-driven integration."
+      />
+      <outline
+        text="Apache Airflow"
+        type="rss"
+        xmlUrl="https://airflow.apache.org/blog/index.xml"
+        htmlUrl="https://airflow.apache.org/blog/"
+        description="Orchestration, scheduling, DAGs and pipeline operations."
+      />
+      <outline
+        text="Apache Beam"
+        type="rss"
+        xmlUrl="https://beam.apache.org/feed.xml"
+        htmlUrl="https://beam.apache.org/blog/"
+        description="Batch and stream processing, runners and portable data pipelines."
+      />
+      <outline
+        text="Apache Pulsar"
+        type="rss"
+        xmlUrl="https://pulsar.apache.org/blog/rss.xml"
+        htmlUrl="https://pulsar.apache.org/blog/"
+        description="Messaging, streaming, topics, storage and cluster operations."
+      />
+      <outline
+        text="Materialize"
+        type="rss"
+        xmlUrl="https://materialize.com/rss.xml"
+        htmlUrl="https://materialize.com/blog/"
+        description="Incremental computation, streaming SQL and materialized views."
+      />
+      <outline
+        text="DuckDB"
+        type="rss"
+        xmlUrl="https://duckdb.org/feed.xml"
+        htmlUrl="https://duckdb.org/news/"
+        description="Analytical SQL, file formats, vectorized execution and data engineering."
+      />
+      <outline
+        text="Databricks"
+        type="rss"
+        xmlUrl="https://www.databricks.com/feed"
+        htmlUrl="https://www.databricks.com/blog"
+        description="Spark, lakehouses, Delta and data platforms; includes product announcements."
+      />
+      <outline
+        text="AWS Big Data"
+        type="rss"
+        xmlUrl="https://aws.amazon.com/blogs/big-data/feed/"
+        htmlUrl="https://aws.amazon.com/blogs/big-data/"
+        description="Pipelines, streaming, analytical platforms and data operations on AWS."
+      />
+    </outline>
+    <outline text="SRE and observability">
+      <outline
+        text="SRE Weekly"
+        type="rss"
+        xmlUrl="https://sreweekly.com/feed/"
+        htmlUrl="https://sreweekly.com/"
+        description="Curated availability, incidents, automation and reliability articles."
+      />
+      <outline
+        text="Grafana"
+        type="rss"
+        xmlUrl="https://grafana.com/blog/index.xml"
+        htmlUrl="https://grafana.com/blog/"
+        description="Metrics, logs, traces, alerts and observability operations."
+      />
+      <outline
+        text="OpenTelemetry"
+        type="rss"
+        xmlUrl="https://opentelemetry.io/blog/index.xml"
+        htmlUrl="https://opentelemetry.io/blog/"
+        description="Instrumentation, collection, context propagation and observability signals."
+      />
+      <outline
+        text="Datadog Engineering"
+        type="rss"
+        xmlUrl="https://www.datadoghq.com/blog/engineering/index.xml"
+        htmlUrl="https://www.datadoghq.com/blog/engineering/"
+        description="Platform engineering, observability internals and performance."
+      />
+      <outline
+        text="Charity Majors"
+        type="rss"
+        xmlUrl="https://charity.wtf/feed/"
+        htmlUrl="https://charity.wtf/"
+        description="Observability, operations, incidents and infrastructure team practices."
+      />
+    </outline>
+    <outline text="Linux, networking and performance">
+      <outline
+        text="Cloudflare"
+        type="rss"
+        xmlUrl="https://blog.cloudflare.com/rss/"
+        htmlUrl="https://blog.cloudflare.com/"
+        description="Networking, protocols, DNS, TLS, security and global infrastructure."
+      />
+      <outline
+        text="Tailscale"
+        type="rss"
+        xmlUrl="https://tailscale.com/blog/index.xml"
+        htmlUrl="https://tailscale.com/blog/"
+        description="Networking, WireGuard, access and connectivity; includes product news."
+      />
+      <outline
+        text="Fly.io"
+        type="rss"
+        xmlUrl="https://fly.io/blog/feed.xml"
+        htmlUrl="https://fly.io/blog/"
+        description="Virtualization, networking, application execution and distributed infrastructure."
+      />
+      <outline
+        text="LWN.net"
+        type="rss"
+        xmlUrl="https://lwn.net/headlines/rss"
+        htmlUrl="https://lwn.net/"
+        description="Linux, kernel and systems software; some articles require a subscription."
+      />
+      <outline
+        text="Brendan Gregg"
+        type="rss"
+        xmlUrl="https://www.brendangregg.com/blog/rss.xml"
+        htmlUrl="https://www.brendangregg.com/blog/"
+        description="Systems performance, profiling, eBPF and resource analysis."
+      />
+      <outline
+        text="Julia Evans"
+        type="rss"
+        xmlUrl="https://jvns.ca/atom.xml"
+        htmlUrl="https://jvns.ca/"
+        description="Linux, networking, tools, DNS and practical explanations of systems mechanisms."
+      />
+    </outline>
+    <outline text="Platforms, CI/CD and infrastructure as code">
+      <outline
+        text="GitHub Engineering"
+        type="rss"
+        xmlUrl="https://github.blog/engineering/feed/"
+        htmlUrl="https://github.blog/engineering/"
+        description="Developer infrastructure, databases, builds and engineering at scale."
+      />
+      <outline
+        text="Pulumi"
+        type="rss"
+        xmlUrl="https://www.pulumi.com/blog/rss.xml"
+        htmlUrl="https://www.pulumi.com/blog/"
+        description="Infrastructure as code, platform automation and provisioning."
+      />
+      <outline
+        text="CircleCI"
+        type="rss"
+        xmlUrl="https://circleci.com/blog/feed.xml"
+        htmlUrl="https://circleci.com/blog/"
+        description="Delivery pipelines, testing, builds and CI/CD operations."
+      />
+      <outline
+        text="Docker"
+        type="rss"
+        xmlUrl="https://www.docker.com/blog/feed/"
+        htmlUrl="https://www.docker.com/blog/"
+        description="Containers, images, builds and software supply chains; includes product news."
+      />
+      <outline
+        text="Jenkins"
+        type="rss"
+        xmlUrl="https://www.jenkins.io/rss.xml"
+        htmlUrl="https://www.jenkins.io/blog/"
+        description="Automation, pipelines and CI/CD infrastructure operations."
+      />
+    </outline>
+    <outline text="Computing foundations and research">
+      <outline
+        text="Lobsters"
+        type="rss"
+        xmlUrl="https://lobste.rs/rss"
+        htmlUrl="https://lobste.rs/"
+        description="Community computing, systems, networking, Linux and technical discussions."
+      />
+      <outline
+        text="Dan Luu"
+        type="rss"
+        xmlUrl="https://danluu.com/atom.xml"
+        htmlUrl="https://danluu.com/"
+        description="Measurements, latency, systems, performance and technical decision analysis."
+      />
+      <outline
+        text="Hillel Wayne"
+        type="rss"
+        xmlUrl="https://www.hillelwayne.com/index.xml"
+        htmlUrl="https://www.hillelwayne.com/"
+        description="Formal methods, specifications, invariants and reasoning about systems."
+      />
+      <outline
+        text="Murat Demirbas"
+        type="rss"
+        xmlUrl="https://muratbuffalo.blogspot.com/feeds/posts/default"
+        htmlUrl="https://muratbuffalo.blogspot.com/"
+        description="Papers, consensus, replication and distributed-systems research."
+      />
+      <outline
+        text="Go Blog"
+        type="rss"
+        xmlUrl="https://go.dev/blog/feed.atom"
+        htmlUrl="https://go.dev/blog/"
+        description="Runtime, concurrency, tooling and Go language implementation."
+      />
+      <outline
+        text="Rust Blog"
+        type="rss"
+        xmlUrl="https://blog.rust-lang.org/feed.xml"
+        htmlUrl="https://blog.rust-lang.org/"
+        description="Language, tooling, security and Rust ecosystem development."
+      />
+      <outline
+        text="The Morning Paper — Archive"
+        type="rss"
+        xmlUrl="https://blog.acolyer.org/feed/"
+        htmlUrl="https://blog.acolyer.org/"
+        description="Historical paper analyses; an archive without a regular publishing schedule."
+      />
+    </outline>
+  </body>
+</opml>

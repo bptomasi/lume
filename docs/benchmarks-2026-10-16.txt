@@ -1,0 +1,59 @@
+representative run=1
+lume baseline · articles=10000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 370.339 ms total, 9.258 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 1.010 ms total, 0.025 ms/iteration
+feed parse input · entries=200 · bytes=37726
+RSS decode + content normalization: 40 iterations, 18.121 ms total, 0.453 ms/iteration
+three-pane frame (144x44): 200 iterations, 36.465 ms total, 0.182 ms/iteration
+search 10k metadata + selected body: 40 iterations, 144.510 ms total, 3.613 ms/iteration
+process wall_seconds=0.62 peak_rss_kib=13388
+
+representative run=2
+lume baseline · articles=10000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 377.141 ms total, 9.429 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 1.004 ms total, 0.025 ms/iteration
+feed parse input · entries=200 · bytes=37726
+RSS decode + content normalization: 40 iterations, 18.138 ms total, 0.453 ms/iteration
+three-pane frame (144x44): 200 iterations, 36.796 ms total, 0.184 ms/iteration
+search 10k metadata + selected body: 40 iterations, 149.727 ms total, 3.743 ms/iteration
+process wall_seconds=0.65 peak_rss_kib=13456
+
+representative run=3
+lume baseline · articles=10000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 382.260 ms total, 9.557 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 1.046 ms total, 0.026 ms/iteration
+feed parse input · entries=200 · bytes=37726
+RSS decode + content normalization: 40 iterations, 19.307 ms total, 0.483 ms/iteration
+three-pane frame (144x44): 200 iterations, 38.137 ms total, 0.191 ms/iteration
+search 10k metadata + selected body: 40 iterations, 154.311 ms total, 3.858 ms/iteration
+process wall_seconds=0.65 peak_rss_kib=13308
+
+stress run=1
+lume baseline · articles=50000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 373.062 ms total, 9.327 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 1.012 ms total, 0.025 ms/iteration
+feed parse input · entries=2000 · bytes=379926
+RSS decode + content normalization: 40 iterations, 179.444 ms total, 4.486 ms/iteration
+three-pane frame (144x44): 200 iterations, 37.464 ms total, 0.187 ms/iteration
+search 10k metadata + selected body: 40 iterations, 146.899 ms total, 3.672 ms/iteration
+process wall_seconds=0.93 peak_rss_kib=13436
+
+stress run=2
+lume baseline · articles=50000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 384.892 ms total, 9.622 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 1.052 ms total, 0.026 ms/iteration
+feed parse input · entries=2000 · bytes=379926
+RSS decode + content normalization: 40 iterations, 183.588 ms total, 4.590 ms/iteration
+three-pane frame (144x44): 200 iterations, 36.969 ms total, 0.185 ms/iteration
+search 10k metadata + selected body: 40 iterations, 145.698 ms total, 3.642 ms/iteration
+process wall_seconds=0.94 peak_rss_kib=13572
+
+stress run=3
+lume baseline · articles=50000 · iterations=40
+metadata snapshot (no bodies): 40 iterations, 388.443 ms total, 9.711 ms/iteration
+durable comment/favorite/list cycle: 40 iterations, 1.022 ms total, 0.026 ms/iteration
+feed parse input · entries=2000 · bytes=379926
+RSS decode + content normalization: 40 iterations, 186.292 ms total, 4.657 ms/iteration
+three-pane frame (144x44): 200 iterations, 38.896 ms total, 0.194 ms/iteration
+search 10k metadata + selected body: 40 iterations, 153.706 ms total, 3.843 ms/iteration
+process wall_seconds=0.95 peak_rss_kib=13324

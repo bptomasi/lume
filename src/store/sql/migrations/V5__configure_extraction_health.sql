@@ -1,0 +1,9 @@
+ALTER TABLE feeds ADD COLUMN article_selector TEXT NOT NULL DEFAULT '';
+ALTER TABLE feeds ADD COLUMN attempted_at INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE feeds ADD COLUMN succeeded_at INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE feeds ADD COLUMN retry_at INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE feeds ADD COLUMN failures INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE articles ADD COLUMN body_origin TEXT NOT NULL DEFAULT 'feed'
+    CHECK (body_origin IN ('feed', 'summary', 'missing'));
+
+PRAGMA user_version = 5;

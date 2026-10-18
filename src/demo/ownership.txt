@@ -1,0 +1,10 @@
+# Who owns the decision?
+
+Rust makes resource ownership visible, but the architecture still has to
+explain who owns each policy. A type can make an invalid state hard to
+construct. It cannot decide whether an action should be allowed.
+
+Keep the contract small enough that its caller can understand what happens
+on success, failure and cancellation.
+
+This is original demonstration text.

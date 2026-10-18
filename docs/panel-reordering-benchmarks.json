@@ -1,0 +1,61 @@
+{
+  "checkpoint": "corner grips, stable preview targets and corrected keyboard reordering",
+  "date": "2026-10-18",
+  "source_digest": "79f0de7fa8e380c0e1a5f6a0880e0901882bfe865680dd8718999eb2e504c08e",
+  "source_digest_scope": "Sorted relative file names + NUL + bytes + NUL: src, benches, examples, tests, assets, tools excluding pycache; Cargo/build/toolchain/format/lint/Make/launcher files. Portable Cargo.lock bytes.",
+  "environment": {
+    "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+    "cpu": "Intel Core Ultra 7 155H",
+    "build": "release, thin LTO, one codegen unit",
+    "cargo_sources": "41 temporary upstream source substitutions; unchanged 266-package version/dependency graph; portable registry lock restored afterward",
+    "renderer": "Ratatui TestBackend; separate optimized actual SGR/CSI PTY smoke",
+    "control": "Three fresh processes per size; shared-host scheduling and caches uncontrolled"
+  },
+  "correctness": "Each operation checks saved dimensions, exact readable/clipboard bytes or annotation source order and destination. New grip/keyboard roundtrips check their independent intermediate and final orders. Initial syntax completion, fixture creation and drag event allocation/cloning are outside operation timers.",
+  "workloads": {
+    "ordinary": "7400 source bytes, 20 notes",
+    "stress": "74310 source bytes, 200 notes",
+    "grip": "40 roundtrips; each has two persisted moves, 128 motion events and four preview/commit frames",
+    "keyboard": "200 roundtrips, with two persisted Alt-arrow moves and frames"
+  },
+  "limitations": [
+    "No speedup claim: the grip/keyboard workloads are new.",
+    "Reordering was added before selection/note workloads; the earlier pane record is historical, not a controlled before/after comparison.",
+    "Timers measure dispatch, real reflow/poll and TestBackend frames, excluding physical terminal paint and input transport.",
+    "Whole-process RSS/wall include setup. RSS is not an allocation count.",
+    "Physical Alacritty and clean-registry/advisory qualification remain unavailable."
+  ],
+  "raw_trials": [
+    {
+      "size": "ordinary",
+      "trial": 1,
+      "log": "pane input: 7400 source bytes, 20 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=0.723 p95=0.788 p99=0.849 max=1.050 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=0.832 p95=0.848 p99=0.848 max=0.900 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.434 p95=0.464 p99=0.530 max=0.549 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.187 p95=0.209 p99=0.230 max=0.260 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=0.456 p95=0.488 p99=0.532 max=0.627 ms\nprocess_wall_seconds=0.31 peak_rss_kib=19932\n"
+    },
+    {
+      "size": "ordinary",
+      "trial": 2,
+      "log": "pane input: 7400 source bytes, 20 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=0.758 p95=1.053 p99=1.147 max=1.208 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=0.855 p95=0.901 p99=0.922 max=0.926 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.442 p95=0.492 p99=0.547 max=0.556 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.189 p95=0.207 p99=0.247 max=0.270 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=0.453 p95=0.478 p99=0.535 max=0.622 ms\nprocess_wall_seconds=0.32 peak_rss_kib=19392\n"
+    },
+    {
+      "size": "ordinary",
+      "trial": 3,
+      "log": "pane input: 7400 source bytes, 20 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=0.741 p95=0.801 p99=0.830 max=1.489 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=0.845 p95=0.880 p99=0.881 max=0.917 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.436 p95=0.478 p99=0.540 max=0.589 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.192 p95=0.208 p99=0.223 max=0.250 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=0.463 p95=0.501 p99=0.542 max=0.664 ms\nprocess_wall_seconds=0.32 peak_rss_kib=19516\n"
+    },
+    {
+      "size": "stress",
+      "trial": 1,
+      "log": "pane input: 74310 source bytes, 200 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=3.694 p95=3.798 p99=3.870 max=3.926 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=0.862 p95=0.927 p99=0.930 max=0.985 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.455 p95=0.487 p99=0.544 max=0.690 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.188 p95=0.195 p99=0.209 max=0.224 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=2.310 p95=2.542 p99=2.775 max=2.947 ms\nprocess_wall_seconds=0.97 peak_rss_kib=23152\n"
+    },
+    {
+      "size": "stress",
+      "trial": 2,
+      "log": "pane input: 74310 source bytes, 200 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=3.556 p95=6.250 p99=6.292 max=7.259 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=0.833 p95=0.925 p99=0.957 max=0.983 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.433 p95=0.457 p99=0.547 max=0.644 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.179 p95=0.185 p99=0.197 max=0.222 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=2.238 p95=2.361 p99=2.434 max=2.485 ms\nprocess_wall_seconds=0.96 peak_rss_kib=22640\n"
+    },
+    {
+      "size": "stress",
+      "trial": 3,
+      "log": "pane input: 74310 source bytes, 200 notes\ntwo divider drags (128 motion events) + reflow/frames: 40 samples, p50=3.616 p95=4.265 p99=6.033 max=6.430 ms\ntwo grip moves (128 motion events) + preview/commit frames: 40 samples, p50=0.826 p95=0.853 p99=0.865 max=0.874 ms\ntwo keyboard moves + persisted layout/frames: 200 samples, p50=0.433 p95=0.451 p99=0.504 max=0.640 ms\nUnicode selection burst/yank + runtime frame: 200 samples, p50=0.179 p95=0.191 p99=0.239 max=0.256 ms\nannotation navigation/jump + runtime frame: 200 samples, p50=2.251 p95=2.363 p99=2.439 max=2.512 ms\nprocess_wall_seconds=0.95 peak_rss_kib=23212\n"
+    }
+  ]
+}

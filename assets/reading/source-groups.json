@@ -1,0 +1,85 @@
+[
+    {
+        "name": "19 · Security",
+        "sources": [
+            "https://projectzero.google/feed.xml",
+            "https://portswigger.net/research/rss",
+            "https://blog.trailofbits.com/index.xml",
+            "https://www.zerodayinitiative.com/blog?format=rss",
+            "https://blog.talosintelligence.com/rss/",
+            "https://blog.qualys.com/vulnerabilities-threat-research/feed",
+            "https://github.blog/security/vulnerability-research/feed/",
+            "https://security.googleblog.com/feeds/posts/default"
+        ]
+    },
+    {
+        "name": "20 · Artificial intelligence",
+        "sources": [
+            "https://huggingface.co/blog/feed.xml",
+            "https://research.google/blog/rss/",
+            "https://deepmind.google/blog/rss.xml",
+            "https://bair.berkeley.edu/blog/feed.xml",
+            "https://ai.stanford.edu/blog/feed.xml",
+            "https://lilianweng.github.io/index.xml",
+            "https://jalammar.github.io/feed.xml",
+            "https://magazine.sebastianraschka.com/feed",
+            "https://thegradient.pub/rss/",
+            "https://pytorch.org/feed/",
+            "https://huyenchip.com/feed.xml",
+            "https://blog.tensorflow.org/feeds/posts/default",
+            "https://rss.arxiv.org/rss/cs.CL+cs.LG+cs.AI",
+            "https://openai.com/news/rss.xml"
+        ]
+    },
+    {
+        "name": "31 · Platform engineering",
+        "sources": [
+            "https://backstage.io/blog/rss.xml",
+            "https://blog.crossplane.io/rss/",
+            "https://fluxcd.io/blog/index.xml",
+            "https://opencost.io/blog/rss.xml",
+            "https://www.cncf.io/feed/",
+            "https://www.pulumi.com/blog/rss.xml",
+            "https://engineering.atspotify.com/feed/",
+            "https://github.blog/engineering/feed/"
+        ]
+    },
+    {
+        "name": "32 · Kernel and systems",
+        "sources": [
+            "https://bootlin.com/feed/",
+            "https://people.kernel.org/read/feed/",
+            "https://iximiuz.com/feed.atom",
+            "https://www.flatcar.org/blog/index.xml",
+            "https://lwn.net/headlines/rss",
+            "https://www.brendangregg.com/blog/rss.xml",
+            "https://jvns.ca/atom.xml"
+        ]
+    },
+    {
+        "name": "33 · Networks and dataplanes",
+        "sources": [
+            "https://cilium.io/blog/rss.xml",
+            "https://ebpf.io/blog/rss.xml",
+            "https://blog.apnic.net/feed/",
+            "https://blog.ipspace.net/atom.xml",
+            "https://iximiuz.com/feed.atom",
+            "https://blog.cloudflare.com/rss/",
+            "https://tailscale.com/blog/index.xml",
+            "https://istio.io/latest/feed.xml"
+        ]
+    },
+    {
+        "name": "34 · DevOps and delivery",
+        "sources": [
+            "https://fluxcd.io/blog/index.xml",
+            "https://tekton.dev/blog/index.xml",
+            "https://circleci.com/blog/feed.xml",
+            "https://www.jenkins.io/rss.xml",
+            "https://www.docker.com/blog/feed/",
+            "https://github.blog/engineering/feed/",
+            "https://sreweekly.com/feed/",
+            "https://charity.wtf/feed/"
+        ]
+    }
+]

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>urn:journal:partial</id>
+  <title>Partial Atom journal</title>
+  <updated>2026-10-17T10:00:00Z</updated>
+  <entry>
+    <id>urn:entry:empty</id>
+    <title>Empty inline content</title>
+    <content type="html">&lt;p&gt; &lt;/p&gt;</content>
+    <summary type="html">&lt;p&gt;A &lt;em&gt;useful&lt;/em&gt; summary.&lt;/p&gt;</summary>
+  </entry>
+  <entry>
+    <id>urn:entry:external</id>
+    <title>External content needs no implicit request</title>
+    <content type="text/html" src="https://journal.example/external"/>
+    <summary type="text">Read the summary offline.</summary>
+  </entry>
+</feed>

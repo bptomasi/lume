@@ -1,0 +1,17 @@
+# A boundary worth understanding
+
+A transaction gives a program a place to draw a line between tentative work
+and durable facts. The interesting question is what must happen before that
+line can move.
+
+A page in memory is not a page on disk. A write accepted by the operating
+system is not always a write that survives power loss. Read the durability
+contract before choosing a setting.
+
+# A small experiment
+
+Write a value, commit, close the connection, and reopen the database. Then
+test a rollback separately. Independent expectations make both experiments
+useful.
+
+This is original demonstration text, not a downloaded article.
