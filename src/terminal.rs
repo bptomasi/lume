@@ -14,6 +14,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use crossterm::{
+    SynchronizedUpdate,
     event::{
         self, DisableBracketedPaste, DisableFocusChange, EnableBracketedPaste,
         EnableFocusChange,
@@ -39,7 +40,7 @@ pub(super) fn run(
     }
     let mut app = App::new(store, demo)?;
     app.enable_background_navigation(&path)?;
-    let overlay = images::start(&mut app, &path, offline || demo);
+    images::start(&mut app, &path, offline || demo);
     let mut background = Background::start(path, !demo && !offline)?;
     if !offline && !app.library.feeds.is_empty() {
         background.refresh(&mut app);
@@ -47,7 +48,6 @@ pub(super) fn run(
     let mut guard = TerminalGuard {
         keyboard: false,
         mouse: input::MouseCapture::default(),
-        overlay,
     };
     let mut terminal =
         ratatui::try_init().context("Could not initialize terminal")?;
@@ -72,7 +72,7 @@ fn event_loop(
     loop {
         dirty |= sync_mouse(guard, app);
         dirty |= background.tick(app)?;
-        dirty |= poll_reading_workers(app, guard);
+        dirty |= poll_reading_workers(app);
         match app.poll_note_workspace() {
             Ok(Some(Action::Quit)) => break,
             Ok(Some(_)) => dirty = true,
@@ -84,10 +84,10 @@ fn event_loop(
         }
         dirty |= app.tick_pane_motion(Instant::now());
         if dirty {
-            draw_workspace(terminal, app, guard)?;
+            draw_workspace(terminal, app)?;
             dirty = false;
         }
-        if !event::poll(poll_interval(app, guard))? {
+        if !event::poll(poll_interval(app))? {
             continue;
         }
         let mut batch = input::read_batch()?;
@@ -101,20 +101,9 @@ fn event_loop(
     app.end_session()
 }
 
-fn poll_reading_workers(app: &mut App, guard: &mut TerminalGuard) -> bool {
+fn poll_reading_workers(app: &mut App) -> bool {
     let mut changed = app.poll_reader();
     changed |= app.poll_images();
-    if let Some(overlay) = &mut guard.overlay {
-        if let Err(error) = overlay.poll(Instant::now()) {
-            app.image_overlay_failed(&error.to_string());
-            changed = true;
-        }
-    } else if app.uses_image_overlay() {
-        app.image_overlay_failed(
-            "Image overlay lane unavailable; restart Lume",
-        );
-        changed = true;
-    }
     for result in [app.poll_navigation(), app.poll_recommendations()] {
         match result {
             Ok(ready) => changed |= ready,
@@ -137,12 +126,8 @@ fn sync_mouse(guard: &mut TerminalGuard, app: &mut App) -> bool {
     false
 }
 
-fn poll_interval(app: &App, guard: &TerminalGuard) -> Duration {
-    let active = guard
-        .overlay
-        .as_ref()
-        .is_some_and(|overlay| overlay.pending())
-        || app.reader_pending()
+fn poll_interval(app: &App) -> Duration {
+    let active = app.reader_pending()
         || app.images_pending()
         || app.notebook_pending()
         || app.note_inspection_pending()
@@ -157,18 +142,19 @@ fn poll_interval(app: &App, guard: &TerminalGuard) -> Duration {
 fn draw_workspace(
     terminal: &mut ratatui::DefaultTerminal,
     app: &mut App,
-    guard: &mut TerminalGuard,
 ) -> Result<()> {
     let area = terminal.size()?;
     let full = ratatui::layout::Rect::new(0, 0, area.width, area.height);
     let pixels = images::pixels();
     app.update_image_cell_pixels(pixels);
     app.resize_workspace(full);
-    if let Some(overlay) = &mut guard.overlay {
-        overlay.resize((full.width, full.height), pixels);
-        overlay.stage(app.overlay_placements(), Instant::now());
+    if app.uses_sixel_images() {
+        io::stdout().sync_update(|_| {
+            terminal.draw(|frame| ui::draw_interactive(frame, app))
+        })??;
+    } else {
+        terminal.draw(|frame| ui::draw_interactive(frame, app))?;
     }
-    terminal.draw(|frame| ui::draw_interactive(frame, app))?;
     Ok(())
 }
 
@@ -246,20 +232,20 @@ fn launch_browser(app: &mut App, address: &str) {
 struct TerminalGuard {
     keyboard: bool,
     mouse: input::MouseCapture,
-    overlay: Option<lume::overlay::Runtime>,
 }
 
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
-        if let Some(overlay) = &mut self.overlay {
-            let _ = overlay.suspend();
-        }
         let _ = self.mouse.suspend();
         if self.keyboard {
             let _ = input::disable_keyboard();
         }
-        let _ =
-            execute!(io::stdout(), DisableBracketedPaste, DisableFocusChange);
+        let _ = execute!(
+            io::stdout(),
+            crossterm::terminal::EndSynchronizedUpdate,
+            DisableBracketedPaste,
+            DisableFocusChange,
+        );
         ratatui::restore();
     }
 }
@@ -281,9 +267,6 @@ fn edit_external(
         return Ok(());
     };
     let enhanced = guard.keyboard;
-    if let Some(overlay) = &mut guard.overlay {
-        overlay.suspend()?;
-    }
     guard.mouse.suspend()?;
     if enhanced {
         input::disable_keyboard()?;

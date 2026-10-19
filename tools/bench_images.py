@@ -27,8 +27,8 @@ def measure(binary, stress, index, directory):
                 "total_ms": float(match[3]),
                 "mean_ms": float(match[4]),
             }
-    if len(metrics) != 12:
-        raise RuntimeError("Expected all twelve checked image workloads")
+    if len(metrics) != 10:
+        raise RuntimeError("Expected all ten checked image workloads")
     return {
         "stress": stress,
         "run": index,
@@ -41,7 +41,7 @@ def measure(binary, stress, index, directory):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path,
-                        default=Path("docs/image-inspection-benchmarks.json"))
+                        default=Path("docs/foot-image-benchmarks.json"))
     arguments = parser.parse_args()
     binary = benchmark_binary()
     report = {
@@ -59,9 +59,8 @@ def main():
             "Historical inline-only measurements remain in image-benchmarks.json.",
             "Native encoders are measured; physical emulator/display time is not.",
             "Inspector zoom and pan use original bytes or re-rendered SVG paths.",
-            "Overlay PNG preparation and UI projection planning are measured.",
             "Bidirectional scrolling checks 24 clips without new image work.",
-            "External helper/GPU display time is not part of frame timings.",
+            "Sixel clips copy cached cell-height strips without decoding again.",
         ],
         "runs": [],
     }

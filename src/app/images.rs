@@ -29,7 +29,6 @@ pub struct ReaderImages {
     protocol: ImageProtocol,
     automatic_protocol: ImageProtocol,
     cell_pixels: (u16, u16),
-    notice: Option<String>,
 }
 
 impl Default for ReaderImages {
@@ -44,16 +43,11 @@ impl Default for ReaderImages {
             protocol: ImageProtocol::Blocks,
             automatic_protocol: ImageProtocol::Blocks,
             cell_pixels: (10, 20),
-            notice: None,
         }
     }
 }
 
 impl ReaderImages {
-    /// Last optional overlay failure, retained while portable fallback is used.
-    pub fn notice(&self) -> Option<&str> {
-        self.notice.as_deref()
-    }
     /// Ready cells for this exact URL, viewport and transparency background.
     pub fn thumbnail(&self, key: &ImageKey) -> Option<&Thumbnail> {
         self.cached(key)?.as_ref().ok()
@@ -102,11 +96,9 @@ impl ReaderImages {
             !inspector || details <= 2
         });
         self.cache.retain(|(_, value)| {
-            let size = value
-                .as_ref()
-                .ok()
-                .and_then(|image| image.overlay.as_ref())
-                .map_or(0, |file| file.bytes());
+            let size = value.as_ref().ok().map_or(0, |image| {
+                image.rows.as_ref().map_or(0, |rows| rows.bytes())
+            });
             if bytes + size > 32 * 1024 * 1024 {
                 return false;
             }
@@ -164,12 +156,12 @@ impl App {
             width: self.reader_width.clamp(1, 160) as u16,
             height: IMAGE_ROWS as u16,
             background: crate::ui::image_background(&self.workspace.theme),
-            detail: self.inline_overlay_detail(slot),
+            detail: self.inline_pixel_detail(slot),
         })
     }
 
-    fn inline_overlay_detail(&self, slot: &ImageSlot) -> Option<ImageDetail> {
-        if self.images.protocol != ImageProtocol::Overlay {
+    fn inline_pixel_detail(&self, slot: &ImageSlot) -> Option<ImageDetail> {
+        if self.images.protocol != ImageProtocol::Sixel {
             return None;
         }
         let bottom = self.scroll + self.reader_height;
@@ -188,7 +180,7 @@ impl App {
         Some(ImageDetail {
             zoom: 1,
             pan: [0, 0],
-            protocol: ImageProtocol::Overlay,
+            protocol: self.images.protocol,
             cell_pixels: self.images.cell_pixels,
             slice: Some(ImageSlice {
                 first_row: 0,
@@ -197,20 +189,9 @@ impl App {
         })
     }
 
-    /// Whether the selected presentation needs the optional window-system helper.
-    pub fn uses_image_overlay(&self) -> bool {
-        self.images.protocol == ImageProtocol::Overlay
-    }
-
-    /// Return to portable cells after an optional helper failure.
-    pub fn image_overlay_failed(&mut self, error: &str) {
-        self.images.protocol = ImageProtocol::Blocks;
-        let notice = format!(
-            "Overlay unavailable: {} · using blocks",
-            crate::content::label(error, 180)
-        );
-        self.images.notice = Some(notice.clone());
-        self.status = notice;
+    /// Whether drawing needs a synchronized Sixel frame in the native terminal.
+    pub fn uses_sixel_images(&self) -> bool {
+        self.images.protocol == ImageProtocol::Sixel
     }
 
     /// Poll prepared cells and submit at most one currently visible image.

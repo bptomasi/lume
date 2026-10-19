@@ -3,6 +3,9 @@
 #[path = "image_inspection.rs"]
 mod inspection;
 
+#[path = "sixel_images.rs"]
+mod sixel;
+
 use std::{
     io::Cursor,
     time::{Duration, Instant},
@@ -46,7 +49,8 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         || verify_vector(&mut decoder, svg.as_bytes(), &key),
     )?;
     cached_frames(&bytes, iterations)?;
-    inspection::run(&mut decoder, &bytes, svg.as_bytes(), &key, iterations)
+    inspection::run(&mut decoder, &bytes, svg.as_bytes(), &key, iterations)?;
+    sixel::run(&mut decoder, svg.as_bytes(), &key, iterations)
 }
 
 fn verify_raster(

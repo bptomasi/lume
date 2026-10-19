@@ -110,14 +110,12 @@
   :image / Enter  Inspect image under cursor without changing reader position
                   +/- zoom source · 0 fit · hjkl/arrows/wheel pan · Esc close
                   o original in browser · b portable blocks
-  :image-protocol [auto|blocks|kitty|sixel|iterm2|overlay]
+  :image-protocol [auto|blocks|sixel|iterm2]
                   Choose pixels or portable blocks for the current session
   :image-open     Open image under cursor at original quality in a browser
                   PNG, JPEG, WebP, GIF (first frame) and SVG are supported.
-                  Alacritty: optional ueberzugpp gives sharp Reader pixels.
-                  Without it, blocks approximate the image; o opens the original.
-                  LUME_UEBERZUGPP sets an explicit installed helper path.
-                  LUME_OVERLAY_BACKEND=x11|wayland overrides display detection.
+                  Foot: native Sixel pixels, including clipped Reader images.
+                  Other terminals default to portable character previews.
   Reader motions operate on displayed text, including private notes.
   Bracket matching uses displayed characters, without language parsing.
   This reader does not modify publisher text with Vim editing operators.

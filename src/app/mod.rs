@@ -18,7 +18,6 @@ mod events;
 mod exchange;
 mod extraction;
 mod help;
-mod image_projection;
 mod images;
 mod input;
 mod layouts;

@@ -963,7 +963,7 @@ four prepared results bound retained cells. Pausing affects new admission;
 already admitted work may finish and cached previews remain visible.
 
 `media::Worker` owns bounded HTTP, the disposable file cache, decoder/font state
-and fixed halfblock/native encoding or prepared overlay PNGs. Requests/results
+and fixed halfblock/native encoding or cell-height Sixel strips. Requests/results
 use one-slot channels. The UI never waits for HTTP, reads cache files or encodes pixels.
 Drop disconnects the lane; an admitted HTTP operation can complete within its
 transport timeout. Worker disconnection and per-image failures are visible.
@@ -1000,96 +1000,35 @@ the bounded surface. Neither path allocates a whole enlarged canvas.
 
 The inspector reserves at most 160×48 cells and four million output pixels.
 At most two detailed encodings share the 24-entry prepared cache. The pinned
-ratatui-image fixed widget owns Kitty, Sixel and iTerm2 sequences, painted only
-in the inspector after palette remapping and an empty-area guard. No native
-escape buffer is copied into pane drag pictures. Terminal/program hints select
-a backend outside multiplexers; a session command overrides it. OS window
-reports supply pixel cell size, falling back to 10×20 without stdin probing.
+ratatui-image fixed widget owns Sixel and iTerm2 encoding. Native terminal
+protocols are selected without consulting overlay helpers. Foot is detected
+through its TERM/TERM_PROGRAM evidence; multiplexers retain the conservative
+block fallback. OS reports supply pixel cell size, falling back to 10×20.
 
-### Persistent X11 and optional helper projection
+### Native Foot rows
 
-Alacritty/XWayland uses x11rb to own persistent X11 children of the captured
-terminal WINDOWID. Native pixel upload, protocol limits and byte order belong
-to the qualified library. One server pixmap per image is also the window's
-background, so newly exposed pixels require no client repaint. A scroll updates
-position and Shape bounding rectangles without destroying or unmapping the
-window. An empty input shape delivers mouse events directly to the terminal.
-Image replacement maps a fully populated surface before retiring the old one.
-Connection teardown releases all server resources, including partially allocated
-resources after a failure. All connection and file work belongs to the existing
-presentation worker. Native and helper paths share geometry limits and latest-
-frame admission, not process ownership or PNG-crop policies.
+`media::sixel` splits the already fitted, composited image at terminal-cell
+height boundaries. The existing library quantizes and encodes each strip once
+on the image worker. No Sixel parser, quantizer or wire encoder is implemented
+in Lume. An 8 MiB per-image encoding limit and shared 32 MiB prepared cache bound
+retained output; only the first four visible images receive native preparation.
+Each strip has its own palette, trading global photographic color consistency
+for bounded row-level clipping without decoding during navigation.
 
-Fixed terminal padding and centered dynamic padding are distinct `GridOrigin`
-policies. Default Alacritty uses zero fixed padding. `LUME_IMAGE_PADDING=x,y`
-captures physical pixel offsets; `auto` chooses symmetric padding. Remainders
-from partial cells must not shift a grid configured with fixed padding.
+Drawing copies complete cached strips after theme mapping and pane-picture
+capture. Top and bottom clipping select source rows without changing the image
+key. Menus, text selection, note previews and moving panes suppress native rows
+so pixels cannot cover controls. The terminal loop uses Crossterm synchronized
+updates for Sixel sessions: background erases and the corresponding pixels are
+presented as one update. Fixed source slots preserve selections and note anchors.
+The zoom inspector continues to crop the original raster or re-render SVG into
+a bounded viewport, independently of inline strip preparation.
 
-Supported Wayland compositors retain an independently installed Überzug++ helper,
-following the Yazi integration. The public helper runtime also remains available
-for explicit helper qualification. X11/XWayland and Wayland are separate display
-capabilities. The terminal adapter
-captures the executable/display configuration at startup; an unavailable helper
-does not prevent reading. Environment overrides are explicit, and helper errors
-return to blocks with a visible reason.
-
-`PreparedPng` owns a private temporary file generated from decoded raster pixels
-or restricted SVG geometry. The helper never receives publisher paths, remote
-URLs or original SVG. Inline preparation keys retain the entire fitted image,
-independent of scroll position. The UI clips placements geometrically and sends
-vertical pixel bounds to the presentation worker. X11 applies those bounds as
-a Shape mask over the existing pixmap. The helper path uses
-`overlay::projection` to prepare PNG crops without another network request,
-original source decode or SVG render. Four
-retained decoded fitted images and eight prepared crops each use a 16 MiB cache
-budget. Crops preserve pixel scale instead of fitting the image to the remainder. At most four
-visible Reader slots use overlays; further slots retain portable previews.
-Prepared PNG files have a 32 MiB cache budget in addition to the bounded active
-and previous frames retained by the projection worker.
-
-`overlay::Runtime` throttles latest-frame admission to one per 16 ms; later
-scroll events cannot postpone that deadline. An active presentation completes
-before the next replaces it, avoiding helper restarts under continuous input.
-X11 movement changes persistent geometry only. The helper path uses add/update
-with the same identifier without a preceding remove; that external protocol may
-still recreate its backend surface. Only absent identifiers receive removals. Empty
-scenes, menus, text selection and pane movement immediately invalidate active
-publication tokens and stop the foreground helper, so a stale startup cannot
-paint over a menu. Drawing plans positions from cached files without decoding,
-file reads, JSON or process I/O. Display transport has no paint acknowledgment;
-this is bounded asynchronous presentation rather than a physical-frame guarantee.
-
-Mouse hit testing uses the actual fitted image width/height or its caption.
-Clicking opens the existing source-based inspector without starting selection or
-moving the reader cursor. Escape restores its scroll/cursor position; margins
-remain available for ordinary text selection.
-
-One latest-request worker owns the helper, its temporary runtime directory and
-JSON-line serialization. Anonymous stdin pipes avoid network/Unix-socket
-permissions. A condition-variable watchdog terminates a helper if a write takes
-more than 200 ms; its control lock is never held while writing. A one-second
-health check discovers later exits. Explicit suspension/shutdown waits at most
-500 ms for cleanup. The helper is killed/reaped rather than detached as a daemon.
-Its external display protocol has no paint acknowledgment: transport success
-is distinct from physical display qualification.
-
-Explicit Linux X11 helper qualification can use an installed Bubblewrap process
-namespace. The default native X11 backend needs neither program. Überzug++ 2.9.10 otherwise chooses the oldest ancestor PTY; an
-Alacritty launched from another terminal can therefore use unrelated geometry.
-The namespace retains current PTY devices and a read-only root, with only the
-private runtime directory writable. The supplied X11 WINDOWID identifies the
-host window across the process boundary. Unavailable isolation falls back to
-portable cells. This is process-ancestry control, not an image sandbox claim.
-
-Runtime requests carry captured terminal/font geometry. A changed snapshot
-restarts the helper even if a PNG's cell placement is unchanged; this decision
-lives on the process worker so replacing queued frames cannot lose the restart.
-No geometry check waits for process cleanup during drawing.
-
-Offline/cache-hit preparation initializes no HTTP agent or system trust store.
-Corrupt cached images retain their decoder failure, and explicit retry can
-restart an unavailable image worker. Pure buffer, process and PTY tests do not
-replace a real emulator/display check.
+The previous Kitty-specific and external overlay integrations are removed,
+including X11 resources, Überzug++ processes, process namespaces and associated
+environment configuration. Other terminals retain portable blocks; iTerm2
+encoding is still available in the inspector. No service or compositor-specific
+extension is required to run the product.
 
 ## Incremental local recommendations
 

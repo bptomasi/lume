@@ -499,8 +499,8 @@ const COMMANDS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "image-protocol",
-        usage: "image-protocol [auto|blocks|kitty|sixel|iterm2|overlay]",
-        description: "Select image pixels, a window-system overlay or portable blocks",
+        usage: "image-protocol [auto|blocks|sixel|iterm2]",
+        description: "Select native image pixels or portable character blocks",
         aliases: &[],
     },
     CommandSpec {

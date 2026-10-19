@@ -1,0 +1,89 @@
+//! Cell-height Sixel strips reuse source pixels through bidirectional scrolling.
+
+use anyhow::{Context, Result, ensure};
+use lume::{
+    app::App,
+    media::{Decoder, ImageDetail, ImageKey, ImageProtocol, ImageSlice, cache},
+    ui,
+};
+use ratatui::{Terminal, backend::TestBackend};
+
+pub(super) fn run(
+    decoder: &mut Decoder,
+    bytes: &[u8],
+    base: &ImageKey,
+    iterations: usize,
+) -> Result<()> {
+    let mut key = base.clone();
+    key.detail = Some(ImageDetail {
+        zoom: 1,
+        pan: [0, 0],
+        protocol: ImageProtocol::Sixel,
+        cell_pixels: (10, 20),
+        slice: Some(ImageSlice {
+            first_row: 0,
+            rows: 12,
+        }),
+    });
+    super::super::measure(
+        "source SVG + inline Sixel strips",
+        iterations,
+        || {
+            let thumbnail = decoder.render(bytes, &key)?;
+            let rows = thumbnail.rows.context("Sixel rows missing")?;
+            ensure!(rows.bytes() > 0, "Pixel strips have no encoded data");
+            ensure!(thumbnail.native.is_none(), "Expected inline row encoding");
+            Ok(())
+        },
+    )?;
+    cached_frames(bytes, iterations)
+}
+
+fn cached_frames(bytes: &[u8], iterations: usize) -> Result<()> {
+    let (directory, mut app) = super::image_app()?;
+    app.configure_image_terminal(ImageProtocol::Sixel, (10, 20));
+    let key = app
+        .image_key(&app.images.slots[0])
+        .context("Inline Sixel key")?;
+    let cache_dir = directory.path().join("images");
+    cache::write(&cache_dir, &key.url, bytes)?;
+    app.enable_images(cache_dir, true)?;
+    super::settle(&mut app)?;
+    let height = app
+        .images
+        .thumbnail(&key)
+        .context("Ready pixels")?
+        .cells
+        .area
+        .height;
+    let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
+    super::super::measure(
+        "cached Sixel bidirectional scroll + clipped frames",
+        iterations * 5,
+        || scroll_frames(&mut app, &mut terminal, height),
+    )
+}
+
+fn scroll_frames(
+    app: &mut App,
+    terminal: &mut Terminal<TestBackend>,
+    height: u16,
+) -> Result<()> {
+    let first = app.images.slots[0].rows.start;
+    for offset in (0..height).chain((0..height).rev()) {
+        app.scroll = first + usize::from(offset);
+        app.poll_images();
+        ensure!(!app.images_pending(), "Scroll admitted image preparation");
+        terminal.draw(|frame| ui::draw(frame, app))?;
+        ensure!(
+            terminal
+                .backend()
+                .buffer()
+                .content
+                .iter()
+                .any(|cell| { cell.symbol().starts_with("\x1bP") }),
+            "Clipped Sixel image disappeared"
+        );
+    }
+    Ok(())
+}

@@ -8,12 +8,12 @@ pub mod cache;
 mod decode;
 mod fonts;
 mod geometry;
-mod prepared_png;
+mod sixel;
 mod svg;
 mod worker;
 
 pub use decode::Decoder;
-pub use prepared_png::PreparedPng;
+pub use sixel::SixelRows;
 pub(crate) use worker::{Completion, Worker};
 
 use ratatui::buffer::Buffer;
@@ -27,14 +27,10 @@ pub enum ImageProtocol {
     /// Portable character approximation, including Alacritty.
     #[default]
     Blocks,
-    /// Kitty Unicode placeholders; Kitty 0.28+ and compatible terminals.
-    Kitty,
     /// DEC Sixel, requiring a supporting terminal.
     Sixel,
     /// iTerm2 inline images, also supported by WezTerm.
     Iterm2,
-    /// Persistent X11 pixels or a supported window-system helper.
-    Overlay,
 }
 
 impl ImageProtocol {
@@ -42,10 +38,8 @@ impl ImageProtocol {
     pub fn label(self) -> &'static str {
         match self {
             Self::Blocks => "Blocks",
-            Self::Kitty => "Kitty pixels",
             Self::Sixel => "Sixel pixels",
             Self::Iterm2 => "iTerm2 pixels",
-            Self::Overlay => "Overlay pixels",
         }
     }
 }
@@ -61,11 +55,11 @@ pub struct ImageDetail {
     pub protocol: ImageProtocol,
     /// Actual cell width/height in pixels; ignored by the block encoder.
     pub cell_pixels: (u16, u16),
-    /// Visible vertical slice for inline overlays; absent in the inspector.
+    /// Fitted inline row budget; absent in the inspector.
     pub slice: Option<ImageSlice>,
 }
 
-/// Exact visible cell rows, cropped before publication to an external helper.
+/// Requested source rows within a fitted inline image.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ImageSlice {
     /// Rows omitted from the top of the fitted image.
@@ -85,7 +79,7 @@ pub struct ImageKey {
     pub height: u16,
     /// Opaque sRGB background used for transparent pixels.
     pub background: [u8; 3],
-    /// Present for source-based inspection or pixel-based inline overlays.
+    /// Present for source-based inspection or native inline pixels.
     pub detail: Option<ImageDetail>,
 }
 
@@ -99,6 +93,6 @@ pub struct Thumbnail {
     pub cache_warning: Option<String>,
     /// Worker-encoded native pixels; painted only in the image inspector.
     pub native: Option<ratatui_image::protocol::Protocol>,
-    /// Owned, validated PNG for an external overlay; never publisher bytes.
-    pub overlay: Option<std::sync::Arc<PreparedPng>>,
+    /// Worker-encoded cell-height Sixel strips for clipped inline drawing.
+    pub rows: Option<SixelRows>,
 }

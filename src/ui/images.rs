@@ -28,7 +28,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
             continue;
         };
         if let Some(image) = app.images.thumbnail(&key) {
-            if image.overlay.is_some() {
+            if image.rows.is_some() {
                 continue;
             }
             paint_thumbnail(
@@ -44,6 +44,64 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
         }
     }
     paint_cursor(frame, app, column);
+}
+
+pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
+    if !matches!(app.mode, crate::app::Mode::Normal)
+        || app.pane_motion_active()
+        || app.hovered_note().is_some()
+        || app.notebook.is_some()
+        || app.selection.is_some()
+        || app.article_preparing()
+        || frame.area().width < 24
+        || frame.area().height < 10
+    {
+        return;
+    }
+    let Some(reader) =
+        super::workspace_areas(frame.area(), app.focus, &app.workspace).reader
+    else {
+        return;
+    };
+    let column = super::workspace_reader_content(reader, &app.workspace);
+    let bottom = app.scroll + usize::from(column.height);
+    for slot in
+        app.images.slots.iter().filter(|slot| {
+            slot.rows.end > app.scroll && slot.rows.start < bottom
+        })
+    {
+        let Some(key) = app.image_key(slot) else {
+            continue;
+        };
+        if let Some(image) = app.images.thumbnail(&key)
+            && let Some(rows) = &image.rows
+            && let Some((area, first)) = native_area(app, slot, column, image)
+        {
+            rows.render(area, first, frame.buffer_mut());
+        }
+    }
+}
+
+fn native_area(
+    app: &App,
+    slot: &crate::reader::images::ImageSlot,
+    column: Rect,
+    image: &crate::media::Thumbnail,
+) -> Option<(Rect, u16)> {
+    let first = app.scroll.saturating_sub(slot.rows.start);
+    let last = (app.scroll + usize::from(column.height))
+        .saturating_sub(slot.rows.start)
+        .min(usize::from(image.cells.area.height));
+    if first >= last || column.is_empty() {
+        return None;
+    }
+    let area = Rect::new(
+        column.x + column.width.saturating_sub(image.cells.area.width) / 2,
+        column.y + slot.rows.start.saturating_sub(app.scroll) as u16,
+        image.cells.area.width,
+        (last - first) as u16,
+    );
+    Some((area, first as u16))
 }
 
 fn paint_cursor(frame: &mut Frame<'_>, app: &App, column: Rect) {

@@ -183,11 +183,7 @@ fn native_encoders_receive_pixel_sized_images_and_remain_within_their_cells()
 -> Result<()> {
     use ratatui::widgets::Widget;
     let mut decoder = Decoder::default();
-    for protocol in [
-        ImageProtocol::Kitty,
-        ImageProtocol::Sixel,
-        ImageProtocol::Iterm2,
-    ] {
+    for protocol in [ImageProtocol::Sixel, ImageProtocol::Iterm2] {
         let image = decoder.render(SVG, &key(protocol, 1, [0, 0]))?;
         let native = image.native.context("Native protocol was lost")?;
         assert_eq!(native.area(), Rect::new(0, 0, 16, 4));
@@ -195,8 +191,11 @@ fn native_encoders_receive_pixel_sized_images_and_remain_within_their_cells()
         Image::new(&native).render(Rect::new(2, 2, 16, 4), &mut buffer);
         let first = buffer[(2, 2)].symbol();
         assert!(first.contains('\u{1b}'));
-        if protocol == ImageProtocol::Kitty {
-            assert!(first.contains("s=160,v=80"), "Unexpected Kitty payload");
+        if protocol == ImageProtocol::Sixel {
+            assert!(
+                first.contains("\"1;1;160;80"),
+                "Unexpected Sixel dimensions"
+            );
         }
         assert_eq!(buffer[(0, 0)].symbol(), " ");
         assert_eq!(buffer[(19, 9)].symbol(), " ");
@@ -212,7 +211,7 @@ fn hostile_preparation_keys_are_rejected_before_allocating_viewports()
         key(ImageProtocol::Blocks, 9, [0, 0]),
         key(ImageProtocol::Blocks, 1, [1001, 0]),
     ];
-    let mut oversized = key(ImageProtocol::Kitty, 8, [0, 0]);
+    let mut oversized = key(ImageProtocol::Sixel, 8, [0, 0]);
     oversized.width = 160;
     oversized.height = 48;
     oversized
@@ -272,10 +271,9 @@ fn explicit_inspection_loads_while_automatic_images_are_paused() -> Result<()> {
 }
 
 #[test]
-fn inspector_retries_resize_keys_and_never_paints_native_pixels_into_reader()
--> Result<()> {
+fn iterm2_inspector_resize_keeps_native_pixels_out_of_reader() -> Result<()> {
     let (_directory, mut app) = reading()?;
-    app.configure_image_terminal(ImageProtocol::Kitty, (10, 20));
+    app.configure_image_terminal(ImageProtocol::Iterm2, (10, 20));
     command(&mut app, "image")?;
     settle(&mut app)?;
     let old = app.image_inspector_key().context("Old key")?;
@@ -298,7 +296,7 @@ fn inspector_retries_resize_keys_and_never_paints_native_pixels_into_reader()
             .buffer()
             .content
             .iter()
-            .any(|cell| cell.symbol().contains("_G"))
+            .any(|cell| cell.symbol().contains("1337;File="))
     );
     press(&mut app, KeyCode::Esc)?;
     terminal.draw(|frame| ui::draw(frame, &app))?;

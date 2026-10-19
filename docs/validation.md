@@ -1,5 +1,46 @@
 # Validation record — Lume
 
+## Native Foot Sixel images — 2026-10-19
+
+`make check-release` passed with exact Rust **1.99.1**, locked published crates,
+**465 local native Rust tests**, **12 real HTTP tests**, **10 installer tests**,
+checked benchmark scenarios, formatting, Clippy and the release build. HTTP used
+explicit loopback permission. No source or toolchain substitution was used.
+Build artifacts remained outside the repository with dev/test debug symbols
+and incremental compilation disabled.
+
+Foot **1.21.0** passed `make check-foot` in the native Wayland session against
+the release executable. The isolated PTY/FIFO driver exercised 16 bidirectional
+scroll steps, a covering help screen, mouse inspection, source zoom and return
+to inline reading. Publisher text and terminal attributes were preserved.
+ImageMagick independently decoded twelve 800×20 Sixel strips into an 800×240
+fixture image. This checks actual output geometry and bounded color conversion;
+`icy_sixel` bins channels into five-bit values and emits integer percentages,
+so original 24-bit RGB equality is not the contract. Fixture colors account for
+that conversion, with one value allowed for decoder rounding.
+
+[foot-image-qualification.json](foot-image-qualification.json) records the
+release hash, terminal geometry, decoded strip identities, scroll positions,
+inspector dimensions and cleanup. The independently reconstructed wire image
+was visually reviewed in [preview-images-foot.png](preview-images-foot.png).
+It is not a compositor screenshot. This gate does not measure physical screen
+latency, human perception of flicker or photographic palette consistency.
+
+[foot-image-benchmarks.json](foot-image-benchmarks.json) contains three repeated
+representative and three stress processes across ten correctness-checked image
+workloads. Median inline preparation was **12.864 / 51.591 ms**; cached
+bidirectional clipping plus 24 TestBackend frames was **3.228 / 5.379 ms** per
+iteration. Process wall times were **6.01–6.04 / 15.03–15.09 seconds**, including
+fixture/setup work; peak RSS was **30,304–30,692 / 49,388–61,208 KiB**. The report
+records platform, exact compiler and executable hash. These are workload
+observations, without a comparative speedup or physical input-latency claim.
+
+The previous Kitty image path, Überzug++ helper and persistent X11 adapter are
+removed. Foot uses only the existing Sixel encoder, with no new dependency.
+The three packages exclusive to X11 are removed from the lockfile and license
+inventory. Earlier X11 records below describe historical implementations and
+are superseded by this qualification for the current image backend.
+
 ## Persistent images during scrolling — 2026-10-19
 
 `make check-release` passed with exact Rust **1.99.1**, locked published crates,

@@ -51,21 +51,19 @@ fn prepare(
     let height = image.height().div_ceil(u32::from(cell_height)) as u16;
     let image = composite(image, key);
     let area = Rect::new(0, 0, width, height);
-    if key
-        .detail
-        .as_ref()
-        .is_some_and(|detail| detail.protocol == ImageProtocol::Overlay)
-    {
-        return overlay_thumbnail(image, area, dimensions);
+    if key.detail.as_ref().is_some_and(|detail| {
+        detail.protocol == ImageProtocol::Sixel && detail.slice.is_some()
+    }) {
+        return inline_thumbnail(image, area, dimensions, cell_height);
     }
     let protocol = encode(image, area, key)?;
     if !matches!(protocol, Protocol::Halfblocks(_)) {
         return Ok(Thumbnail {
-            cells: Buffer::empty(area),
+            cells: Buffer::empty(protocol.area()),
             dimensions,
             cache_warning: None,
             native: Some(protocol),
-            overlay: None,
+            rows: None,
         });
     }
     let mut cells = Buffer::empty(area);
@@ -82,26 +80,22 @@ fn prepare(
         dimensions,
         cache_warning: None,
         native: None,
-        overlay: None,
+        rows: None,
     })
 }
 
-fn overlay_thumbnail(
+fn inline_thumbnail(
     image: DynamicImage,
     area: Rect,
     dimensions: (u32, u32),
+    cell_height: u16,
 ) -> Result<Thumbnail> {
-    let overlay = if area.is_empty() {
-        None
-    } else {
-        Some(std::sync::Arc::new(super::PreparedPng::new(&image)?))
-    };
     Ok(Thumbnail {
         cells: Buffer::empty(area),
         dimensions,
-        overlay,
-        native: None,
         cache_warning: None,
+        native: None,
+        rows: Some(super::SixelRows::new(image, area, cell_height)?),
     })
 }
 
@@ -110,10 +104,9 @@ fn encode(image: DynamicImage, area: Rect, key: &ImageKey) -> Result<Protocol> {
         return Ok(Protocol::Halfblocks(Halfblocks::new(image, area)?));
     };
     let protocol = match detail.protocol {
-        ImageProtocol::Blocks | ImageProtocol::Overlay => {
+        ImageProtocol::Blocks => {
             return Ok(Protocol::Halfblocks(Halfblocks::new(image, area)?));
         }
-        ImageProtocol::Kitty => ProtocolType::Kitty,
         ImageProtocol::Sixel => ProtocolType::Sixel,
         ImageProtocol::Iterm2 => ProtocolType::Iterm2,
     };
@@ -220,8 +213,8 @@ fn composite(image: DynamicImage, key: &ImageKey) -> DynamicImage {
     {
         image.height().next_multiple_of(2)
     } else {
-        // Pixel backends must fit the exact cell budget. Padding an odd final
-        // row would force the helper to rescale every pixel to fit again.
+        // Native pixels must fit the exact cell budget. Padding an odd final
+        // row could force the terminal encoder to rescale the fitted image.
         image.height()
     };
     let mut canvas = RgbaImage::from_pixel(

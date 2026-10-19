@@ -472,56 +472,37 @@ HTML or Markdown. HTML `img` references, including `data-src` lazy images, are
 preserved during normalization. Previously cached articles that lost image
 references need a fresh feed collection or `:fetch` for the full article.
 
-Portable previews use truecolor Unicode halfblocks. Persistent X11 windows
-show real pixels in Alacritty/XWayland, as described below. Previews follow
-scrolling and clipping; block definition is limited by terminal cells.
-Click an image/caption, press **Enter** on it or use `:image`
-to open the larger inspector. `+`/`-` zoom from source bytes, `hjkl`/arrows and
-the wheel pan, `0` fits, `o` opens the original and `Esc` returns without changing
-the reader selection, position or layout. SVG geometry is re-rendered at the
-requested scale; raster zoom crops the original before resizing with Lanczos3.
-GIFs and SVGs are static previews.
-Inline SVG markup and embedded/nested image resources are not rendered.
+**Foot on native Wayland:** run `lume` normally. Inline images and the zoom
+inspector use Sixel pixels directly in the terminal. No image helper, X11
+window, XWayland launcher or external display process is required.
 
-The inspector automatically uses Kitty pixels for Kitty/Ghostty, iTerm2 pixels
-for iTerm2/WezTerm and Sixel for foot, based on conservative environment hints.
-Alacritty/XWayland uses persistent native X11 surfaces.
-Other terminals and multiplexers default to blocks. The session command
-`:image-protocol auto|blocks|kitty|sixel|iterm2|overlay` overrides this choice; select a
-native protocol only if the terminal supports it. `b` immediately returns the
-inspector to blocks. Pixel cell dimensions use the OS window report, falling
-back to 10×20 when it is unavailable. No background stdin probing is performed.
+The image worker fits each inline image once, then encodes one Sixel strip per
+terminal row with the pinned ratatui-image library. Scrolling copies only the
+visible strips, preserving source coordinates when either edge is clipped.
+Decoding, SVG rendering, resizing and quantization never occur in drawing.
+Sixel uses a limited color palette; it preserves spatial detail but can change
+photographic gradients compared with the original image.
 
-**Sharp images in Alacritty:** use an X11/XWayland Alacritty window and run
-`lume`. This path needs no Überzug++ process or Bubblewrap. Prepared image
-pixels upload once into an X11 background pixmap; scrolling updates the existing
-window's position and clipping mask. It does not destroy, unmap or recreate the
-image window on each movement. `:image-protocol overlay` selects this backend;
-`:image-protocol blocks` returns to portable cells.
+Click an image/caption, press **Enter** on it or use `:image` to open the larger
+inspector. `+`/`-` zoom from source bytes, `hjkl`/arrows and the wheel pan,
+`0` fits, `o` opens the original and `Esc` returns without changing the reader
+selection, position or layout. SVG geometry is re-rendered at the requested
+scale; raster zoom crops the original before Lanczos3 resizing. GIFs and SVGs
+are static previews. Inline SVG markup and nested resources are not rendered.
 
-GNOME Wayland needs Alacritty to use XWayland. Configure its launcher once and
-reopen the terminal; after that, type `lume` normally. For a temporary session,
-`env -u WAYLAND_DISPLAY alacritty -e lume` also selects XWayland. An existing
-Wayland window cannot change backend in place. Other supported Wayland
-compositors (Sway, Hyprland, Niri and Wayfire) retain the optional separately
-installed [Überzug++ 2.9.10 helper](https://github.com/jstkdng/ueberzugpp#install).
-`LUME_UEBERZUGPP=/absolute/path/ueberzugpp` overrides its executable.
-`LUME_OVERLAY_BACKEND=x11|wayland` overrides display detection.
+Foot is detected through `TERM=foot`, `TERM=foot-extra` or `TERM_PROGRAM=foot`.
+iTerm2 and WezTerm retain native inspector support. Other terminals and
+multiplexers default to portable truecolor Unicode halfblocks. The command
+`:image-protocol auto|blocks|sixel|iterm2` selects the session backend; only force
+a native protocol supported by your terminal. `b` returns the inspector to
+blocks. OS window reports supply cell dimensions, falling back to 10×20 when
+unavailable. No competing stdin capability reader is started.
 
-Alacritty defaults to a grid origin of `0,0`. For custom fixed terminal padding,
-set `LUME_IMAGE_PADDING=8,12` to its left/top padding in physical pixels. Use
-`LUME_IMAGE_PADDING=auto` for a terminal configured with symmetric dynamic
-padding. Unused partial cells do not imply centered padding. Images remain
-limited by the detail available in the publisher's original file.
-
-Updates coalesce intermediate positions with a 16 ms admission interval rather
-than waiting for input to stop. Overlays hide during menus, text selection and
-pane movement. Clicking a picture or caption opens source-based inspection;
-`+`/`-` zoom and `Esc` returns to the same reading position. Terminal/font geometry
-changes refresh display resources. Display failures report a reason and return
-to blocks; navigation never waits for display I/O. Native terminal encodings
-remain confined to the inspector. Closing Lume releases its X11 resources and
-stops any optional helper. No display process becomes an independent daemon.
+Native inline images hide for menus, selections, note previews and panel
+movement. They are painted after theming and pane-picture capture. Foot frames
+use synchronized terminal updates so intermediate erases and pixel writes are
+presented together. This bounds visible update stages; physical display latency
+still depends on the terminal and compositor.
 
 | Command | Action |
 | --- | --- |
@@ -537,12 +518,11 @@ prevent late results from shifting text, selections or notes. Decoding and
 encoding happen outside input/drawing. At most 24 prepared thumbnails are
 retained, including at most two detailed inspector encodings. Each inspector
 surface is limited to four million pixels; zoom never creates a complete
-enlarged image canvas. Prepared overlay files use a 32 MiB cache budget, plus
-the bounded frames held by the presentation worker. At most four Reader images
-use overlays simultaneously; additional visible images retain cell previews.
-X11 retains one server pixmap per visible image, each bounded to four million
-pixels. The optional helper's crop cache retains at most four decoded sources
-(16 MiB) and eight PNG crops (16 MiB).
+enlarged image canvas. Cached inline Sixel strips share a 32 MiB budget, with
+an 8 MiB limit per encoding. At most four visible Reader images use native
+pixels simultaneously; additional images retain cell previews. Each strip uses
+the encoder's quantization for its own source rows. No publisher path is passed
+to an external display process.
 Raw image files use a disposable `images/` cache alongside your library,
 capped at 64 MiB and 128 files, evicting oldest writes. `--offline`
 reads that cache without downloading misses. A failed image leaves the article
@@ -842,20 +822,17 @@ tools, inaccessible displays and failed assertions are errors. CI runs this
 through Xvfb and retains its evidence even on failure. It does not qualify
 the user's Wayland compositor or human perception of animation smoothness.
 
-With Alacritty, xev, xdotool, ImageMagick and Pillow installed, run
-`xvfb-run -a make check-image-display` for actual pixels and persistent-window
-scroll qualification. `IMAGE_DISPLAY_ARGS="--nested-terminal --stress"` also
-checks an older ancestor PTY and a longer sustained input stream. No image
-helper is required for this X11 gate. The isolated fixture checks full bitmap geometry
-and colors (allowing one channel value for X11 rounding), two simultaneous
-images, clipping, click-to-inspect, zoom, menu cleanup, notes and restoration.
-X11 events must show movement without any create/destroy/unmap/map during scroll. It retains
-the prepared PNGs and screenshots as evidence. Xvfb can report an additional
-detent on XTest button release; both terminal checks observe a single wheel
-press independently, preserving the application's reported event distance.
-Pass `--nested-terminal` in `IMAGE_DISPLAY_ARGS` to retain an older ancestor PTY
-with different dimensions. Font-size changes also require correct native pixels
-after the helper restarts. These checks catch offsets that a single PTY misses.
+For native image qualification, install Foot, ImageMagick and Python Pillow,
+then run `make check-foot` in a Wayland session after `make build`.
+`FOOT_ARGS="--binary /path/to/lume --artifacts /empty/evidence/directory"`
+selects the executable and evidence directory. The gate opens an owned Foot
+window with an isolated library and a private PTY relay. It checks exact strip
+geometry, independently decoded Sixel colors, clipping in both scroll directions,
+click-to-inspect, source zoom, menu cleanup, publisher text and tty restoration.
+Sixel palette quantization is included in the fixture's expected colors.
+Captured protocol pixels and results are retained; they do not substitute for a
+compositor screenshot or a physical latency/flicker measurement. Missing tools,
+inaccessible Wayland sockets and failed assertions are errors.
 
 Earlier validation used 41 temporary dependency-source substitutions. Those
 results do not qualify the normal registry build: one substituted manifest

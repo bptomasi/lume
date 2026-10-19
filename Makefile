@@ -11,7 +11,7 @@ MIGRATE_FROM ?=
 
 .PHONY: check check-release check-http check-alacritty fmt lint test bench build demo
 .PHONY: install test-tools bench-tools bench-notes bench-recommendations
-.PHONY: bench-images check-image-display
+.PHONY: bench-images check-image-display check-foot
 
 # Serialize composition even when a caller uses make -j.
 .NOTPARALLEL:
@@ -24,7 +24,7 @@ check:
 	python3 -m py_compile tools/render_preview.py tools/qualify_alacritty.py \
 		tools/install.py tools/bench_install.py tools/bench_notes.py \
 		tools/bench_support.py tools/bench_recommendations.py tools/bench_images.py \
-		tools/qualify_images.py
+		tools/qualify_foot.py tools/foot_terminal.py
 
 fmt:
 	$(CARGO) fmt --all -- --check
@@ -54,9 +54,11 @@ check-http:
 check-alacritty:
 	python3 tools/qualify_alacritty.py $(ALACRITTY_ARGS)
 
-# Requires Alacritty, xev, xdotool, ImageMagick/Pillow and isolated X11.
-check-image-display:
-	python3 tools/qualify_images.py $(IMAGE_DISPLAY_ARGS)
+# Requires Foot and native Wayland; opens only an owned qualification window.
+check-image-display: check-foot
+
+check-foot:
+	python3 tools/qualify_foot.py $(FOOT_ARGS)
 
 bench:
 	$(CARGO) bench --locked --bench reader

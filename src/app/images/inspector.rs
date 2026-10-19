@@ -108,23 +108,18 @@ impl App {
         &mut self,
         argument: &str,
     ) -> Result<()> {
-        self.images.notice = None;
         self.images.protocol = match argument {
             "" => self.images.protocol,
             "auto" => self.images.automatic_protocol,
             "blocks" => ImageProtocol::Blocks,
-            "kitty" => ImageProtocol::Kitty,
             "sixel" => ImageProtocol::Sixel,
             "iterm2" => ImageProtocol::Iterm2,
-            "overlay" => ImageProtocol::Overlay,
             _ => {
-                bail!(
-                    "Usage: :image-protocol [auto|blocks|kitty|sixel|iterm2|overlay]"
-                )
+                bail!("Usage: :image-protocol [auto|blocks|sixel|iterm2]")
             }
         };
         self.status = format!(
-            "Image inspector: {} · :image opens · :image-open shows original",
+            "Images: {} · :image opens · :image-open shows original",
             self.images.protocol.label(),
         );
         Ok(())

@@ -38,6 +38,7 @@ pub use note_preview::note_preview_area;
 pub fn draw(frame: &mut Frame<'_>, app: &App) {
     draw_base(frame, app);
     pane_motion::draw(frame, app);
+    images::draw_native(frame, app);
 }
 
 /// Capture bounded pane pictures before hints and terminal output.
@@ -48,6 +49,7 @@ pub fn draw_interactive(frame: &mut Frame<'_>, app: &mut App) {
     }
     app.capture_pane_frame(frame.buffer_mut());
     pane_motion::draw(frame, app);
+    images::draw_native(frame, app);
 }
 
 fn draw_base(frame: &mut Frame<'_>, app: &App) {

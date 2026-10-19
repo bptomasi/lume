@@ -56,9 +56,6 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
         image.cells.area.width.min(column.width),
         image.cells.area.height.min(column.height),
     );
-    if image.overlay.is_some() {
-        return;
-    }
     if let Some(native) = &image.native {
         frame.render_widget(ratatui_image::Image::new(native), area);
     } else {
@@ -107,10 +104,7 @@ fn chrome(frame: &mut Frame<'_>, app: &App, key: &crate::media::ImageKey) {
     );
     frame.render_widget(
         Paragraph::new(format!(
-            "{CONTROLS}\n{}",
-            app.images.notice().unwrap_or(
-                "Pixel backends preserve detail; blocks approximate the image."
-            )
+            "{CONTROLS}\nPixel backends preserve detail; blocks approximate the image."
         ))
         .style(Style::new().fg(theme::MUTED)),
         footer,
