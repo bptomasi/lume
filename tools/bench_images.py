@@ -27,8 +27,8 @@ def measure(binary, stress, index, directory):
                 "total_ms": float(match[3]),
                 "mean_ms": float(match[4]),
             }
-    if len(metrics) != 10:
-        raise RuntimeError("Expected all ten checked image workloads")
+    if len(metrics) != 11:
+        raise RuntimeError("Expected all eleven checked image workloads")
     return {
         "stress": stress,
         "run": index,

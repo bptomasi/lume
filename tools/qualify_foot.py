@@ -182,6 +182,40 @@ def scrolling(directory, process, initial):
     return samples
 
 
+def selection_scroll(directory, process, initial):
+    identities = {strip["sha256"] for strip in initial["strips"]}
+    samples = []
+    for key in (b"v", b"V"):
+        send(directory, b"gg")
+        time.sleep(0.1)
+        send(directory, key)
+        time.sleep(0.1)
+        current = selected_scroll(directory, process)
+        if any(strip["sha256"] not in identities for strip in current["strips"]):
+            raise RuntimeError("Visual selection replaced cached image pixels")
+        samples.append({"mode": key.decode(), "rows": dimensions(current)})
+        send(directory, b"\x1b\x19")
+    first = initial["strips"][0]
+    column, row = first["column"] + 2, first["row"] - 2
+    send(directory, f"\x1b[<0;{column};{row}M".encode())
+    time.sleep(0.1)
+    current = selected_scroll(directory, process)
+    if any(strip["sha256"] not in identities for strip in current["strips"]):
+        raise RuntimeError("Mouse selection replaced cached image pixels")
+    send(directory, f"\x1b[<0;{column};{row}m".encode())
+    send(directory, b"\x1b\x19")
+    return {"keyboard": samples, "mouse_down_scroll": dimensions(current)}
+
+
+def selected_scroll(directory, process):
+    before = frame(directory)["offset"]
+    send(directory, b"\x05")
+    return wait_for(
+        "native rows remain during selection",
+        lambda: native_frame(directory, before), process,
+    )
+
+
 def inspect(directory, process, initial, cell_height):
     send(directory, b"gg")
     time.sleep(0.1)
@@ -239,6 +273,7 @@ def qualify(directory, process):
     )
     pixels = verify_pixels(directory, initial, geometry["cell_pixels"][1])
     samples = scrolling(directory, process, initial)
+    selections = selection_scroll(directory, process, initial)
     before = frame(directory)["offset"]
     command(directory, "help")
     wait_for(
@@ -254,7 +289,8 @@ def qualify(directory, process):
     if cleanup != {"returncode": 0, "termios_restored": True}:
         raise RuntimeError(f"Foot terminal cleanup failed: {cleanup}")
     return {"geometry": geometry, "decoded_strips": pixels,
-            "scroll_rows": samples, "inspector": inspector, "cleanup": cleanup}
+            "scroll_rows": samples, "selection": selections,
+            "inspector": inspector, "cleanup": cleanup}
 
 
 def newer_plain_frame(directory, after):

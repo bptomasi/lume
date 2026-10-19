@@ -50,7 +50,7 @@ impl App {
         );
         let slot = self
             .images
-            .slots
+            .visible_slots(self.reader_cursor, 1)
             .iter()
             .find(|slot| {
                 self.reader_cursor >= slot.caption

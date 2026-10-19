@@ -1014,11 +1014,18 @@ in Lume. An 8 MiB per-image encoding limit and shared 32 MiB prepared cache boun
 retained output; only the first four visible images receive native preparation.
 Each strip has its own palette, trading global photographic color consistency
 for bounded row-level clipping without decoding during navigation.
+Only the payload cell is retained per strip; drawing marks the remaining cells
+as covered, avoiding an additional stored and cloned empty image grid.
+`ReaderImages::visible_slots` uses binary bounds over ordered, non-overlapping
+reader slots. Admission, drawing, cursor hit checks and image clicks visit the
+visible subset; offscreen references do not require a scan per frame.
 
 Drawing copies complete cached strips after theme mapping and pane-picture
 capture. Top and bottom clipping select source rows without changing the image
-key. Menus, text selection, note previews and moving panes suppress native rows
-so pixels cannot cover controls. The terminal loop uses Crossterm synchronized
+key. Character/linewise and mouse selections retain native rows; selection
+offsets still address the unchanged reader text. Menus (including the Ctrl-w
+guide), note previews and moving panes suppress pixels to protect controls.
+The terminal loop uses Crossterm synchronized
 updates for Sixel sessions: background erases and the corresponding pixels are
 presented as one update. Fixed source slots preserve selections and note anchors.
 The zoom inspector continues to crop the original raster or re-render SVG into

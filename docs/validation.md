@@ -1,5 +1,40 @@
 # Validation record — Lume
 
+## Foot selection and bounded image navigation review — 2026-10-19
+
+Visual selection was incorrectly treated as a covering overlay. A mouse-down on
+text creates a temporary selection too, so even a simple click hid inline pixels.
+Character/linewise selection and every mouse down/drag/up frame now retain the
+image. Native regressions verify exact yanked text and unchanged reader content.
+The Ctrl-w guide suppresses native pixels while it covers the reader, and Escape
+restores them. Stale images wider than their reader column cannot cover neighbors.
+
+Sixel storage retains one payload cell per strip instead of an additional
+image-sized cell grid. A native assertion checks encoded bytes plus exactly one
+cell per row. Drawing marks covered cells instead of cloning empty cells.
+Binary visibility bounds replace offscreen scans in admission, both draw passes,
+image hit tests, cursor checks and keyboard inspection. Tests include captions,
+partial clips, gaps, zero-sized viewports and exhausted input.
+
+`make check-release` passed with exact Rust **1.99.1**, **469 local Rust tests**,
+**12 real HTTP tests**, **10 installer tests**, checked workloads, formatting,
+Clippy and the release build. No crate source or toolchain substitution was used.
+The release executable passed real Foot **1.21.0** qualification including v/V
+selection, mouse-down plus scroll, bidirectional clips, help, zoom and cleanup.
+Terminal attributes and publisher text were preserved. See
+[foot-review-qualification.json](foot-review-qualification.json) and the
+independently decoded [wire image](preview-images-foot-review.png), which was
+visually reviewed. It is not a compositor screenshot or a flicker measurement.
+
+[foot-review-benchmarks.json](foot-review-benchmarks.json) retains three baseline
+and three reviewed processes for each input size, with compiler, binary hashes,
+wall time and process RSS. Cached 24-frame scroll medians changed from
+**3.248 to 3.096 ms** for the representative image and **5.397 to 5.450 ms** for
+stress. This does not establish a uniform speedup. The added visibility workload
+checks 128 positions over 10,000/50,000 references in **0.006/0.007 ms** median;
+these are unusually long inputs, not typical articles. Physical display and
+input latency remain outside these TestBackend measurements.
+
 ## Native Foot Sixel images — 2026-10-19
 
 `make check-release` passed with exact Rust **1.99.1**, locked published crates,

@@ -6,7 +6,11 @@
 
 use anyhow::{Result, ensure};
 use image::DynamicImage;
-use ratatui::{buffer::Buffer, layout::Rect, widgets::Widget};
+use ratatui::{
+    buffer::{Buffer, Cell},
+    layout::Rect,
+    widgets::Widget,
+};
 use ratatui_image::{
     Image,
     protocol::{Protocol, sixel::Sixel},
@@ -15,8 +19,12 @@ use ratatui_image::{
 const MAX_ENCODED_BYTES: usize = 8 * 1024 * 1024;
 
 /// Immutable cell-height Sixel strips, prepared outside the input/draw path.
+///
+/// Only the payload cell is retained per row. Drawing marks the remaining
+/// cells as covered instead of storing and cloning an empty image-sized grid.
 pub struct SixelRows {
-    cells: Buffer,
+    area: Rect,
+    rows: Vec<Cell>,
     bytes: usize,
 }
 
@@ -26,21 +34,22 @@ impl SixelRows {
         area: Rect,
         cell_height: u16,
     ) -> Result<Self> {
-        let mut cells = Buffer::empty(area);
-        let mut bytes =
-            cells.content.len() * std::mem::size_of::<ratatui::buffer::Cell>();
+        let strip_area = Rect::new(0, 0, area.width, 1);
+        let mut scratch = Buffer::empty(strip_area);
+        let mut rows = Vec::with_capacity(usize::from(area.height));
+        let mut bytes = rows.capacity() * std::mem::size_of::<Cell>();
         for row in 0..area.height {
             let y = u32::from(row) * u32::from(cell_height);
             let height = u32::from(cell_height).min(image.height() - y);
             let strip = image.crop_imm(0, y, image.width(), height);
-            let target = Rect::new(0, row, area.width, 1);
-            let sixel =
-                Sixel::new(strip, Rect::new(0, 0, area.width, 1), false)?;
+            let sixel = Sixel::new(strip, strip_area, false)?;
             bytes += sixel.data.len();
             ensure!(bytes <= MAX_ENCODED_BYTES, "Inline pixels exceed 8 MiB");
-            Image::new(&Protocol::Sixel(sixel)).render(target, &mut cells);
+            Image::new(&Protocol::Sixel(sixel))
+                .render(strip_area, &mut scratch);
+            rows.push(std::mem::take(&mut scratch[(0, 0)]));
         }
-        Ok(Self { cells, bytes })
+        Ok(Self { area, rows, bytes })
     }
 
     /// Retained encoded bytes and cells, counted by the shared image cache.
@@ -54,17 +63,18 @@ impl SixelRows {
     /// centering and synchronized presentation; this method performs no I/O.
     pub fn render(&self, area: Rect, first_row: u16, buffer: &mut Buffer) {
         if area.is_empty()
-            || area.width < self.cells.area.width
-            || first_row >= self.cells.area.height
+            || area.width < self.area.width
+            || first_row >= self.area.height
             || area.intersection(buffer.area) != area
         {
             return;
         }
-        let height = area.height.min(self.cells.area.height - first_row);
+        let height = area.height.min(self.area.height - first_row);
         for row in 0..height {
-            for column in 0..self.cells.area.width {
-                buffer[(area.x + column, area.y + row)] =
-                    self.cells[(column, first_row + row)].clone();
+            buffer[(area.x, area.y + row)] =
+                self.rows[usize::from(first_row + row)].clone();
+            for column in 1..self.area.width {
+                buffer[(area.x + column, area.y + row)].set_skip(true);
             }
         }
     }

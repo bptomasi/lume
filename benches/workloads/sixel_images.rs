@@ -87,3 +87,41 @@ fn scroll_frames(
     }
     Ok(())
 }
+
+pub(super) fn visible_bounds(iterations: usize, stress: bool) -> Result<()> {
+    use lume::{app::ReaderImages, reader::images::ImageSlot};
+    use std::hint::black_box;
+
+    let count = if stress { 50_000 } else { 10_000 };
+    let mut images = ReaderImages::default();
+    images.slots = (0..count)
+        .map(|index| ImageSlot {
+            url: format!("https://benchmark.example/{index}.svg"),
+            alt: String::new(),
+            caption: index * 20,
+            rows: index * 20 + 1..index * 20 + 13,
+            source: index..index + 1,
+        })
+        .collect();
+    super::super::measure(
+        "visible image bounds across 128 long-article positions",
+        iterations * 50,
+        || {
+            for step in 0..128 {
+                let index = count / 2 + step;
+                let visible =
+                    black_box(&images).visible_slots(index * 20 + 2, 30);
+                ensure!(visible.len() == 2, "Visible image count changed");
+                ensure!(
+                    visible[0].source.start == index,
+                    "Wrong clipped image"
+                );
+                ensure!(
+                    visible[1].source.start == index + 1,
+                    "Wrong next image"
+                );
+            }
+            Ok(())
+        },
+    )
+}

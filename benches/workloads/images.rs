@@ -50,7 +50,8 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     )?;
     cached_frames(&bytes, iterations)?;
     inspection::run(&mut decoder, &bytes, svg.as_bytes(), &key, iterations)?;
-    sixel::run(&mut decoder, svg.as_bytes(), &key, iterations)
+    sixel::run(&mut decoder, svg.as_bytes(), &key, iterations)?;
+    sixel::visible_bounds(iterations, stress)
 }
 
 fn verify_raster(

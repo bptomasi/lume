@@ -10,12 +10,9 @@ use ratatui::{
 use crate::app::App;
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
-    let bottom = app.scroll + usize::from(column.height);
     for slot in app
         .images
-        .slots
-        .iter()
-        .filter(|slot| slot.rows.end > app.scroll && slot.caption < bottom)
+        .visible_slots(app.scroll, usize::from(column.height))
     {
         let Some(key) = app.image_key(slot) else {
             message(
@@ -51,7 +48,7 @@ pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
         || app.pane_motion_active()
         || app.hovered_note().is_some()
         || app.notebook.is_some()
-        || app.selection.is_some()
+        || app.layout_prefix_pending()
         || app.article_preparing()
         || frame.area().width < 24
         || frame.area().height < 10
@@ -64,11 +61,9 @@ pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
         return;
     };
     let column = super::workspace_reader_content(reader, &app.workspace);
-    let bottom = app.scroll + usize::from(column.height);
-    for slot in
-        app.images.slots.iter().filter(|slot| {
-            slot.rows.end > app.scroll && slot.rows.start < bottom
-        })
+    for slot in app
+        .images
+        .visible_slots(app.scroll, usize::from(column.height))
     {
         let Some(key) = app.image_key(slot) else {
             continue;
@@ -92,7 +87,10 @@ fn native_area(
     let last = (app.scroll + usize::from(column.height))
         .saturating_sub(slot.rows.start)
         .min(usize::from(image.cells.area.height));
-    if first >= last || column.is_empty() {
+    if first >= last
+        || column.is_empty()
+        || image.cells.area.width > column.width
+    {
         return None;
     }
     let area = Rect::new(
@@ -111,7 +109,7 @@ fn paint_cursor(frame: &mut Frame<'_>, app: &App, column: Rect) {
         || app.reader_cursor >= app.scroll + usize::from(column.height)
         || !app
             .images
-            .slots
+            .visible_slots(app.scroll, usize::from(column.height))
             .iter()
             .any(|slot| slot.rows.contains(&app.reader_cursor))
     {

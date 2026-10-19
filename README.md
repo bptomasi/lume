@@ -498,8 +498,10 @@ a native protocol supported by your terminal. `b` returns the inspector to
 blocks. OS window reports supply cell dimensions, falling back to 10×20 when
 unavailable. No competing stdin capability reader is started.
 
-Native inline images hide for menus, selections, note previews and panel
-movement. They are painted after theming and pane-picture capture. Foot frames
+Native inline images remain visible during keyboard and mouse text selection.
+Menus (including the Ctrl-w guide), note previews and panel movement suppress
+them so pixels cannot cover controls. They are painted after theming and
+pane-picture capture. Foot frames
 use synchronized terminal updates so intermediate erases and pixel writes are
 presented together. This bounds visible update stages; physical display latency
 still depends on the terminal and compositor.
@@ -828,7 +830,8 @@ then run `make check-foot` in a Wayland session after `make build`.
 selects the executable and evidence directory. The gate opens an owned Foot
 window with an isolated library and a private PTY relay. It checks exact strip
 geometry, independently decoded Sixel colors, clipping in both scroll directions,
-click-to-inspect, source zoom, menu cleanup, publisher text and tty restoration.
+visual selection, text clicks, click-to-inspect, source zoom, menu cleanup,
+publisher text and tty restoration.
 Sixel palette quantization is included in the fixture's expected colors.
 Captured protocol pixels and results are retained; they do not substitute for a
 compositor screenshot or a physical latency/flicker measurement. Missing tools,

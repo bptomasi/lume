@@ -52,7 +52,13 @@ fn clipped_strips_keep_exact_source_rows_and_cell_height() -> Result<()> {
     }
     assert_eq!(clipped[(2, 2)].symbol(), " ");
     assert_eq!(clipped[(3, 6)].symbol(), " ");
-    assert!(rows.bytes() > 80 * 12);
+    let payload_bytes = (2..14)
+        .map(|row| complete[(3, row)].symbol().len())
+        .sum::<usize>();
+    assert_eq!(
+        rows.bytes(),
+        payload_bytes + 12 * std::mem::size_of::<ratatui::buffer::Cell>()
+    );
     Ok(())
 }
 
@@ -168,4 +174,159 @@ fn help_and_theme_changes_restore_native_rows_without_covering_controls()
     terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
     assert_eq!(native_rows(terminal.backend().buffer()), 12);
     Ok(())
+}
+
+fn press(
+    app: &mut App,
+    code: crossterm::event::KeyCode,
+) -> Result<lume::app::Action> {
+    use crossterm::event::{KeyEvent, KeyModifiers};
+
+    app.key(KeyEvent::new(code, KeyModifiers::NONE))
+}
+
+fn assert_native(app: &mut App) -> Result<()> {
+    let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
+    terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+    assert_eq!(native_rows(terminal.backend().buffer()), 12);
+    assert!(!app.images_pending());
+    Ok(())
+}
+
+#[test]
+fn character_and_linewise_selection_keep_images_and_yank_exact_text()
+-> Result<()> {
+    use crossterm::event::KeyCode;
+    use lume::app::Action;
+
+    let (_directory, mut app) = reading()?;
+    let text = app.reader_text.clone();
+    let after = app
+        .reader_lines
+        .iter()
+        .position(|line| line == "After image.")
+        .context("Text after image")?;
+    app.reader_cursor = after;
+    app.reader_column = 0;
+    for code in ['v', 'V'] {
+        app.selection = None;
+        press(&mut app, KeyCode::Char(code))?;
+        assert!(app.selection.is_some());
+        assert_native(&mut app)?;
+        let expected = if code == 'v' { "A" } else { "After image." };
+        assert_eq!(
+            press(&mut app, KeyCode::Char('y'))?,
+            Action::Copy(expected.into())
+        );
+    }
+    assert_eq!(app.reader_text, text);
+    Ok(())
+}
+
+#[test]
+fn mouse_click_and_drag_keep_inline_pixels_through_every_selection_frame()
+-> Result<()> {
+    use crossterm::event::{
+        KeyCode, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    };
+    use lume::app::Action;
+
+    let (_directory, mut app) = reading()?;
+    let reader = ui::workspace_areas(
+        Rect::new(0, 0, 100, 36),
+        app.focus,
+        &app.workspace,
+    )
+    .reader
+    .context("Reader")?;
+    let column = ui::workspace_reader_content(reader, &app.workspace);
+    let after = app
+        .reader_lines
+        .iter()
+        .position(|line| line == "After image.")
+        .context("Text after image")?;
+    let row = column.y + after as u16;
+    for (kind, distance) in [
+        (MouseEventKind::Down(MouseButton::Left), 0),
+        (MouseEventKind::Up(MouseButton::Left), 0),
+        (MouseEventKind::Down(MouseButton::Left), 0),
+        (MouseEventKind::Drag(MouseButton::Left), 4),
+        (MouseEventKind::Up(MouseButton::Left), 4),
+    ] {
+        app.mouse(MouseEvent {
+            kind,
+            column: column.x + distance,
+            row,
+            modifiers: KeyModifiers::NONE,
+        })?;
+        assert!(matches!(app.mode, Mode::Normal));
+        assert_native(&mut app)?;
+    }
+    assert_eq!(
+        press(&mut app, KeyCode::Char('y'))?,
+        Action::Copy("After".into())
+    );
+    Ok(())
+}
+
+#[test]
+fn layout_prefix_help_covers_native_pixels_and_cancel_restores_them()
+-> Result<()> {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let (_directory, mut app) = reading()?;
+    app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
+    assert!(app.layout_prefix_pending());
+    let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
+    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    assert_eq!(native_rows(terminal.backend().buffer()), 0);
+    assert!(
+        terminal
+            .backend()
+            .buffer()
+            .content
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect::<String>()
+            .contains("Split below")
+    );
+
+    press(&mut app, KeyCode::Esc)?;
+    assert_native(&mut app)?;
+    Ok(())
+}
+
+#[test]
+fn visible_image_bounds_include_captions_clips_gaps_and_empty_viewports() {
+    use lume::{app::ReaderImages, reader::images::ImageSlot};
+
+    let mut images = ReaderImages::default();
+    images.slots = (0..10_000)
+        .map(|index| {
+            let caption = index * 20;
+            ImageSlot {
+                url: format!("https://example.org/{index}.svg"),
+                alt: String::new(),
+                caption,
+                rows: caption + 1..caption + 13,
+                source: index..index + 1,
+            }
+        })
+        .collect();
+    for (scroll, height, expected) in [
+        (2000, 1, vec![100]),
+        (2013, 7, vec![]),
+        (1999, 15, vec![100]),
+        (1990, 30, vec![99, 100]),
+        (2000, 0, vec![]),
+        (199_993, 40, vec![]),
+        (usize::MAX - 1, 8, vec![]),
+    ] {
+        let actual = images
+            .visible_slots(scroll, height)
+            .iter()
+            .map(|slot| slot.source.start)
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "viewport {scroll}+{height}");
+    }
 }

@@ -18,7 +18,7 @@ use super::{Action, App};
 
 /// Current reader slots and a bounded cache of worker-prepared terminal cells.
 pub struct ReaderImages {
-    /// Source references and reserved rows of the displayed article only.
+    /// Non-overlapping source slots in display-row order, for this article.
     pub slots: Vec<ImageSlot>,
     /// Permit loading new images; cached thumbnails remain visible when paused.
     pub enabled: bool,
@@ -48,6 +48,21 @@ impl Default for ReaderImages {
 }
 
 impl ReaderImages {
+    /// Visible references, including captions, in reader display order.
+    ///
+    /// Reader construction orders non-overlapping slots by their display rows.
+    /// Binary bounds keep admission and drawing independent of offscreen images.
+    pub fn visible_slots(&self, scroll: usize, height: usize) -> &[ImageSlot] {
+        if height == 0 {
+            return &[];
+        }
+        let first = self.slots.partition_point(|slot| slot.rows.end <= scroll);
+        let remaining = &self.slots[first..];
+        let bottom = scroll.saturating_add(height);
+        let count = remaining.partition_point(|slot| slot.caption < bottom);
+        &remaining[..count]
+    }
+
     /// Ready cells for this exact URL, viewport and transparency background.
     pub fn thumbnail(&self, key: &ImageKey) -> Option<&Thumbnail> {
         self.cached(key)?.as_ref().ok()
@@ -167,11 +182,9 @@ impl App {
         let bottom = self.scroll + self.reader_height;
         let eligible = self
             .images
-            .slots
+            .visible_slots(self.scroll, self.reader_height)
             .iter()
-            .filter(|image| {
-                image.rows.end > self.scroll && image.rows.start < bottom
-            })
+            .filter(|image| image.rows.start < bottom)
             .take(4)
             .any(|image| image.source == slot.source);
         if !eligible {
@@ -253,14 +266,10 @@ impl App {
     }
 
     fn admit_visible_image(&mut self) -> bool {
-        let visible = self.scroll..self.scroll + self.reader_height;
         let next = self.image_inspector_key().or_else(|| {
             self.images
-                .slots
+                .visible_slots(self.scroll, self.reader_height)
                 .iter()
-                .filter(|slot| {
-                    slot.rows.end > visible.start && slot.caption < visible.end
-                })
                 .filter_map(|slot| self.image_key(slot))
                 .find(|key| self.images.cached(key).is_none())
         });

@@ -1,0 +1,1002 @@
+{
+  "baseline": {
+    "measured_at": "2026-10-19T23:13:28.123078+00:00",
+    "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+    "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "binary": "reader-fc86952a85e74996",
+    "binary_sha256": "82ecbcdda2a011b74cf41e8fd3f3c6b83c55375d80fd2229c3a9e2619694e864",
+    "notes": [
+      "Three repeated processes per representative/stress workload.",
+      "Setup and fallback font initialization are outside operation timers.",
+      "Process resources include fixture generation and setup.",
+      "Frames use TestBackend; physical terminal latency is not measured.",
+      "Historical inline-only measurements remain in image-benchmarks.json.",
+      "Native encoders are measured; physical emulator/display time is not.",
+      "Inspector zoom and pan use original bytes or re-rendered SVG paths.",
+      "Bidirectional scrolling checks 24 clips without new image work.",
+      "Sixel clips copy cached cell-height strips without decoding again."
+    ],
+    "runs": [
+      {
+        "stress": false,
+        "run": 1,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 99.375,
+            "mean_ms": 2.484
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 238.542,
+            "mean_ms": 5.964
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 510.864,
+            "mean_ms": 0.255
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 46.551,
+            "mean_ms": 1.164
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 230.566,
+            "mean_ms": 5.764
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2065.097,
+            "mean_ms": 51.627
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 820.292,
+            "mean_ms": 20.507
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 670.069,
+            "mean_ms": 0.335
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 513.35,
+            "mean_ms": 12.834
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 657.772,
+            "mean_ms": 3.289
+          }
+        },
+        "resources": {
+          "wall_seconds": 5.91,
+          "peak_rss_kib": 31092,
+          "user_seconds": 5.66,
+          "system_seconds": 0.25,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 99.375 ms total, 2.484 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 238.542 ms total, 5.964 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 510.864 ms total, 0.255 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 46.551 ms total, 1.164 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 230.566 ms total, 5.764 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 2065.097 ms total, 51.627 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 820.292 ms total, 20.507 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 670.069 ms total, 0.335 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 513.350 ms total, 12.834 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 657.772 ms total, 3.289 ms/iteration\n"
+      },
+      {
+        "stress": false,
+        "run": 2,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 100.663,
+            "mean_ms": 2.517
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 241.085,
+            "mean_ms": 6.027
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 501.726,
+            "mean_ms": 0.251
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 43.185,
+            "mean_ms": 1.08
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 224.591,
+            "mean_ms": 5.615
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2082.243,
+            "mean_ms": 52.056
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 820.173,
+            "mean_ms": 20.504
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 683.291,
+            "mean_ms": 0.342
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 513.961,
+            "mean_ms": 12.849
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 649.65,
+            "mean_ms": 3.248
+          }
+        },
+        "resources": {
+          "wall_seconds": 5.92,
+          "peak_rss_kib": 30836,
+          "user_seconds": 5.69,
+          "system_seconds": 0.23,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 100.663 ms total, 2.517 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 241.085 ms total, 6.027 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 501.726 ms total, 0.251 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 43.185 ms total, 1.080 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 224.591 ms total, 5.615 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 2082.243 ms total, 52.056 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 820.173 ms total, 20.504 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 683.291 ms total, 0.342 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 513.961 ms total, 12.849 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 649.650 ms total, 3.248 ms/iteration\n"
+      },
+      {
+        "stress": false,
+        "run": 3,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 100.127,
+            "mean_ms": 2.503
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 240.286,
+            "mean_ms": 6.007
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 505.909,
+            "mean_ms": 0.253
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 44.306,
+            "mean_ms": 1.108
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 229.751,
+            "mean_ms": 5.744
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2098.711,
+            "mean_ms": 52.468
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 803.907,
+            "mean_ms": 20.098
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 644.725,
+            "mean_ms": 0.322
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 484.696,
+            "mean_ms": 12.117
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 608.094,
+            "mean_ms": 3.04
+          }
+        },
+        "resources": {
+          "wall_seconds": 5.83,
+          "peak_rss_kib": 30680,
+          "user_seconds": 5.59,
+          "system_seconds": 0.24,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 100.127 ms total, 2.503 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 240.286 ms total, 6.007 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 505.909 ms total, 0.253 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 44.306 ms total, 1.108 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 229.751 ms total, 5.744 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 2098.711 ms total, 52.468 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 803.907 ms total, 20.098 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 644.725 ms total, 0.322 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 484.696 ms total, 12.117 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 608.094 ms total, 3.040 ms/iteration\n"
+      },
+      {
+        "stress": true,
+        "run": 1,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 371.151,
+            "mean_ms": 9.279
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 1466.048,
+            "mean_ms": 36.651
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 491.957,
+            "mean_ms": 0.246
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 139.283,
+            "mean_ms": 3.482
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 1422.38,
+            "mean_ms": 35.56
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 3975.478,
+            "mean_ms": 99.387
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2631.062,
+            "mean_ms": 65.777
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 759.485,
+            "mean_ms": 0.38
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 2027.014,
+            "mean_ms": 50.675
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 1045.044,
+            "mean_ms": 5.225
+          }
+        },
+        "resources": {
+          "wall_seconds": 14.54,
+          "peak_rss_kib": 61272,
+          "user_seconds": 14.52,
+          "system_seconds": 0.01,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 371.151 ms total, 9.279 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1466.048 ms total, 36.651 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 491.957 ms total, 0.246 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 139.283 ms total, 3.482 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 1422.380 ms total, 35.560 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 3975.478 ms total, 99.387 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 2631.062 ms total, 65.777 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 759.485 ms total, 0.380 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 2027.014 ms total, 50.675 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 1045.044 ms total, 5.225 ms/iteration\n"
+      },
+      {
+        "stress": true,
+        "run": 2,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 382.471,
+            "mean_ms": 9.562
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 1453.164,
+            "mean_ms": 36.329
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 497.31,
+            "mean_ms": 0.249
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 140.759,
+            "mean_ms": 3.519
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 1403.992,
+            "mean_ms": 35.1
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 4244.643,
+            "mean_ms": 106.116
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2775.026,
+            "mean_ms": 69.376
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 813.458,
+            "mean_ms": 0.407
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 2083.222,
+            "mean_ms": 52.081
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 1079.42,
+            "mean_ms": 5.397
+          }
+        },
+        "resources": {
+          "wall_seconds": 15.09,
+          "peak_rss_kib": 60232,
+          "user_seconds": 15.06,
+          "system_seconds": 0.02,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 382.471 ms total, 9.562 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1453.164 ms total, 36.329 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 497.310 ms total, 0.249 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 140.759 ms total, 3.519 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 1403.992 ms total, 35.100 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 4244.643 ms total, 106.116 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 2775.026 ms total, 69.376 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 813.458 ms total, 0.407 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 2083.222 ms total, 52.081 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 1079.420 ms total, 5.397 ms/iteration\n"
+      },
+      {
+        "stress": true,
+        "run": 3,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 391.865,
+            "mean_ms": 9.797
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 1519.316,
+            "mean_ms": 37.983
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 521.581,
+            "mean_ms": 0.261
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 152.713,
+            "mean_ms": 3.818
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 1434.013,
+            "mean_ms": 35.85
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 3989.001,
+            "mean_ms": 99.725
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2659.272,
+            "mean_ms": 66.482
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 793.014,
+            "mean_ms": 0.397
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 2122.215,
+            "mean_ms": 53.055
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 1106.058,
+            "mean_ms": 5.53
+          }
+        },
+        "resources": {
+          "wall_seconds": 14.9,
+          "peak_rss_kib": 60484,
+          "user_seconds": 14.87,
+          "system_seconds": 0.02,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 391.865 ms total, 9.797 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1519.316 ms total, 37.983 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 521.581 ms total, 0.261 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 152.713 ms total, 3.818 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 1434.013 ms total, 35.850 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 3989.001 ms total, 99.725 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 2659.272 ms total, 66.482 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 793.014 ms total, 0.397 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 2122.215 ms total, 53.055 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 1106.058 ms total, 5.530 ms/iteration\n"
+      }
+    ]
+  },
+  "reviewed": {
+    "measured_at": "2026-10-19T23:19:45.661551+00:00",
+    "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+    "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "binary": "reader-fc86952a85e74996",
+    "binary_sha256": "226445cdcad4150be9bfe5a3a10eb2cfcb28c5c61dd9e21405569d02c2b96a8b",
+    "notes": [
+      "Three repeated processes per representative/stress workload.",
+      "Setup and fallback font initialization are outside operation timers.",
+      "Process resources include fixture generation and setup.",
+      "Frames use TestBackend; physical terminal latency is not measured.",
+      "Historical inline-only measurements remain in image-benchmarks.json.",
+      "Native encoders are measured; physical emulator/display time is not.",
+      "Inspector zoom and pan use original bytes or re-rendered SVG paths.",
+      "Bidirectional scrolling checks 24 clips without new image work.",
+      "Sixel clips copy cached cell-height strips without decoding again."
+    ],
+    "runs": [
+      {
+        "stress": false,
+        "run": 1,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 100.767,
+            "mean_ms": 2.519
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 242.523,
+            "mean_ms": 6.063
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 517.431,
+            "mean_ms": 0.259
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 43.259,
+            "mean_ms": 1.081
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 227.399,
+            "mean_ms": 5.685
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2190.098,
+            "mean_ms": 54.752
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 874.047,
+            "mean_ms": 21.851
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 716.533,
+            "mean_ms": 0.358
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 524.797,
+            "mean_ms": 13.12
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 619.201,
+            "mean_ms": 3.096
+          },
+          "visible image bounds across 128 long-article positions": {
+            "iterations": 2000,
+            "total_ms": 11.937,
+            "mean_ms": 0.006
+          }
+        },
+        "resources": {
+          "wall_seconds": 6.14,
+          "peak_rss_kib": 30356,
+          "user_seconds": 5.89,
+          "system_seconds": 0.23,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 100.767 ms total, 2.519 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 242.523 ms total, 6.063 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 517.431 ms total, 0.259 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 43.259 ms total, 1.081 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 227.399 ms total, 5.685 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 2190.098 ms total, 54.752 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 874.047 ms total, 21.851 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 716.533 ms total, 0.358 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 524.797 ms total, 13.120 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 619.201 ms total, 3.096 ms/iteration\nvisible image bounds across 128 long-article positions: 2000 iterations, 11.937 ms total, 0.006 ms/iteration\n"
+      },
+      {
+        "stress": false,
+        "run": 2,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 98.617,
+            "mean_ms": 2.465
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 266.741,
+            "mean_ms": 6.669
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 525.892,
+            "mean_ms": 0.263
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 47.042,
+            "mean_ms": 1.176
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 254.076,
+            "mean_ms": 6.352
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2079.131,
+            "mean_ms": 51.978
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 824.275,
+            "mean_ms": 20.607
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 687.914,
+            "mean_ms": 0.344
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 536.764,
+            "mean_ms": 13.419
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 646.689,
+            "mean_ms": 3.233
+          },
+          "visible image bounds across 128 long-article positions": {
+            "iterations": 2000,
+            "total_ms": 12.081,
+            "mean_ms": 0.006
+          }
+        },
+        "resources": {
+          "wall_seconds": 6.05,
+          "peak_rss_kib": 30616,
+          "user_seconds": 5.78,
+          "system_seconds": 0.26,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 98.617 ms total, 2.465 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 266.741 ms total, 6.669 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 525.892 ms total, 0.263 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 47.042 ms total, 1.176 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 254.076 ms total, 6.352 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 2079.131 ms total, 51.978 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 824.275 ms total, 20.607 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 687.914 ms total, 0.344 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 536.764 ms total, 13.419 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 646.689 ms total, 3.233 ms/iteration\nvisible image bounds across 128 long-article positions: 2000 iterations, 12.081 ms total, 0.006 ms/iteration\n"
+      },
+      {
+        "stress": false,
+        "run": 3,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 106.227,
+            "mean_ms": 2.656
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 261.159,
+            "mean_ms": 6.529
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 509.649,
+            "mean_ms": 0.255
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 43.231,
+            "mean_ms": 1.081
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 235.944,
+            "mean_ms": 5.899
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2157.842,
+            "mean_ms": 53.946
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 879.313,
+            "mean_ms": 21.983
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 730.762,
+            "mean_ms": 0.365
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 501.111,
+            "mean_ms": 12.528
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 618.022,
+            "mean_ms": 3.09
+          },
+          "visible image bounds across 128 long-article positions": {
+            "iterations": 2000,
+            "total_ms": 12.615,
+            "mean_ms": 0.006
+          }
+        },
+        "resources": {
+          "wall_seconds": 6.12,
+          "peak_rss_kib": 30416,
+          "user_seconds": 5.85,
+          "system_seconds": 0.27,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 106.227 ms total, 2.656 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 261.159 ms total, 6.529 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 509.649 ms total, 0.255 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 43.231 ms total, 1.081 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 235.944 ms total, 5.899 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 2157.842 ms total, 53.946 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 879.313 ms total, 21.983 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 730.762 ms total, 0.365 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 501.111 ms total, 12.528 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 618.022 ms total, 3.090 ms/iteration\nvisible image bounds across 128 long-article positions: 2000 iterations, 12.615 ms total, 0.006 ms/iteration\n"
+      },
+      {
+        "stress": true,
+        "run": 1,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 378.376,
+            "mean_ms": 9.459
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 1454.048,
+            "mean_ms": 36.351
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 503.592,
+            "mean_ms": 0.252
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 149.33,
+            "mean_ms": 3.733
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 1541.464,
+            "mean_ms": 38.537
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 4165.22,
+            "mean_ms": 104.131
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2805.304,
+            "mean_ms": 70.133
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 780.993,
+            "mean_ms": 0.39
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 2177.043,
+            "mean_ms": 54.426
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 1046.058,
+            "mean_ms": 5.23
+          },
+          "visible image bounds across 128 long-article positions": {
+            "iterations": 2000,
+            "total_ms": 13.599,
+            "mean_ms": 0.007
+          }
+        },
+        "resources": {
+          "wall_seconds": 15.24,
+          "peak_rss_kib": 58336,
+          "user_seconds": 15.19,
+          "system_seconds": 0.04,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 378.376 ms total, 9.459 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1454.048 ms total, 36.351 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 503.592 ms total, 0.252 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 149.330 ms total, 3.733 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 1541.464 ms total, 38.537 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 4165.220 ms total, 104.131 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 2805.304 ms total, 70.133 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 780.993 ms total, 0.390 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 2177.043 ms total, 54.426 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 1046.058 ms total, 5.230 ms/iteration\nvisible image bounds across 128 long-article positions: 2000 iterations, 13.599 ms total, 0.007 ms/iteration\n"
+      },
+      {
+        "stress": true,
+        "run": 2,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 376.917,
+            "mean_ms": 9.423
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 1560.565,
+            "mean_ms": 39.014
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 501.663,
+            "mean_ms": 0.251
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 153.681,
+            "mean_ms": 3.842
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 1446.02,
+            "mean_ms": 36.15
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 4306.057,
+            "mean_ms": 107.651
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2788.947,
+            "mean_ms": 69.724
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 761.363,
+            "mean_ms": 0.381
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 2128.293,
+            "mean_ms": 53.207
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 1112.825,
+            "mean_ms": 5.564
+          },
+          "visible image bounds across 128 long-article positions": {
+            "iterations": 2000,
+            "total_ms": 14.075,
+            "mean_ms": 0.007
+          }
+        },
+        "resources": {
+          "wall_seconds": 15.38,
+          "peak_rss_kib": 60464,
+          "user_seconds": 15.35,
+          "system_seconds": 0.01,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 376.917 ms total, 9.423 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1560.565 ms total, 39.014 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 501.663 ms total, 0.251 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 153.681 ms total, 3.842 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 1446.020 ms total, 36.150 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 4306.057 ms total, 107.651 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 2788.947 ms total, 69.724 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 761.363 ms total, 0.381 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 2128.293 ms total, 53.207 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 1112.825 ms total, 5.564 ms/iteration\nvisible image bounds across 128 long-article positions: 2000 iterations, 14.075 ms total, 0.007 ms/iteration\n"
+      },
+      {
+        "stress": true,
+        "run": 3,
+        "metrics": {
+          "bounded raster decode + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 395.296,
+            "mean_ms": 9.882
+          },
+          "bounded SVG paths/text + halfblock encode": {
+            "iterations": 40,
+            "total_ms": 1549.345,
+            "mean_ms": 38.734
+          },
+          "cached image scroll + two reader frames": {
+            "iterations": 2000,
+            "total_ms": 514.344,
+            "mean_ms": 0.257
+          },
+          "source raster crop + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 142.601,
+            "mean_ms": 3.565
+          },
+          "source SVG zoom + detailed blocks": {
+            "iterations": 40,
+            "total_ms": 1492.271,
+            "mean_ms": 37.307
+          },
+          "source SVG + Sixel pixel encoding": {
+            "iterations": 40,
+            "total_ms": 4200.123,
+            "mean_ms": 105.003
+          },
+          "source SVG + Iterm2 pixel encoding": {
+            "iterations": 40,
+            "total_ms": 2830.983,
+            "mean_ms": 70.775
+          },
+          "cached inspector pan + two frames": {
+            "iterations": 2000,
+            "total_ms": 839.974,
+            "mean_ms": 0.42
+          },
+          "source SVG + inline Sixel strips": {
+            "iterations": 40,
+            "total_ms": 2176.78,
+            "mean_ms": 54.419
+          },
+          "cached Sixel bidirectional scroll + clipped frames": {
+            "iterations": 200,
+            "total_ms": 1089.926,
+            "mean_ms": 5.45
+          },
+          "visible image bounds across 128 long-article positions": {
+            "iterations": 2000,
+            "total_ms": 13.634,
+            "mean_ms": 0.007
+          }
+        },
+        "resources": {
+          "wall_seconds": 15.47,
+          "peak_rss_kib": 48692,
+          "user_seconds": 15.44,
+          "system_seconds": 0.02,
+          "input_blocks": 0,
+          "output_blocks": 0
+        },
+        "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 395.296 ms total, 9.882 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1549.345 ms total, 38.734 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 514.344 ms total, 0.257 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 142.601 ms total, 3.565 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 1492.271 ms total, 37.307 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 4200.123 ms total, 105.003 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 2830.983 ms total, 70.775 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 839.974 ms total, 0.420 ms/iteration\nsource SVG + inline Sixel strips: 40 iterations, 2176.780 ms total, 54.419 ms/iteration\ncached Sixel bidirectional scroll + clipped frames: 200 iterations, 1089.926 ms total, 5.450 ms/iteration\nvisible image bounds across 128 long-article positions: 2000 iterations, 13.634 ms total, 0.007 ms/iteration\n"
+      }
+    ]
+  },
+  "comparison": [
+    {
+      "stress": false,
+      "workload": "bounded raster decode + halfblock encode",
+      "baseline_median_ms": 2.503,
+      "reviewed_median_ms": 2.519,
+      "change_percent": 0.64
+    },
+    {
+      "stress": false,
+      "workload": "bounded SVG paths/text + halfblock encode",
+      "baseline_median_ms": 6.007,
+      "reviewed_median_ms": 6.529,
+      "change_percent": 8.69
+    },
+    {
+      "stress": false,
+      "workload": "cached image scroll + two reader frames",
+      "baseline_median_ms": 0.253,
+      "reviewed_median_ms": 0.259,
+      "change_percent": 2.37
+    },
+    {
+      "stress": false,
+      "workload": "source raster crop + detailed blocks",
+      "baseline_median_ms": 1.108,
+      "reviewed_median_ms": 1.081,
+      "change_percent": -2.44
+    },
+    {
+      "stress": false,
+      "workload": "source SVG zoom + detailed blocks",
+      "baseline_median_ms": 5.744,
+      "reviewed_median_ms": 5.899,
+      "change_percent": 2.7
+    },
+    {
+      "stress": false,
+      "workload": "source SVG + Sixel pixel encoding",
+      "baseline_median_ms": 52.056,
+      "reviewed_median_ms": 53.946,
+      "change_percent": 3.63
+    },
+    {
+      "stress": false,
+      "workload": "source SVG + Iterm2 pixel encoding",
+      "baseline_median_ms": 20.504,
+      "reviewed_median_ms": 21.851,
+      "change_percent": 6.57
+    },
+    {
+      "stress": false,
+      "workload": "cached inspector pan + two frames",
+      "baseline_median_ms": 0.335,
+      "reviewed_median_ms": 0.358,
+      "change_percent": 6.87
+    },
+    {
+      "stress": false,
+      "workload": "source SVG + inline Sixel strips",
+      "baseline_median_ms": 12.834,
+      "reviewed_median_ms": 13.12,
+      "change_percent": 2.23
+    },
+    {
+      "stress": false,
+      "workload": "cached Sixel bidirectional scroll + clipped frames",
+      "baseline_median_ms": 3.248,
+      "reviewed_median_ms": 3.096,
+      "change_percent": -4.68
+    },
+    {
+      "stress": true,
+      "workload": "bounded raster decode + halfblock encode",
+      "baseline_median_ms": 9.562,
+      "reviewed_median_ms": 9.459,
+      "change_percent": -1.08
+    },
+    {
+      "stress": true,
+      "workload": "bounded SVG paths/text + halfblock encode",
+      "baseline_median_ms": 36.651,
+      "reviewed_median_ms": 38.734,
+      "change_percent": 5.68
+    },
+    {
+      "stress": true,
+      "workload": "cached image scroll + two reader frames",
+      "baseline_median_ms": 0.249,
+      "reviewed_median_ms": 0.252,
+      "change_percent": 1.2
+    },
+    {
+      "stress": true,
+      "workload": "source raster crop + detailed blocks",
+      "baseline_median_ms": 3.519,
+      "reviewed_median_ms": 3.733,
+      "change_percent": 6.08
+    },
+    {
+      "stress": true,
+      "workload": "source SVG zoom + detailed blocks",
+      "baseline_median_ms": 35.56,
+      "reviewed_median_ms": 37.307,
+      "change_percent": 4.91
+    },
+    {
+      "stress": true,
+      "workload": "source SVG + Sixel pixel encoding",
+      "baseline_median_ms": 99.725,
+      "reviewed_median_ms": 105.003,
+      "change_percent": 5.29
+    },
+    {
+      "stress": true,
+      "workload": "source SVG + Iterm2 pixel encoding",
+      "baseline_median_ms": 66.482,
+      "reviewed_median_ms": 70.133,
+      "change_percent": 5.49
+    },
+    {
+      "stress": true,
+      "workload": "cached inspector pan + two frames",
+      "baseline_median_ms": 0.397,
+      "reviewed_median_ms": 0.39,
+      "change_percent": -1.76
+    },
+    {
+      "stress": true,
+      "workload": "source SVG + inline Sixel strips",
+      "baseline_median_ms": 52.081,
+      "reviewed_median_ms": 54.419,
+      "change_percent": 4.49
+    },
+    {
+      "stress": true,
+      "workload": "cached Sixel bidirectional scroll + clipped frames",
+      "baseline_median_ms": 5.397,
+      "reviewed_median_ms": 5.45,
+      "change_percent": 0.98
+    }
+  ],
+  "interpretation": [
+    "Same pinned compiler and workloads, three processes for each input size.",
+    "The reviewed binary additionally measures 128 viewport bounds over 10000/50000 image references.",
+    "Those reference counts exercise unusually long inputs, not a typical article.",
+    "Representative cached scroll median fell; stress scroll varied slightly upward.",
+    "These runs do not establish a uniform speedup or physical key-to-frame latency.",
+    "Retained Sixel storage is independently checked to contain one payload cell per row."
+  ]
+}
