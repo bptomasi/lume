@@ -1,0 +1,472 @@
+{
+  "measured_at": "2026-10-19T19:25:37.977945+00:00",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "binary": "reader-fc86952a85e74996",
+  "binary_sha256": "12a86d02cba28bd0ba5df1b4e249a4a68f9cbac244d9ca849c968ed3b1395ece",
+  "notes": [
+    "Three repeated processes per representative/stress workload.",
+    "Setup and fallback font initialization are outside operation timers.",
+    "Process resources include fixture generation and setup.",
+    "Frames use TestBackend; physical terminal latency is not measured.",
+    "Historical inline-only measurements remain in image-benchmarks.json.",
+    "Native encoders are measured; physical emulator/display time is not.",
+    "Inspector zoom and pan use original bytes or re-rendered SVG paths.",
+    "Overlay PNG preparation and UI projection planning are measured.",
+    "Bidirectional scrolling checks 24 clips without new image work.",
+    "External helper/GPU display time is not part of frame timings.",
+    "Measured before persistent X11 integration; this is UI/TestBackend evidence only. Native display evidence is in image-persistent-qualification.json."
+  ],
+  "runs": [
+    {
+      "stress": false,
+      "run": 1,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 100.984,
+          "mean_ms": 2.525
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 235.076,
+          "mean_ms": 5.877
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 505.164,
+          "mean_ms": 0.253
+        },
+        "source raster crop + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 43.554,
+          "mean_ms": 1.089
+        },
+        "source SVG zoom + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 225.082,
+          "mean_ms": 5.627
+        },
+        "source SVG + Kitty pixel encoding": {
+          "iterations": 40,
+          "total_ms": 833.847,
+          "mean_ms": 20.846
+        },
+        "source SVG + Sixel pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2035.755,
+          "mean_ms": 50.894
+        },
+        "source SVG + Iterm2 pixel encoding": {
+          "iterations": 40,
+          "total_ms": 811.103,
+          "mean_ms": 20.278
+        },
+        "source SVG + Overlay pixel encoding": {
+          "iterations": 40,
+          "total_ms": 630.726,
+          "mean_ms": 15.768
+        },
+        "cached inspector pan + two frames": {
+          "iterations": 2000,
+          "total_ms": 656.222,
+          "mean_ms": 0.328
+        },
+        "cached overlay projection + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 476.942,
+          "mean_ms": 0.238
+        },
+        "cached bidirectional scroll + 24 clipped frames": {
+          "iterations": 200,
+          "total_ms": 608.761,
+          "mean_ms": 3.044
+        }
+      },
+      "resources": {
+        "wall_seconds": 7.23,
+        "peak_rss_kib": 30896,
+        "user_seconds": 6.71,
+        "system_seconds": 0.5,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 100.984 ms total, 2.525 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 235.076 ms total, 5.877 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 505.164 ms total, 0.253 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 43.554 ms total, 1.089 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 225.082 ms total, 5.627 ms/iteration\nsource SVG + Kitty pixel encoding: 40 iterations, 833.847 ms total, 20.846 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 2035.755 ms total, 50.894 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 811.103 ms total, 20.278 ms/iteration\nsource SVG + Overlay pixel encoding: 40 iterations, 630.726 ms total, 15.768 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 656.222 ms total, 0.328 ms/iteration\ncached overlay projection + two reader frames: 2000 iterations, 476.942 ms total, 0.238 ms/iteration\ncached bidirectional scroll + 24 clipped frames: 200 iterations, 608.761 ms total, 3.044 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "run": 2,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 102.154,
+          "mean_ms": 2.554
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 241.503,
+          "mean_ms": 6.038
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 547.338,
+          "mean_ms": 0.274
+        },
+        "source raster crop + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 46.276,
+          "mean_ms": 1.157
+        },
+        "source SVG zoom + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 243.121,
+          "mean_ms": 6.078
+        },
+        "source SVG + Kitty pixel encoding": {
+          "iterations": 40,
+          "total_ms": 843.904,
+          "mean_ms": 21.098
+        },
+        "source SVG + Sixel pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2131.533,
+          "mean_ms": 53.288
+        },
+        "source SVG + Iterm2 pixel encoding": {
+          "iterations": 40,
+          "total_ms": 870.446,
+          "mean_ms": 21.761
+        },
+        "source SVG + Overlay pixel encoding": {
+          "iterations": 40,
+          "total_ms": 681.852,
+          "mean_ms": 17.046
+        },
+        "cached inspector pan + two frames": {
+          "iterations": 2000,
+          "total_ms": 714.272,
+          "mean_ms": 0.357
+        },
+        "cached overlay projection + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 501.102,
+          "mean_ms": 0.251
+        },
+        "cached bidirectional scroll + 24 clipped frames": {
+          "iterations": 200,
+          "total_ms": 613.056,
+          "mean_ms": 3.065
+        }
+      },
+      "resources": {
+        "wall_seconds": 7.6,
+        "peak_rss_kib": 30256,
+        "user_seconds": 7.07,
+        "system_seconds": 0.5,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 102.154 ms total, 2.554 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 241.503 ms total, 6.038 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 547.338 ms total, 0.274 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 46.276 ms total, 1.157 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 243.121 ms total, 6.078 ms/iteration\nsource SVG + Kitty pixel encoding: 40 iterations, 843.904 ms total, 21.098 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 2131.533 ms total, 53.288 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 870.446 ms total, 21.761 ms/iteration\nsource SVG + Overlay pixel encoding: 40 iterations, 681.852 ms total, 17.046 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 714.272 ms total, 0.357 ms/iteration\ncached overlay projection + two reader frames: 2000 iterations, 501.102 ms total, 0.251 ms/iteration\ncached bidirectional scroll + 24 clipped frames: 200 iterations, 613.056 ms total, 3.065 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "run": 3,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 109.599,
+          "mean_ms": 2.74
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 261.124,
+          "mean_ms": 6.528
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 524.017,
+          "mean_ms": 0.262
+        },
+        "source raster crop + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 47.336,
+          "mean_ms": 1.183
+        },
+        "source SVG zoom + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 245.771,
+          "mean_ms": 6.144
+        },
+        "source SVG + Kitty pixel encoding": {
+          "iterations": 40,
+          "total_ms": 872.637,
+          "mean_ms": 21.816
+        },
+        "source SVG + Sixel pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2122.18,
+          "mean_ms": 53.054
+        },
+        "source SVG + Iterm2 pixel encoding": {
+          "iterations": 40,
+          "total_ms": 863.723,
+          "mean_ms": 21.593
+        },
+        "source SVG + Overlay pixel encoding": {
+          "iterations": 40,
+          "total_ms": 670.335,
+          "mean_ms": 16.758
+        },
+        "cached inspector pan + two frames": {
+          "iterations": 2000,
+          "total_ms": 700.79,
+          "mean_ms": 0.35
+        },
+        "cached overlay projection + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 507.013,
+          "mean_ms": 0.254
+        },
+        "cached bidirectional scroll + 24 clipped frames": {
+          "iterations": 200,
+          "total_ms": 611.454,
+          "mean_ms": 3.057
+        }
+      },
+      "resources": {
+        "wall_seconds": 7.6,
+        "peak_rss_kib": 30540,
+        "user_seconds": 7.07,
+        "system_seconds": 0.51,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 109.599 ms total, 2.740 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 261.124 ms total, 6.528 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 524.017 ms total, 0.262 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 47.336 ms total, 1.183 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 245.771 ms total, 6.144 ms/iteration\nsource SVG + Kitty pixel encoding: 40 iterations, 872.637 ms total, 21.816 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 2122.180 ms total, 53.054 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 863.723 ms total, 21.593 ms/iteration\nsource SVG + Overlay pixel encoding: 40 iterations, 670.335 ms total, 16.758 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 700.790 ms total, 0.350 ms/iteration\ncached overlay projection + two reader frames: 2000 iterations, 507.013 ms total, 0.254 ms/iteration\ncached bidirectional scroll + 24 clipped frames: 200 iterations, 611.454 ms total, 3.057 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 1,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 441.2,
+          "mean_ms": 11.03
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 1495.864,
+          "mean_ms": 37.397
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 505.072,
+          "mean_ms": 0.253
+        },
+        "source raster crop + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 152.397,
+          "mean_ms": 3.81
+        },
+        "source SVG zoom + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 1500.398,
+          "mean_ms": 37.51
+        },
+        "source SVG + Kitty pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2667.677,
+          "mean_ms": 66.692
+        },
+        "source SVG + Sixel pixel encoding": {
+          "iterations": 40,
+          "total_ms": 4181.713,
+          "mean_ms": 104.543
+        },
+        "source SVG + Iterm2 pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2748.635,
+          "mean_ms": 68.716
+        },
+        "source SVG + Overlay pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2475.997,
+          "mean_ms": 61.9
+        },
+        "cached inspector pan + two frames": {
+          "iterations": 2000,
+          "total_ms": 804.275,
+          "mean_ms": 0.402
+        },
+        "cached overlay projection + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 526.653,
+          "mean_ms": 0.263
+        },
+        "cached bidirectional scroll + 24 clipped frames": {
+          "iterations": 200,
+          "total_ms": 575.225,
+          "mean_ms": 2.876
+        }
+      },
+      "resources": {
+        "wall_seconds": 18.29,
+        "peak_rss_kib": 61316,
+        "user_seconds": 18.21,
+        "system_seconds": 0.04,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 441.200 ms total, 11.030 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1495.864 ms total, 37.397 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 505.072 ms total, 0.253 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 152.397 ms total, 3.810 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 1500.398 ms total, 37.510 ms/iteration\nsource SVG + Kitty pixel encoding: 40 iterations, 2667.677 ms total, 66.692 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 4181.713 ms total, 104.543 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 2748.635 ms total, 68.716 ms/iteration\nsource SVG + Overlay pixel encoding: 40 iterations, 2475.997 ms total, 61.900 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 804.275 ms total, 0.402 ms/iteration\ncached overlay projection + two reader frames: 2000 iterations, 526.653 ms total, 0.263 ms/iteration\ncached bidirectional scroll + 24 clipped frames: 200 iterations, 575.225 ms total, 2.876 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 2,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 445.13,
+          "mean_ms": 11.128
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 1466.727,
+          "mean_ms": 36.668
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 529.672,
+          "mean_ms": 0.265
+        },
+        "source raster crop + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 161.52,
+          "mean_ms": 4.038
+        },
+        "source SVG zoom + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 1485.987,
+          "mean_ms": 37.15
+        },
+        "source SVG + Kitty pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2668.971,
+          "mean_ms": 66.724
+        },
+        "source SVG + Sixel pixel encoding": {
+          "iterations": 40,
+          "total_ms": 4053.077,
+          "mean_ms": 101.327
+        },
+        "source SVG + Iterm2 pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2676.025,
+          "mean_ms": 66.901
+        },
+        "source SVG + Overlay pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2527.805,
+          "mean_ms": 63.195
+        },
+        "cached inspector pan + two frames": {
+          "iterations": 2000,
+          "total_ms": 785.181,
+          "mean_ms": 0.393
+        },
+        "cached overlay projection + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 471.487,
+          "mean_ms": 0.236
+        },
+        "cached bidirectional scroll + 24 clipped frames": {
+          "iterations": 200,
+          "total_ms": 607.976,
+          "mean_ms": 3.04
+        }
+      },
+      "resources": {
+        "wall_seconds": 18.09,
+        "peak_rss_kib": 49236,
+        "user_seconds": 18.05,
+        "system_seconds": 0.02,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 445.130 ms total, 11.128 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1466.727 ms total, 36.668 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 529.672 ms total, 0.265 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 161.520 ms total, 4.038 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 1485.987 ms total, 37.150 ms/iteration\nsource SVG + Kitty pixel encoding: 40 iterations, 2668.971 ms total, 66.724 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 4053.077 ms total, 101.327 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 2676.025 ms total, 66.901 ms/iteration\nsource SVG + Overlay pixel encoding: 40 iterations, 2527.805 ms total, 63.195 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 785.181 ms total, 0.393 ms/iteration\ncached overlay projection + two reader frames: 2000 iterations, 471.487 ms total, 0.236 ms/iteration\ncached bidirectional scroll + 24 clipped frames: 200 iterations, 607.976 ms total, 3.040 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 3,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 440.926,
+          "mean_ms": 11.023
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 1554.376,
+          "mean_ms": 38.859
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 535.852,
+          "mean_ms": 0.268
+        },
+        "source raster crop + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 158.557,
+          "mean_ms": 3.964
+        },
+        "source SVG zoom + detailed blocks": {
+          "iterations": 40,
+          "total_ms": 1512.729,
+          "mean_ms": 37.818
+        },
+        "source SVG + Kitty pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2723.844,
+          "mean_ms": 68.096
+        },
+        "source SVG + Sixel pixel encoding": {
+          "iterations": 40,
+          "total_ms": 4151.293,
+          "mean_ms": 103.782
+        },
+        "source SVG + Iterm2 pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2805.129,
+          "mean_ms": 70.128
+        },
+        "source SVG + Overlay pixel encoding": {
+          "iterations": 40,
+          "total_ms": 2526.772,
+          "mean_ms": 63.169
+        },
+        "cached inspector pan + two frames": {
+          "iterations": 2000,
+          "total_ms": 826.479,
+          "mean_ms": 0.413
+        },
+        "cached overlay projection + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 486.403,
+          "mean_ms": 0.243
+        },
+        "cached bidirectional scroll + 24 clipped frames": {
+          "iterations": 200,
+          "total_ms": 603.862,
+          "mean_ms": 3.019
+        }
+      },
+      "resources": {
+        "wall_seconds": 18.53,
+        "peak_rss_kib": 49548,
+        "user_seconds": 18.48,
+        "system_seconds": 0.02,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 440.926 ms total, 11.023 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1554.376 ms total, 38.859 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 535.852 ms total, 0.268 ms/iteration\nsource raster crop + detailed blocks: 40 iterations, 158.557 ms total, 3.964 ms/iteration\nsource SVG zoom + detailed blocks: 40 iterations, 1512.729 ms total, 37.818 ms/iteration\nsource SVG + Kitty pixel encoding: 40 iterations, 2723.844 ms total, 68.096 ms/iteration\nsource SVG + Sixel pixel encoding: 40 iterations, 4151.293 ms total, 103.782 ms/iteration\nsource SVG + Iterm2 pixel encoding: 40 iterations, 2805.129 ms total, 70.128 ms/iteration\nsource SVG + Overlay pixel encoding: 40 iterations, 2526.772 ms total, 63.169 ms/iteration\ncached inspector pan + two frames: 2000 iterations, 826.479 ms total, 0.413 ms/iteration\ncached overlay projection + two reader frames: 2000 iterations, 486.403 ms total, 0.243 ms/iteration\ncached bidirectional scroll + 24 clipped frames: 200 iterations, 603.862 ms total, 3.019 ms/iteration\n"
+    }
+  ]
+}

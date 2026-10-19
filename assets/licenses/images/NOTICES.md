@@ -80,3 +80,11 @@ retained upstream LICENSE is from their shared .cargo_vcs_info.json revision
 | xmlwriter | 0.1.0 | MIT | ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9 |
 | zune-core | 0.5.3 | MIT OR Apache-2.0 OR Zlib | d56377fd46368984a170bc5aac5567e52ca5da874caa60bea39fcbca78fb658b |
 | zune-jpeg | 0.5.15 | MIT OR Apache-2.0 OR Zlib | 27bc9d5b815bc103f142aa054f561d9187d191692ec7c2d1e2b4737f8dbd7296 |
+
+## Persistent X11 image integration
+
+| Package | Version | Declared license | Registry SHA-256 |
+| --- | --- | --- | --- |
+| gethostname | 1.1.0 | Apache-2.0 | 1bd49230192a3797a9a4d6abe9b3eed6f7fa4c8a8a4947977c6f80025f92cbd8 |
+| x11rb | 0.14.0 | MIT OR Apache-2.0 | 5a8885a854a8bfdf87a301e53e41b17c5f8f33639903131338b997b1eb614f44 |
+| x11rb-protocol | 0.14.0 | MIT OR Apache-2.0 | acf4d1bc32aa46eec18caa634ec3cf4c05bfa151f12b93b510b15190f69a1ca8 |

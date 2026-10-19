@@ -6,6 +6,7 @@
 //! pane cannot enter a quotation or yank.
 
 mod gestures;
+mod images;
 mod modal;
 mod notes;
 mod reorder;
@@ -294,7 +295,11 @@ impl App {
                     self.open_reader()?;
                 }
             }
-            Pane::Reader => self.begin_selection(area, event),
+            Pane::Reader => {
+                if !self.open_pointer_image(area, event) {
+                    self.begin_selection(area, event);
+                }
+            }
             Pane::Annotations => {
                 if let Some(index) = ui::annotation_at(self, area, event.row) {
                     self.comment_selected =

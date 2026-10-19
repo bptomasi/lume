@@ -25,6 +25,7 @@ fn key(width: u16, height: u16) -> ImageKey {
         width,
         height,
         background: [23, 23, 26],
+        detail: None,
     }
 }
 

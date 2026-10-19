@@ -22,6 +22,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
         Mode::Settings(draft) => settings(frame, app, draft),
         Mode::Leader => leader(frame),
         Mode::Normal => {}
+        Mode::Image(_) => {}
     }
 }
 

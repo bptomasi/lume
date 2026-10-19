@@ -57,6 +57,7 @@ impl App {
     ) -> Result<()> {
         let forward = event.kind == MouseEventKind::ScrollDown;
         match &mut self.mode {
+            Mode::Image(_) => self.pan_image(forward, amount),
             Mode::Help => {
                 self.help_scroll = shifted(
                     self.help_scroll,

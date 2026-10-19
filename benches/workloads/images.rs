@@ -1,5 +1,8 @@
 //! Correctness-checked raster/vector preparation and cached scrolling frames.
 
+#[path = "image_inspection.rs"]
+mod inspection;
+
 use std::{
     io::Cursor,
     time::{Duration, Instant},
@@ -23,6 +26,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         width: 80,
         height: 12,
         background: [23, 23, 26],
+        detail: None,
     };
     let mut decoder = Decoder::default();
     decoder.render(svg.as_bytes(), &key)?;
@@ -41,7 +45,8 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         iterations,
         || verify_vector(&mut decoder, svg.as_bytes(), &key),
     )?;
-    cached_frames(&bytes, iterations)
+    cached_frames(&bytes, iterations)?;
+    inspection::run(&mut decoder, &bytes, svg.as_bytes(), &key, iterations)
 }
 
 fn verify_raster(
@@ -148,6 +153,7 @@ fn image_app() -> Result<(tempfile::TempDir, App)> {
     let mut app = App::new(store, false)?;
     app.focus = Focus::Reader;
     app.workspace.fullscreen = true;
+    app.resize_workspace(Rect::new(0, 0, 144, 44));
     let column =
         ui::workspace_reader_content(Rect::new(0, 0, 144, 44), &app.workspace);
     app.resize_reader(column.width.into(), column.height.into());

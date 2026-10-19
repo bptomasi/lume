@@ -163,6 +163,39 @@ fn delayed_http_images_leave_cursor_input_available_and_do_not_bleed_after_navig
 
 #[test]
 #[ignore = "requires real loopback HTTP; required by make check-release"]
+fn delayed_inspection_discards_old_crops_without_blocking_zoom_or_close()
+-> Result<()> {
+    let server = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
+    let (_directory, mut app) = reading(&server.url)?;
+    app.resize_workspace(ratatui::layout::Rect::new(0, 0, 144, 44));
+    app.reader_cursor = app.images.slots[0].caption;
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    let old = app.image_inspector_key().context("Initial inspection")?;
+    app.poll_images();
+    server.request.recv_timeout(Duration::from_secs(5))?;
+
+    let started = Instant::now();
+    app.key(KeyEvent::new(KeyCode::Char('+'), KeyModifiers::NONE))?;
+    app.key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))?;
+    let newest = app.image_inspector_key().context("New crop")?;
+    assert_ne!(old, newest);
+    assert!(started.elapsed() < Duration::from_secs(1));
+    server.release.send(())?;
+    settle(&mut app)?;
+
+    assert!(app.images.thumbnail(&newest).is_some());
+    assert_eq!(app.image_inspector_key(), Some(newest));
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
+    assert!(app.image_inspector_key().is_none());
+    server
+        .finished
+        .recv_timeout(Duration::from_secs(5))?
+        .map_err(anyhow::Error::msg)?;
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
 fn http_error_and_non_image_content_keep_the_article_and_show_recoverable_errors()
 -> Result<()> {
     for (status, body) in [

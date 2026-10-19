@@ -6,11 +6,12 @@ use anyhow::{Context, Result, ensure};
 use image::{DynamicImage, ImageFormat, ImageReader, Limits, Rgba, RgbaImage};
 use ratatui::{buffer::Buffer, layout::Rect, widgets::Widget};
 use ratatui_image::{
-    Image,
+    Image, Resize,
+    picker::{Picker, ProtocolType},
     protocol::{Protocol, halfblocks::Halfblocks},
 };
 
-use super::{ImageKey, MAX_BYTES, Thumbnail};
+use super::{ImageKey, ImageProtocol, MAX_BYTES, Thumbnail, geometry};
 
 /// Reuses the SVG font database across images; used only outside UI drawing.
 #[derive(Default)]
@@ -29,50 +30,161 @@ impl Decoder {
         key: &ImageKey,
     ) -> Result<Thumbnail> {
         ensure!(bytes.len() <= MAX_BYTES, "Image exceeds 8 MiB");
-        ensure!(
-            (1..=160).contains(&key.width) && (1..=48).contains(&key.height),
-            "Image viewport exceeds 160 columns or 48 rows"
-        );
+        geometry::validate(key)?;
         let (image, dimensions) = if image::guess_format(bytes).is_ok() {
             raster(bytes, key)?
         } else {
             self.svg.render(bytes, key)?
         };
-        let width = image.width() as u16;
-        let height = image.height().div_ceil(2) as u16;
-        let image = composite(image, key.background);
-        let area = Rect::new(0, 0, width, height);
-        let protocol = Protocol::Halfblocks(Halfblocks::new(image, area)?);
-        let mut cells = Buffer::empty(area);
-        Image::new(&protocol).render(area, &mut cells);
-        // Keep every raster cell identifiable as literal image color. A full
-        // halfblock with identical colors is visually equal to a colored space.
-        for cell in &mut cells.content {
-            if cell.symbol() == " " {
-                cell.set_symbol("▀");
-            }
-        }
-        Ok(Thumbnail {
-            cells,
+        prepare(image, dimensions, key)
+    }
+}
+
+fn prepare(
+    image: DynamicImage,
+    dimensions: (u32, u32),
+    key: &ImageKey,
+) -> Result<Thumbnail> {
+    let image = slice(image, key);
+    let (cell_width, cell_height) = geometry::cell_pixels(key);
+    let width = image.width().div_ceil(u32::from(cell_width)) as u16;
+    let height = image.height().div_ceil(u32::from(cell_height)) as u16;
+    let image = composite(image, key);
+    let area = Rect::new(0, 0, width, height);
+    if key
+        .detail
+        .as_ref()
+        .is_some_and(|detail| detail.protocol == ImageProtocol::Overlay)
+    {
+        return overlay_thumbnail(image, area, dimensions);
+    }
+    let protocol = encode(image, area, key)?;
+    if !matches!(protocol, Protocol::Halfblocks(_)) {
+        return Ok(Thumbnail {
+            cells: Buffer::empty(area),
             dimensions,
             cache_warning: None,
-        })
+            native: Some(protocol),
+            overlay: None,
+        });
     }
+    let mut cells = Buffer::empty(area);
+    Image::new(&protocol).render(area, &mut cells);
+    // Keep every raster cell identifiable as literal image color. A full
+    // halfblock with identical colors is visually equal to a colored space.
+    for cell in &mut cells.content {
+        if cell.symbol() == " " {
+            cell.set_symbol("▀");
+        }
+    }
+    Ok(Thumbnail {
+        cells,
+        dimensions,
+        cache_warning: None,
+        native: None,
+        overlay: None,
+    })
+}
+
+fn overlay_thumbnail(
+    image: DynamicImage,
+    area: Rect,
+    dimensions: (u32, u32),
+) -> Result<Thumbnail> {
+    let overlay = if area.is_empty() {
+        None
+    } else {
+        Some(std::sync::Arc::new(super::PreparedPng::new(&image)?))
+    };
+    Ok(Thumbnail {
+        cells: Buffer::empty(area),
+        dimensions,
+        overlay,
+        native: None,
+        cache_warning: None,
+    })
+}
+
+fn encode(image: DynamicImage, area: Rect, key: &ImageKey) -> Result<Protocol> {
+    let Some(detail) = &key.detail else {
+        return Ok(Protocol::Halfblocks(Halfblocks::new(image, area)?));
+    };
+    let protocol = match detail.protocol {
+        ImageProtocol::Blocks | ImageProtocol::Overlay => {
+            return Ok(Protocol::Halfblocks(Halfblocks::new(image, area)?));
+        }
+        ImageProtocol::Kitty => ProtocolType::Kitty,
+        ImageProtocol::Sixel => ProtocolType::Sixel,
+        ImageProtocol::Iterm2 => ProtocolType::Iterm2,
+    };
+    let mut picker = Picker::from_fontsize(detail.cell_pixels);
+    picker.set_protocol_type(protocol);
+    picker.set_background_color(Rgba([
+        key.background[0],
+        key.background[1],
+        key.background[2],
+        255,
+    ]));
+    Ok(picker.new_protocol(image, area, Resize::Fit(None))?)
+}
+
+fn slice(image: DynamicImage, key: &ImageKey) -> DynamicImage {
+    let Some(slice) =
+        key.detail.as_ref().and_then(|detail| detail.slice.as_ref())
+    else {
+        return image;
+    };
+    let (_, cell_height) = geometry::cell_pixels(key);
+    let start = (u32::from(slice.first_row) * u32::from(cell_height))
+        .min(image.height());
+    let height = (u32::from(slice.rows) * u32::from(cell_height))
+        .min(image.height() - start);
+    image.crop_imm(0, start, image.width(), height)
 }
 
 fn raster(bytes: &[u8], key: &ImageKey) -> Result<(DynamicImage, (u32, u32))> {
     let dimensions = reader(bytes)?.into_dimensions()?;
+    ensure!(dimensions.0 > 0 && dimensions.1 > 0, "Image has no pixels");
     ensure!(
         u64::from(dimensions.0) * u64::from(dimensions.1) <= 8_000_000,
         "Image exceeds 8 million pixels"
     );
     let image = reader(bytes)?.decode().context("Invalid image data")?;
+    if key.detail.is_some() {
+        return Ok((crop_raster(image, key), dimensions));
+    }
     let thumbnail = image.resize(
         u32::from(key.width),
         u32::from(key.height) * 2,
         image::imageops::FilterType::Triangle,
     );
     Ok((thumbnail, dimensions))
+}
+
+fn crop_raster(image: DynamicImage, key: &ImageKey) -> DynamicImage {
+    let geometry = geometry::Geometry::new(
+        (image.width() as f32, image.height() as f32),
+        key,
+    );
+    let x = (geometry.offset[0] / geometry.scale).floor() as u32;
+    let y = (geometry.offset[1] / geometry.scale).floor() as u32;
+    let width = (geometry.width as f32 / geometry.scale).ceil() as u32;
+    let height = (geometry.height as f32 / geometry.scale).ceil() as u32;
+    let x = x.min(image.width() - 1);
+    let y = y.min(image.height() - 1);
+    // Crop before resizing: zoom cannot allocate an entire enlarged source.
+    image
+        .crop_imm(
+            x,
+            y,
+            width.max(1).min(image.width() - x),
+            height.max(1).min(image.height() - y),
+        )
+        .resize_exact(
+            geometry.width,
+            geometry.height,
+            image::imageops::FilterType::Lanczos3,
+        )
 }
 
 fn reader(bytes: &[u8]) -> Result<ImageReader<Cursor<&[u8]>>> {
@@ -99,11 +211,22 @@ fn reader(bytes: &[u8]) -> Result<ImageReader<Cursor<&[u8]>>> {
     Ok(reader)
 }
 
-fn composite(image: DynamicImage, background: [u8; 3]) -> DynamicImage {
-    let [red, green, blue] = background;
+fn composite(image: DynamicImage, key: &ImageKey) -> DynamicImage {
+    let [red, green, blue] = key.background;
+    let height = if key
+        .detail
+        .as_ref()
+        .is_none_or(|detail| detail.protocol == ImageProtocol::Blocks)
+    {
+        image.height().next_multiple_of(2)
+    } else {
+        // Pixel backends must fit the exact cell budget. Padding an odd final
+        // row would force the helper to rescale every pixel to fit again.
+        image.height()
+    };
     let mut canvas = RgbaImage::from_pixel(
         image.width(),
-        image.height().next_multiple_of(2),
+        height,
         Rgba([red, green, blue, 255]),
     );
     image::imageops::overlay(&mut canvas, &image.to_rgba8(), 0, 0);

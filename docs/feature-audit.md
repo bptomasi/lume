@@ -1,9 +1,10 @@
-# Requested capability audit — 2026-10-18
+# Requested capability audit — 2026-10-19
 
 This audit covers executable behavior, entry points and native regression
-evidence. TestBackend frames and an isolated real PTY qualify local terminal
-behavior; they do not measure physical Alacritty rendering. The current gate
-results and environment limitations belong to [validation](validation.md).
+evidence. Buffer/PTY tests are complemented by real Alacritty X11 qualification
+with synthetic input and full bitmap comparisons. These do not measure human
+perception or physical key-to-pixel latency. Current gate results and environment
+limitations belong to [validation](validation.md).
 
 | Requested capability | Available behavior | Owning evidence |
 | --- | --- | --- |
@@ -31,7 +32,7 @@ results and environment limitations belong to [validation](validation.md).
 | Reader navigation tools | Literal search with n/N, outline, jump history, code-block copy and wide-table inspector | `tests/reader_tools.rs`, `tests/vim_reader.rs` |
 | Expressive smart lists | Shared live/saved AND/OR/NOT grammar, exclusions, exact token phrases, dates, author, domain, duration and tags | `tests/advanced_search.rs` |
 | Query discovery | Field/operator completion and `:explain-search` including saved conditions | `tests/advanced_search.rs`, `tests/library_workflows.rs`, `src/search/` |
-| Large-library navigation | Bounded metadata pages across the complete library, filtered anchor recovery, selective read-count updates | `tests/workspace.rs`, `tests/input_batch.rs`, `tests/read_state.rs`, `tests/reader_tools.rs` |
+| Large-library navigation | Materialized page identities before metadata hydration, full filtered totals, anchor recovery and selective read-count updates | `tests/advanced_search.rs`, `tests/workspace.rs`, `tests/input_batch.rs`, `tests/read_state.rs`, `tests/reader_tools.rs` |
 | Read-count acceleration | V8 covering index; real V7 upgrade preserves content, notes, folders and read/Trash counts | `src/store/migrations/tests.rs` |
 | Sidebar organization | Collapsible groups, pins and custom destination order | `tests/library_workflows.rs` |
 | Tags and multiple articles | Independent article/highlight tags; captured atomic bulk operations with one undo | `tests/library_workflows.rs`, `tests/study.rs` |
@@ -42,12 +43,16 @@ results and environment limitations belong to [validation](validation.md).
 | Configurable shortcuts | Command bindings respect modal editors and input batching | `tests/library_workflows.rs` |
 | Parallel collection | Four bounded lanes, subscription-host pacing, incremental results and durable Retry-After | `src/source/scheduler/tests.rs`; real HTTP qualification remains required |
 | Performance evidence | Correctness-checked representative/stress frames, smart-list switches, reflow and concurrent writes | `benches/workloads/smoothness.rs`, `benches/workloads/expansion.rs`, `benches/workloads/panes.rs`; [validation](validation.md) |
+| Inline images | Bounded raster/SVG previews; persistent X11 pixels, click-to-inspect, source zoom/pan and exact clipping; optional Wayland helper and portable fallback | `tests/images.rs`, `tests/image_inspector.rs`, `tests/overlay.rs`, `tests/image_http.rs`, `tools/qualify_images.py` |
+| Native terminal image protocols | Kitty, Sixel and iTerm2 inspector encodings, conservative automatic selection and manual override | `tests/image_inspector.rs`; built-in encoders remain confined to the inspector |
 
 ## Deliberate product boundaries
 
 Folders are flat, with multiple membership; sidebar sections provide hierarchy.
 Mouse gestures require terminal reporting; status reports observed events,
-not a capability acknowledgment. Physical Alacritty remains unqualified.
+not a capability acknowledgment. Alacritty X11 input, clipboard, restoration
+and image pixels are qualified in an isolated Xvfb display; other compositors
+and human perception remain outside that evidence.
 Vim support is a documented read-only subset: fixed Unicode word classes, display-row
 motions and word/paragraph visual objects; no publisher-text editing engine or
 configurable `iskeyword`. Quotes retain exact source identity across reflow;
@@ -66,6 +71,6 @@ Reported key releases cancel queued repeats; legacy input cannot reveal the
 physical instant a finger leaves a key. Ongoing storage/layout/draw operations
 are not preempted, and no hard real-time guarantee is made.
 
-No requested core feature is represented by a placeholder. Live HTTP,
-clean-registry qualification, connected dependency/advisory audit and physical
-terminal latency remain explicit validation limits, not completed claims.
+Real loopback HTTP and the pinned published-registry build are qualified.
+Current live-publisher availability, connected dependency/advisory audits and
+physical terminal latency remain explicit validation limits.

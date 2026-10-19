@@ -1,15 +1,20 @@
 //! Visible-image admission and exact thumbnail keys preserve reader identity.
 
+mod inspector;
+pub use inspector::ImageInspector;
+
 use std::{collections::VecDeque, path::PathBuf};
 
-use anyhow::{Context, Result, ensure};
+use anyhow::Result;
 
 use crate::{
-    media::{ImageKey, Thumbnail, Worker},
+    media::{
+        ImageDetail, ImageKey, ImageProtocol, ImageSlice, Thumbnail, Worker,
+    },
     reader::images::{IMAGE_ROWS, ImageSlot},
 };
 
-use super::{Action, App, Focus};
+use super::{Action, App};
 
 /// Current reader slots and a bounded cache of worker-prepared terminal cells.
 pub struct ReaderImages {
@@ -20,6 +25,11 @@ pub struct ReaderImages {
     worker: Option<Worker>,
     pending: Option<ImageKey>,
     cache: VecDeque<(ImageKey, Result<Thumbnail, String>)>,
+    configuration: Option<(PathBuf, bool)>,
+    protocol: ImageProtocol,
+    automatic_protocol: ImageProtocol,
+    cell_pixels: (u16, u16),
+    notice: Option<String>,
 }
 
 impl Default for ReaderImages {
@@ -30,11 +40,20 @@ impl Default for ReaderImages {
             worker: None,
             pending: None,
             cache: VecDeque::new(),
+            configuration: None,
+            protocol: ImageProtocol::Blocks,
+            automatic_protocol: ImageProtocol::Blocks,
+            cell_pixels: (10, 20),
+            notice: None,
         }
     }
 }
 
 impl ReaderImages {
+    /// Last optional overlay failure, retained while portable fallback is used.
+    pub fn notice(&self) -> Option<&str> {
+        self.notice.as_deref()
+    }
     /// Ready cells for this exact URL, viewport and transparency background.
     pub fn thumbnail(&self, key: &ImageKey) -> Option<&Thumbnail> {
         self.cached(key)?.as_ref().ok()
@@ -45,11 +64,55 @@ impl ReaderImages {
         self.cached(key)?.as_ref().err().map(String::as_str)
     }
 
+    /// Explain missing pixels without claiming a stopped worker is loading.
+    pub fn placeholder(&self, key: &ImageKey) -> &str {
+        if let Some(error) = self.error(key) {
+            return error;
+        }
+        if self.worker.is_none() {
+            return "Images unavailable · :images retry · :image-open";
+        }
+        if self.enabled || key.detail.is_some() {
+            return "Loading image…";
+        }
+        "Image loading paused"
+    }
+
     fn cached(&self, key: &ImageKey) -> Option<&Result<Thumbnail, String>> {
         self.cache
             .iter()
             .find(|(old, _)| old == key)
             .map(|(_, value)| value)
+    }
+
+    fn remember(&mut self, key: ImageKey, result: Result<Thumbnail, String>) {
+        self.cache.retain(|(old, _)| *old != key);
+        self.cache.push_front((key, result));
+        self.cache.truncate(24);
+        let mut details = 0;
+        let mut bytes = 0;
+        self.cache.retain(|(key, _)| {
+            let inspector = key
+                .detail
+                .as_ref()
+                .is_some_and(|detail| detail.slice.is_none());
+            if inspector {
+                details += 1;
+            }
+            !inspector || details <= 2
+        });
+        self.cache.retain(|(_, value)| {
+            let size = value
+                .as_ref()
+                .ok()
+                .and_then(|image| image.overlay.as_ref())
+                .map_or(0, |file| file.bytes());
+            if bytes + size > 32 * 1024 * 1024 {
+                return false;
+            }
+            bytes += size;
+            true
+        });
     }
 }
 
@@ -63,6 +126,7 @@ impl App {
         directory: PathBuf,
         offline: bool,
     ) -> Result<()> {
+        self.images.configuration = Some((directory.clone(), offline));
         self.images.worker = Some(Worker::start(directory, offline)?);
         self.images.pending = None;
         Ok(())
@@ -100,7 +164,53 @@ impl App {
             width: self.reader_width.clamp(1, 160) as u16,
             height: IMAGE_ROWS as u16,
             background: crate::ui::image_background(&self.workspace.theme),
+            detail: self.inline_overlay_detail(slot),
         })
+    }
+
+    fn inline_overlay_detail(&self, slot: &ImageSlot) -> Option<ImageDetail> {
+        if self.images.protocol != ImageProtocol::Overlay {
+            return None;
+        }
+        let bottom = self.scroll + self.reader_height;
+        let eligible = self
+            .images
+            .slots
+            .iter()
+            .filter(|image| {
+                image.rows.end > self.scroll && image.rows.start < bottom
+            })
+            .take(4)
+            .any(|image| image.source == slot.source);
+        if !eligible {
+            return None;
+        }
+        Some(ImageDetail {
+            zoom: 1,
+            pan: [0, 0],
+            protocol: ImageProtocol::Overlay,
+            cell_pixels: self.images.cell_pixels,
+            slice: Some(ImageSlice {
+                first_row: 0,
+                rows: IMAGE_ROWS as u16,
+            }),
+        })
+    }
+
+    /// Whether the selected presentation needs the optional window-system helper.
+    pub fn uses_image_overlay(&self) -> bool {
+        self.images.protocol == ImageProtocol::Overlay
+    }
+
+    /// Return to portable cells after an optional helper failure.
+    pub fn image_overlay_failed(&mut self, error: &str) {
+        self.images.protocol = ImageProtocol::Blocks;
+        let notice = format!(
+            "Overlay unavailable: {} · using blocks",
+            crate::content::label(error, 180)
+        );
+        self.images.notice = Some(notice.clone());
+        self.status = notice;
     }
 
     /// Poll prepared cells and submit at most one currently visible image.
@@ -111,8 +221,7 @@ impl App {
             Some(Err(error)) => {
                 self.images.worker = None;
                 if let Some(key) = self.images.pending.take() {
-                    self.images.cache.push_front((key, Err(error.to_string())));
-                    self.images.cache.truncate(24);
+                    self.images.remember(key, Err(error.to_string()));
                 }
                 self.status = error.to_string();
                 return true;
@@ -123,15 +232,30 @@ impl App {
         if let Some(completed) = completed {
             self.install_thumbnail(completed);
         }
-        if !self.images.enabled
-            || self.images.pending.is_some()
-            || self.notebook.is_some()
-            || self.navigation_loading
-            || !self.workspace.fullscreen && !self.workspace.show_reader
-        {
+        if !self.can_request_images() {
             return changed;
         }
         self.admit_visible_image() || changed
+    }
+
+    fn can_request_images(&self) -> bool {
+        if self.images.pending.is_some()
+            || self.notebook.is_some()
+            || self.navigation_loading
+        {
+            return false;
+        }
+        if matches!(self.mode, super::Mode::Image(_)) {
+            return true;
+        }
+        self.images.enabled
+            && crate::ui::workspace_areas(
+                self.screen,
+                self.focus,
+                &self.workspace,
+            )
+            .reader
+            .is_some()
     }
 
     fn install_thumbnail(&mut self, completed: crate::media::Completion) {
@@ -144,31 +268,29 @@ impl App {
             );
         }
         self.images.pending = None;
-        self.images
-            .cache
-            .push_front((completed.key, completed.result));
-        self.images.cache.truncate(24);
+        self.images.remember(completed.key, completed.result);
     }
 
     fn admit_visible_image(&mut self) -> bool {
         let visible = self.scroll..self.scroll + self.reader_height;
-        let next = self
-            .images
-            .slots
-            .iter()
-            .filter(|slot| {
-                slot.rows.end > visible.start && slot.caption < visible.end
-            })
-            .filter_map(|slot| self.image_key(slot))
-            .find(|key| self.images.cached(key).is_none());
+        let next = self.image_inspector_key().or_else(|| {
+            self.images
+                .slots
+                .iter()
+                .filter(|slot| {
+                    slot.rows.end > visible.start && slot.caption < visible.end
+                })
+                .filter_map(|slot| self.image_key(slot))
+                .find(|key| self.images.cached(key).is_none())
+        });
+        let next = next.filter(|key| self.images.cached(key).is_none());
         if let Some(key) = next
             && let Some(worker) = &self.images.worker
         {
             match worker.submit(key.clone()) {
                 Ok(()) => self.images.pending = Some(key),
                 Err(error) => {
-                    self.images.cache.push_front((key, Err(error.to_string())));
-                    self.images.cache.truncate(24);
+                    self.images.remember(key, Err(error.to_string()));
                     return true;
                 }
             }
@@ -186,34 +308,33 @@ impl App {
         verb: &str,
         argument: &str,
     ) -> Result<Option<Action>> {
+        if verb == "image" {
+            self.open_image_inspector()?;
+            return Ok(Some(Action::None));
+        }
+        if verb == "image-protocol" {
+            self.set_image_protocol(argument)?;
+            return Ok(Some(Action::None));
+        }
         if !matches!(verb, "images" | "image-open") {
             return Ok(None);
         }
         if verb == "image-open" {
-            ensure!(
-                self.focus == Focus::Reader && self.notebook.is_none(),
-                "Focus Reader before opening an image"
-            );
-            let slot = self
-                .images
-                .slots
-                .iter()
-                .find(|slot| {
-                    self.reader_cursor >= slot.caption
-                        && self.reader_cursor < slot.rows.end
-                })
-                .context(
-                    "Place the reader cursor on an image or its caption",
-                )?;
-            let key =
-                self.image_key(slot).context("Image URL is not HTTP(S)")?;
-            return Ok(Some(Action::Open(key.url)));
+            return Ok(Some(Action::Open(self.captured_image()?.url)));
         }
         match argument {
             "" => {}
             "on" => self.images.enabled = true,
             "off" => self.images.enabled = false,
-            "retry" => self.images.cache.retain(|(_, value)| value.is_ok()),
+            "retry" => {
+                self.images.cache.retain(|(_, value)| value.is_ok());
+                if self.images.worker.is_none()
+                    && let Some((directory, offline)) =
+                        self.images.configuration.clone()
+                {
+                    self.enable_images(directory, offline)?;
+                }
+            }
             _ => anyhow::bail!("Usage: :images [on|off|retry]"),
         }
         self.status = format!(

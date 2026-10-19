@@ -245,6 +245,7 @@ fn status_line(app: &App) -> Line<'static> {
         Mode::Leader => (" SPACE ", AMBER),
         Mode::Document(_) => (" INSPECT ", AMBER),
         Mode::Settings(_) => (" PREVIEW ", AMBER),
+        Mode::Image(_) => (" IMAGE ", AMBER),
     };
     let activity = if app.session_failed() {
         "  SAVE ERROR"

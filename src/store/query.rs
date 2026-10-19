@@ -37,8 +37,18 @@ impl Criteria {
                 include_str!("sql/recommendations/select_cached_page.sql")
             );
         }
+        // Materialize only page identities before loading metadata or counting
+        // comments. Sorting a large result must not hydrate every article.
         format!(
-            "WITH matching AS ({predicate})\n{}\n{}",
+            r#"WITH candidates AS (
+                {predicate}
+            ),
+            matching AS MATERIALIZED (
+                {}
+            )
+            {}
+            {}"#,
+            include_str!("sql/select_matching_page.sql"),
             include_str!("sql/select_article_metadata.sql"),
             include_str!("sql/select_page.sql")
         )

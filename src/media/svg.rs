@@ -18,41 +18,53 @@ impl SvgDecoder {
         key: &ImageKey,
     ) -> Result<(DynamicImage, (u32, u32))> {
         ensure!(bytes.len() <= 512 * 1024, "SVG exceeds 512 KiB");
-        let text =
-            std::str::from_utf8(bytes).context("Image is not UTF-8 SVG")?;
-        let xml = roxmltree::Document::parse_with_options(
-            text,
-            roxmltree::ParsingOptions {
-                allow_dtd: false,
-                nodes_limit: 5000,
-                ..Default::default()
-            },
-        )
-        .context("Invalid or overly complex SVG")?;
-        ensure!(
-            xml.root_element().tag_name().name() == "svg",
-            "Supported images: PNG, JPEG, WebP, GIF and SVG"
-        );
+        let xml = parse(bytes)?;
         let options = self.options.get_or_insert_with(restricted_options);
         if xml.descendants().any(|node| node.has_tag_name("text")) {
             super::fonts::prepare(options)?;
         }
         let tree = usvg::Tree::from_xmltree(&xml, options)?;
         let size = tree.size();
-        let scale = (f32::from(key.width) / size.width())
-            .min(f32::from(key.height) * 2.0 / size.height());
-        let width = (size.width() * scale).ceil().max(1.0) as u32;
-        let height = (size.height() * scale).ceil().max(1.0) as u32;
-        let mut pixmap = tiny_skia::Pixmap::new(width, height)
-            .context("Could not allocate SVG thumbnail")?;
+        let dimensions =
+            (size.width().ceil() as u32, size.height().ceil() as u32);
+        let geometry =
+            super::geometry::Geometry::new((size.width(), size.height()), key);
+        let mut pixmap =
+            tiny_skia::Pixmap::new(geometry.width, geometry.height)
+                .context("Could not allocate SVG thumbnail")?;
         resvg::render(
             &tree,
-            tiny_skia::Transform::from_scale(scale, scale),
+            tiny_skia::Transform::from_row(
+                geometry.scale,
+                0.0,
+                0.0,
+                geometry.scale,
+                -geometry.offset[0],
+                -geometry.offset[1],
+            ),
             &mut pixmap.as_mut(),
         );
         let image = unpremultiply(&pixmap)?;
-        Ok((image, (size.width() as u32, size.height() as u32)))
+        Ok((image, dimensions))
     }
+}
+
+fn parse(bytes: &[u8]) -> Result<roxmltree::Document<'_>> {
+    let text = std::str::from_utf8(bytes).context("Image is not UTF-8 SVG")?;
+    let xml = roxmltree::Document::parse_with_options(
+        text,
+        roxmltree::ParsingOptions {
+            allow_dtd: false,
+            nodes_limit: 5000,
+            ..Default::default()
+        },
+    )
+    .context("Invalid or overly complex SVG")?;
+    ensure!(
+        xml.root_element().tag_name().name() == "svg",
+        "Supported images: PNG, JPEG, WebP, GIF and SVG"
+    );
+    Ok(xml)
 }
 
 fn restricted_options() -> usvg::Options<'static> {

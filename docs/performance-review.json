@@ -1,0 +1,486 @@
+{
+  "measured_at": "2026-10-19T17:13:07.806340+00:00",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "baseline_commit": "9d97df50e529c9995fb96714a1afca0fca9dacf9",
+  "binaries": {
+    "before": {
+      "filename": "lume-review-benchmark-before",
+      "sha256": "a2fd43db4e26a0080aa5933cd0055d57c2bd77f8a81888a2e6b74d67317119de"
+    },
+    "after": {
+      "filename": "reader-fc86952a85e74996",
+      "sha256": "57bd9bd13ff470f2eb36e0138f58e50612556773dcda15a166b74295a9b96c1c"
+    }
+  },
+  "notes": [
+    "Same checked Rust workloads before and after page-identity materialization.",
+    "Before is the release benchmark built from the clean baseline commit.",
+    "Three processes per workload, size and revision; order alternates.",
+    "Navigation measures a completed down/up destination cycle, not one key.",
+    "Navigation fixtures contain 10000 or 50000 articles and the owned source catalog.",
+    "Smoothness fixtures contain 2000/20000 articles and 20/200 smart lists.",
+    "Frames use TestBackend; physical input/emulator latency is not measured.",
+    "Process resources include fixture generation and application setup.",
+    "Percentiles belong to each process; they are not pooled percentiles.",
+    "After identifies the pre-overlay implementation snapshot; page SQL is unchanged in the final integration. Image/overlay costs are measured separately in image-inspection-benchmarks.json."
+  ],
+  "runs": [
+    {
+      "workload": "--navigation-only",
+      "stress": false,
+      "revision": "before",
+      "run": 1,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 977.648,
+          "mean_ms": 24.441
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 977.648 ms total, 24.441 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 2.61,
+        "peak_rss_kib": 23480,
+        "user_seconds": 1.74,
+        "system_seconds": 0.86,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--navigation-only",
+      "stress": false,
+      "revision": "after",
+      "run": 1,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 469.939,
+          "mean_ms": 11.748
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 469.939 ms total, 11.748 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 2.08,
+        "peak_rss_kib": 23476,
+        "user_seconds": 1.22,
+        "system_seconds": 0.85,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--navigation-only",
+      "stress": false,
+      "revision": "after",
+      "run": 2,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 463.912,
+          "mean_ms": 11.598
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 463.912 ms total, 11.598 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 2.12,
+        "peak_rss_kib": 23300,
+        "user_seconds": 1.3,
+        "system_seconds": 0.8,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--navigation-only",
+      "stress": false,
+      "revision": "before",
+      "run": 2,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 922.563,
+          "mean_ms": 23.064
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 922.563 ms total, 23.064 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 2.55,
+        "peak_rss_kib": 23080,
+        "user_seconds": 1.74,
+        "system_seconds": 0.8,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--navigation-only",
+      "stress": false,
+      "revision": "before",
+      "run": 3,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 931.723,
+          "mean_ms": 23.293
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 931.723 ms total, 23.293 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 2.64,
+        "peak_rss_kib": 23284,
+        "user_seconds": 1.69,
+        "system_seconds": 0.93,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--navigation-only",
+      "stress": false,
+      "revision": "after",
+      "run": 3,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 511.444,
+          "mean_ms": 12.786
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 511.444 ms total, 12.786 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 2.23,
+        "peak_rss_kib": 24184,
+        "user_seconds": 1.32,
+        "system_seconds": 0.89,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--navigation-only",
+      "stress": true,
+      "revision": "before",
+      "run": 1,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 4593.624,
+          "mean_ms": 114.841
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 4593.624 ms total, 114.841 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 12.85,
+        "peak_rss_kib": 23144,
+        "user_seconds": 8.45,
+        "system_seconds": 4.38,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--navigation-only",
+      "stress": true,
+      "revision": "after",
+      "run": 1,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 2454.062,
+          "mean_ms": 61.352
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 2454.062 ms total, 61.352 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 10.59,
+        "peak_rss_kib": 23584,
+        "user_seconds": 6.34,
+        "system_seconds": 4.24,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--navigation-only",
+      "stress": true,
+      "revision": "after",
+      "run": 2,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 2487.89,
+          "mean_ms": 62.197
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 2487.890 ms total, 62.197 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 10.75,
+        "peak_rss_kib": 23412,
+        "user_seconds": 6.32,
+        "system_seconds": 4.43,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--navigation-only",
+      "stress": true,
+      "revision": "before",
+      "run": 2,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 4766.17,
+          "mean_ms": 119.154
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 4766.170 ms total, 119.154 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 13.12,
+        "peak_rss_kib": 23356,
+        "user_seconds": 8.88,
+        "system_seconds": 4.23,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--navigation-only",
+      "stress": true,
+      "revision": "before",
+      "run": 3,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 4673.314,
+          "mean_ms": 116.833
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 4673.314 ms total, 116.833 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 12.9,
+        "peak_rss_kib": 23116,
+        "user_seconds": 8.37,
+        "system_seconds": 4.51,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--navigation-only",
+      "stress": true,
+      "revision": "after",
+      "run": 3,
+      "metrics": {
+        "library down/up with 98 sources + 46 searches": {
+          "iterations": 40,
+          "total_ms": 2494.391,
+          "mean_ms": 62.36
+        }
+      },
+      "stdout": "library down/up with 98 sources + 46 searches: 40 iterations, 2494.391 ms total, 62.360 ms/iteration\n",
+      "resources": {
+        "wall_seconds": 10.91,
+        "peak_rss_kib": 23140,
+        "user_seconds": 6.47,
+        "system_seconds": 4.44,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": false,
+      "revision": "before",
+      "run": 1,
+      "metrics": {},
+      "stdout": "smoothness input: 2000 articles, 20 smart lists\nsmart-list change + text-first frame: 800 samples, p50=0.621 p95=0.684 p99=0.754 max=1.030 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.117 p95=0.128 p99=0.206 max=0.284 ms\n",
+      "resources": {
+        "wall_seconds": 1.21,
+        "peak_rss_kib": 76212,
+        "user_seconds": 1.38,
+        "system_seconds": 0.04,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": false,
+      "revision": "after",
+      "run": 1,
+      "metrics": {},
+      "stdout": "smoothness input: 2000 articles, 20 smart lists\nsmart-list change + text-first frame: 800 samples, p50=0.597 p95=0.663 p99=0.734 max=1.009 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.107 p95=0.116 p99=0.176 max=0.233 ms\n",
+      "resources": {
+        "wall_seconds": 1.13,
+        "peak_rss_kib": 76412,
+        "user_seconds": 1.27,
+        "system_seconds": 0.06,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": false,
+      "revision": "after",
+      "run": 2,
+      "metrics": {},
+      "stdout": "smoothness input: 2000 articles, 20 smart lists\nsmart-list change + text-first frame: 800 samples, p50=0.584 p95=0.632 p99=0.700 max=0.903 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.107 p95=0.114 p99=0.137 max=0.213 ms\n",
+      "resources": {
+        "wall_seconds": 1.12,
+        "peak_rss_kib": 75972,
+        "user_seconds": 1.27,
+        "system_seconds": 0.04,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": false,
+      "revision": "before",
+      "run": 2,
+      "metrics": {},
+      "stdout": "smoothness input: 2000 articles, 20 smart lists\nsmart-list change + text-first frame: 800 samples, p50=0.573 p95=0.639 p99=0.734 max=0.962 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.117 p95=0.124 p99=0.161 max=0.264 ms\n",
+      "resources": {
+        "wall_seconds": 1.16,
+        "peak_rss_kib": 75872,
+        "user_seconds": 1.31,
+        "system_seconds": 0.05,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": false,
+      "revision": "before",
+      "run": 3,
+      "metrics": {},
+      "stdout": "smoothness input: 2000 articles, 20 smart lists\nsmart-list change + text-first frame: 800 samples, p50=0.604 p95=0.649 p99=0.711 max=0.918 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.116 p95=0.121 p99=0.139 max=0.200 ms\n",
+      "resources": {
+        "wall_seconds": 1.18,
+        "peak_rss_kib": 75708,
+        "user_seconds": 1.32,
+        "system_seconds": 0.05,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": false,
+      "revision": "after",
+      "run": 3,
+      "metrics": {},
+      "stdout": "smoothness input: 2000 articles, 20 smart lists\nsmart-list change + text-first frame: 800 samples, p50=0.609 p95=0.661 p99=0.729 max=0.931 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.112 p95=0.117 p99=0.123 max=0.223 ms\n",
+      "resources": {
+        "wall_seconds": 1.16,
+        "peak_rss_kib": 76432,
+        "user_seconds": 1.31,
+        "system_seconds": 0.04,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": true,
+      "revision": "before",
+      "run": 1,
+      "metrics": {},
+      "stdout": "smoothness input: 20000 articles, 200 smart lists\nsmart-list change + text-first frame: 8000 samples, p50=2.363 p95=2.645 p99=2.752 max=6.773 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.110 p95=0.116 p99=0.129 max=0.201 ms\n",
+      "resources": {
+        "wall_seconds": 20.41,
+        "peak_rss_kib": 76628,
+        "user_seconds": 20.27,
+        "system_seconds": 0.33,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": true,
+      "revision": "after",
+      "run": 1,
+      "metrics": {},
+      "stdout": "smoothness input: 20000 articles, 200 smart lists\nsmart-list change + text-first frame: 8000 samples, p50=2.527 p95=2.903 p99=3.110 max=5.204 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.115 p95=0.122 p99=0.143 max=0.250 ms\n",
+      "resources": {
+        "wall_seconds": 21.81,
+        "peak_rss_kib": 76908,
+        "user_seconds": 21.65,
+        "system_seconds": 0.35,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": true,
+      "revision": "after",
+      "run": 2,
+      "metrics": {},
+      "stdout": "smoothness input: 20000 articles, 200 smart lists\nsmart-list change + text-first frame: 8000 samples, p50=2.467 p95=2.806 p99=2.949 max=4.587 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.115 p95=0.122 p99=0.138 max=0.250 ms\n",
+      "resources": {
+        "wall_seconds": 21.37,
+        "peak_rss_kib": 76960,
+        "user_seconds": 21.14,
+        "system_seconds": 0.39,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": true,
+      "revision": "before",
+      "run": 2,
+      "metrics": {},
+      "stdout": "smoothness input: 20000 articles, 200 smart lists\nsmart-list change + text-first frame: 8000 samples, p50=2.438 p95=2.787 p99=2.973 max=4.947 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.113 p95=0.121 p99=0.136 max=0.265 ms\n",
+      "resources": {
+        "wall_seconds": 21.13,
+        "peak_rss_kib": 76504,
+        "user_seconds": 20.97,
+        "system_seconds": 0.32,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": true,
+      "revision": "before",
+      "run": 3,
+      "metrics": {},
+      "stdout": "smoothness input: 20000 articles, 200 smart lists\nsmart-list change + text-first frame: 8000 samples, p50=2.395 p95=2.705 p99=2.857 max=5.524 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.116 p95=0.124 p99=0.168 max=0.272 ms\n",
+      "resources": {
+        "wall_seconds": 20.71,
+        "peak_rss_kib": 75844,
+        "user_seconds": 20.53,
+        "system_seconds": 0.34,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "--smoothness-only",
+      "stress": true,
+      "revision": "after",
+      "run": 3,
+      "metrics": {},
+      "stdout": "smoothness input: 20000 articles, 200 smart lists\nsmart-list change + text-first frame: 8000 samples, p50=2.406 p95=2.715 p99=2.873 max=4.922 ms\nremaining syntax delivery: 0.000 ms\nVim input + runtime resize/poll + frame: 5200 samples, p50=0.107 p95=0.115 p99=0.130 max=0.244 ms\n",
+      "resources": {
+        "wall_seconds": 20.79,
+        "peak_rss_kib": 76240,
+        "user_seconds": 20.68,
+        "system_seconds": 0.25,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    }
+  ]
+}

@@ -492,6 +492,18 @@ const COMMANDS: &[CommandSpec] = &[
         aliases: &[],
     },
     CommandSpec {
+        name: "image",
+        usage: "image",
+        description: "Inspect image under cursor; zoom and pan from its source",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "image-protocol",
+        usage: "image-protocol [auto|blocks|kitty|sixel|iterm2|overlay]",
+        description: "Select image pixels, a window-system overlay or portable blocks",
+        aliases: &[],
+    },
+    CommandSpec {
         name: "image-open",
         usage: "image-open",
         description: "Open the image under the Reader cursor in a browser",

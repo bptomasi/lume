@@ -28,12 +28,17 @@ impl Worker {
         thread::Builder::new()
             .name("lume-images".into())
             .spawn(move || {
-                let client = crate::source::agent();
+                let mut client = None;
                 let mut decoder = Decoder::default();
                 while let Ok(key) = receiver.recv() {
-                    let result =
-                        load(&directory, offline, &client, &mut decoder, &key)
-                            .map_err(|error| format!("{error:#}"));
+                    let result = load(
+                        &directory,
+                        offline,
+                        &mut client,
+                        &mut decoder,
+                        &key,
+                    )
+                    .map_err(|error| format!("{error:#}"));
                     if sender.send(Completion { key, result }).is_err() {
                         break;
                     }
@@ -62,18 +67,23 @@ impl Worker {
 fn load(
     directory: &std::path::Path,
     offline: bool,
-    client: &ureq::Agent,
+    client: &mut Option<ureq::Agent>,
     decoder: &mut Decoder,
     key: &ImageKey,
 ) -> Result<Thumbnail> {
     crate::source::feed_url(&key.url)?;
-    let cached = cache::read(directory, &key.url);
-    if let Ok(Some(bytes)) = &cached
-        && let Ok(image) = decoder.render(bytes, key)
-    {
-        return Ok(image);
+    let cached = cache::read(directory, &key.url).and_then(|bytes| {
+        bytes.map(|bytes| decoder.render(&bytes, key)).transpose()
+    });
+    match cached {
+        Ok(Some(image)) => return Ok(image),
+        Err(error) if offline => {
+            return Err(error.context("Offline image cache"));
+        }
+        _ => {}
     }
     ensure!(!offline, "Image unavailable in offline cache");
+    let client = client.get_or_insert_with(crate::source::agent);
     let bytes = download(client, &key.url)?;
     let mut image = decoder.render(&bytes, key)?;
     image.cache_warning = cache::write(directory, &key.url, &bytes)

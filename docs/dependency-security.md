@@ -5,6 +5,120 @@ PostgreSQL, containers, an account, or a hosted service. Domain data stays local
 
 ## Inline article images (2026-10-19)
 
+### Persistent X11 pixels (2026-10-19)
+
+The reported scroll flicker exposes a concrete unmet helper contract:
+Überzug++ 2.9.10's `X11Canvas::add_image` calls `remove_image` before creating
+and mapping another child window, including for an unchanged identifier. A
+JSON add/remove client cannot retain that window across scroll updates.
+The [official X11 owner](https://github.com/jstkdng/ueberzugpp/blob/v2.9.10/src/canvas/x11/x11.cpp)
+was reviewed; its implementation is neither copied nor modified.
+
+Select published **x11rb 0.14.0**, with only `image` and `shape` features, for
+persistent X11/XWayland children. Its pure-Rust connection owns protocol parsing,
+request serialization, authentication, pixel layout conversion and upload request
+limits. Do not enable `allow-unsafe-code` or copy XCB/FFI code. Three named
+maintainers, a multi-contributor history exceeding 2,000 commits, published
+0.14.0 sources and ongoing public issue/release activity establish a maintained
+narrow integration; no dedicated response-time or vulnerability-audit guarantee
+is inferred. Review the [upstream project](https://github.com/psychon/x11rb) and
+[image API](https://docs.rs/x11rb/0.14.0/x11rb/image/index.html).
+
+The lock adds only x11rb 0.14.0, x11rb-protocol 0.14.0 and gethostname 1.1.0;
+existing versions stay unchanged. All three declare MIT OR Apache-2.0, fitting
+the existing permissive policy. Their exact registry license texts and checksums
+join the image notices. There is no new copyleft acceptance, system C library,
+GUI event loop, renderer process or service requirement for this path.
+
+Lume owns the current terminal window identity, four-surface/four-million-pixel
+limits, clipping and lifetime. Each prepared image uploads once into a server
+pixmap used as the persistent window background. Scroll changes position and
+Shape bounds; exposed pixels already have their background, without blank
+unmap/map intervals or PNG re-encoding. All connection/file work stays on the
+presentation worker. Native geometry/failure tests and actual X11 event/pixel
+qualification must cover retained identities, edge clipping, mouse passthrough,
+menus, resize and cleanup. Überzug++ remains the separate Wayland helper path.
+
+### Optional external helper adapter
+
+The retained Yazi-style helper adapter uses an optional, separately installed
+`ueberzugpp` executable, against the official **2.9.10** add/remove
+JSON-line contract. The primary-maintainer project has hundreds of commits and
+an established integration in Yazi; its native libvips/OpenCV/window-system
+dependencies are heavier than Lume's built-in encoders. Keep the helper optional
+and owned by the terminal adapter, never required for text, feeds or storage.
+This integration neither links, copies nor redistributes the GPL-3.0 helper or
+Yazi source. No new crate or distribution license is accepted. Bundling either
+program would require a separate explicit distribution decision.
+
+Review the upstream [2.9.10 process owner](https://github.com/jstkdng/ueberzugpp/blob/v2.9.10/src/application.cpp),
+[command schema](https://github.com/jstkdng/ueberzugpp/blob/v2.9.10/docs/ueberzugpp.1.in)
+and [Yazi adapter](https://github.com/sxyazi/yazi/blob/main/yazi-adapter/src/drivers/ueberzug.rs).
+Lume sends only worker-generated, bounded PNG files, never publisher SVG,
+unvalidated source paths or remote URLs. Serde owns JSON escaping. Standard
+anonymous pipes and a deadline watchdog bound a stalled writer without Unix
+socket permissions, a custom parser, an async runtime, shell evaluation or
+unsafe descriptor manipulation.
+The helper stays in the foreground and is killed/reaped with its owner.
+
+Explicit X11 helper placement also supports an installed `bubblewrap` executable,
+qualified
+at **0.11.0**. The official helper reverses its ancestor tree before selecting
+a PTY, so an Alacritty opened from another terminal can inherit the wrong
+geometry. Bubblewrap supplies a separate process namespace with the current
+PTY devices; its filesystem is read-only except for the helper's private runtime
+directory. The existing watchdog owns the foreground launcher, and
+`--die-with-parent` retains cleanup authority. Missing tools or denied user
+namespaces fall back to blocks instead of accepting displaced images.
+
+The multi-maintainer [Bubblewrap project](https://github.com/containers/bubblewrap)
+supports Flatpak and maintains a public security policy and release history.
+Reuse its process/filesystem namespace implementation rather than custom unsafe
+system calls or copying GPL helper code. Its LGPL-2.1 implementation is a
+separately installed executable; nothing is linked or redistributed with Lume,
+and no crate or accepted distribution license changes. This narrowly qualifies
+process ancestry and lifecycle; it is not a claim of complete image sandboxing.
+
+X11/XWayland terminals and the helper's supported Wayland compositors are
+separate capabilities. GNOME Wayland alone does not establish compatibility;
+an X11 terminal window can still use the X11 backend. Discover an installed
+helper and conservative display evidence; report missing/unsupported helpers
+and retain the built-in fallback. Native window/display qualification is
+separate from protocol, file lifecycle, timeout and process tests.
+
+### Detailed image inspection
+
+Reuse the pinned `ratatui-image` 8.1.1 native Kitty, Sixel and iTerm2
+encoders for a dedicated image inspector. Its fixed `Image` widget consumes
+worker-prepared protocols, keeping decode, crop, SVG rasterization and encoding
+outside drawing. Native images are confined to the inspector: this version
+does not offer safe arbitrary top clipping across every native backend, which
+the scrolling reader requires. Inline native pixels use the separately owned
+overlay; built-in terminal encoders retain cell previews in the reader.
+
+The [Yazi image adapter](https://yazi-rs.github.io/docs/image-preview/)
+demonstrates terminal-specific protocol selection and an optional window-system
+overlay for Alacritty. Reuse the existing encoders without probing stdin from
+another thread; the optional overlay has its own process owner above.
+Conservative environment hints choose a backend outside multiplexers; explicit
+commands can override it.
+Pixel cell size comes from Crossterm's existing window-size API, with a
+documented fallback. Native emulator/display qualification remains distinct
+from buffer and PTY tests.
+
+[Chafa](https://hpjansson.org/chafa/) uses richer Unicode mosaics and native
+protocols. Character mosaics still cannot preserve small diagram labels at
+the original pixel resolution. [Überzug++](https://github.com/jstkdng/ueberzugpp)
+requires an independently installed GPL-3.0 process and supported window-system
+integration, qualified separately from the built-in terminal encoders above.
+No new crate, feature, version or accepted license is needed for this slice.
+
+Zoom crops the original raster or re-renders SVG geometry into a bounded
+viewport. It never enlarges an already reduced thumbnail. Private notes and
+reader source offsets are unaffected. Retain at most two detailed encodings
+in addition to the bounded inline cache; enforce pixel, zoom and pan limits
+before allocation, including hostile public preparation keys.
+
 Select `image` **0.25.10** (MIT OR Apache-2.0), with only PNG, JPEG, WebP and
 GIF enabled. The multi-contributor image-rs project supplies format detection,
 decoder limits, first-frame decoding and aspect-preserving resizing. Its
@@ -19,9 +133,10 @@ The active Ratatui community maintains newer releases, but those require a
 different Ratatui version; upgrading the terminal/editor stack is outside this
 capability. Review the published halfblock encoder and use only its fixed,
 bounded buffer output. Disable default features, Chafa, Tokio and terminal
-probing. Alacritty receives ordinary truecolor halfblocks; no unsupported
-graphics protocol or external overlay is assumed. Resize/encoding occur on a
-dedicated worker, with clipping performed from cached cells during drawing.
+probing. Alacritty receives ordinary truecolor halfblocks when no optional
+overlay is available; no unsupported graphics protocol is assumed.
+Resize/encoding occur on a dedicated worker, with clipping performed from cached
+cells during drawing.
 
 Select RustCrypto `sha2` **0.11.1** (MIT OR Apache-2.0), without default features,
 for stable URL-derived cache filenames. The multi-maintainer RustCrypto
@@ -56,6 +171,15 @@ Authoritative references: [image-rs](https://github.com/image-rs/image),
 [Alacritty graphics request](https://github.com/alacritty/alacritty/issues/910).
 
 ## Local recommendations (2026-10-19)
+
+Page hydration also reuses bundled SQLite's documented
+[materialization hint](https://www.sqlite.org/lang_with.html#materialization_hints).
+The ordinary article query first materializes its ordered, limited identities;
+metadata and comment counts then join that bounded page. Counting still observes
+the same transaction as pagination. Recommendation position ordering remains a
+separate qualified query. No schema or dependency change is required. Existing
+query/failure tests and repeated representative/stress navigation measurements
+qualify the changed plan; a hint alone does not establish a speed improvement.
 
 Reuse pinned bundled SQLite FTS5, rusqlite and the existing nom boolean query
 compiler. The [FTS5 contract](https://www.sqlite.org/fts5.html) documents phrase,

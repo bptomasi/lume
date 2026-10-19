@@ -10,9 +10,7 @@ use super::{
 
 impl App {
     pub(super) fn handle_key(&mut self, key: KeyEvent) -> Result<Action> {
-        if key.kind == KeyEventKind::Release
-            || matches!(key.code, KeyCode::Modifier(_))
-        {
+        if self.ignored_key(key) {
             return Ok(Action::None);
         }
         if !matches!(key.code, KeyCode::Char('d') | KeyCode::Esc) {
@@ -27,15 +25,6 @@ impl App {
         if self.inspection_key(key) {
             return Ok(Action::None);
         }
-        if matches!(self.mode, Mode::Normal)
-            && key.kind == KeyEventKind::Repeat
-            && matches!(
-                key.code,
-                KeyCode::Char('v' | 'V' | 'y' | 's' | 'D') | KeyCode::Delete
-            )
-        {
-            return Ok(Action::None);
-        }
         match &self.mode {
             Mode::Help => {
                 self.help_key(key);
@@ -47,9 +36,24 @@ impl App {
             Mode::Smart(_) => self.smart_key(key),
             Mode::Document(_) => self.document_key(key),
             Mode::Settings(_) => self.settings_key(key),
+            Mode::Image(_) => self.image_inspector_keypress(key),
             Mode::Normal if self.notebook.is_some() => self.notebook_key(key),
             Mode::Normal => self.normal_key(key),
         }
+    }
+
+    fn ignored_key(&self, key: KeyEvent) -> bool {
+        if key.kind == KeyEventKind::Release
+            || matches!(key.code, KeyCode::Modifier(_))
+        {
+            return true;
+        }
+        matches!(self.mode, Mode::Normal)
+            && key.kind == KeyEventKind::Repeat
+            && matches!(
+                key.code,
+                KeyCode::Char('v' | 'V' | 'y' | 's' | 'D') | KeyCode::Delete
+            )
     }
 
     fn inspection_key(&mut self, key: KeyEvent) -> bool {
@@ -162,6 +166,9 @@ impl App {
     }
 
     fn enter_navigation(&mut self) -> Result<()> {
+        if self.focus == Focus::Reader && self.captured_image().is_ok() {
+            return self.open_image_inspector();
+        }
         if self.focus != Focus::Library {
             return self.open_reader();
         }

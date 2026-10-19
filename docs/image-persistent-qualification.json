@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-19",
+  "binary_sha256": "441a49ebb21d0d95b230fe4706a885b4954cfd3a1e063f70e8d0657ed0fc28e9",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "alacritty": "0.15.1",
+  "x11rb": "0.14.0",
+  "display": "Private Xvfb X11 with an older ancestor PTY and synthetic input",
+  "release_gate": {
+    "command": "make check-release",
+    "passed": true,
+    "native_rust_tests": 484,
+    "real_http_tests": 12,
+    "installer_tests": 10,
+    "toolchain_or_source_substitution": false,
+    "environment": "External target directory; dev/test debug symbols and incremental compilation disabled. Loopback permission granted for real HTTP."
+  },
+  "representative": {
+    "passed": true,
+    "continuous_scroll": {
+      "visible_samples": 6,
+      "distinct_positions": 5,
+      "elapsed_seconds": 3.293241,
+      "lume_cpu_seconds": 0.13,
+      "lume_peak_rss_kib": 22268,
+      "window_events": {
+        "ConfigureNotify": 196,
+        "CreateNotify": 0,
+        "DestroyNotify": 0,
+        "UnmapNotify": 0,
+        "MapNotify": 0
+      }
+    },
+    "native_bitmap_dimensions": [
+      718,
+      216
+    ],
+    "font_resized_bitmap_dimensions": [
+      758,
+      228
+    ],
+    "maximum_channel_error": 1,
+    "simultaneous_images": 2,
+    "single_wheel_press_row": true,
+    "cropping": true,
+    "menu_hides_native_windows": true,
+    "backend": "persistent X11",
+    "source_and_note_preserved": true,
+    "click_opens_inspector": true,
+    "inspector_fit_dimensions": [
+      1250,
+      377
+    ],
+    "inspector_zoom_dimensions": [
+      1250,
+      665
+    ]
+  },
+  "sustained_input": {
+    "passed": true,
+    "continuous_scroll": {
+      "visible_samples": 27,
+      "distinct_positions": 10,
+      "elapsed_seconds": 10.937379,
+      "lume_cpu_seconds": 0.56,
+      "lume_peak_rss_kib": 22712,
+      "window_events": {
+        "ConfigureNotify": 924,
+        "CreateNotify": 0,
+        "DestroyNotify": 0,
+        "UnmapNotify": 0,
+        "MapNotify": 0
+      }
+    },
+    "native_bitmap_dimensions": [
+      718,
+      216
+    ],
+    "font_resized_bitmap_dimensions": [
+      758,
+      228
+    ],
+    "maximum_channel_error": 1,
+    "simultaneous_images": 2,
+    "single_wheel_press_row": true,
+    "cropping": true,
+    "menu_hides_native_windows": true,
+    "backend": "persistent X11",
+    "source_and_note_preserved": true,
+    "click_opens_inspector": true,
+    "inspector_fit_dimensions": [
+      1250,
+      377
+    ],
+    "inspector_zoom_dimensions": [
+      1250,
+      665
+    ]
+  },
+  "representative_exit": {
+    "returncode": 0,
+    "termios_restored": true
+  },
+  "sustained_input_exit": {
+    "returncode": 0,
+    "termios_restored": true
+  },
+  "limits": [
+    "CPU and peak RSS are for Lume only, not the X server or compositor.",
+    "RSS includes startup and fixtures; scroll CPU excludes initial image upload.",
+    "These two scenarios do not establish a universal speedup or physical-input latency.",
+    "Window events prove persistence; human perception and other compositors remain unqualified.",
+    "The fixture uses non-cell-aligned pixels, zero fixed padding and a resized font.",
+    "Fixed/centered padding alternatives additionally have native geometry tests."
+  ],
+  "prepared_file_cleanup_verified": true
+}

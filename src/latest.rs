@@ -1,7 +1,7 @@
-//! Latest-request workers for replaceable reads and pure computations.
+//! Latest-request workers for replaceable reads and ephemeral projections.
 //!
 //! One active job, one queued job and one deferred replacement bound work.
-//! Mutations must not use this owner: replacing a read is valid, losing a write
+//! Durable mutations must not use this owner: replacing a read is valid, losing a write
 //! is not. Dropping disconnects channels without joining an expensive job.
 
 use std::sync::{

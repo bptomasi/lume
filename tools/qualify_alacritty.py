@@ -45,10 +45,10 @@ def wait_for(description, predicate, process, seconds=10):
     raise RuntimeError(f"Timed out waiting for {description}")
 
 
-def terminal_child(binary, directory):
+def terminal_child(binary, directory, arguments=("--demo", "--offline")):
     """Observe tty restoration outside the application, inside Alacritty."""
     before = termios.tcgetattr(sys.stdin.fileno())
-    process = subprocess.Popen([str(binary), "--demo", "--offline"])
+    process = subprocess.Popen([str(binary), *arguments])
     deadline = time.monotonic() + 10
     while process.poll() is None and time.monotonic() < deadline:
         if not termios.tcgetattr(sys.stdin.fileno())[3] & termios.ICANON:
@@ -56,6 +56,7 @@ def terminal_child(binary, directory):
             write_json(directory / "terminal.json", {
                 "columns": size.columns,
                 "rows": size.lines,
+                "pid": process.pid,
             })
             break
         time.sleep(0.025)
@@ -179,14 +180,26 @@ def qualify(session):
 
 
 def qualify_scroll(session):
-    """A physical wheel notch must equal Vim's explicit one-line scroll."""
+    """One wheel press must equal Vim's explicit one-line scroll.
+
+    Xvfb's XTest device can report a second detent on button release. Observe
+    the press independently, then release before resetting with the keyboard.
+    """
     progress = "SELECT progress FROM articles ORDER BY published DESC, id DESC LIMIT 1"
     session.keys("g", "g")
     session.position(70, 15)
-    run("xdotool", "click", "5")
-    session.command("workspace save Wheel")
-    session.wait("wheel progress", lambda: session.scalar(progress) > 0)
-    wheel = session.scalar(progress)
+    run("xdotool", "mousedown", "5")
+    try:
+        # --clearmodifiers also releases mouse buttons, creating Xvfb's second
+        # detent before the observed position could be saved.
+        run("xdotool", "type", "--delay", "2", ":workspace save Wheel")
+        run("xdotool", "key", "Return")
+        session.wait("saved wheel position", lambda: "Wheel" in json.loads(
+            session.scalar("SELECT value FROM settings WHERE key='layouts'"),
+        )["profiles"])
+        wheel = session.scalar(progress)
+    finally:
+        run("xdotool", "mouseup", "5")
     session.keys("g", "g", "ctrl+e")
     session.command("workspace save Key")
     session.wait(
@@ -196,11 +209,14 @@ def qualify_scroll(session):
         ))["profiles"],
     )
     if session.scalar(progress) != wheel:
-        raise RuntimeError("A wheel notch did not match one line of scrolling")
+        raise RuntimeError(
+            f"Wheel press progress {wheel} differs from one keyboard line: "
+            f"{session.scalar(progress)}"
+        )
 
 
-def configure_terminal(directory):
-    for command in ["alacritty", "xdotool", "xclip", "xwd"]:
+def configure_terminal(directory, required=("alacritty", "xdotool", "xclip", "xwd")):
+    for command in required:
         if shutil.which(command) is None:
             raise RuntimeError(f"Required qualification tool is missing: {command}")
     if not os.environ.get("DISPLAY"):

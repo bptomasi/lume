@@ -47,6 +47,7 @@
   ── MOUSE AND PANEL GESTURES ────────────────────────────────────────
   :mouse on|off|status     Capture preference / observed terminal events
   Click           Focus a panel, open an article or jump to a note
+  Click image     Open enlarged image; +/- zoom, 0 fit, Esc return
   Hover ● / text  Preview a passage note; click its marker or popup to edit
                   Mouse motion reporting is required for hover previews.
                   Enter / :edit-note works from the keyboard.
@@ -106,9 +107,17 @@
   :tables         Wide table inspector: h/l sideways, j/k vertically
   :images         Show image loading status; on/off starts/pauses new loads
   :images retry   Retry failed visible images; cached images work offline
+  :image / Enter  Inspect image under cursor without changing reader position
+                  +/- zoom source · 0 fit · hjkl/arrows/wheel pan · Esc close
+                  o original in browser · b portable blocks
+  :image-protocol [auto|blocks|kitty|sixel|iterm2|overlay]
+                  Choose pixels or portable blocks for the current session
   :image-open     Open image under cursor at original quality in a browser
                   PNG, JPEG, WebP, GIF (first frame) and SVG are supported.
-                  Inline previews use truecolor halfblocks, also in Alacritty.
+                  Alacritty: optional ueberzugpp gives sharp Reader pixels.
+                  Without it, blocks approximate the image; o opens the original.
+                  LUME_UEBERZUGPP sets an explicit installed helper path.
+                  LUME_OVERLAY_BACKEND=x11|wayland overrides display detection.
   Reader motions operate on displayed text, including private notes.
   Bracket matching uses displayed characters, without language parsing.
   This reader does not modify publisher text with Vim editing operators.

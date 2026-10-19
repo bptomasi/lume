@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-19",
+  "binary_sha256": "1e3a350f566a72ca96fc20785736d6ce35775b7fc5eeb1900bef136d396cf324",
+  "rust": "1.99.1",
+  "alacritty": "0.15.1",
+  "ueberzugpp": "2.9.10",
+  "bubblewrap": "0.11.0",
+  "display": "Private Xvfb X11 with synthetic input and an older ancestor PTY",
+  "release_gate": {
+    "passed": true,
+    "native_tests": 473,
+    "real_http_tests": 12,
+    "installer_tests": 10,
+    "toolchain_or_source_substitution": false
+  },
+  "pixels": {
+    "passed": true,
+    "native_bitmap_dimensions": [
+      720,
+      216
+    ],
+    "font_resized_bitmap_dimensions": [
+      760,
+      228
+    ],
+    "maximum_channel_error": 1,
+    "simultaneous_images": 2,
+    "single_wheel_press_row": true,
+    "cropping": true,
+    "menu_stops_helper": true,
+    "source_and_note_preserved": true,
+    "inspector_fit_dimensions": [
+      1250,
+      375
+    ],
+    "inspector_zoom_dimensions": [
+      1250,
+      665
+    ]
+  },
+  "exit": {
+    "returncode": 0,
+    "termios_restored": true
+  },
+  "launcher": {
+    "passed": true,
+    "backend": "X11",
+    "wayland_preserved_for_children": true,
+    "font_and_keybindings_unchanged": true
+  },
+  "limits": "Physical input and native Wayland compositor rendering are not qualified."
+}

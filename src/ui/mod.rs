@@ -5,8 +5,10 @@ mod chrome;
 mod command_line;
 mod drag_picture;
 mod hit;
+mod image_view;
 mod images;
 pub(crate) use drag_picture::compact as compact_drag_picture;
+pub use image_view::image_inspector_area;
 mod key_guide;
 mod layout;
 mod note_preview;
@@ -41,11 +43,18 @@ pub fn draw(frame: &mut Frame<'_>, app: &App) {
 /// Capture bounded pane pictures before hints and terminal output.
 pub fn draw_interactive(frame: &mut Frame<'_>, app: &mut App) {
     draw_base(frame, app);
+    if matches!(app.mode, crate::app::Mode::Image(_)) {
+        return;
+    }
     app.capture_pane_frame(frame.buffer_mut());
     pane_motion::draw(frame, app);
 }
 
 fn draw_base(frame: &mut Frame<'_>, app: &App) {
+    if matches!(app.mode, crate::app::Mode::Image(_)) {
+        image_view::draw(frame, app);
+        return;
+    }
     draw_workspace(frame, app);
     theme::apply(frame.buffer_mut(), &app.workspace.theme);
 }

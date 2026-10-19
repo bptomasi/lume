@@ -39,6 +39,50 @@ fn titles(store: &Store, text: &str, view: View) -> Result<Vec<String>> {
 }
 
 #[test]
+fn bounded_pages_keep_full_counts_order_and_their_own_annotation_metadata()
+-> Result<()> {
+    let (_directory, store) = library()?;
+    let annotated = store
+        .library()?
+        .articles
+        .into_iter()
+        .find(|article| article.title == "eBPF internals")
+        .ok_or_else(|| anyhow::anyhow!("Missing annotated fixture"))?;
+    store.save_comment(annotated.id, None, "Keep this explanation")?;
+
+    for (offset, title) in
+        ["Kubernetes webinar", "eBPF internals", "Kubernetes Cilium"]
+            .into_iter()
+            .enumerate()
+    {
+        let page = store.query_articles(&ArticleQuery {
+            view: View::All,
+            text: "topic:kubernetes OR topic:ebpf".into(),
+            offset,
+            limit: 1,
+            retained: None,
+        })?;
+        assert_eq!(page.total, 3);
+        assert_eq!(page.articles.len(), 1);
+        assert_eq!(page.articles[0].title, title);
+        assert_eq!(
+            page.articles[0].comments,
+            usize::from(title == "eBPF internals")
+        );
+    }
+    let beyond = store.query_articles(&ArticleQuery {
+        view: View::All,
+        text: "topic:kubernetes OR topic:ebpf".into(),
+        offset: 3,
+        limit: 1,
+        retained: None,
+    })?;
+    assert_eq!(beyond.total, 3);
+    assert!(beyond.articles.is_empty());
+    Ok(())
+}
+
+#[test]
 fn boolean_fields_and_saved_searches_return_independent_expected_results()
 -> Result<()> {
     let (_directory, store) = library()?;

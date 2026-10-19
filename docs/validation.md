@@ -1,5 +1,210 @@
 # Validation record — Lume
 
+## Persistent images during scrolling — 2026-10-19
+
+`make check-release` passed with exact Rust **1.99.1**, locked published crates,
+**484 native Rust tests**, **12 real HTTP tests** and **10 installer tests**,
+including Clippy, formatting, checked workloads and the release build. HTTP used
+explicit loopback permission. No Rust source/toolchain substitution was used.
+Build artifacts stayed outside the repository, with dev/test debug symbols and
+incremental compilation disabled to limit scratch space. Three newly locked
+permissive packages are inventoried in the owning dependency contract/notices.
+
+Continuous image updates could starve behind a reset 40 ms quiet deadline.
+A 16 ms admission throttle now coalesces positions without waiting for input to
+stop. Fitted inline keys stay independent of scroll, and native regressions prove
+both directions retain their source without admitting another decode request.
+Image/caption clicks open inspection without starting selection; Escape retains
+reader scroll and cursor. Native source zoom remains available through +/-.
+
+The helper's X11 add operation still destroyed and recreated its window, causing
+the reported flicker. The default X11 path now uses x11rb persistent children
+with preloaded background pixmaps and server-side Shape clips. It needs no image
+helper or process namespace. Fixed padding is explicit: a partial-cell remainder
+must not shift an Alacritty grid configured without dynamic padding. The real
+font/crop test caught that distinction and now checks the exact six-row boundary.
+
+Real Alacritty **0.15.1** passed on private Xvfb, with a differently sized ancestor
+PTY. Representative/sustained streams observed **196 / 924 ConfigureNotify**
+events and **zero CreateNotify, DestroyNotify, UnmapNotify or MapNotify** while
+scrolling. The longer stream sampled visible native pixels at ten distinct
+positions during input. Full bitmap comparison passed before/after font changes,
+clipping, mouse inspection and source zoom, with at most one RGB channel value
+of conversion rounding. Notes, publisher text, native-window cleanup and terminal
+attributes were preserved. No Überzug++ process was used in these two runs.
+
+The representative/sustained streams took **3.293 / 10.937 seconds** including
+input injection and screenshots. Lume consumed **0.13 / 0.56 CPU seconds**, with
+**22,268 / 22,712 KiB** peak RSS. These are checked workload observations, not a
+speedup comparison, per-key latency guarantee or compositor memory measurement.
+The longer workload uses four times as many input cycles. Actual process and
+pixel evidence, scope limits and the installed executable hash are in
+[image-persistent-qualification.json](image-persistent-qualification.json).
+The final clipped frame was visually reviewed in
+[preview-images-persistent.png](preview-images-persistent.png).
+
+Earlier UI/TestBackend scroll measurements remain in
+[image-scroll-benchmarks.json](image-scroll-benchmarks.json), explicitly labelled
+as predating the persistent X11 backend. They include twelve checked image
+workloads, with three representative and three stress processes. The new
+bidirectional case checks 24 changing clips without decode admission; it does
+not measure X11 upload, physical paint or compositor time.
+
+## Earlier helper placement and default launcher — 2026-10-19
+
+The reported offset was reproduced with real Alacritty launched below a second
+PTY sized 80×25 with an 800×500 pixel report. Überzug++ 2.9.10 traverses its
+ancestor PTYs oldest-first, so the unrelated terminal supplied its font metrics.
+The previous single-PTY image qualification did not cover this case.
+
+Linux X11 now uses installed Bubblewrap 0.11.0 to restrict the helper's process
+ancestry to its own terminal. The foreground launcher remains under the existing
+watchdog. Captured terminal/font geometry travels with each presentation request;
+changed geometry restarts the helper even when cell placement is unchanged.
+Native PNGs preserve odd pixel heights exactly. Previously the halfblock encoder's
+even-height padding could exceed a native viewport by one pixel, causing another
+resize and reducing sharpness. These cases have native regression coverage.
+
+The image qualification tool now supports `--nested-terminal` and checks actual
+font changes with Alacritty's Ctrl+= shortcut. It compares prepared image pixels
+at full size before/after resize, throughout clipping and inspector zoom, while
+retaining note and terminal-restoration assertions. Initial Ctrl+plus injection
+did not activate the font shortcut, so the driver uses the documented Ctrl+=.
+
+At the user's explicit choice, a user-local Alacritty launcher and desktop entry
+select X11 before constructing its event loop, then restore WAYLAND_DISPLAY for
+child applications through Alacritty's environment option. The existing font and
+keybinding TOML remains byte-for-byte unchanged. A private Xvfb test supplied an
+unavailable Wayland socket/display and independently verified a real X11 window,
+the restored child Wayland environment and the unchanged configuration. Old
+Wayland Alacritty windows need reopening once; normal startup is then `lume`.
+
+The final `make check-release` passed with exact Rust **1.99.1**, locked
+published crates and no source/toolchain substitutions: **473 native tests**,
+**12 real HTTP tests** and **10 installer tests**, plus formatting, Clippy,
+checked workloads and the release build. The nested-terminal pixel gate
+passed with two 720×216 images, 760×228 pixels after a font change and
+1250×375 / 1250×665 inspector fit/zoom images. Full bitmap comparison
+allowed at most one RGB channel value of rounding error. Terminal settings,
+publisher content and private notes were preserved. Results and the
+installed executable hash are recorded in
+[image-placement-qualification.json](image-placement-qualification.json).
+This uses real Alacritty with synthetic input on private X11; physical
+input and native Wayland compositor rendering remain unqualified.
+
+## Earlier sharp pixels and performance review — 2026-10-19
+
+`make check-release` passed with exact Rust **1.99.1**, locked published crates
+and no source/toolchain substitutions: **471 native Rust tests**, **12 real HTTP
+tests**, **10 installer tests**, checked representative/stress workloads,
+Clippy, formatting, examples, Python syntax and the release build. HTTP ran
+with loopback permission; no required case was silently skipped. No dependency
+version, lockfile, database migration or container was added in this review.
+
+The new scenarios qualify original raster/SVG detail, source zoom/pan, all three
+native terminal encoders, stale crops, tiny/large viewports, modal input,
+responsive hidden-reader admission, corrupt offline cache diagnostics, helper
+failure/retry, process exit, blocked-pipe deadlines, cancellation and PNG file
+ownership. Font-size changes invalidate prepared pixel keys, and inspector
+zoom retains inline PNGs. Bounded SQL pages retain full match counts, deterministic
+order and each article's own annotation metadata.
+
+### Real Alacritty and window-system images
+
+Both `make check-alacritty` and `make check-image-display` passed with real
+Alacritty **0.15.1** on a private Xvfb X11 display, without accessing the user's
+library or desktop. The input gate checks keyboard docking/undo, mouse resize
+and reorder, OSC52 clipboard, fullscreen width, single-row wheel scrolling and
+terminal restoration. The pixel gate independently compares every prepared
+PNG pixel with the displayed bitmap at its original dimensions, allowing at
+most one RGB channel value out of 255 for X11 conversion rounding.
+
+Two **720×216** images were visible simultaneously in the 144×44 Reader. Scroll
+clipping preserved the source bitmap rather than squeezing it. The inspector
+showed **1260×378** fitted pixels and **1260×684** cropped zoom pixels. Menus
+stopped the helper; returning restored the image. Exit restored terminal
+attributes, removed prepared files and preserved publisher text and its private
+note. The actual screenshot was visually reviewed in
+[preview-images-native.png](preview-images-native.png); executable hashes,
+versions and results are in
+[image-display-qualification.json](image-display-qualification.json).
+
+Überzug++ **2.9.10** came from the maintainer's official Debian 13 package,
+verified against its published SHA-256. Xvfb/xdotool/xclip and native libraries
+came from the configured official Debian repositories. Packages were extracted
+under `/tmp`, with a temporary `PATH`/`LD_LIBRARY_PATH` for this display test;
+no system package was installed and no helper executable is bundled with Lume.
+The application still needs a separately installed helper for Alacritty pixels.
+This is an environment-only GUI-tool qualification, with no substituted Rust
+sources or toolchain.
+
+Earlier attempts exposed two test-driver mistakes: XTest wheel release can
+report another detent, and `xdotool --clearmodifiers` releases held buttons.
+Queued progress also needs a completed-write observation before comparison.
+The driver now observes one wheel press before release and waits for its saved
+profile. It does not discard legitimate application wheel events. One display
+startup timed out during concurrent compilation; the final isolated run passed
+after compilation. Physical input hardware, Wayland compositors and human
+animation perception remain outside this evidence. Built-in Kitty/Sixel/iTerm2
+encoders passed behavior and release-PTY checks, not real emulator paint tests.
+
+### Measured navigation changes
+
+[performance-review.json](performance-review.json) records three alternating
+before/after release processes for each size and workload, against clean commit
+`9d97df5`. The after hash identifies the pre-overlay snapshot; the final page
+SQL is unchanged, and image costs are measured separately. Each run retains
+checked output, wall time, peak RSS, CPU and filesystem counters.
+
+Materializing page identities before loading metadata/comment counts reduced
+the median completed down/up library-navigation cycle from **23.293 to 11.748
+ms** with 10,000 articles and from **116.833 to 62.197 ms** with 50,000 articles:
+49.6% and 46.8% reductions in this workload. These are completed two-destination
+cycles, not one-key or physical-terminal latency.
+
+The separate smoothness fixture uses 2,000/20,000 articles and 20/200 smart lists.
+The median of per-process smart-list/frame p99 values was **0.734 → 0.729 ms**
+and **2.857 → 2.949 ms**. Reader input/frame p99 was **0.161 → 0.137 ms** and
+**0.136 → 0.138 ms**. Thus the evidence supports the navigation-query gain,
+not a universal frame-time improvement. Percentiles are not pooled; shared-host
+scheduling and cache state were uncontrolled.
+
+### Measured image preparation
+
+`make bench-images` passed eleven correctness-checked workloads in three release
+processes per representative/stress input. Results, executable hash, platform,
+CPU/wall time, peak RSS and filesystem counters are retained in
+[image-inspection-benchmarks.json](image-inspection-benchmarks.json).
+Setup/font initialization are outside operation timers; process resources include
+setup. The owned raster inputs are 1200×600/2400×1200; vector inputs contain
+150/900 geometry/text groups. Detailed inspection fits 120×36 cells. Measurements
+ran after compilation and GUI qualification, without another task benchmark.
+
+Medians of the three per-process means, in milliseconds:
+
+| Workload | Representative | Stress |
+| --- | ---: | ---: |
+| Raster decode + inline blocks | 2.529 | 10.546 |
+| SVG geometry/text + inline blocks | 5.940 | 36.737 |
+| Cached scroll + two Reader frames | 0.257 | 0.267 |
+| Original raster crop + detailed blocks | 1.092 | 3.813 |
+| Re-rendered SVG zoom + detailed blocks | 5.554 | 34.528 |
+| SVG + Kitty pixel encoding | 20.262 | 66.772 |
+| SVG + Sixel pixel encoding | 50.121 | 103.906 |
+| SVG + iTerm2 pixel encoding | 19.950 | 68.359 |
+| SVG + prepared overlay PNG | 15.356 | 63.388 |
+| Cached inspector pan + two frames | 0.327 | 0.385 |
+| Cached overlay projection + two Reader frames | 0.243 | 0.254 |
+| Whole-process peak RSS, KiB | 30,792 | 58,852 |
+
+Process wall times were 6.51–6.68 and 17.30–17.85 seconds. Source decoding,
+encoding and PNG writing happen on the image worker, outside input and drawing.
+Cached projection timings include placement planning and actual TestBackend
+frames; they exclude external-helper display/GPU work. Whole-process memory is
+not idle Lume RAM or a decoder/helper memory ceiling. No equivalent overlay
+baseline exists, so these numbers do not establish a rendering speedup.
+The final release executable is **21,148,272 bytes**; no helper is bundled.
+
 ## Inline images and SVG — 2026-10-19
 
 `make check-release` passed with exact Rust **1.99.1**, locked published crates

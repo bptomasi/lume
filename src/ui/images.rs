@@ -28,6 +28,9 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
             continue;
         };
         if let Some(image) = app.images.thumbnail(&key) {
+            if image.overlay.is_some() {
+                continue;
+            }
             paint_thumbnail(
                 frame,
                 column,
@@ -36,13 +39,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
                 &image.cells,
             );
         } else {
-            let status = app.images.error(&key).unwrap_or({
-                if app.images.enabled {
-                    "Loading image…"
-                } else {
-                    "Image loading paused"
-                }
-            });
+            let status = app.images.placeholder(&key);
             message(frame, column, app.scroll, slot.rows.start, status);
         }
     }
@@ -73,7 +70,7 @@ fn paint_cursor(frame: &mut Frame<'_>, app: &App, column: Rect) {
     }
 }
 
-fn paint_thumbnail(
+pub(super) fn paint_thumbnail(
     frame: &mut Frame<'_>,
     column: Rect,
     scroll: usize,

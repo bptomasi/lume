@@ -18,6 +18,7 @@ mod events;
 mod exchange;
 mod extraction;
 mod help;
+mod image_projection;
 mod images;
 mod input;
 mod layouts;
@@ -54,6 +55,7 @@ pub use document_view::DocumentView;
 pub use draft_keys::EditMode;
 pub use events::InputBatch;
 pub use help::HELP;
+pub use images::ImageInspector;
 pub use images::ReaderImages;
 use note_tasks::Edit as NoteEdit;
 pub use notebook::{NoteAction, NoteContext, Notebook, ReviewTarget};
@@ -188,6 +190,8 @@ pub enum Mode {
     Document(Box<DocumentView>),
     /// Reversible live preview of visual preferences.
     Settings(Box<SettingsDraft>),
+    /// Source-based image inspection with bounded zoom and pan.
+    Image(Box<ImageInspector>),
 }
 
 /// Side effects that the terminal runner owns.

@@ -472,24 +472,79 @@ HTML or Markdown. HTML `img` references, including `data-src` lazy images, are
 preserved during normalization. Previously cached articles that lost image
 references need a fresh feed collection or `:fetch` for the full article.
 
-Previews use truecolor Unicode halfblocks, including in standard Alacritty.
-They follow normal scrolling, clipping and pane movement; their definition is
-limited by terminal cells. Use `:image-open` with the cursor on an image/caption
-to inspect the original in your browser. GIFs and SVGs are static previews.
+Portable previews use truecolor Unicode halfblocks. Persistent X11 windows
+show real pixels in Alacritty/XWayland, as described below. Previews follow
+scrolling and clipping; block definition is limited by terminal cells.
+Click an image/caption, press **Enter** on it or use `:image`
+to open the larger inspector. `+`/`-` zoom from source bytes, `hjkl`/arrows and
+the wheel pan, `0` fits, `o` opens the original and `Esc` returns without changing
+the reader selection, position or layout. SVG geometry is re-rendered at the
+requested scale; raster zoom crops the original before resizing with Lanczos3.
+GIFs and SVGs are static previews.
 Inline SVG markup and embedded/nested image resources are not rendered.
+
+The inspector automatically uses Kitty pixels for Kitty/Ghostty, iTerm2 pixels
+for iTerm2/WezTerm and Sixel for foot, based on conservative environment hints.
+Alacritty/XWayland uses persistent native X11 surfaces.
+Other terminals and multiplexers default to blocks. The session command
+`:image-protocol auto|blocks|kitty|sixel|iterm2|overlay` overrides this choice; select a
+native protocol only if the terminal supports it. `b` immediately returns the
+inspector to blocks. Pixel cell dimensions use the OS window report, falling
+back to 10×20 when it is unavailable. No background stdin probing is performed.
+
+**Sharp images in Alacritty:** use an X11/XWayland Alacritty window and run
+`lume`. This path needs no Überzug++ process or Bubblewrap. Prepared image
+pixels upload once into an X11 background pixmap; scrolling updates the existing
+window's position and clipping mask. It does not destroy, unmap or recreate the
+image window on each movement. `:image-protocol overlay` selects this backend;
+`:image-protocol blocks` returns to portable cells.
+
+GNOME Wayland needs Alacritty to use XWayland. Configure its launcher once and
+reopen the terminal; after that, type `lume` normally. For a temporary session,
+`env -u WAYLAND_DISPLAY alacritty -e lume` also selects XWayland. An existing
+Wayland window cannot change backend in place. Other supported Wayland
+compositors (Sway, Hyprland, Niri and Wayfire) retain the optional separately
+installed [Überzug++ 2.9.10 helper](https://github.com/jstkdng/ueberzugpp#install).
+`LUME_UEBERZUGPP=/absolute/path/ueberzugpp` overrides its executable.
+`LUME_OVERLAY_BACKEND=x11|wayland` overrides display detection.
+
+Alacritty defaults to a grid origin of `0,0`. For custom fixed terminal padding,
+set `LUME_IMAGE_PADDING=8,12` to its left/top padding in physical pixels. Use
+`LUME_IMAGE_PADDING=auto` for a terminal configured with symmetric dynamic
+padding. Unused partial cells do not imply centered padding. Images remain
+limited by the detail available in the publisher's original file.
+
+Updates coalesce intermediate positions with a 16 ms admission interval rather
+than waiting for input to stop. Overlays hide during menus, text selection and
+pane movement. Clicking a picture or caption opens source-based inspection;
+`+`/`-` zoom and `Esc` returns to the same reading position. Terminal/font geometry
+changes refresh display resources. Display failures report a reason and return
+to blocks; navigation never waits for display I/O. Native terminal encodings
+remain confined to the inspector. Closing Lume releases its X11 resources and
+stops any optional helper. No display process becomes an independent daemon.
 
 | Command | Action |
 | --- | --- |
 | :images | Show the current loading policy |
 | :images off / :images on | Pause/resume new loads; keep ready previews |
 | :images retry | Retry failed visible images |
+| :image / Enter on image | Open the source-based zoom/pan inspector |
+| :image-protocol | Show or select the image graphics backend |
 | :image-open | Open the image under the Reader cursor |
 
 Only visible images are requested, on one background worker. Fixed slots
 prevent late results from shifting text, selections or notes. Decoding and
 encoding happen outside input/drawing. At most 24 prepared thumbnails are
-retained; raw image files use a disposable `images/` cache alongside your
-library, capped at 64 MiB and 128 files, evicting oldest writes. `--offline`
+retained, including at most two detailed inspector encodings. Each inspector
+surface is limited to four million pixels; zoom never creates a complete
+enlarged image canvas. Prepared overlay files use a 32 MiB cache budget, plus
+the bounded frames held by the presentation worker. At most four Reader images
+use overlays simultaneously; additional visible images retain cell previews.
+X11 retains one server pixmap per visible image, each bounded to four million
+pixels. The optional helper's crop cache retains at most four decoded sources
+(16 MiB) and eight PNG crops (16 MiB).
+Raw image files use a disposable `images/` cache alongside your library,
+capped at 64 MiB and 128 files, evicting oldest writes. `--offline`
 reads that cache without downloading misses. A failed image leaves the article
 readable, with an inline reason and an explicit retry command.
 Cached bytes are reused by URL until eviction; publisher ETags are not
@@ -501,7 +556,8 @@ external files and nested image loads are disabled. SVG text reuses one fallback
 font, loaded only when needed and limited to a 4 MiB TTF/OTF. Common OS font
 paths are checked; set `LUME_SVG_FONT=/absolute/path/font.ttf` for another font.
 SVG without text needs no font. Decoder limits are not an OS memory sandbox.
-Images add no server, external renderer, GPU overlay or runtime image command.
+Built-in previews need no external renderer. The optional Überzug++ path uses
+its separately installed foreground helper; images require no server.
 
 ### Source rules and health
 
@@ -786,13 +842,28 @@ tools, inaccessible displays and failed assertions are errors. CI runs this
 through Xvfb and retains its evidence even on failure. It does not qualify
 the user's Wayland compositor or human perception of animation smoothness.
 
+With Alacritty, xev, xdotool, ImageMagick and Pillow installed, run
+`xvfb-run -a make check-image-display` for actual pixels and persistent-window
+scroll qualification. `IMAGE_DISPLAY_ARGS="--nested-terminal --stress"` also
+checks an older ancestor PTY and a longer sustained input stream. No image
+helper is required for this X11 gate. The isolated fixture checks full bitmap geometry
+and colors (allowing one channel value for X11 rounding), two simultaneous
+images, clipping, click-to-inspect, zoom, menu cleanup, notes and restoration.
+X11 events must show movement without any create/destroy/unmap/map during scroll. It retains
+the prepared PNGs and screenshots as evidence. Xvfb can report an additional
+detent on XTest button release; both terminal checks observe a single wheel
+press independently, preserving the application's reported event distance.
+Pass `--nested-terminal` in `IMAGE_DISPLAY_ARGS` to retain an older ancestor PTY
+with different dimensions. Font-size changes also require correct native pixels
+after the helper restarts. These checks catch offsets that a single PTY misses.
+
 Earlier validation used 41 temporary dependency-source substitutions. Those
 results do not qualify the normal registry build: one substituted manifest
 omitted a dependency required by published `tendril` 0.5.0. Cargo.lock now
 includes its required `utf-8` 0.7.6 dependency. Standard commands retain
 `--locked`; normal release qualification must use published registry sources.
-The current Linux registry build and local checks pass; loopback socket
-restrictions still prevent real HTTP qualification here.
+The current Linux registry build, local checks and real HTTP qualification pass.
+HTTP checks require loopback permission in restricted environments.
 Details live in [validation](docs/validation.md),
 [architecture](docs/architecture.md) and [dependency policy](docs/dependency-security.md).
 
