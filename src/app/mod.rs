@@ -10,6 +10,9 @@ mod completion;
 mod deletion;
 mod document_view;
 mod documents;
+mod draft_commands;
+mod draft_keys;
+mod draft_save;
 mod editor;
 mod events;
 mod exchange;
@@ -19,6 +22,13 @@ mod input;
 mod layouts;
 mod navigation;
 mod navigation_worker;
+mod note_actions;
+mod note_catalog;
+mod note_io;
+mod note_marks;
+mod note_refresh;
+mod note_tasks;
+mod notebook;
 mod organization;
 mod pane_motion;
 mod panel_docking;
@@ -29,6 +39,7 @@ mod pointer;
 mod reader_tools;
 mod reading;
 mod reading_data;
+mod recovery;
 mod session_writer;
 mod settings;
 mod study;
@@ -38,8 +49,11 @@ mod workspace;
 pub use annotations::{AnnotationEntry, AnnotationPosition};
 pub use completion::{CommandSpec, command_suggestions};
 pub use document_view::DocumentView;
+pub use draft_keys::EditMode;
 pub use events::InputBatch;
 pub use help::HELP;
+use note_tasks::Edit as NoteEdit;
+pub use notebook::{NoteAction, NoteContext, Notebook, ReviewTarget};
 pub use pane_motion::FloatingPane;
 pub use picker::{Choice, ChoiceAction, Picker, PickerKind, WorkspaceCommand};
 pub use pointer::PanelDrag;
@@ -75,6 +89,17 @@ pub struct NavItem {
 /// An editing operation captures its target before background refresh occurs.
 #[derive(Clone, Debug)]
 pub enum InputKind {
+    /// Live search within the independent annotation notebook.
+    NoteSearch,
+    /// Independent tags on one captured annotation.
+    NoteTags {
+        /// Owning article.
+        article: i64,
+        /// Captured annotation.
+        note: i64,
+    },
+    /// Save the active note query as a named dynamic collection.
+    NoteCollection,
     /// Live metadata search.
     Search,
     /// Search only the current publisher text without changing library scope.
@@ -115,6 +140,8 @@ pub enum InputKind {
         article: i64,
         /// Captured annotation identity.
         comment: i64,
+        /// Saved card identity after the first write, or a new card.
+        card: Option<i64>,
     },
 }
 
@@ -131,6 +158,11 @@ pub struct Input {
     pub editor: tui_textarea::TextArea<'static>,
     /// Selected command suggestion; reset whenever the draft changes.
     pub completion: usize,
+    /// Editing layer within a note or study-card buffer.
+    pub edit_mode: EditMode,
+    /// Last successfully written text, used to protect modified buffers.
+    pub saved_text: String,
+    pub(crate) initial_kind: Option<crate::model::NoteKind>,
 }
 
 /// Current keyboard mode.
@@ -180,6 +212,9 @@ pub enum Action {
 
 /// State owned by the UI thread. Drawing reads this without performing I/O.
 pub struct App {
+    /// Independent annotation workspace, suspended while a draft is open.
+    pub notebook: Option<Box<Notebook>>,
+    notebook_return: Option<Box<Notebook>>,
     pub(crate) store: Store,
     pub(crate) layouts: crate::model::LayoutHistory,
     /// Bounded, body-free library snapshot.
@@ -229,6 +264,7 @@ pub struct App {
     pub comments: Vec<Comment>,
     /// Cached article-local annotation rows in resolved source order.
     pub annotations: Vec<AnnotationEntry>,
+    note_marks: note_marks::NoteMarks,
     /// Selected comment for edit/delete operations.
     pub comment_selected: usize,
     /// Cached wrapped lines, refreshed on selection or width changes.
@@ -274,6 +310,13 @@ pub struct App {
     renderer: crate::reader::LiveRenderer,
     navigation_worker: Option<navigation_worker::NavigationWorker>,
     session_writer: Option<session_writer::SessionWriter>,
+    note_tasks: Option<note_tasks::NoteTasks>,
+    note_catalog: Option<note_catalog::NoteCatalog>,
+    pending_note_write: Option<note_tasks::PendingWrite>,
+    pending_note_deletes: std::collections::BTreeMap<u64, i64>,
+    recovery: recovery::Recovery,
+    note_inspector: Option<notebook::inspection::Inspector>,
+    suspended_note: Option<Box<Input>>,
     reading_article: Option<i64>,
     immediate_layout: bool,
     pending_reflow: bool,
@@ -328,6 +371,8 @@ impl App {
         };
         let layouts = store.layouts(&workspace)?;
         let mut app = Self {
+            notebook: None,
+            notebook_return: None,
             store,
             library,
             navigation: Vec::new(),
@@ -359,6 +404,7 @@ impl App {
             reading_minutes: 0,
             comments: Vec::new(),
             annotations: Vec::new(),
+            note_marks: note_marks::NoteMarks::default(),
             comment_selected: 0,
             reader_lines: Vec::new(),
             scroll: 0,
@@ -388,6 +434,13 @@ impl App {
             renderer: crate::reader::LiveRenderer::start()?,
             navigation_worker: None,
             session_writer: None,
+            note_tasks: None,
+            note_catalog: None,
+            pending_note_write: None,
+            pending_note_deletes: std::collections::BTreeMap::new(),
+            recovery: recovery::Recovery::default(),
+            note_inspector: None,
+            suspended_note: None,
             reading_article: None,
             immediate_layout: false,
             pending_reflow: false,
@@ -416,6 +469,12 @@ impl App {
             app.restore_article(article)?;
         }
         app.ensure_visible_focus();
+        let drafts = app.store.note_draft_count()?;
+        if drafts > 0 {
+            app.status = format!(
+                "{drafts} recoverable drafts · :drafts resumes editing"
+            );
+        }
         Ok(app)
     }
 
@@ -431,7 +490,9 @@ impl App {
     /// # Errors
     /// Returns recoverable storage or command-validation failures.
     pub fn key(&mut self, key: KeyEvent) -> Result<Action> {
-        self.handle_key(key)
+        let action = self.handle_key(key);
+        self.observe_draft();
+        action
     }
 
     /// Reload metadata after collection, preserving selection by identity.
@@ -443,6 +504,7 @@ impl App {
             worker.cancel();
         }
         self.navigation_loading = false;
+        self.invalidate_notebook();
         self.reload_now()
     }
 

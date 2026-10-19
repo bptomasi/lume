@@ -9,6 +9,15 @@ use super::{Action, App, Choice, ChoiceAction, InputKind};
 /// Captured study action, independent of subsequent article selection.
 #[derive(Clone, Debug)]
 pub enum StudyAction {
+    /// Grade a revealed item or postpone it without claiming a review.
+    Grade {
+        /// Expected card or annotation snapshot.
+        target: super::ReviewTarget,
+        /// Explicit interval in days.
+        days: u16,
+        /// Defer without incrementing completed reviews.
+        postpone: bool,
+    },
     /// Reveal the captured card answer without marking it reviewed.
     Reveal(Box<StudyCard>),
     /// Record a review of the captured card.
@@ -24,31 +33,19 @@ impl App {
         argument: &str,
     ) -> Result<Option<Action>> {
         match verb {
-            "review" => self.show_review()?,
-            "cards" => self.show_study_cards()?,
+            "review" => self.show_review(argument)?,
+            "cards" => self.show_study_cards(argument)?,
             "card" => self.open_card(argument)?,
             "review-in" => {
-                let (article, comment) = self.selected_annotation()?;
-                self.store.review_annotation(
-                    article,
-                    comment,
+                let note = self.note_target()?;
+                self.grade_review(
+                    super::ReviewTarget::Note(Box::new(note)),
                     argument.parse()?,
-                    chrono::Utc::now().timestamp(),
+                    false,
                 )?;
-                self.status = format!(
-                    "Passage scheduled for review in {argument} days · u undo"
-                );
             }
             "link-note" => {
-                let (article, comment) = self.selected_annotation()?;
-                self.store.link_annotation(
-                    article,
-                    comment,
-                    argument.parse()?,
-                )?;
-                self.status =
-                    "Related article linked to the selected note · u undo"
-                        .into();
+                self.link_note_article(argument.parse()?)?;
             }
             "note-links" => self.show_note_links()?,
             "export-notes" => self.export_incremental(argument)?,
@@ -59,82 +56,89 @@ impl App {
 
     fn open_card(&mut self, argument: &str) -> Result<()> {
         let (article, comment) = self.selected_annotation()?;
-        if argument.is_empty() {
+        if argument.is_empty() || self.note_tasks.is_some() {
+            self.ensure_no_recovery(&crate::model::DraftTarget::Card {
+                article,
+                note: comment,
+                card: None,
+            })?;
             self.begin_input(
-                InputKind::StudyCard { article, comment },
-                String::new(),
+                InputKind::StudyCard {
+                    article,
+                    comment,
+                    card: None,
+                },
+                argument.into(),
             );
+            if !argument.is_empty() {
+                if let super::Mode::Input(input) = &mut self.mode {
+                    input.saved_text.clear();
+                }
+                self.request_draft_write(
+                    super::draft_commands::Destination::Reader,
+                )?;
+            }
         } else {
-            self.save_study_card(article, comment, argument)?;
+            self.save_study_card(article, comment, None, argument)?;
         }
         Ok(())
     }
 
+    fn link_note_article(&mut self, related: i64) -> Result<()> {
+        let (article, comment) = self.selected_annotation()?;
+        if let Some(writer) = &mut self.note_tasks {
+            writer.submit(super::note_tasks::Task::LinkArticle {
+                article,
+                note: comment,
+                related,
+            })?;
+        } else {
+            self.store.link_annotation(article, comment, related)?;
+            self.refresh_notes(article)?;
+        }
+        self.status =
+            "Related article linked to the selected note · u undo".into();
+        Ok(())
+    }
+
     fn selected_annotation(&self) -> Result<(i64, i64)> {
-        Ok((
-            self.current().context("Select an article")?.id,
-            self.comments
-                .get(self.comment_selected)
-                .context("Select a note/highlight with [ or ]")?
-                .id,
-        ))
+        let target = self.note_target()?;
+        Ok((target.article, target.comment.id))
     }
 
     pub(super) fn save_study_card(
         &mut self,
         article: i64,
         comment: i64,
+        card: Option<i64>,
         text: &str,
-    ) -> Result<()> {
+    ) -> Result<i64> {
         let (question, answer) = text.split_once('|').context(
             "Use Question | Answer; both must be your own study text",
         )?;
-        self.store
-            .create_study_card(article, comment, question, answer)?;
+        let id = if let Some(card) = card {
+            self.store
+                .update_study_card(article, comment, card, question, answer)?
+        } else {
+            self.store
+                .create_study_card(article, comment, question, answer)?
+        };
         self.status =
             "User-authored card saved · :cards reviews due questions · u undo"
                 .into();
-        Ok(())
+        Ok(id)
     }
 
-    fn show_review(&mut self) -> Result<()> {
-        let mut choices = Vec::new();
-        for (article, comment) in
-            self.store.due_annotations(chrono::Utc::now().timestamp())?
-        {
-            let annotation = self.store.annotation(article, comment)?;
-            choices.push(Choice {
-                title: crate::content::label(&annotation.comment.quote, 120),
-                detail: format!(
-                    "{}\n\n{}\n\n{}",
-                    annotation.comment.quote,
-                    annotation.comment.body,
-                    "Enter: reviewed, remind me in 7 days · :review-in DAYS",
-                ),
-                action: ChoiceAction::Study(StudyAction::ReviewNote(Box::new(
-                    annotation,
-                ))),
-            });
-        }
-        self.inspect(choices)
+    fn show_review(&mut self, query: &str) -> Result<()> {
+        self.inspect_notes(
+            super::notebook::inspection::Inspection::ReviewNotes(query.into()),
+        )
     }
 
-    fn show_study_cards(&mut self) -> Result<()> {
-        let choices = self
-            .store
-            .due_study_cards(chrono::Utc::now().timestamp())?
-            .into_iter()
-            .map(|card| Choice {
-                title: card.question.clone(),
-                detail: "Recall the answer, then Enter reveals it.\n\
-                    Nothing is marked reviewed yet."
-                    .into(),
-                action: ChoiceAction::Study(StudyAction::Reveal(Box::new(
-                    card,
-                ))),
-            })
-            .collect();
-        self.inspect(choices)
+    fn show_study_cards(&mut self, query: &str) -> Result<()> {
+        self.inspect_notes(
+            super::notebook::inspection::Inspection::ReviewCards(query.into()),
+        )
     }
 
     fn show_note_links(&mut self) -> Result<()> {
@@ -157,30 +161,28 @@ impl App {
 
     pub(super) fn study_choice(&mut self, action: StudyAction) -> Result<()> {
         match action {
+            StudyAction::Grade {
+                target,
+                days,
+                postpone,
+            } => {
+                self.grade_review(target, days, postpone)?;
+            }
             StudyAction::Reveal(card) => {
                 let text = format!("{}\n\n{}", card.question, card.answer);
                 self.show_document(
-                    "Study answer · Enter reviewed / 7 days · Esc leaves due",
+                    "Study answer · Enter grades · Esc leaves due",
                     &text,
                     Some(ChoiceAction::Study(StudyAction::Review(card))),
                 );
             }
             StudyAction::Review(card) => {
-                self.store.review_study_card(
-                    &card,
-                    7,
-                    chrono::Utc::now().timestamp(),
-                )?;
-                self.status = "Card reviewed · due in 7 days · u undo".into();
+                self.choose_review_grade(super::ReviewTarget::Card(card))?;
             }
             StudyAction::ReviewNote(annotation) => {
-                self.store.review_captured_annotation(
-                    &annotation,
-                    7,
-                    chrono::Utc::now().timestamp(),
-                )?;
-                self.status =
-                    "Passage reviewed · due in 7 days · u undo".into();
+                self.choose_review_grade(super::ReviewTarget::Note(
+                    annotation,
+                ))?;
             }
         }
         Ok(())
@@ -188,6 +190,15 @@ impl App {
 
     fn export_incremental(&mut self, directory: &str) -> Result<()> {
         anyhow::ensure!(!directory.is_empty(), "Use :export-notes DIRECTORY");
+        if let Some(writer) = &mut self.note_tasks {
+            writer.submit(super::note_tasks::Task::ExportArticles(
+                directory.into(),
+            ))?;
+            self.status =
+                "Exporting article notes… · navigation remains available"
+                    .into();
+            return Ok(());
+        }
         let report = crate::exchange::incremental::notebook(
             &self.store,
             std::path::Path::new(directory),

@@ -16,7 +16,7 @@ impl App {
         });
         ensure!(
             position.is_some(),
-            "Help topics: layout, mouse, vim, selection, lists, sources, study, commands"
+            "Help topics: layout, mouse, vim, selection, lists, sources, study, notes, notebook, recovery, commands"
         );
         self.help_scroll = position.unwrap_or(0);
         self.mode = Mode::Help;

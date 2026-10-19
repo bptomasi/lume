@@ -67,6 +67,15 @@ impl Store {
     /// Returns missing-target, invalid history or SQLite errors without popping
     /// the failed history entry.
     pub fn undo(&self) -> Result<bool> {
+        self.undo_effect()
+            .map(|effect| effect != crate::model::UndoEffect::Unchanged)
+    }
+
+    /// Restore a personal edit and report the smallest invalidated cache scope.
+    ///
+    /// # Errors
+    /// Returns the same atomic recovery/ownership failures as `undo`.
+    pub fn undo_effect(&self) -> Result<crate::model::UndoEffect> {
         let transaction = self.connection.unchecked_transaction()?;
         let last: Option<(i64, String)> = transaction
             .query_row(
@@ -76,12 +85,34 @@ impl Store {
             )
             .optional()?;
         let Some((id, payload)) = last else {
-            return Ok(false);
+            return Ok(crate::model::UndoEffect::Unchanged);
         };
-        restore(&transaction, serde_json::from_str(&payload)?)?;
+        let undo = serde_json::from_str(&payload)?;
+        let effect = match &undo {
+            Undo::Annotation(annotation) => {
+                crate::model::UndoEffect::Notes(annotation.article)
+            }
+            Undo::Comment { article, .. }
+            | Undo::DeleteComment { article, .. } => {
+                crate::model::UndoEffect::Notes(*article)
+            }
+            Undo::Tags {
+                target: crate::model::TagTarget::Comment(note),
+                ..
+            } => {
+                let article = transaction.query_row(
+                    "SELECT article_id FROM comments WHERE id = ?1",
+                    [note],
+                    |row| row.get(0),
+                )?;
+                crate::model::UndoEffect::Notes(article)
+            }
+            _ => crate::model::UndoEffect::Library,
+        };
+        restore(&transaction, undo)?;
         transaction.execute("DELETE FROM undo_log WHERE id = ?1", [id])?;
         transaction.commit()?;
-        Ok(true)
+        Ok(effect)
     }
 
     /// Clear fixture/setup history without changing personal data.

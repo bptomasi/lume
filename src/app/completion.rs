@@ -54,6 +54,15 @@ impl App {
         let Mode::Input(input) = &mut self.mode else {
             return false;
         };
+        if matches!(input.kind, InputKind::NoteSearch)
+            && key.code == KeyCode::Tab
+        {
+            if let Some(text) = crate::search::notes::complete(&input.text) {
+                input.text = text;
+                input.editor = super::editor::textarea(&input.text);
+            }
+            return true;
+        }
         if matches!(input.kind, InputKind::Search) && key.code == KeyCode::Tab {
             return complete_search(input);
         }
@@ -95,7 +104,12 @@ impl App {
             return !complete(input);
         };
         let argument = input.text.trim_start().get(verb.len()..).unwrap_or("");
-        if command.usage != command.name && argument.trim().is_empty() {
+        let required = command
+            .usage
+            .split_whitespace()
+            .nth(1)
+            .is_some_and(|argument| !argument.starts_with('['));
+        if required && argument.trim().is_empty() {
             self.status = format!("Usage: :{}", command.usage);
             return false;
         }
@@ -400,10 +414,28 @@ const COMMANDS: &[CommandSpec] = &[
         aliases: &[],
     },
     CommandSpec {
+        name: "write",
+        usage: "write",
+        description: "Write the session; in note editors :w saves and stays",
+        aliases: &["w", "w!", "write!", "wa", "wa!", "wall", "wall!"],
+    },
+    CommandSpec {
+        name: "wq",
+        usage: "wq",
+        description: "Write and quit; in note editors save and return to reader",
+        aliases: &["wq!", "x", "x!", "xit", "xit!", "exit", "exit!"],
+    },
+    CommandSpec {
+        name: "wqa",
+        usage: "wqa",
+        description: "Write the open note and session, then quit Lume",
+        aliases: &["wqa!", "wqall", "wqall!", "xa", "xa!", "xall", "xall!"],
+    },
+    CommandSpec {
         name: "quit",
         usage: "quit",
         description: "Save your session and leave Lume",
-        aliases: &["q"],
+        aliases: &["q", "q!", "quit!", "qa", "qa!", "qall", "qall!"],
     },
     CommandSpec {
         name: "find",
@@ -563,13 +595,13 @@ const COMMANDS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "review",
-        usage: "review",
+        usage: "review [NOTE_QUERY]",
         description: "Review due passage highlights",
         aliases: &[],
     },
     CommandSpec {
         name: "cards",
-        usage: "cards",
+        usage: "cards [NOTE_QUERY]",
         description: "Recall due user-authored questions before revealing answers",
         aliases: &[],
     },
@@ -637,6 +669,12 @@ const COMMANDS: &[CommandSpec] = &[
         name: "note",
         usage: "note",
         description: "Write a new private comment",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "annotate",
+        usage: "annotate",
+        description: "Write a note on the selected passage or current row",
         aliases: &[],
     },
     CommandSpec {
@@ -727,6 +765,96 @@ const COMMANDS: &[CommandSpec] = &[
         name: "layout-redo",
         usage: "layout-redo",
         description: "Redo a layout change · Ctrl-w r",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "notes",
+        usage: "notes [QUERY]",
+        description: "Open independent note search with source context",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-search",
+        usage: "note-search [QUERY]",
+        description: "Search note bodies and quotations · Space /",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-type",
+        usage: "note-type insight|question|definition|example|todo|synthesis",
+        description: "Set the selected note type · Notebook T opens choices",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-status",
+        usage: "note-status open|resolved",
+        description: "Resolve or reopen a question/action · Notebook r toggles",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-pin",
+        usage: "note-pin",
+        description: "Pin or unpin the selected note · Notebook p",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-tags",
+        usage: "note-tags [TAGS|clear]",
+        description: "Edit independent note tags · Notebook t",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-collection",
+        usage: "note-collection [NAME]",
+        description: "Save the active note query as a dynamic collection",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-collection-delete",
+        usage: "note-collection-delete NAME",
+        description: "Delete a saved query while retaining its notes",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-recent",
+        usage: "note-recent",
+        description: "Choose from the latest 30 explicit note searches",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-backlinks",
+        usage: "note-backlinks",
+        description: "Navigate incoming and outgoing note references · Notebook b",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-history",
+        usage: "note-history",
+        description: "Preview and restore one of the latest 100 note versions",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-reanchor",
+        usage: "note-reanchor",
+        description: "Preview the current Reader selection as a replacement note anchor",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "note-synthesis",
+        usage: "note-synthesis",
+        description: "Compose evidence from notes marked with v · Notebook s",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "drafts",
+        usage: "drafts",
+        description: "Recover interrupted note/card buffers without deleting checkpoints",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "export-note-files",
+        usage: "export-note-files DIRECTORY",
+        description: "Incrementally export Note-ID.md files; preserve local edits",
         aliases: &[],
     },
 ];

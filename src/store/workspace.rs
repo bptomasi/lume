@@ -196,6 +196,11 @@ fn validate_panel_layout(workspace: &Workspace) -> Result<()> {
 
 pub(crate) fn validate_dimensions(workspace: &Workspace) -> Result<()> {
     validate_panel_layout(workspace)?;
+    if let Some(layout) = &workspace.notebook_layout {
+        let mut notebook = Workspace::default();
+        layout.apply(&mut notebook);
+        validate_dimensions(&notebook)?;
+    }
     ensure!(
         ["lume", "nord", "gruvbox"].contains(&workspace.theme.as_str()),
         "Unsupported theme"

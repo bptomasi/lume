@@ -95,8 +95,12 @@ impl App {
         let navigation = NavigationWorker::start(path)?;
         let session = super::session_writer::SessionWriter::start(path)?;
         self.renderer.enable_background_layout()?;
+        self.wrap_reader();
         self.navigation_worker = Some(navigation);
         self.session_writer = Some(session);
+        self.note_tasks = Some(super::note_tasks::NoteTasks::start(path)?);
+        self.note_catalog =
+            Some(super::note_catalog::NoteCatalog::start(path)?);
         Ok(())
     }
 

@@ -144,6 +144,7 @@ impl App {
     /// # Errors
     /// Returns SQLite or content-loading errors.
     pub fn set_view(&mut self, view: View) -> Result<()> {
+        self.close_notebook();
         self.save_reading_position()?;
         self.retained_article = None;
         self.nav_selected = self
@@ -257,6 +258,7 @@ impl App {
     /// # Errors
     /// Returns missing article or SQLite errors.
     pub fn jump_article(&mut self, article: i64) -> Result<()> {
+        self.suspend_notebook_for_source();
         self.save_reading_position()?;
         let position = self.store.article_position(article)?;
         self.view = View::All;

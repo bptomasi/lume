@@ -30,6 +30,7 @@ fn save(app: &mut App) -> Result<()> {
 fn cursor_edits_and_undo_preserve_unicode() -> Result<()> {
     let (_directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
+    app.focus = lume::app::Focus::Reader;
     text(&mut app, "nação")?;
     key(&mut app, KeyCode::Home, KeyModifiers::NONE)?;
     text(&mut app, "🦀 ")?;
@@ -56,14 +57,18 @@ fn visual_selection_saves_quote_and_notebook_retains_context() -> Result<()> {
 
     text(&mut app, " n")?;
 
-    assert_eq!(app.view, View::Annotated);
-    assert_eq!(app.focus, Focus::Reader);
-    assert!(
-        app.reader_lines
-            .iter()
-            .any(|line| line.contains("A useful passage"))
-    );
-    assert!(app.reader_lines.iter().any(|line| line.starts_with('│')));
+    common::settle_notes(&mut app)?;
+    assert!(app.notebook.is_some());
+    assert_eq!(app.focus, Focus::Articles);
+    let notebook = app
+        .notebook
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("Missing notebook"))?;
+    let context = notebook
+        .current_context()
+        .ok_or_else(|| anyhow::anyhow!("Missing note context"))?;
+    assert_eq!(context.note.comment.body, "A useful passage");
+    assert!(!context.source_lines.is_empty());
     Ok(())
 }
 

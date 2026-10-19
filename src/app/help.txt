@@ -47,6 +47,9 @@
   ── MOUSE AND PANEL GESTURES ────────────────────────────────────────
   :mouse on|off|status     Capture preference / observed terminal events
   Click           Focus a panel, open an article or jump to a note
+  Hover ● / text  Preview a passage note; click its marker or popup to edit
+                  Mouse motion reporting is required for hover previews.
+                  Enter / :edit-note works from the keyboard.
   Wheel           Scroll the panel under the pointer
                   One reported event moves one row/item; no acceleration.
                   Alacritty: [scrolling] multiplier = 1 for one notch/row.
@@ -112,21 +115,42 @@
   vip / vap       Select inner paragraph / paragraph with blank rows
   y               Yank exact selected text to terminal clipboard
   s               Save visual selection as a highlight
-  n               In visual mode: write a note on the selected passage
-  :note           New private comment (also n outside the reader)
+  n               Note on selected text, or current reader row without a search
+  :annotate       Note on selected text / current row, even during a search
+  Enter           Edit the note under the reader cursor
+  dd              Delete the note under the cursor or in Annotations; u undoes
+                  Esc cancels the first d. Publisher text stays intact.
+  ● / ◉           A passage note starts here / several notes share this row
+                  Hover the marker or quoted text for a preview; click to edit.
+  :note           New private comment; Reader must have focus
   :edit-note      Edit selected note (also e outside the reader)
   [ / ]           Select previous / next note
   :delete-comment Delete selected note; u restores it and study material
   :notebook       Browse highlights and their original source context
   :annotations    Article-local notes, ordered by source position
   In annotations: j/k or wheel selects; Enter or click jumps to source.
-  e edits, n creates a general note; D/Delete removes the note; u undoes.
+  e edits; dd or D/Delete removes it; u undoes. Reader n creates notes.
   Alternate sources, unplaced quotes and general notes are labeled.
   Ambiguous/removed quotations stay saved; jumps never guess a position.
-  Ctrl-s          Save note/card editor; Esc discards the draft
+  Note/card editors start in INSERT. Enter inserts a line; Esc enters NORMAL.
+  i / a / I / A   Insert / append / insert at row start / append at row end
+  hjkl, w/b/e, 0/$, G      Editor motions; o/O opens a row below/above
+  x / u           Delete next character / undo editor text in NORMAL
+  :               In editor NORMAL, open a separate command line
+  :w / :write     Save note/card and keep editing; i resumes insertion
+  :wa / :wall     Save the open buffer; Lume has one draft editor
+  :wq / :x / ZZ   Save and close the editor, returning to reading
+  :wqa / :wqall / :xa / :xall    Save draft and session, then quit Lume
+  :q / :qa        Close editor / quit Lume only when the draft is clean
+  :q! / :qa! / ZQ Discard draft, then close editor / quit Lume / close editor
+                  Write variants also accept !; storage checks still apply.
+                  Esc cancels the command line without discarding the note.
+                  Failed writes keep the draft open for correction/retry.
+  Ctrl-s          Save and close note/card editor from any editing layer
   Ctrl-e          External editor while editing a note or study card
   Ctrl-z / r      Undo / redo editor text; arrows move the editor cursor
-  Reader e is a word motion; reader f starts a character find.
+  Reader e is a word motion; in appended private comments it edits that note.
+  Reader f starts a character find. With a search active, n/N finds matches.
   Use :edit-note and :favorite for those application actions here.
 
   ── LISTS, SEARCH AND ORGANIZATION ───────────────────────────────────
@@ -178,10 +202,10 @@
   ── STUDY AND EXPORT ────────────────────────────────────────────────
   :highlight-tags consensus oauth    Tag selected saved passage
   :link-note ARTICLE_ID / :note-links    Link/browse related readings
-  :review         Due passage previews; Enter schedules seven days
+  :review         Due notes; Enter chooses an explicit grade or postponement
   :review-in DAYS Schedule selected passage for 1–3,650 days
   :card Question | Answer   Create your own question and answer
-  :cards          Recall due cards; Enter reveals, then Enter reviews
+  :cards          Recall due cards; Enter reveals, then Enter chooses a grade
   :export-notes DIRECTORY    Incremental Markdown / Obsidian export
   Existing local edits become reported conflicts and stay untouched.
   :export PATH / :export-notebook PATH    New Markdown file exports
@@ -195,5 +219,71 @@
   :help layout / :help vim  Jump to these guide sections
   Help: j/k or arrows scroll, PageUp/PageDown page, g/G first/last
   :undo / u       Undo a personal edit, even after restart
+  :w / :wa        Outside a note editor, save the session without leaving
+  :wq / :wqa / :x Outside a note editor, save the session and quit
   :q / Ctrl-c     Save session and quit; terminal state is restored
   Notes, cached articles, lists and study material stay on this machine.
+
+  ── NOTES AND NOTEBOOK ─────────────────────────────────────────────
+  Space n / :notebook       Collections → Notes → Context
+  Space / / :note-search    Search notes from any panel
+  /                Search within Notebook; Tab completes a filter prefix
+  j/k / gg/G       Move in the focused pane; Ctrl-d/u moves ten notes
+  Enter            Open the exact source passage; Esc returns to reading
+  e / y / Y        Edit / copy note text / copy its source quotation
+  t / T            Edit tags / choose Insight, Question, Definition,
+                   Example, Todo or Synthesis
+  p / r            Toggle pin / Open–Resolved status
+  dd / u           Delete the selected note / undo the last personal edit
+  v / s            Mark up to 20 notes / create a synthesis with citations
+  b / :note-backlinks      Incoming and outgoing references
+  Ctrl-o           Return to the query before following a note reference
+                   From a source article, reopen the previous Notebook query
+  :note-recent     Recent successful searches (up to 30)
+  :note-collection NAME    Save the active query as a dynamic collection
+  :note-collection-delete NAME    Remove the query; notes remain
+  :notes type:question status:open tag:consensus
+  :notes (body:retry OR quote:consensus) NOT article:webinar
+  Filters: body:, quote:, article:ID or title, title:, source:, author:,
+           tag:, type:, status:, is:pinned|highlight|general|linked|due,
+           id:, ref:ID, after:, before:, updated-after:, updated-before:
+  Dates use YYYY-MM-DD at UTC midnight. Before is exclusive.
+  Text uses Unicode prefix matching; quoted phrases are exact token phrases.
+  Filters in one query always describe the same note, including its tags.
+  Search snippets highlight matching text; previews are at most 100 notes.
+  Mouse selects collections/notes; wheel scrolls its focused pane.
+  Ctrl-w works here too: collapse, resize, split, dock and reorder panels.
+  Notebook saves its own arrangement without replacing the reading layout.
+
+  ── NOTE EDITOR AND RECOVERY ───────────────────────────────────────
+  :note            Create a general note only while Reader has focus
+  n                Capture the Reader cursor row or visual selection
+  Esc / i          Normal mode / Insert mode inside a note
+  /PATTERN Enter   Search and highlight within this note (regular expression)
+  n / N            Next / previous editor match, wrapping at the ends
+  [[               Open a note-reference picker; arrows/Ctrl-j/k select
+  :link QUERY      Same reference picker, with the full note query grammar
+  :template study|question|definition|todo|synthesis
+                   Insert editable structure at the cursor
+  :w / :wq / :wqa Save / save and close editor / save and quit Lume
+  :q / :q!         Close clean editor / discard this unsaved buffer
+  ZZ / ZQ          Save and close / discard and close
+  :drafts          Recover interrupted note/card buffers
+                   Quiet typing checkpoints after 250 ms; continuous typing
+                   checkpoints at least once per second when the writer is free.
+                   Recovery is separate from committing an annotation.
+  :note-history    Inspect the latest 100 saved versions; Enter previews
+                   old/current text, then a second Enter confirms restoration
+  :note-reanchor   Select a note with [ or ], select its new source text,
+                   preview the old/new quote and explicitly confirm
+  Writes/deletions run in an ordered bounded queue in interactive sessions.
+  Editing continues during :w; newer text remains dirty when it completes.
+  A stale saved note/card is rejected; the recoverable draft is retained.
+  :export-note-files DIRECTORY   Incremental Note-ID.md export for Obsidian
+                   Wikilinks, source quotes, tags and backlinks are retained.
+                   Local file edits become conflicts and are never overwritten.
+  :cards [NOTE_QUERY]     Due cards; Enter reveals the answer, then grades
+  :review [NOTE_QUERY]    Due notes; Enter chooses a grade or postponement
+  Again / Hard / Good / Easy use fixed 1 / 3 / 7 / 14 day intervals.
+  Postpone sets tomorrow without increasing completed reviews.
+  These are explicit local choices, not adaptive or inferred scheduling.

@@ -1,5 +1,268 @@
 # Validation record — Lume
 
+## Indexed study notebook — 2026-10-18
+
+`make check` passed as the local constituent of `make check-release`, using
+exact Rust **1.99.1**, locked published sources and no source/toolchain
+substitution: **406 native tests**, all correctness-checked Rust workloads,
+**10 installer tests**, examples and Python tooling syntax. The native harness
+and custom workload runner now both receive `--test`: native tests still all
+run, while the custom runner uses its existing verification mode. Full repeated
+measurements remain separate through `make bench` and `make bench-notes`.
+
+Migration V9 is exercised against a real V8 SQLite library, including private
+text, tags, related articles, review dates, cards, favorites and folders, with
+an idempotent reopen. Original migration bytes are unchanged. Independent FTS
+scenarios verify same-note predicates, Unicode/phrases, bounded pages/snippets,
+stable IDs, code-fence exclusions, backlinks through deletion/undo, retired
+references, recovery collisions and checkpoint consumption. Version restoration
+rejects stale previews, and the 100-version limit survives deletion/undo cycles.
+
+Twenty-three Notebook interaction scenarios cover Reader-only creation, correct
+cross-article command targets, protection of hidden article selections, query
+cancellation/collections/history, source jumps and return, scoped keyboard/mouse
+bursts, tags/types/pins/resolution, synthesis citations, reference completion,
+editor search/templates, recovery, version previews and source repair. Actual
+SQLite lock contention verifies that a write does not block input or close text
+typed after its request. Queued toggles resolve against transactional state.
+Context end/reflow and backlink selection remain within their viewports. Frames
+are exercised at 1×1, 40×18, 80×28 and 144×44 across all three themes.
+Compatibility commands for highlight tags, direct cards, related articles and
+article-note exports use the same ordered interactive writer and captured owner.
+
+Separate export/review cases verify exact-byte file ownership, stable wikilinks,
+source citations, unchanged-file reconciliation and local edit preservation.
+Postponement does not count a completed review; due-card filters apply before
+the result limit. Existing editor, article reading, terminal input, extraction,
+syntax, layout, drag and mouse cases continue to pass.
+
+Exact editor bytes are also verified: indentation, tabs and trailing newlines
+survive paste, commit, version undo and yank. Indented wikilink examples remain
+code rather than silently becoming graph edges after trimming. Validation still
+rejects empty general notes and terminal controls; text itself is not trimmed.
+
+The dependency change enables the already pinned editor's search feature. It
+adds one dependency edge to an already locked regex package, with no version,
+package or accepted-license changes. Selection and responsibilities are recorded
+in dependency-security.md and architecture.md.
+
+`make check-release` remains unsuccessful at its explicit real-HTTP constituent:
+all **8** loopback cases fail when creating the test server socket with
+`Operation not permitted` (OS error 1). This is not a skipped or passed HTTP
+gate. `make check-alacritty` also fails its prerequisite check because `xdotool`
+is absent; no real Alacritty window or physical key-release claim is made.
+No containers or services were started. Local HTTP qualification and Alacritty
+qualification must still run in a host with their required capabilities.
+
+`make build` passed with `--locked --release`. A separate **140×36 Linux PTY**
+run against the final release executable passed Reader-only creation, bracketed
+paste, repeated `:w` without ID duplication, Notebook query/pane rendering,
+exact OSC52 yank, the context creation guard, `dd`/undo ownership, source jumps
+and `Ctrl-o` return, clean exit and terminal-attribute restoration. A PTY is not
+an Alacritty window and does not qualify physical key-release behavior.
+
+The actual 144×44 Notebook cells were exported with the preview example and
+rendered for visual review in `preview-notebook.png`. No mock screenshot is used.
+
+### Notebook performance evidence
+
+`make bench-notes` records three release runs of each representative/stress
+suite in [notebook-benchmarks.json](notebook-benchmarks.json). The comparable
+pre-change annotation fixture is retained in
+[notebook-performance-before.json](notebook-performance-before.json).
+Rust is 1.99.1 on the reported Intel Core Ultra 7 155H/Linux host. The artifact
+records the exact benchmark binary SHA-256, process wall time, peak RSS, CPU time
+and filesystem block counters. Setup is excluded from operation timers and
+included in process resources; every measured operation checks correctness.
+
+The original annotation suite retains the same 9,290/46,890-byte documents,
+20/200 annotations and forty mutation iterations. Values below are medians of
+three per-run means, in milliseconds; they are not terminal-emulator latency.
+
+| Annotation operation | Before, 20 | After, 20 | Before, 200 | After, 200 |
+| --- | ---: | ---: | ---: | ---: |
+| Hover + popup/dismissal frames | 0.221 | 0.268 | 0.236 | 0.268 |
+| Edit + `:w` + unchanged `:w` + frame | 1.168 | 0.824 | 5.211 | 3.135 |
+| Card edit + writes + schedule check | 0.569 | 0.234 | 2.668 | 0.837 |
+| Contextual `dd` + undo + restored marker | 2.084 | 1.198 | 10.023 | 5.394 |
+
+These observations support lower costs for those write/delete workflows in
+these fixtures. Hover is slightly slower here, so there is no blanket speedup
+claim. Median process peak RSS is 12,876→13,396 KiB for the representative
+annotation suite and 16,248→16,120 KiB for stress. The synchronous write suite
+is comparable before/after; separate lock/failure tests qualify interactive
+queue responsiveness and preservation of newer edits.
+
+The new Notebook suite uses 10,000/100,000 notes across 100/1,000 articles.
+It checks same-note FTS/tag/type/status filters, a late page and highlighted
+snippets; coherent source context; recovery/reference/metadata/review/anchor/
+version transactions plus seven exact undos; interactive context/frame delivery;
+and atomic/incremental note files. Study fixtures contain four/sixteen cards.
+Export fixtures contain 100/500 note files.
+
+| Notebook workload | 10k notes | 100k notes |
+| --- | ---: | ---: |
+| Filtered FTS + last page + snippets, mean ms | 11.120 | 70.732 |
+| Selected context + Markdown, mean ms | 0.118 | 0.062 |
+| Complete study/undo cycle, mean ms | 4.543 | 5.584 |
+| Navigation + ready context + frame, p50 ms | 0.492 | 0.281 |
+| Navigation + ready context + frame, p95 ms | 0.727 | 0.450 |
+| Navigation + ready context + frame, p99 ms | 1.395 | 0.494 |
+| First 100/500 file publication, ms | 18.512 | 57.053 |
+| Unchanged 100/500 file reconciliation, ms | 13.753 | 44.236 |
+| Process peak RSS, KiB | 18,872 | 22,672 |
+
+Navigation percentiles cover 200 alternating note moves per run, ready source
+context and actual TestBackend frames. They are observed sorted statistics at
+floor(N×p), with `yield_now` polling. Production polls active work every 16 ms;
+these numbers do not measure the terminal emulator, display, physical input or
+that event-poll delay. Full FTS reads remain slower than cached navigation and
+run on a replaceable worker. Host scheduling/cache state were not controlled.
+No allocation-count, idle-CPU, real-time or all-library-size guarantee is made.
+
+## Vim-style note writes — 2026-10-18
+
+`make check` passed with exact Rust **1.99.1**, published registry sources and
+the locked graph: **362 native tests**, the ordinary correctness-checked
+workloads, **10 installer tests**, examples and tooling syntax. No source or
+toolchain substitution, dependency update, schema change or migration was used.
+The new card-text update is operational SQL at its store owner.
+
+Eighteen editor scenarios exercise actual key dispatch, separate command-line
+paste, write/quit aliases, clean/dirty guards, repeated writes to one captured
+note/card ID, unchanged-write idempotence, quotation preservation, Unicode
+motions and command limits, ZZ/ZQ, Ctrl-s in all editing layers, session writes,
+failed validation, deleted targets and session failure after a note commit.
+The latter retains the already saved ID for retry. Store tests additionally
+reject wrong card owners, missing cards, invalid text and Trash without an
+undo entry, and verify that an edited card keeps its review schedule.
+Existing extraction-preview tests now require explicitly closing the editor:
+Esc alone preserves the draft and continues deferring the background preview.
+
+Real Ratatui buffers verify dirty titles, separate Ex text and matching global
+mode labels, with 1×1, 24×10, 40×12 and 100×30 viewports. The actual 144×44
+editor preview was visually inspected after exporting its cells with
+`cargo run --locked --example preview -- /tmp/note-write.json note-write`.
+It shows the draft, command line and mode-specific hints independently.
+
+`make build` passed with `--locked --release`. A separate release-executable
+Linux PTY run verified bracketed paste containing literal Ex text, repeated
+`:w` without duplicate notes, `:wq` returning to reading, a refused dirty `:q`,
+and `:wqa` persisting the draft before exit and restoring original tty modes.
+This qualifies terminal I/O, not physical Alacritty paint/input.
+
+`make check-release` passed its local phase, including the note/card write
+workloads, then **failed all eight real HTTP cases** at loopback socket creation
+with `Operation not permitted (os error 1)`. No case was silently skipped.
+`make check-alacritty` failed its prerequisite because **xdotool is missing**.
+Release HTTP and physical GUI qualification remain incomplete in this sandbox.
+
+[Optimized write measurements](editor-write-benchmarks.json) record three
+representative and three stress runs, with environment, binary checksum,
+process wall time and peak RSS. Each has 40 note edit/write/unchanged-write/
+editor-frame cycles and 40 card edit/write/unchanged-write/schedule checks.
+Setup is excluded from operation timings; each operation verifies correctness.
+The representative library has 200 paragraphs / 20 annotations; stress uses
+1,000 paragraphs / 200 annotations. Note cycles measured 1.168–1.224 ms and
+5.098–5.124 ms respectively; card cycles measured 0.567–0.592 ms and
+2.634–2.678 ms. Whole-process wall/RSS also include fixture setup and the
+hover/deletion workloads: 0.26–0.94 seconds and 12,452–16,312 KiB. These are
+absolute measurements, without a comparable previous write baseline or a
+physical input-to-display latency claim.
+
+## Contextual article notes and pointer previews — 2026-10-18
+
+Final `make check` passed with pinned Rust **1.99.1**, the published locked
+registry graph and no source substitutions: **343 native tests**, ordinary
+correctness-checked workloads, **10 installer tests**, examples and tooling
+syntax. `make build` passed with `--locked --release`. No dependency, feature,
+schema or migration changes were needed for this note interaction work.
+
+Sixteen new native scenarios exercise cursor-local `dd` independently of the
+previously selected comment, annotation-panel deletion, repeat suppression,
+Escape/motion/focus-loss/reload cancellation, deletion undo and publisher-text
+preservation. They also check exact-note editing without quotation changes,
+Vim find/visual-selection precedence, reader-search `n`, current-row annotation,
+explicit general notes, overlapping passages, ambiguous refreshed quotations,
+Unicode hover, popup clicks, horizontal-scroll dismissal, disabled mouse and
+safe failure for an invalid cursor. A jump to an overlapping annotation retains
+that matching note as the deletion target.
+
+Popup placement/painting is checked at 24×10, 40×18, 80×24 and 140×36 in all
+three themes. The existing 36 cell snapshots pass; 18 reviewed snapshots
+change only their reader footer to advertise `n note` and `:annotate` when no
+search is active. Their trailing spaces remain deliberate exact-width cell
+fixtures. [The note preview](preview-notes.png) was exported from actual Ratatui
+cells and visually inspected, including the gutter, source quote, editor hint
+and numbered position-ordered annotation cards. Reproduce its cell export with
+`cargo run --locked --example preview -- /tmp/notes.json note-hover`.
+
+A separate release-binary Linux PTY qualification created and persisted a
+current-row passage note in an isolated demo database. SGR all-motion input
+produced the expected popup text fragments; a reported popup click opened the
+same note for editing without changing its quote. Keyboard `dd` removed only
+the note, `u` restored the edited note and quotation, and normal exit restored
+the original tty attributes. Ratatui may omit unchanged spaces between emitted
+fragments; the native buffer assertions independently verify complete visible
+text. This is terminal I/O qualification, not a physical-display measurement.
+
+`make check-alacritty` failed its tool prerequisite because **xdotool is missing**;
+it did not qualify an Alacritty window. No GUI test result is claimed. No HTTP
+boundary changed; the previously recorded loopback restriction remains outside
+this UI qualification.
+
+[Fresh optimized measurements](note-interaction-benchmarks.json) retain three
+representative runs (200 paragraphs / 20 annotations) and three stress runs
+(1,000 paragraphs / 200 annotations). Both check 400 coalesced hover/preview/
+dismissal pairs and 40 `dd`/undo cycles per process. Hover plus two TestBackend
+frames measured 0.229–0.246 ms per cycle; deletion plus undo measured
+2.128–2.220 ms representative and 10.109–10.236 ms stress. Operation timings
+exclude setup; process wall/RSS include it. These are absolute measurements
+without a comparable prior baseline or a physical input-to-display guarantee.
+
+## Installed library paths and safe migration — 2026-10-18
+
+`make check` passed with pinned Rust **1.99.1**, the ordinary Cargo home and
+published registry sources, without path patches or source substitutions.
+The Linux-filtered locked metadata contains 220 packages, with every external
+package using a registry source. Cached Linux dependencies are now available;
+the earlier DNS failure is no longer a build blocker for this host target.
+`make build` passed with `--locked --release` and the unchanged lock graph.
+
+New native tests check the fixed home-relative default across two working
+directories, ignored legacy XDG configuration, the environment override without
+HOME, directory flag precedence, separate demo data, empty-directory failures
+and explicit database compatibility/conflicts. Ten Python installer tests
+check a live WAL snapshot with an uncommitted writer, preserved notes/folder
+membership/read/favorite flags, corrupt sources, backup deadlines, ambiguous
+legacy paths, destination races, executable-copy failure and reinstallation.
+They also exercise the Make target with isolated inputs and retained notices.
+
+A separate end-to-end qualification used the real release executable and real
+`make install` in a temporary prefix containing spaces. Migration retained
+98 bundled subscriptions and the source database. The installed binary opened
+identical library contents from two different working directories. Directory
+flags overrode environment settings; environment-only selection also worked.
+Installed executable bytes and retained license notices were checked. All
+library and installation destinations were temporary; no private user library
+was read, migrated or changed by these tests.
+
+`make bench-tools` passed correctness checks for three snapshots each of
+1,000 articles with 2 KiB bodies and 10,000 articles with 4 KiB bodies.
+[Recorded measurements](install-benchmarks.json) include wall time, database
+size, Python/SQLite/OS versions and Linux process peak RSS. Setup/verification
+are excluded from timings; RSS includes setup and is not an allocation delta.
+These are migration measurements without a comparable earlier baseline;
+they establish no navigation or migration speedup.
+
+`make check-release` passed its complete local prerequisite, including the
+installer tests and tooling syntax, then failed all eight actual HTTP tests.
+Binding a loopback socket still returns `Operation not permitted (os error 1)`.
+No required HTTP case was skipped, and release qualification remains incomplete
+at that boundary. The separate successful release build qualifies compilation
+and the tested installer, not real HTTP. Alacritty was not rerun for this path
+change; its harness now sets LUME_DATA_DIR to retain test isolation.
+
 ## Published-registry lock correction — 2026-10-18
 
 This correction supersedes prior claims that the substituted sources and

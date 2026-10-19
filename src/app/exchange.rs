@@ -55,13 +55,7 @@ impl App {
             "export-opml" => InputKind::ExportOpml,
             _ => return Ok(None),
         };
-        let input = Input {
-            kind,
-            text: argument.to_owned(),
-            previous_search: String::new(),
-            editor: super::editor::textarea(argument),
-            completion: 0,
-        };
+        let input = Input::new(kind, argument.to_owned(), String::new());
         self.exchange_input(&input).map(Some)
     }
 }

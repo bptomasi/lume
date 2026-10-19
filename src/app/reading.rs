@@ -269,6 +269,7 @@ impl App {
             } else {
                 self.renderer.render(body, self.reader_width)
             };
+        self.rebuild_note_marks(&rendered);
         self.paint_highlights(&mut rendered);
         self.reader_styled = rendered.lines;
         self.line_ranges = rendered.ranges;
@@ -366,6 +367,7 @@ impl App {
         );
         for (index, comment) in self.comments.clone().into_iter().enumerate() {
             self.append_reader_line("", Style::default());
+            let start = self.reader_text.len();
             self.append_reader_line(
                 &format!(
                     "[{}] {}",
@@ -381,6 +383,9 @@ impl App {
             for line in textwrap::wrap(&comment.body, self.reader_width) {
                 self.append_reader_line(&line, Style::default());
             }
+            self.note_marks
+                .comments
+                .push((start..self.reader_text.len(), comment.id));
         }
     }
 
@@ -520,6 +525,9 @@ impl App {
     }
 
     pub(super) fn persist_preferences(&mut self) -> Result<()> {
+        if self.persist_notebook_layout()? {
+            return Ok(());
+        }
         self.layouts
             .observe(crate::model::PanelLayout::capture(&self.workspace));
         if let Some(writer) = &self.session_writer {
@@ -533,6 +541,7 @@ impl App {
     /// # Errors
     /// Returns local storage errors while preserving terminal cleanup.
     pub fn end_session(&mut self) -> Result<()> {
+        self.checkpoint_draft()?;
         // Global Ctrl-c can leave this modal without its explicit confirmation.
         if let super::Mode::Settings(draft) = &self.mode {
             self.workspace = draft.before.clone();

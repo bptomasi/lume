@@ -15,7 +15,7 @@
 │  Grouped ar    1 ││ 75% · v select · │
 ╰──────────────────╯╰──────────────────╯
  NORMAL  Reader   Visual regression fixt
-  w/W/e word  ·  / find  ·  n/N match  ·
+  w/W/e word · / find · n note · :annota
 0:0..4 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))
 0:4..8 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75)).bold()
 0:8..40 Style::new().fg(Color::Rgb(216, 222, 233)).bg(Color::Rgb(52, 60, 75))

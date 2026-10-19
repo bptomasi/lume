@@ -217,6 +217,7 @@ def configure_terminal(directory):
     environment.pop("NO_COLOR", None)
     environment.update(
         WINIT_UNIX_BACKEND="x11", XDG_DATA_HOME=str(directory / "data"),
+        LUME_DATA_DIR=str(directory / "data/lume"),
     )
     return config, environment
 

@@ -49,10 +49,14 @@ fn compact_and_tiny_terminals_render_every_mode_without_overflow() -> Result<()>
             terminal.draw(|frame| ui::draw(frame, &app))?;
             app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
             app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
+            app.focus = Focus::Reader;
             app.paste("note")?;
             app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
             terminal.draw(|frame| ui::draw(frame, &app))?;
             app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
+            app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
+            app.paste("q!")?;
+            app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
         }
     }
     Ok(())

@@ -87,6 +87,8 @@ pub enum PickerKind {
 /// Captured operation, independent of background refresh selection changes.
 #[derive(Clone, Debug)]
 pub enum ChoiceAction {
+    /// Captured notebook, type or reference action.
+    Note(super::NoteAction),
     /// Execute a workspace operation.
     Run(WorkspaceCommand),
     /// Open a captured article identity.
@@ -240,6 +242,7 @@ impl App {
     pub(super) fn picker_key(&mut self, key: KeyEvent) -> Result<Action> {
         if key.code == KeyCode::Esc {
             self.mode = Mode::Normal;
+            self.resume_note_editor();
             return Ok(Action::None);
         }
         if key.code == KeyCode::Enter {
@@ -283,14 +286,12 @@ impl App {
     }
 
     fn commit_picker(&mut self) -> Result<Action> {
-        let Mode::Picker(picker) = self.mode.clone() else {
+        let Mode::Picker(picker) = &self.mode else {
             return Ok(Action::None);
         };
-        if let PickerKind::Lists {
-            article,
-            mut checked,
-        } = picker.kind
-        {
+        if let PickerKind::Lists { article, checked } = &picker.kind {
+            let article = *article;
+            let mut checked = checked.clone();
             if picker.choices.is_empty() && !picker.query.trim().is_empty() {
                 checked.insert(self.store.create_collection(&picker.query)?);
             }
@@ -300,11 +301,21 @@ impl App {
             self.status = "List memberships saved · u undo".into();
             return Ok(Action::None);
         }
-        let Some(choice) = picker.choices.get(picker.selected) else {
+        let Some(action) = picker
+            .choices
+            .get(picker.selected)
+            .map(|choice| choice.action.clone())
+        else {
             return Ok(Action::None);
         };
-        self.mode = Mode::Normal;
-        self.apply_choice(choice.action.clone())
+        let previous = std::mem::take(&mut self.mode);
+        match self.apply_choice(action) {
+            Ok(action) => Ok(action),
+            Err(error) => {
+                self.mode = previous;
+                Err(error)
+            }
+        }
     }
 
     pub(super) fn apply_choice(
@@ -312,6 +323,9 @@ impl App {
         action: ChoiceAction,
     ) -> Result<Action> {
         match action {
+            ChoiceAction::Note(action) => {
+                return self.apply_note_action(action);
+            }
             ChoiceAction::Run(command) => return self.perform(command),
             ChoiceAction::SetDeleted { article, deleted } => {
                 self.change_article_deleted(article, deleted)?;

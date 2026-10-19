@@ -17,3 +17,28 @@ pub fn seeded_store() -> Result<(tempfile::TempDir, Store, Feed)> {
     store.ingest(&feed, &parsed.title, &parsed.articles)?;
     Ok((directory, store, feed))
 }
+
+/// Settle annotation workers with a deadline, exercising their real poll path.
+#[allow(
+    dead_code,
+    reason = "Each integration target selects its own scenarios"
+)]
+pub fn settle_notes(app: &mut lume::app::App) -> Result<()> {
+    let deadline =
+        std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        app.poll_note_workspace()?;
+        if !app.notes_pending()
+            && !app.notebook_pending()
+            && !app.note_inspection_pending()
+            && !app.note_catalog_pending()
+        {
+            return Ok(());
+        }
+        anyhow::ensure!(
+            std::time::Instant::now() < deadline,
+            "Note worker timed out"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+}

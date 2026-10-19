@@ -28,7 +28,9 @@ fn normal_mode_opens_reader_and_insert_mode_keeps_vim_letters() -> Result<()> {
 fn invalid_comment_retains_draft_and_can_be_corrected() -> Result<()> {
     let (_directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
-    type_text(&mut app, "n")?;
+    app.focus = Focus::Reader;
+    type_text(&mut app, ":note")?;
+    press(&mut app, KeyCode::Enter)?;
     assert!(
         app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))
             .is_err()
@@ -37,7 +39,7 @@ fn invalid_comment_retains_draft_and_can_be_corrected() -> Result<()> {
     type_text(&mut app, "ação 🦀")?;
     press(&mut app, KeyCode::Backspace)?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
-    assert_eq!(app.comments[0].body, "ação");
+    assert_eq!(app.comments[0].body, "ação ");
     Ok(())
 }
 
@@ -62,11 +64,15 @@ fn pasted_comments_do_not_execute_commands_and_respect_utf8_limits()
 -> Result<()> {
     let (_directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
-    type_text(&mut app, "n")?;
+    app.focus = Focus::Reader;
+    type_text(&mut app, ":note")?;
+    press(&mut app, KeyCode::Enter)?;
     app.paste(":q\nA private thought\u{1b}")?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
     assert_eq!(app.comments[0].body, ":q\nA private thought");
-    type_text(&mut app, "n")?;
+    app.focus = Focus::Reader;
+    type_text(&mut app, ":note")?;
+    press(&mut app, KeyCode::Enter)?;
     app.paste(&"🦀".repeat(5000))?;
     if let Mode::Input(input) = &app.mode {
         assert_eq!(input.text.len(), 16_384);
@@ -122,7 +128,10 @@ fn comment_target_survives_a_background_reload_and_no_matching_view()
     let (directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
     let id = app.current().map_or(0, |article| article.id);
-    type_text(&mut app, "nCaptured target")?;
+    app.focus = Focus::Reader;
+    type_text(&mut app, ":note")?;
+    press(&mut app, KeyCode::Enter)?;
+    type_text(&mut app, "Captured target")?;
     let other =
         lume::store::Store::open(&directory.path().join("library.sqlite3"))?;
     other.set_unread(id, false)?;
@@ -139,7 +148,8 @@ fn empty_views_accept_navigation_and_quit_without_panicking() -> Result<()> {
     let store =
         lume::store::Store::open(&directory.path().join("empty.sqlite3"))?;
     let mut app = App::new(store, false)?;
-    type_text(&mut app, "jjkkggGhlfn")?;
+    type_text(&mut app, "jjkkggGhlf")?;
+    assert!(press(&mut app, KeyCode::Char('n')).is_err());
     assert!(app.current().is_none());
     assert_eq!(press(&mut app, KeyCode::Char('q'))?, Action::Quit);
     Ok(())

@@ -26,7 +26,7 @@ impl ContentSource {
 }
 
 /// Captured source passage; storage checks Full revisions before saving it.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Passage {
     /// Immutable normalized source bytes selected by the reader.
     pub quote: String,

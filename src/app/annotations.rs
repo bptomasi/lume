@@ -176,8 +176,8 @@ impl App {
                     self.annotation_selected().context("No annotations yet")?;
                 self.jump_annotation(selected)?;
             }
-            KeyCode::Char('n') => self.edit_comment(false),
-            KeyCode::Char('e') => self.edit_comment(true),
+            KeyCode::Char('n') => self.begin_reader_note()?,
+            KeyCode::Char('e') => self.edit_comment(true)?,
             KeyCode::Char('D') | KeyCode::Delete => {
                 return self.command("delete-comment").map(Some);
             }

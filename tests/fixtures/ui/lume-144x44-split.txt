@@ -41,7 +41,7 @@
 │                                  ││                                                                                                          │
 ╰──────────────────────────────────╯╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  NORMAL  Reader   Visual regression fixture                                                                                                     
-  w/W/e word  ·  / find  ·  n/N match  ·  :note  ·  Z fullscreen  ·  ? help                                                                     
+  w/W/e word · / find · n note · :annotate · Ctrl-w layout                                                                                      
 0:0..4 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
 0:4..8 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26)).bold()
 0:8..44 Style::new().fg(Color::Rgb(155, 151, 144)).bg(Color::Rgb(23, 23, 26))

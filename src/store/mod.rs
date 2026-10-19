@@ -16,6 +16,7 @@ mod history;
 mod ingest;
 mod layouts;
 mod migrations;
+mod notebook;
 mod occurrences;
 mod organization;
 mod query;
@@ -37,6 +38,14 @@ pub struct Store {
 }
 
 impl Store {
+    pub(crate) fn database_path(&self) -> Result<std::path::PathBuf> {
+        self.connection
+            .path()
+            .filter(|path| !path.is_empty())
+            .map(std::path::PathBuf::from)
+            .context("Notebook workers require a file-backed library")
+    }
+
     /// Load navigation metadata without article bodies or historical windows.
     ///
     /// # Errors
@@ -202,3 +211,6 @@ fn article_row(row: &Row<'_>) -> rusqlite::Result<Article> {
         queued: row.get(10)?,
     })
 }
+
+pub(crate) use annotations::collection_name as validate_collection_name;
+pub(crate) use organization::validate_tags;

@@ -15,11 +15,17 @@ impl App {
         {
             return Ok(Action::None);
         }
+        if !matches!(key.code, KeyCode::Char('d') | KeyCode::Esc) {
+            self.note_marks.delete = None;
+        }
         self.cancel_pointer();
         if key.modifiers.contains(KeyModifiers::CONTROL)
             && key.code == KeyCode::Char('c')
         {
             return Ok(Action::Quit);
+        }
+        if self.inspection_key(key) {
+            return Ok(Action::None);
         }
         if matches!(self.mode, Mode::Normal)
             && key.kind == KeyEventKind::Repeat
@@ -41,22 +47,32 @@ impl App {
             Mode::Smart(_) => self.smart_key(key),
             Mode::Document(_) => self.document_key(key),
             Mode::Settings(_) => self.settings_key(key),
+            Mode::Normal if self.notebook.is_some() => self.notebook_key(key),
             Mode::Normal => self.normal_key(key),
         }
     }
 
-    fn normal_key(&mut self, key: KeyEvent) -> Result<Action> {
-        if self.panel_prefix && self.panel_layout_key(key)? {
-            return Ok(Action::None);
+    fn inspection_key(&mut self, key: KeyEvent) -> bool {
+        if !self.note_inspection_pending() || !matches!(self.mode, Mode::Normal)
+        {
+            return false;
         }
-        if let Some(action) = self.bound_key(key)? {
+        if key.code == KeyCode::Esc {
+            self.cancel_note_inspection();
+        }
+        true
+    }
+
+    fn normal_key(&mut self, key: KeyEvent) -> Result<Action> {
+        if let Some(action) = self.normal_prefix_action(key)? {
             return Ok(action);
         }
-        if self.panel_layout_key(key)? {
-            return Ok(Action::None);
-        }
         if key.modifiers.contains(KeyModifiers::CONTROL) {
+            self.note_marks.delete = None;
             return self.control_key(key.code);
+        }
+        if self.note_key(key)? {
+            return Ok(Action::None);
         }
         if let Some(action) = self.annotation_key(key.code)? {
             return Ok(action);
@@ -77,6 +93,22 @@ impl App {
             return Ok(Action::None);
         }
         self.workspace_key(key.code)
+    }
+
+    pub(super) fn normal_prefix_action(
+        &mut self,
+        key: KeyEvent,
+    ) -> Result<Option<Action>> {
+        if self.panel_prefix && self.panel_layout_key(key)? {
+            return Ok(Some(Action::None));
+        }
+        if let Some(action) = self.bound_key(key)? {
+            return Ok(Some(action));
+        }
+        if self.panel_layout_key(key)? {
+            return Ok(Some(Action::None));
+        }
+        Ok(None)
     }
 
     fn workspace_key(&mut self, code: KeyCode) -> Result<Action> {
@@ -133,6 +165,10 @@ impl App {
         if self.focus != Focus::Library {
             return self.open_reader();
         }
+        if self.view == View::Annotated {
+            self.open_notebook("", None)?;
+            return Ok(());
+        }
         if let View::Group(group) = &self.view {
             let group = group.clone();
             self.toggle_navigation_group(match group.as_str() {
@@ -157,14 +193,16 @@ impl App {
             KeyCode::Char('a') => {
                 self.perform(WorkspaceCommand::Lists)?;
             }
-            KeyCode::Char('d') => self.remove_from_list()?,
+            KeyCode::Char('d') if self.selection.is_none() => {
+                self.remove_from_list()?
+            }
             KeyCode::Char('D') | KeyCode::Delete
                 if self.focus != Focus::Library && self.selection.is_none() =>
             {
                 self.set_selected_deleted(true)?;
             }
             KeyCode::Char('n') => self.annotate_selection()?,
-            KeyCode::Char('e') => self.edit_comment(true),
+            KeyCode::Char('e') => self.edit_comment(true)?,
             KeyCode::Char(']') => self.select_comment(true),
             KeyCode::Char('[') => self.select_comment(false),
             _ => {}

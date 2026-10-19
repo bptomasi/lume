@@ -4,6 +4,83 @@ Lume is an independent local terminal application. One owned SQLite library
 stores feeds, normalized Markdown and personal state. No server, account,
 container or external database is required.
 
+## Annotation notebook ownership and lifecycle
+
+`app::notebook` owns an independent query, a 100-note page, selected identity,
+prepared note/source context and a saved reading workspace. The existing pane
+identities host Collections, Notes, Context and optional Backlinks, preserving
+mouse docking, splits, collapse and keyboard layout operations. Notebook
+arrangement is saved separately; source jumps retain its exact query/selection
+for `Ctrl-o`. A query/page transition cannot act on a cached row from an older
+request. Matching metadata refreshes preserve note identity and context scroll.
+
+Independent latest-read workers own note search, context preparation and
+inspections. They replace obsolete reads, not admitted mutations. Context includes
+verified Feed/Full provenance and a source excerpt with the saved range highlighted.
+Changed Full revisions relocate only unique quotes. Unavailable or ambiguous
+sources retain their quotation and remain editable; repair requires a preview.
+Drawing uses cached Ratatui lines and bounded previews, with no SQL or parsing.
+Existing note commands use the visible note's captured source, even when the
+library selection names another article. Article actions on a hidden library
+selection require opening the source first. Explicit library navigation leaves
+Notebook; article jumps retain its query for return.
+
+`store::notebook` owns note-level FTS5 predicates, metadata, permanent identities,
+references, versions, collections, recovery and export ownership. Migration V9
+backfills existing annotations and separates their FTS from article text. Every
+criterion in one note query describes that same annotation. Article search still
+includes private notes through the independent index. FTS5 supplies matching and
+snippets, rather than a second application tokenizer.
+
+Permanent identities survive deletion, so a Note-ID can never identify a different
+annotation later. Markdown wikilinks use the parser's actual link events, ignoring
+code examples. Incoming and outgoing edges are capped at 128 each. Deletion undo
+restores both directions, tags, cards and metadata. Retired references remain in
+text without preventing later edits; IDs that never existed are rejected. Legacy
+literal wikilinks acquire graph semantics when the note is next saved.
+
+Interactive annotation writes, deletions, metadata patches, tags, query history
+and collections use one ordered worker with bounded 16-slot request/result
+channels. Property toggles resolve against current transactional state, so rapid
+presses do not overwrite each other's properties. Admission failure retains the
+editor. SQLite Busy/Locked failures retry after rollback with a two-second retry
+deadline; an individual SQLite busy wait is also bounded by its connection policy.
+Failures after a committed creation remain inside its acknowledged outcome and
+never retry a durable ID. Input and navigation remain available during a write.
+
+Completions update the captured annotation's caches and refresh derived catalog
+counts/pages on a separate latest-read worker. A note edit does not reload every
+source, recount smart lists synchronously or parse unchanged publisher Markdown.
+The source renderer caches its unmarked layout until source, width or completed
+syntax styles change. Input batches route Notebook
+motions through note navigation, while Reader batches retain their source scope.
+
+The editor retains its buffer during writes. Completion records the committed ID
+and baseline before presentation refresh; text entered afterward remains dirty
+and open. Existing note/card text is checked against its baseline inside the
+transaction. Recovery checkpoints are separate from committed annotations, with
+250 ms quiet debounce and a one-second deadline during continuous edits when
+admission is available. Explicit exit drains admitted writes and checkpoints any
+remaining dirty editor. New editors cannot replace an interrupted buffer with
+the same captured target; `:drafts` resumes it and `:q!` discards it explicitly.
+
+Versions retain the latest 100 committed text/source states, including across
+undo/delete cycles. Historical restoration and source-range repair compare the
+previewed current note, commit as one reversible transaction, and require explicit
+confirmation. Metadata and review state remain independent of text versions.
+Note Markdown preserves indentation, tabs and trailing newlines, so persisted
+bytes, reference parsing and the editor baseline agree. Empty general notes and
+terminal controls still fail validation. Card answers remain hidden until reveal;
+grading chooses fixed local intervals,
+and postponement preserves completed-review counts.
+
+`exchange::notes` shares atomic file publication and the cooperative directory
+lock with article exports, using independent exact-byte ownership manifests.
+Note-ID.md retains source citations, tags, quotes, wikilinks and backlinks without
+loading publisher bodies. Existing local edits are conflicts; removed annotations
+never cause filesystem deletion. Publication is incremental rather than an
+all-files atomic snapshot; a later run reconciles concurrent changes or crashes.
+
 ## Responsibilities and flow
 
 Terminal events enter the app's modal controller. Explicit operations update
@@ -364,6 +441,30 @@ affected line. These are input bounds, not a hard CPU deadline for regex work.
 The reader caches layout until content or width changes. Drawing builds only
 visible rows. Editors retain their native cursor, selection and bounded undo
 history; rendering borrows the editor rather than cloning its history.
+
+`app::draft_keys` adds Insert/Normal/Command layers only to notes, captured
+passages and study cards. TextArea still owns text, Unicode cursor movement,
+selection and undo. Esc preserves the buffer and enters Normal; a separate
+256-byte Ex line accepts explicit writes and closes. Literal insertion/paste
+cannot execute it. The main command registry also advertises session writes.
+
+`app::draft_commands` shares a fixed vocabulary with session commands. `:w`
+keeps the editor; `:wq`/`:x` close it; `:wqa` saves and flushes the session
+before returning Quit. Outside an editor these quit variants exit Lume.
+`:q`/`:qa` reject a dirty draft, while their bang variants discard it.
+One draft exists, so all-buffer variants operate on that draft and the session;
+filenames, command ranges and shell evaluation are unsupported. Ctrl-s retains
+save/close and Ctrl-c retains immediate application exit.
+
+`app::draft_save` changes a successful create into an update of the exact ID
+returned from the store transaction. Notes retain their quotation/provenance;
+study cards retain their ID and review schedule. The saved-text baseline and
+captured ID advance immediately after commit, before reloading presentation.
+Thus a later reload/session failure preserves the already saved identity for
+retry instead of creating duplicates. Failed writes restore the full editor;
+unchanged existing buffers create no extra undo entry. No newest-row query is
+used: inserting undo history itself changes SQLite's last-insert identity.
+
 The event loop redraws after input, resize or completion and otherwise polls
 at 100 ms, or 16 ms while reader/navigation/motion work is pending. Interactive
 navigation reads, regular Markdown reflow and progress/preferences writes have
@@ -401,8 +502,10 @@ Crossterm owns mouse protocol commands/parsing. The terminal guard balances
 capture on start, requested preference changes, external-editor suspension,
 resume and exit, including partial writes. Failed capture reports keyboard
 fallback; status records observed input rather than inventing a terminal
-capability acknowledgment. Input batches drop idle motion before dirtying a
-frame, coalesce compatible drag/wheel bursts and preserve following commands.
+capability acknowledgment. Input batches coalesce compatible hover/drag/wheel
+bursts and preserve following commands. Pure hover batches trigger a frame only
+when the hovered note identity or popup origin changes; idle movement outside
+annotations does not dirty the workspace.
 Modal wheel input stays in the overlay; background panes cannot receive clicks
 through it. Regular reflow and session writes use the bounded workers described
 above; explicit source-bound workflows retain synchronous qualification paths.
@@ -414,6 +517,42 @@ separately labeled and validated upon jumping; unresolved quotations and
 non-positional comments remain saved. `ui::annotations` wraps visible cards
 only. Enter/click uses existing source-bound jump history; note editing,
 deletion and undo reuse annotation transactions rather than a second store.
+
+`app::note_marks` projects those safely resolved quotations into readable byte
+ranges during reflow. It caches gutter markers separately from private-comment
+row ranges, preserving exact selection/yank text. `paint_highlights` consumes
+the same projected passages instead of locating quotations again. A marker is
+placed at the passage's first wrapped row; overlapping notes share a marker.
+Other-source, ambiguous and removed passages retain their saved text without
+inventing a current-source position. Annotation cards and previews share the
+private-comment numbering; a general note has no fabricated passage marker.
+
+`app::note_actions` resolves keyboard targets from the actual cursor or focused
+annotation card, independently of the previously selected comment. The first
+`d` captures article/note identities; the second requires the same current
+target. Motion, focus loss, reflow, source changes and Escape cancel the prefix.
+When quotations overlap, the currently selected matching note retains priority;
+a selected note elsewhere cannot override the cursor's actual passage.
+Reported autorepeats cannot commit it. Visual selections and character-find
+prefixes keep their existing meanings. Deletion reuses Store's reversible
+annotation transaction, including study metadata, and never deletes publisher
+text. Enter edits a reader note; `e` edits appended private-comment rows while
+remaining a word-end motion over publisher text.
+
+`n` with no active reader search and `:annotate` capture the current displayed
+article row, or the existing visual selection, through the same source mapping
+contract. This supplies an actual quote/source/revision for new passage notes.
+With a reader search active, `n`/`N` retain match navigation. `:note` remains an
+explicit general comment. Older general notes cannot recover an unknown origin.
+
+`app::pointer::notes` hit-tests cached readable bytes or the painted gutter.
+`ui::note_preview` owns the bounded popup rectangle shared by paint and hit
+testing. Moving into the popup keeps its original origin; clicking it or its
+gutter marker opens the captured note editor. Clicking article text still
+supports selection. The popup clips long notes; editing exposes the full body.
+Keyboard input, scrolling, modal changes and geometry/content reflow dismiss
+previews. Crossterm's existing all-motion mouse capture supplies hover reports;
+terminals without motion reporting retain keyboard and click controls.
 
 ### Pointer-following pane pictures
 
@@ -519,8 +658,8 @@ bundled JSON table function binds at most 128 positive source IDs as data,
 without interpolating SQL. Count/page retain their shared read transaction.
 The smart form retains the source group when editing other criteria and
 displays its size. Installation preserves existing query criteria and personal
-data; the project launcher versions its installation marker so an existing
-library receives new subscriptions once. New articles enter their source-group
+data; explicit `starter` invocation adds the current bundled subscriptions.
+New articles enter their source-group
 view through their source identity, without a copy or an ingestion-side policy.
 
 ## Article deletion and cursor visibility
@@ -654,8 +793,8 @@ Installation uses Store import contracts, preserving personal state and existing
 search criteria. Subscription import is atomic; searches commit individually,
 and retry can finish a partially installed selection. Reinstallation explicitly
 re-enables selected disabled feeds. `starter` performs no network requests.
-The root launcher selects the workspace-local library and installs once;
-normal TUI startup or explicit `sync` owns collection.
+Normal TUI startup or explicit `sync` owns collection. Catalog installation is
+explicit, so updating the executable does not re-enable archived subscriptions.
 
 
 The selection contains 98 sources and 46 smart lists. Six source-ID groups
@@ -678,7 +817,7 @@ the historical list receives an available English `(imported)` suffix; both
 queries survive. Retry sees no legacy labels and adds no duplicate. Other
 user-created names are not translated. An exact old archive feed label has
 its own conditional update, preserving later publisher titles and article data.
-A launcher version marker applies the new selection once per workspace library.
+An explicit `starter` invocation applies the current selection to its library.
 
 `app::completion` owns ex-command syntax, descriptions and compatible aliases.
 The dispatcher normalizes aliases against the same registry used for matching.
@@ -688,6 +827,39 @@ Enter completes an incomplete verb before executing; missing arguments and
 command errors retain the draft. Matching work depends on the fixed command
 registry, never on the number of articles. Rendering uses this registry and
 cached application state without SQL or HTTP.
+
+## Installation and library location
+
+The binary's `data_dir` module owns directory resolution. The CLI handles an
+explicit `--database` file first; otherwise `--data-dir` overrides
+`LUME_DATA_DIR`, falling back to `$HOME/.local/lume`. Real and demo libraries
+use separate filenames in that directory. Empty directory inputs fail before
+opening a store. Runtime never probes the checkout, executable location or
+legacy XDG paths. Explicit relative paths retain their normal cwd semantics.
+
+`make install` builds with the locked release graph, then delegates filesystem
+installation to `tools/install.py`. `PREFIX` owns the executable and notices
+destination; `DATA_DIR` owns only the install-time library destination. Neither
+changes the binary's compiled default. The installed native executable needs
+no checkout, Python runtime, wrapper or service. Source catalog installation
+remains a separate `starter` operation.
+
+The installer detects the former checkout-local and XDG/home-share libraries
+only when the chosen destination is absent. Several distinct candidates cause
+an actionable error requiring `MIGRATE_FROM`; it never silently chooses one.
+Python's SQLite backup API copies a committed snapshot with WAL visibility.
+The original remains in place, and a ten-second backup deadline bounds retries
+against a busy writer. It does not merge libraries or migrate their schemas;
+Store owns schema evolution when the copied library is opened normally.
+
+The completed backup is published using a same-directory hard link, preserving
+a destination created concurrently. Failed backups remove their temporary file.
+New library directories/files are private (0700/0600); existing permissions
+are retained. Unsupported filesystem operations and backup/copy failures are
+reported as installation errors. Executable replacement uses a separate
+temporary file and rename, so a partial copy cannot replace the old executable.
+Tests use isolated databases, including an active WAL writer and a destination
+creation race. Migration benchmarks exercise the same backup implementation.
 
 Personal folders are the existing collections and memberships, with unchanged
 storage identities and undo semantics. They are flat article destinations;

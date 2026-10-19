@@ -1,11 +1,12 @@
 //! CLI composition and terminal lifecycle.
 
 mod cli;
+mod data_dir;
 mod terminal;
 
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
 use lume::{demo, store::Store};
 
@@ -26,16 +27,20 @@ struct Cli {
     /// Override the local SQLite database path.
     #[arg(long)]
     database: Option<PathBuf>,
+    /// Override LUME_DATA_DIR and the default ~/.local/lume directory.
+    #[arg(long, conflicts_with = "database")]
+    data_dir: Option<PathBuf>,
     #[command(subcommand)]
     command: Option<Command>,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let path = cli
-        .database
-        .clone()
-        .map_or_else(|| data_path(cli.demo), Ok)?;
+    let path = if let Some(path) = cli.database {
+        path
+    } else {
+        data_dir::database_path(cli.data_dir, cli.demo)?
+    };
     let mut store = Store::open(&path)?;
     if cli.demo {
         demo::seed(&mut store)?;
@@ -44,22 +49,4 @@ fn main() -> Result<()> {
         return execute(command, store, path, cli.demo, cli.offline);
     }
     terminal::run(store, path, cli.demo, cli.offline)
-}
-
-fn data_path(demo: bool) -> Result<PathBuf> {
-    let base = if let Some(path) = std::env::var_os("XDG_DATA_HOME") {
-        PathBuf::from(path)
-    } else if let Some(path) = std::env::var_os("LOCALAPPDATA") {
-        PathBuf::from(path)
-    } else {
-        let home = std::env::var_os("HOME")
-            .context("Set XDG_DATA_HOME or --database")?;
-        PathBuf::from(home).join(".local/share")
-    };
-    let name = if demo {
-        "demo.sqlite3"
-    } else {
-        "library.sqlite3"
-    };
-    Ok(base.join("lume").join(name))
 }

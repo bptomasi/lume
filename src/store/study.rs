@@ -81,9 +81,87 @@ impl Store {
             (comment, question.trim(), answer.trim()),
         )?;
         let id = transaction.last_insert_rowid();
+        clear_card_draft(
+            &transaction,
+            article,
+            comment,
+            None,
+            question,
+            answer,
+        )?;
         history::record(&transaction, &Undo::Annotation(Box::new(previous)))?;
         transaction.commit()?;
         Ok(id)
+    }
+
+    /// Update an owned card's text, retaining its identity and review schedule.
+    ///
+    /// # Errors
+    /// Returns invalid text, wrong ownership, missing cards or SQLite failures.
+    pub fn update_study_card(
+        &self,
+        article: i64,
+        comment: i64,
+        card: i64,
+        question: &str,
+        answer: &str,
+    ) -> Result<i64> {
+        self.update_study_card_checked(
+            article, comment, card, question, answer, None,
+        )
+    }
+
+    /// Update an owned editor card only while its committed text is unchanged.
+    ///
+    /// # Errors
+    /// Rejects stale text, invalid content, wrong ownership or SQLite failures.
+    pub fn update_study_card_checked(
+        &self,
+        article: i64,
+        comment: i64,
+        card: i64,
+        question: &str,
+        answer: &str,
+        baseline: Option<&str>,
+    ) -> Result<i64> {
+        validate_card(question, answer)?;
+        let transaction = self.connection.unchecked_transaction()?;
+        let previous = active_snapshot(&transaction, article, comment)?;
+        ensure!(
+            previous.cards.iter().any(|item| item.id == card),
+            "Card no longer belongs to this annotation"
+        );
+        if let Some(text) = baseline {
+            let saved = previous
+                .cards
+                .iter()
+                .find(|item| item.id == card)
+                .ok_or_else(|| {
+                    anyhow::anyhow!("Card no longer belongs to this annotation")
+                })?;
+            ensure!(
+                text.split_once('|')
+                    .is_some_and(|(question, answer)| question.trim()
+                        == saved.question
+                        && answer.trim() == saved.answer),
+                "Saved card changed; compare the draft before replacing it"
+            );
+        }
+        transaction.execute(
+            include_str!("sql/update_study_card_text.sql"),
+            (question.trim(), answer.trim(), card, comment),
+        )?;
+        clear_card_draft(
+            &transaction,
+            article,
+            comment,
+            Some(card),
+            question,
+            answer,
+        )?;
+        history::record(&transaction, &Undo::Annotation(Box::new(previous)))?;
+        transaction.commit()?;
+        Ok(card)
     }
 
     /// Schedule the selected passage after an explicit successful review.
@@ -189,7 +267,26 @@ impl Store {
     }
 }
 
-fn active_snapshot(
+fn clear_card_draft(
+    transaction: &Transaction<'_>,
+    article: i64,
+    note: i64,
+    card: Option<i64>,
+    question: &str,
+    answer: &str,
+) -> Result<()> {
+    super::notebook::clear_written_draft(
+        transaction,
+        &crate::model::DraftTarget::Card {
+            article,
+            note,
+            card,
+        },
+        &format!("{question}|{answer}"),
+    )
+}
+
+pub(super) fn active_snapshot(
     connection: &Connection,
     article: i64,
     comment: i64,
@@ -244,6 +341,7 @@ pub(super) fn snapshot(
         .prepare_cached(include_str!("sql/select_annotation_cards.sql"))?
         .query_map([comment.id], card_row)?
         .collect::<rusqlite::Result<_>>()?;
+    let metadata = super::notebook::read_metadata(connection, comment.id)?;
     Ok(AnnotationSnapshot {
         article,
         comment,
@@ -251,6 +349,7 @@ pub(super) fn snapshot(
         links,
         review,
         cards,
+        metadata,
     })
 }
 
@@ -283,10 +382,15 @@ pub(super) fn restore(
         )?;
     }
     restore_cards(transaction, comment, &annotation.cards)?;
+    super::notebook::restore_metadata(
+        transaction,
+        comment,
+        &annotation.metadata,
+    )?;
     Ok(())
 }
 
-fn review_deadline(days: u16, now: i64) -> Result<i64> {
+pub(super) fn review_deadline(days: u16, now: i64) -> Result<i64> {
     ensure!(
         (1..=3650).contains(&days),
         "Choose a review interval of 1–3,650 days"
@@ -312,7 +416,7 @@ fn validate_card(question: &str, answer: &str) -> Result<()> {
     Ok(())
 }
 
-fn card_row(row: &Row<'_>) -> rusqlite::Result<StudyCard> {
+pub(super) fn card_row(row: &Row<'_>) -> rusqlite::Result<StudyCard> {
     Ok(StudyCard {
         id: row.get(0)?,
         comment: row.get(1)?,

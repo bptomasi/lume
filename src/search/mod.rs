@@ -6,6 +6,7 @@
 
 pub(crate) mod compile;
 mod grammar;
+pub mod notes;
 
 pub(crate) use compile::compile;
 
@@ -54,11 +55,15 @@ impl Expression {
 /// # Errors
 /// Returns syntax, depth, token-count or supported-field validation errors.
 pub fn parse(query: &str) -> Result<Expression> {
-    ensure!(query.len() <= 16_384, "Search exceeds 16 KiB");
-    let expression = grammar::parse(query)?;
+    let expression = parse_syntax(query)?;
     // Compile now as well so invalid dates/ranges/states fail before saving.
     compile(&expression)?;
     Ok(expression)
+}
+
+pub(crate) fn parse_syntax(query: &str) -> Result<Expression> {
+    ensure!(query.len() <= 16_384, "Search exceeds 16 KiB");
+    grammar::parse(query)
 }
 
 /// Explain precedence and token meaning without hiding active criteria.

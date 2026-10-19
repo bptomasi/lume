@@ -197,7 +197,7 @@ fn starter_cli_installs_into_the_requested_database_and_rejects_demo()
     assert_eq!(Store::open(&path)?.feeds()?.len(), 98);
 
     let rejected = std::process::Command::new(env!("CARGO_BIN_EXE_lume"))
-        .env("XDG_DATA_HOME", directory.path())
+        .env("LUME_DATA_DIR", directory.path())
         .args(["--demo", "starter"])
         .output()?;
 

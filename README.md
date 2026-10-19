@@ -6,15 +6,62 @@ Vim-inspired navigation. Runs locally without an account or server.
 
 ![Lume's actual terminal interface](docs/preview.png)
 
+## A notebook beside your reading
+
+`Space n` opens **Collections → Notes → Context**; `Space /` searches notes
+from any panel. Search targets individual annotations, with highlighted FTS5
+snippets and filters for article, source, author, tags, type, status and dates.
+For example, `:notes type:question status:open tag:consensus` finds open study
+questions. `:note-collection Distributed systems` saves the current query as
+an automatically updated collection. `:note-recent` restores recent searches.
+
+Use `j/k`, `gg/G` and `Ctrl-d/u` to navigate, `e` to edit, `t` for tags, `T` for
+types, `p` to pin and `r` to resolve/reopen. `dd` deletes the selected note and
+`u` restores it with its tags, references and study cards. `Enter` opens its
+exact source; `Ctrl-o` returns to the previous Notebook search. Mouse selection,
+wheel scrolling and the existing `Ctrl-w` layout controls work in this workspace.
+Its arrangement persists separately from the reading layout. Open the source
+before using article actions; these cannot mutate a hidden library selection.
+
+Type `[[` inside a note to choose a stable `[[Note-ID]]` reference. `b` opens
+references and backlinks; following one retains the previous query in history.
+Mark up to 20 notes with `v`, then `s` builds an editable synthesis with source
+citations. `y` copies the complete note; `Y` copies its quotation.
+
+The editor preserves Markdown indentation, tabs and trailing newlines through
+paste, save and yank. It supports `/PATTERN`, `n/N`, `:template question` (also study,
+definition, todo and synthesis), `:w`, `:wq` and `:wqa`. Interrupted buffers
+remain available through `:drafts`; new editors cannot overwrite them.
+`:note-history` previews old/current text before restoring one of the last
+100 versions. `:note-reanchor` previews a new Reader selection before repairing
+an annotation's source range. Creating notes requires Reader focus; existing
+notes can be edited from the Notebook or Annotations panel.
+
+`:cards [NOTE_QUERY]` hides answers until revealed, then offers explicit
+Again/Hard/Good/Easy intervals of 1/3/7/14 days. Postpone changes the date without
+counting a review. `:review [NOTE_QUERY]` reviews due notes.
+`:export-note-files DIRECTORY` writes incremental `Note-ID.md` files for tools
+such as Obsidian, retaining quotes, tags, wikilinks and backlinks. Locally edited
+files become conflicts and remain untouched; deleting a note never deletes
+an exported file.
+
+![Lume's actual annotation notebook](docs/preview-notebook.png)
+
 ## Start reading
 
 ```sh
-make build
-./lume
+make install
+lume starter
+lume
 ```
 
-The workspace launcher installs **98 real subscriptions and 46 smart lists**
-in `.local/library.sqlite3`. Topics cover Kubernetes, architecture,
+`make install` builds the release executable and installs it in
+`~/.local/bin/lume`. Add `~/.local/bin` to your `PATH` if needed. Installation
+uses Python 3 with its standard-library SQLite module; running Lume requires
+neither Python nor the source checkout.
+
+`lume starter` installs **98 real subscriptions and 46 smart lists**
+in `~/.local/lume/library.sqlite3`. Topics cover Kubernetes, architecture,
 microservices, authentication, databases, pipelines, infrastructure,
 **Security**, **Artificial intelligence**, developer platforms, Linux kernels,
 eBPF and cloud-native networking. The AI selection includes
@@ -33,7 +80,7 @@ reading. `:fetch` retrieves a full page manually, including summary-only entries
 `:content` switches between `Feed` and `Full article`; the feed and discussion
 link remain available. The article worker is independent of feed collection.
 See the [full-article preview](docs/preview-full-article.png).
-Use `./lume sync` to collect from the CLI or `./lume --offline` to read the
+Use `lume sync` to collect from the CLI or `lume --offline` to read the
 cache. Reinstalling the selection preserves articles, notes, favorites,
 folders and custom search criteria. Historical bundled labels upgrade to
 English while retaining their identities and active views.
@@ -44,11 +91,10 @@ To try the interface with original fictional articles in a separate database:
 cargo run --locked -- --demo
 ```
 
-Demo edits persist, and fictional feeds are never collected. The workspace
-library stays separate from the default library in `$XDG_DATA_HOME/lume`
-or `~/.local/share/lume`. To install the same sources in the default library,
-run `./target/release/lume starter`. Use `--database PATH` for another library.
-Reinstalling re-enables selected subscriptions that were previously archived.
+Demo edits persist in a separate `demo.sqlite3`, and fictional feeds are never
+collected. Running `starter` again re-enables bundled subscriptions that were
+previously archived. Updating the executable with `make install` does not
+reinstall subscriptions or reset personal data.
 
 Subscribe to other sources using the installed executable:
 
@@ -77,6 +123,11 @@ page. Discovery presents choices before subscribing. Press `r` to refresh.
 - Recoverable article deletion with a Trash destination, restore and undo.
 - Private comments and persistent passage highlights, including original
   quotations when publishers change their text. A Notebook gathers them.
+- Passage markers with mouse previews and direct editing. `n` annotates the
+  current row when no reader search is active; `:annotate` also works during
+  search. `dd` deletes the note under the cursor or selected in Annotations;
+  `u` restores it. Enter edits a reader note; `:note` creates a general note.
+  See the [actual note preview](docs/preview-notes.png).
 - FTS5 search across titles, sources, authors, bodies, quotations and notes.
   Boolean queries support OR, AND, NOT, phrases and field/date/duration filters.
 - Smart lists combine text, source membership, unread/favorite flags and
@@ -236,11 +287,35 @@ notes are labeled separately. Ambiguous passages remain saved without a
 guessed jump. This article-local panel complements the searchable Notebook.
 
 Editors support cursor movement, Shift-arrow selections, internal cut/copy,
-Ctrl-z/Ctrl-r history and paste as text. Ctrl-s saves, Enter inserts a line,
-and Esc discards the draft. Ctrl-e opens `$VISUAL` or `$EDITOR`, then returns
+Ctrl-z/Ctrl-r history and paste as text. They start in **INSERT**: Enter inserts
+a line and Esc enters **NORMAL**, preserving the draft. Normal mode supports
+`hjkl`, `w/b/e`, `0/$`, `G`, `i/a/I/A`, `o/O`, `x` and `u`. Press `:` there to
+open a command line separate from the note text:
+
+| Editor command | Effect |
+| --- | --- |
+| `:w`, `:write`, `:wa`, `:wall` | Save and keep the editor open |
+| `:wq`, `:x`, `:xit`, `:exit`, `ZZ` | Save and return to reading |
+| `:wqa`, `:wqall`, `:xa`, `:xall` | Save draft and session, then quit Lume |
+| `:q`, `:quit` | Close a clean draft; refuse unsaved changes |
+| `:qa`, `:qall` | Quit Lume only when the draft is clean |
+| `:q!`, `:quit!`, `ZQ` | Discard draft and close the editor |
+| `:qa!`, `:qall!` | Discard draft, save session and quit Lume |
+
+After `:w`, `i` resumes insertion. The `[+]` title marker indicates unsaved
+changes. Repeated writes update the same note/card and retain passage quotes
+and review schedules. Failed writes retain the draft and command line.
+Write commands accept `!` without bypassing storage validation. Lume has one
+draft buffer; filenames, ranges and shell commands are unsupported.
+Outside a note editor, `:w`/`:wa` save the session and `:wq`/`:wqa`/`:x` quit
+after saving it. General command completion advertises these operations.
+
+Ctrl-s saves and closes from any editor layer. Ctrl-e opens `$VISUAL` or
+`$EDITOR`, then returns
 the result for review. Editor arguments are parsed without shell evaluation.
-The reader uses Vim movement; draft editors use insertion controls.
-Outside the reader, `f` toggles favorites, `n/e` create/edit notes, `N`
+Pasted or inserted command text remains literal until an explicit normal-mode
+command is entered. Ctrl-c retains the application's immediate exit behavior.
+Outside the reader, `f` toggles favorites, `e` edits existing notes, `N`
 creates a folder and `z` toggles Zen. Reader `f`, `e`, `N` and `z` belong
 to Vim motions. See `:help vim` for paragraphs, brackets, visual word objects,
 viewport positioning and jump history. This is read-only navigation; publisher
@@ -276,8 +351,8 @@ Esc closes the menu. The Ctrl-p palette combines actions and destinations.
 Fullscreen centers text in an 80-column block and preserves the underlying
 panel preferences. `:fullscreen-width 100` changes its width (40–140 columns),
 independently of `:width` in the panel layout. Smaller terminals clamp the block
-to the available space. It persists across sessions. Esc first closes an editor,
-help or selection; a subsequent Esc restores panels. See the
+to the available space. It persists across sessions. Close note editors with
+`:wq` or `:q!`; Esc closes help or selection, then restores panels. See the
 [fullscreen preview](docs/preview-fullscreen.png).
 
 Code highlighting supports **C, C++, Rust, Terraform/HCL, JavaScript,
@@ -540,9 +615,42 @@ An already-running database, reflow or drawing operation finishes normally.
 
 ## Data and limits
 
-The default Linux database is `~/.local/share/lume/library.sqlite3`, respecting
-`$XDG_DATA_HOME`. Demo mode uses `demo.sqlite3`; `--database PATH` cannot combine
-with `--demo`. New directories/databases use Unix permissions 0700/0600.
+The default database is `~/.local/lume/library.sqlite3`, independent of the
+working directory or executable location. Directory selection follows
+`--data-dir PATH`, then `LUME_DATA_DIR`, then `$HOME/.local/lume`:
+
+```sh
+lume --data-dir /mnt/reading
+LUME_DATA_DIR=/mnt/reading lume sync
+export LUME_DATA_DIR=/mnt/reading
+make install
+lume
+```
+
+`--database PATH` selects an exact SQLite file and overrides `LUME_DATA_DIR`.
+It cannot combine with `--data-dir` or `--demo`. Demo mode uses `demo.sqlite3`
+inside the chosen directory. Empty directory values fail explicitly. Explicit
+relative paths resolve against the caller's working directory; use absolute
+paths for a fixed custom location. New data directories/databases use Unix
+permissions 0700/0600. `$XDG_DATA_HOME` is only a legacy migration source.
+
+When the destination library does not exist, `make install` looks for a legacy
+library in this checkout's `.local/library.sqlite3`,
+`~/.local/share/lume/library.sqlite3` or `$XDG_DATA_HOME/lume/library.sqlite3`.
+It copies a committed SQLite snapshot, including committed WAL content, and
+keeps the original. Existing destination libraries are never overwritten or
+merged. If several different legacy libraries exist, choose explicitly:
+
+```sh
+make install MIGRATE_FROM=/absolute/path/to/library.sqlite3
+```
+
+`PREFIX=/path` changes the executable/notices installation prefix.
+`DATA_DIR=/path` changes the installer's library destination; use the same
+`LUME_DATA_DIR` or `--data-dir` at runtime. `PREFIX` defaults to `~/.local`;
+`DATA_DIR` defaults to `LUME_DATA_DIR` or `~/.local/lume`. Neither override
+compiles a custom default into the executable. Retained license notices are
+installed under `PREFIX/share/lume/licenses`.
 
 Migrations preserve existing personal data and publisher content. Refinery
 owns immutable migration versions/checksums. For backups, close Lume and copy
@@ -576,9 +684,12 @@ make bench
 ```
 
 `check` runs formatting, Clippy, native tests, correctness-checked workloads
-and preview/launcher syntax checks. `check-release` adds actual loopback HTTP
+and installer/preview tooling checks. `check-release` adds actual loopback HTTP
 qualification and an optimized build. Socket failures are not silently skipped.
 `check-http` runs that HTTP qualification independently for diagnosis.
+`test-tools` checks installation, migration failures and data preservation
+using isolated libraries. `bench-tools` measures correctness-checked migration
+of representative and stress libraries; `bench` includes it.
 
 For real terminal qualification, install Alacritty, xdotool, xclip and xwd
 (Ubuntu packages `alacritty xdotool xclip x11-apps`). Build with `make build`,
@@ -596,8 +707,9 @@ results do not qualify the normal registry build: one substituted manifest
 omitted a dependency required by published `tendril` 0.5.0. Cargo.lock now
 includes its required `utf-8` 0.7.6 dependency. Standard commands retain
 `--locked`; normal release qualification must use published registry sources.
-Registry DNS and loopback socket restrictions currently prevent complete
-build/HTTP qualification in this environment. Details live in [validation](docs/validation.md),
+The current Linux registry build and local checks pass; loopback socket
+restrictions still prevent real HTTP qualification here.
+Details live in [validation](docs/validation.md),
 [architecture](docs/architecture.md) and [dependency policy](docs/dependency-security.md).
 
 Full article extraction adds MIT/Apache/Zlib dependencies and explicitly

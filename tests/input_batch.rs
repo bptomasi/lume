@@ -141,6 +141,7 @@ fn opening_an_editor_in_a_burst_preserves_repeated_text_and_paste() -> Result<()
         KeyModifiers::CONTROL,
     )));
 
+    app.focus = Focus::Reader;
     dispatch(&mut app, events)?;
 
     assert_eq!(app.comments[0].body, "jjjj ação");

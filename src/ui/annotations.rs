@@ -74,8 +74,9 @@ fn card(
     };
     let mut lines = vec![Line::styled(
         format!(
-            "{} {} · {}",
+            "{} [{}] {} · {}",
             if selected { "▎" } else { " " },
+            entry.comment_index + 1,
             position,
             note.source.as_str()
         ),

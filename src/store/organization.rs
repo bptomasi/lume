@@ -181,7 +181,7 @@ fn tag_owner(target: TagTarget) -> (&'static str, &'static str, i64) {
     }
 }
 
-fn validate_tags(values: &[String]) -> Result<Vec<String>> {
+pub(crate) fn validate_tags(values: &[String]) -> Result<Vec<String>> {
     ensure!(values.len() <= 64, "At most 64 tags per owner");
     let mut unique = BTreeSet::new();
     for value in values {

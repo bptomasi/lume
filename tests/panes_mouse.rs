@@ -396,7 +396,7 @@ fn legacy_layout_defaults_are_compatible_and_duplicate_order_is_rejected()
 }
 
 #[test]
-fn idle_hover_is_not_actionable_and_disabled_mouse_does_not_change_focus()
+fn hover_retains_input_without_forcing_frames_and_disabled_mouse_keeps_focus()
 -> Result<()> {
     let (_directory, mut app) = application()?;
     let batch = InputBatch::new(vec![Event::Mouse(MouseEvent {
@@ -405,7 +405,8 @@ fn idle_hover_is_not_actionable_and_disabled_mouse_does_not_change_focus()
         row: 12,
         modifiers: KeyModifiers::NONE,
     })]);
-    assert!(batch.is_empty());
+    assert!(!batch.is_empty());
+    assert!(!batch.needs_redraw());
     command(&mut app, "mouse off")?;
     let before = (app.focus, app.current().context("Article missing")?.id);
     click(&mut app, 5, 12)?;

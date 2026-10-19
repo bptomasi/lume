@@ -7,6 +7,8 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use lume::{app::App, model::IncomingArticle, source, store::Store, ui};
 use ratatui::{Terminal, backend::TestBackend};
 
+#[path = "workloads/notebook.rs"]
+mod annotation_notebook;
 #[path = "workloads/catalog.rs"]
 mod catalog;
 #[path = "workloads/expansion.rs"]
@@ -17,6 +19,10 @@ mod feed_content;
 mod full_article;
 #[path = "workloads/highlighting.rs"]
 mod highlighting;
+#[path = "workloads/note_interactions.rs"]
+mod note_interactions;
+#[path = "workloads/note_study.rs"]
+mod note_study;
 #[path = "workloads/panes.rs"]
 mod panes;
 #[path = "workloads/reading_tools.rs"]
@@ -72,6 +78,12 @@ fn main() -> Result<()> {
 }
 
 fn focused_workload(iterations: usize, stress: bool) -> Option<Result<()>> {
+    if std::env::args().any(|argument| argument == "--notebook-only") {
+        return Some(annotation_notebook::run(iterations, stress));
+    }
+    if std::env::args().any(|argument| argument == "--notes-only") {
+        return Some(note_interactions::run(iterations, stress));
+    }
     if std::env::args().any(|argument| argument == "--workspaces-only") {
         return Some(workspaces::run(iterations, stress));
     }
@@ -227,7 +239,17 @@ fn command_menu(app: &mut App, iterations: usize) -> Result<()> {
         || {
             type_keys(app, ":expor")?;
             let choices = lume::app::command_suggestions("expor");
-            ensure!(choices.len() == 4, "Export commands missing");
+            ensure!(
+                choices.iter().map(|choice| choice.name).collect::<Vec<_>>()
+                    == vec![
+                        "export",
+                        "export-notebook",
+                        "export-opml",
+                        "export-notes",
+                        "export-note-files"
+                    ],
+                "Export command choices changed"
+            );
             terminal.draw(|frame| ui::draw(frame, app))?;
             app.key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE))?;
             ensure!(

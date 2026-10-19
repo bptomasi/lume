@@ -20,21 +20,24 @@ pub struct InputBatch {
 }
 
 impl InputBatch {
-    /// Drop idle motion; the terminal adapter bounds each batch to 256 events.
+    /// Retain hover motion; the adapter bounds each batch to 256 events.
     pub fn new(events: Vec<Event>) -> Self {
-        let events = events
-            .into_iter()
-            .filter(|event| match event {
-                Event::Mouse(mouse) => mouse.kind != MouseEventKind::Moved,
-                _ => true,
-            })
-            .collect();
-        Self { events }
+        Self {
+            events: events.into(),
+        }
     }
 
-    /// Whether a burst contains actionable events after idle motion filtering.
+    /// Whether a burst contains unprocessed events, including hover motion.
     pub fn is_empty(&self) -> bool {
         self.events.is_empty()
+    }
+
+    /// Whether events require a frame regardless of annotation-hover changes.
+    pub fn needs_redraw(&self) -> bool {
+        self.events.iter().any(|event| {
+            !matches!(event, Event::Mouse(mouse)
+                if mouse.kind == MouseEventKind::Moved)
+        })
     }
 
     /// Dispatch the next action against the current mode, retaining event order.
@@ -60,6 +63,7 @@ impl InputBatch {
             }
             Event::FocusLost => {
                 app.cancel_pointer();
+                app.note_marks.delete = None;
                 Action::None
             }
             _ => Action::None,
@@ -76,12 +80,15 @@ impl InputBatch {
             mouse.kind,
             MouseEventKind::ScrollUp | MouseEventKind::ScrollDown
         );
-        let drag = matches!(mouse.kind, MouseEventKind::Drag(_));
+        let motion = matches!(
+            mouse.kind,
+            MouseEventKind::Drag(_) | MouseEventKind::Moved
+        );
         let mut amount: usize = 1;
         while let Some(Event::Mouse(next)) = self.events.front() {
             if next.kind != mouse.kind
                 || next.modifiers != mouse.modifiers
-                || !(drag
+                || !(motion
                     || wheel
                         && next.column == mouse.column
                         && next.row == mouse.row)
@@ -125,7 +132,12 @@ impl InputBatch {
         }
         app.cancel_pointer();
         app.pending_g = false;
-        app.move_selection(forward, amount.saturating_mul(steps))?;
+        let distance = amount.saturating_mul(steps);
+        if app.notebook.is_some() {
+            app.move_notebook(forward, distance)?;
+        } else {
+            app.move_selection(forward, distance)?;
+        }
         Ok(Action::None)
     }
 

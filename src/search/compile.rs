@@ -101,15 +101,37 @@ fn full_text(
         if phrase { "" } else { "*" }
     );
     let query = match field {
-        "" | "topic" => literal,
+        "" | "topic" => literal.clone(),
         "source" => format!("feed : {literal}"),
         _ => format!("{field} : {literal}"),
     };
+    if field == "notes" {
+        return matching_notes(values, &literal);
+    }
     let parameter = bind(values, query);
-    format!(
+    let article_match = format!(
         r#"a.id IN (
             SELECT rowid FROM article_search
             WHERE article_search MATCH {parameter}
+        )"#
+    );
+    if matches!(field, "" | "topic") {
+        return format!(
+            "({article_match} OR {})",
+            matching_notes(values, &literal)
+        );
+    }
+    article_match
+}
+
+fn matching_notes(values: &mut Vec<Value>, literal: &str) -> String {
+    let parameter = bind(values, literal.to_owned());
+    format!(
+        r#"a.id IN (
+            SELECT c.article_id
+            FROM note_search
+            JOIN comments AS c ON c.id = note_search.rowid
+            WHERE note_search MATCH {parameter}
         )"#
     )
 }

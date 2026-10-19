@@ -29,11 +29,16 @@ fn a_rule_preview_waits_for_a_draft_and_cancel_changes_no_source_or_cache()
     let preview = proposed(&store, feed.id)?;
     let reader = Store::open(&directory.path().join("library.sqlite3"))?;
     let mut app = App::new(store, false)?;
+    app.focus = lume::app::Focus::Reader;
     app.key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE))?;
     app.rule_preview_finished(preview.clone());
     assert!(!app.present_rule_preview());
     assert!(matches!(app.mode, Mode::Input(_)));
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
+    assert!(!app.present_rule_preview());
+    app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
+    app.paste("q!")?;
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     assert!(app.present_rule_preview());
     assert!(matches!(app.mode, Mode::Document(_)));
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;

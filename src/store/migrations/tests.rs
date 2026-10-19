@@ -52,3 +52,44 @@ fn v7_library(path: &std::path::Path) -> Result<()> {
     ))?;
     Ok(())
 }
+
+#[test]
+fn notebook_upgrade_indexes_existing_notes_without_changing_owned_state()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("notebook-upgrade.sqlite3");
+    v7_library(&path)?;
+    let mut connection = Connection::open(&path)?;
+    let migrations = MIGRATIONS
+        .iter()
+        .take(8)
+        .map(|(name, sql)| Migration::unapplied(name, sql))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Runner::new(&migrations)
+        .set_grouped(true)
+        .run(&mut connection)?;
+    connection.execute_batch(include_str!(
+        "../sql/test_setup_notebook_upgrade.sql"
+    ))?;
+    drop(connection);
+
+    for _ in 0..2 {
+        let store = Store::open(&path)?;
+        let page =
+            store.search_notes("body:private tag:consensus", None, 0, 100)?;
+        assert_eq!(page.total, 1);
+        assert_eq!(page.notes[0].id, 1);
+        let note = store.annotation(1, 1)?;
+        assert_eq!(note.comment.body, "Keep this private note");
+        assert_eq!(note.links, vec![2]);
+        assert_eq!(note.review.map(|review| review.reviews), Some(3));
+        assert_eq!(note.cards[0].id, 9);
+        assert_eq!(note.cards[0].reviews, 2);
+        assert_eq!(note.cards[0].due_at, 259300);
+        assert_eq!(store.note_versions(1, 1)?.len(), 1);
+        assert_eq!(store.article_memberships(1)?.len(), 1);
+        assert_eq!(store.body(1)?, "Original body");
+        assert!(store.article(1)?.starred);
+    }
+    Ok(())
+}

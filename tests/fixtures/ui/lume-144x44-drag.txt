@@ -41,7 +41,7 @@
 │                                  ││                                                                                                          │
 ╰──────────────────────────────────╯╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  NORMAL  Reader   Move Reader · drag to a pane or top tab · Esc cancels                                                                         
-  w/W/e word  ·  / find  ·  n/N match  ·  :note  ·  Z fullscreen  ·  ? help                                                                     
+  w/W/e word · / find · n note · :annotate · Ctrl-w layout                                                                                      
 0:0..4 Style::new().fg(Color::Rgb(135, 107, 65)).bg(Color::Rgb(13, 13, 15))
 0:4..8 Style::new().fg(Color::Rgb(134, 131, 124)).bg(Color::Rgb(13, 13, 15)).bold()
 0:8..44 Style::new().fg(Color::Rgb(93, 90, 86)).bg(Color::Rgb(13, 13, 15))

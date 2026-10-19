@@ -1,0 +1,582 @@
+{
+  "command": "python3 tools/bench_notes.py",
+  "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "Optimized release, thin LTO, one codegen unit",
+  "binary_sha256": "3ca57c075fcd777932f09e8197828d6ddc2c01159e633b59dd5391717e4bb6fe",
+  "timing_scope": "Setup excluded from operation timers; process wall/RSS/CPU/I/O include fixtures and all suite operations. Each operation checks correctness. Context/frame percentiles use TestBackend, not an actual terminal emulator; polling uses yield_now.",
+  "baseline": "notebook-performance-before.json (notes suite only)",
+  "results": [
+    {
+      "suite": "notes",
+      "workload": "representative",
+      "trial": 1,
+      "wall_seconds": 0.21,
+      "peak_rss_kib": 13716,
+      "user_seconds": 0.2,
+      "system_seconds": 0.0,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note hover + popup + dismissal frames",
+          "iterations": 400,
+          "total_ms": 107.342,
+          "ms_per_iteration": 0.268
+        },
+        {
+          "operation": "note edit + :w + unchanged :w + editor frame",
+          "iterations": 40,
+          "total_ms": 31.009,
+          "ms_per_iteration": 0.775
+        },
+        {
+          "operation": "card edit + :w + unchanged :w + persisted schedule",
+          "iterations": 40,
+          "total_ms": 8.673,
+          "ms_per_iteration": 0.217
+        },
+        {
+          "operation": "contextual note dd + undo + restored marker",
+          "iterations": 40,
+          "total_ms": 45.736,
+          "ms_per_iteration": 1.143
+        }
+      ],
+      "source_bytes": 9290,
+      "annotations": 20
+    },
+    {
+      "suite": "notes",
+      "workload": "representative",
+      "trial": 2,
+      "wall_seconds": 0.21,
+      "peak_rss_kib": 13396,
+      "user_seconds": 0.2,
+      "system_seconds": 0.0,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note hover + popup + dismissal frames",
+          "iterations": 400,
+          "total_ms": 106.398,
+          "ms_per_iteration": 0.266
+        },
+        {
+          "operation": "note edit + :w + unchanged :w + editor frame",
+          "iterations": 40,
+          "total_ms": 32.969,
+          "ms_per_iteration": 0.824
+        },
+        {
+          "operation": "card edit + :w + unchanged :w + persisted schedule",
+          "iterations": 40,
+          "total_ms": 9.377,
+          "ms_per_iteration": 0.234
+        },
+        {
+          "operation": "contextual note dd + undo + restored marker",
+          "iterations": 40,
+          "total_ms": 47.939,
+          "ms_per_iteration": 1.198
+        }
+      ],
+      "source_bytes": 9290,
+      "annotations": 20
+    },
+    {
+      "suite": "notes",
+      "workload": "representative",
+      "trial": 3,
+      "wall_seconds": 0.21,
+      "peak_rss_kib": 13336,
+      "user_seconds": 0.2,
+      "system_seconds": 0.01,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note hover + popup + dismissal frames",
+          "iterations": 400,
+          "total_ms": 108.741,
+          "ms_per_iteration": 0.272
+        },
+        {
+          "operation": "note edit + :w + unchanged :w + editor frame",
+          "iterations": 40,
+          "total_ms": 33.331,
+          "ms_per_iteration": 0.833
+        },
+        {
+          "operation": "card edit + :w + unchanged :w + persisted schedule",
+          "iterations": 40,
+          "total_ms": 9.566,
+          "ms_per_iteration": 0.239
+        },
+        {
+          "operation": "contextual note dd + undo + restored marker",
+          "iterations": 40,
+          "total_ms": 48.952,
+          "ms_per_iteration": 1.224
+        }
+      ],
+      "source_bytes": 9290,
+      "annotations": 20
+    },
+    {
+      "suite": "notes",
+      "workload": "stress",
+      "trial": 1,
+      "wall_seconds": 0.52,
+      "peak_rss_kib": 15848,
+      "user_seconds": 0.49,
+      "system_seconds": 0.02,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note hover + popup + dismissal frames",
+          "iterations": 400,
+          "total_ms": 107.259,
+          "ms_per_iteration": 0.268
+        },
+        {
+          "operation": "note edit + :w + unchanged :w + editor frame",
+          "iterations": 40,
+          "total_ms": 121.377,
+          "ms_per_iteration": 3.034
+        },
+        {
+          "operation": "card edit + :w + unchanged :w + persisted schedule",
+          "iterations": 40,
+          "total_ms": 31.107,
+          "ms_per_iteration": 0.778
+        },
+        {
+          "operation": "contextual note dd + undo + restored marker",
+          "iterations": 40,
+          "total_ms": 224.125,
+          "ms_per_iteration": 5.603
+        }
+      ],
+      "source_bytes": 46890,
+      "annotations": 200
+    },
+    {
+      "suite": "notes",
+      "workload": "stress",
+      "trial": 2,
+      "wall_seconds": 0.51,
+      "peak_rss_kib": 16120,
+      "user_seconds": 0.48,
+      "system_seconds": 0.02,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note hover + popup + dismissal frames",
+          "iterations": 400,
+          "total_ms": 104.854,
+          "ms_per_iteration": 0.262
+        },
+        {
+          "operation": "note edit + :w + unchanged :w + editor frame",
+          "iterations": 40,
+          "total_ms": 125.414,
+          "ms_per_iteration": 3.135
+        },
+        {
+          "operation": "card edit + :w + unchanged :w + persisted schedule",
+          "iterations": 40,
+          "total_ms": 33.465,
+          "ms_per_iteration": 0.837
+        },
+        {
+          "operation": "contextual note dd + undo + restored marker",
+          "iterations": 40,
+          "total_ms": 211.362,
+          "ms_per_iteration": 5.284
+        }
+      ],
+      "source_bytes": 46890,
+      "annotations": 200
+    },
+    {
+      "suite": "notes",
+      "workload": "stress",
+      "trial": 3,
+      "wall_seconds": 0.52,
+      "peak_rss_kib": 16364,
+      "user_seconds": 0.5,
+      "system_seconds": 0.02,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note hover + popup + dismissal frames",
+          "iterations": 400,
+          "total_ms": 111.875,
+          "ms_per_iteration": 0.28
+        },
+        {
+          "operation": "note edit + :w + unchanged :w + editor frame",
+          "iterations": 40,
+          "total_ms": 126.661,
+          "ms_per_iteration": 3.167
+        },
+        {
+          "operation": "card edit + :w + unchanged :w + persisted schedule",
+          "iterations": 40,
+          "total_ms": 33.686,
+          "ms_per_iteration": 0.842
+        },
+        {
+          "operation": "contextual note dd + undo + restored marker",
+          "iterations": 40,
+          "total_ms": 215.752,
+          "ms_per_iteration": 5.394
+        }
+      ],
+      "source_bytes": 46890,
+      "annotations": 200
+    },
+    {
+      "suite": "notebook",
+      "workload": "representative",
+      "trial": 1,
+      "wall_seconds": 1.49,
+      "peak_rss_kib": 18320,
+      "user_seconds": 1.35,
+      "system_seconds": 0.14,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note FTS + same-note filters + last page + snippets",
+          "iterations": 40,
+          "total_ms": 444.795,
+          "ms_per_iteration": 11.12
+        },
+        {
+          "operation": "owned note + source context + Markdown layout",
+          "iterations": 200,
+          "total_ms": 25.041,
+          "ms_per_iteration": 0.125
+        },
+        {
+          "operation": "checkpoint + references + metadata + review + repair/version + undo",
+          "iterations": 40,
+          "total_ms": 216.752,
+          "ms_per_iteration": 5.419
+        },
+        {
+          "operation": "note key + ready context + actual frame",
+          "iterations": 200,
+          "total_ms": 113.997,
+          "ms_per_iteration": 0.57
+        },
+        {
+          "operation": "stable note files + citations + publication",
+          "iterations": 1,
+          "total_ms": 14.853,
+          "ms_per_iteration": 14.853
+        },
+        {
+          "operation": "incremental note files + exact-byte ownership",
+          "iterations": 40,
+          "total_ms": 498.079,
+          "ms_per_iteration": 12.452
+        }
+      ],
+      "annotations": 10000,
+      "articles": 100,
+      "context_frame_latency_ms": {
+        "p50": 0.514,
+        "p95": 0.951,
+        "p99": 1.468
+      }
+    },
+    {
+      "suite": "notebook",
+      "workload": "representative",
+      "trial": 2,
+      "wall_seconds": 1.46,
+      "peak_rss_kib": 19152,
+      "user_seconds": 1.27,
+      "system_seconds": 0.15,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note FTS + same-note filters + last page + snippets",
+          "iterations": 40,
+          "total_ms": 387.006,
+          "ms_per_iteration": 9.675
+        },
+        {
+          "operation": "owned note + source context + Markdown layout",
+          "iterations": 200,
+          "total_ms": 23.656,
+          "ms_per_iteration": 0.118
+        },
+        {
+          "operation": "checkpoint + references + metadata + review + repair/version + undo",
+          "iterations": 40,
+          "total_ms": 163.797,
+          "ms_per_iteration": 4.095
+        },
+        {
+          "operation": "note key + ready context + actual frame",
+          "iterations": 200,
+          "total_ms": 100.488,
+          "ms_per_iteration": 0.502
+        },
+        {
+          "operation": "stable note files + citations + publication",
+          "iterations": 1,
+          "total_ms": 18.512,
+          "ms_per_iteration": 18.512
+        },
+        {
+          "operation": "incremental note files + exact-byte ownership",
+          "iterations": 40,
+          "total_ms": 550.101,
+          "ms_per_iteration": 13.753
+        }
+      ],
+      "annotations": 10000,
+      "articles": 100,
+      "context_frame_latency_ms": {
+        "p50": 0.481,
+        "p95": 0.727,
+        "p99": 1.395
+      }
+    },
+    {
+      "suite": "notebook",
+      "workload": "representative",
+      "trial": 3,
+      "wall_seconds": 1.62,
+      "peak_rss_kib": 18872,
+      "user_seconds": 1.41,
+      "system_seconds": 0.18,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note FTS + same-note filters + last page + snippets",
+          "iterations": 40,
+          "total_ms": 473.615,
+          "ms_per_iteration": 11.84
+        },
+        {
+          "operation": "owned note + source context + Markdown layout",
+          "iterations": 200,
+          "total_ms": 19.335,
+          "ms_per_iteration": 0.097
+        },
+        {
+          "operation": "checkpoint + references + metadata + review + repair/version + undo",
+          "iterations": 40,
+          "total_ms": 181.713,
+          "ms_per_iteration": 4.543
+        },
+        {
+          "operation": "note key + ready context + actual frame",
+          "iterations": 200,
+          "total_ms": 102.675,
+          "ms_per_iteration": 0.513
+        },
+        {
+          "operation": "stable note files + citations + publication",
+          "iterations": 1,
+          "total_ms": 18.529,
+          "ms_per_iteration": 18.529
+        },
+        {
+          "operation": "incremental note files + exact-byte ownership",
+          "iterations": 40,
+          "total_ms": 566.194,
+          "ms_per_iteration": 14.155
+        }
+      ],
+      "annotations": 10000,
+      "articles": 100,
+      "context_frame_latency_ms": {
+        "p50": 0.492,
+        "p95": 0.672,
+        "p99": 0.761
+      }
+    },
+    {
+      "suite": "notebook",
+      "workload": "stress",
+      "trial": 1,
+      "wall_seconds": 6.52,
+      "peak_rss_kib": 22428,
+      "user_seconds": 5.65,
+      "system_seconds": 0.96,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note FTS + same-note filters + last page + snippets",
+          "iterations": 40,
+          "total_ms": 2829.261,
+          "ms_per_iteration": 70.732
+        },
+        {
+          "operation": "owned note + source context + Markdown layout",
+          "iterations": 200,
+          "total_ms": 12.328,
+          "ms_per_iteration": 0.062
+        },
+        {
+          "operation": "checkpoint + references + metadata + review + repair/version + undo",
+          "iterations": 40,
+          "total_ms": 219.432,
+          "ms_per_iteration": 5.486
+        },
+        {
+          "operation": "note key + ready context + actual frame",
+          "iterations": 200,
+          "total_ms": 59.322,
+          "ms_per_iteration": 0.297
+        },
+        {
+          "operation": "stable note files + citations + publication",
+          "iterations": 1,
+          "total_ms": 56.416,
+          "ms_per_iteration": 56.416
+        },
+        {
+          "operation": "incremental note files + exact-byte ownership",
+          "iterations": 40,
+          "total_ms": 1769.427,
+          "ms_per_iteration": 44.236
+        }
+      ],
+      "annotations": 100000,
+      "articles": 1000,
+      "context_frame_latency_ms": {
+        "p50": 0.281,
+        "p95": 0.382,
+        "p99": 0.429
+      }
+    },
+    {
+      "suite": "notebook",
+      "workload": "stress",
+      "trial": 2,
+      "wall_seconds": 6.33,
+      "peak_rss_kib": 22828,
+      "user_seconds": 5.48,
+      "system_seconds": 0.94,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note FTS + same-note filters + last page + snippets",
+          "iterations": 40,
+          "total_ms": 2760.275,
+          "ms_per_iteration": 69.007
+        },
+        {
+          "operation": "owned note + source context + Markdown layout",
+          "iterations": 200,
+          "total_ms": 11.548,
+          "ms_per_iteration": 0.058
+        },
+        {
+          "operation": "checkpoint + references + metadata + review + repair/version + undo",
+          "iterations": 40,
+          "total_ms": 223.358,
+          "ms_per_iteration": 5.584
+        },
+        {
+          "operation": "note key + ready context + actual frame",
+          "iterations": 200,
+          "total_ms": 60.017,
+          "ms_per_iteration": 0.3
+        },
+        {
+          "operation": "stable note files + citations + publication",
+          "iterations": 1,
+          "total_ms": 57.053,
+          "ms_per_iteration": 57.053
+        },
+        {
+          "operation": "incremental note files + exact-byte ownership",
+          "iterations": 40,
+          "total_ms": 1731.601,
+          "ms_per_iteration": 43.29
+        }
+      ],
+      "annotations": 100000,
+      "articles": 1000,
+      "context_frame_latency_ms": {
+        "p50": 0.275,
+        "p95": 0.45,
+        "p99": 0.494
+      }
+    },
+    {
+      "suite": "notebook",
+      "workload": "stress",
+      "trial": 3,
+      "wall_seconds": 8.13,
+      "peak_rss_kib": 22672,
+      "user_seconds": 7.07,
+      "system_seconds": 1.1,
+      "input_blocks": 0,
+      "output_blocks": 0,
+      "timings": [
+        {
+          "operation": "note FTS + same-note filters + last page + snippets",
+          "iterations": 40,
+          "total_ms": 4164.779,
+          "ms_per_iteration": 104.119
+        },
+        {
+          "operation": "owned note + source context + Markdown layout",
+          "iterations": 200,
+          "total_ms": 24.648,
+          "ms_per_iteration": 0.123
+        },
+        {
+          "operation": "checkpoint + references + metadata + review + repair/version + undo",
+          "iterations": 40,
+          "total_ms": 380.572,
+          "ms_per_iteration": 9.514
+        },
+        {
+          "operation": "note key + ready context + actual frame",
+          "iterations": 200,
+          "total_ms": 118.331,
+          "ms_per_iteration": 0.592
+        },
+        {
+          "operation": "stable note files + citations + publication",
+          "iterations": 1,
+          "total_ms": 68.943,
+          "ms_per_iteration": 68.943
+        },
+        {
+          "operation": "incremental note files + exact-byte ownership",
+          "iterations": 40,
+          "total_ms": 1861.305,
+          "ms_per_iteration": 46.533
+        }
+      ],
+      "annotations": 100000,
+      "articles": 1000,
+      "context_frame_latency_ms": {
+        "p50": 0.507,
+        "p95": 1.08,
+        "p99": 2.553
+      }
+    }
+  ]
+}

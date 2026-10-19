@@ -67,12 +67,7 @@ fn event_loop(
 ) -> Result<()> {
     let mut dirty = true;
     loop {
-        if let Err(error) = guard.mouse.sync(app.workspace.mouse) {
-            app.status = format!(
-                "Mouse capture unavailable: {error} · keyboard remains available"
-            );
-            dirty = true;
-        }
+        dirty |= sync_mouse(guard, app);
         dirty |= background.tick(app)?;
         match app.poll_navigation() {
             Ok(changed) => dirty |= changed,
@@ -82,6 +77,15 @@ fn event_loop(
             }
         }
         dirty |= app.poll_reader();
+        match app.poll_note_workspace() {
+            Ok(Some(Action::Quit)) => break,
+            Ok(Some(_)) => dirty = true,
+            Ok(None) => {}
+            Err(error) => {
+                app.status = format!("{error:#}");
+                dirty = true;
+            }
+        }
         dirty |= app.tick_pane_motion(Instant::now());
         if dirty {
             draw_workspace(terminal, app)?;
@@ -91,17 +95,32 @@ fn event_loop(
             continue;
         }
         let mut batch = input::read_batch()?;
-        let actionable = !batch.is_empty();
+        let actionable = batch.needs_redraw();
+        let hover = app.hovered_note();
         if dispatch_batch(&mut batch, terminal, app, background, guard)? {
             break;
         }
-        dirty |= actionable;
+        dirty |= actionable || hover != app.hovered_note();
     }
     app.end_session()
 }
 
+fn sync_mouse(guard: &mut TerminalGuard, app: &mut App) -> bool {
+    if let Err(error) = guard.mouse.sync(app.workspace.mouse) {
+        app.status = format!(
+            "Mouse capture unavailable: {error} · keyboard remains available"
+        );
+        return true;
+    }
+    false
+}
+
 fn poll_interval(app: &App) -> Duration {
     let active = app.reader_pending()
+        || app.notebook_pending()
+        || app.note_inspection_pending()
+        || app.note_catalog_pending()
+        || app.notes_pending()
         || app.navigation_loading
         || app.pane_motion_active();
     Duration::from_millis(if active { 16 } else { 100 })
@@ -241,7 +260,8 @@ fn edit_external(
     match result {
         Ok(text) => {
             app.replace_draft(text)?;
-            app.status = "Draft updated · Ctrl-s saves · Esc discards".into();
+            app.status =
+                "Draft updated · Ctrl-s saves/closes · Esc normal".into();
         }
         Err(error) => app.status = format!("{error:#}"),
     }

@@ -3,6 +3,98 @@
 Lume is an independent desktop/terminal reader. It does not require Miniflux,
 PostgreSQL, containers, an account, or a hosted service. Domain data stays local.
 
+## Indexed annotation notebook (2026-10-18)
+
+Reuse bundled SQLite FTS5 through pinned rusqlite for independent note indexing,
+Unicode prefix/phrase matching and `snippet` highlighting. The
+[official FTS5 contract](https://www.sqlite.org/fts5.html) covers external-content
+triggers, tokenizer behavior and snippets. Reuse the existing bounded nom grammar;
+Lume owns field semantics, same-note correlation and bound SQL parameters.
+Article text and annotation text now have separate indexes, avoiding a complete
+publisher-document reindex for every private edit.
+
+Enable `tui-textarea` 0.7.0's existing `search` feature, using its published
+`set_search_pattern`, `search_forward` and `search_back` contracts and native
+highlight rendering. The cached published source and
+[upstream search example](https://github.com/rhysd/tui-textarea/blob/v0.7.0/examples/search.rs)
+were reviewed before integration. This adds a lockfile dependency edge to the
+already locked Rust regex crate; no package version or accepted license changes.
+The existing maintainer, community and compatibility assessment below applies.
+Regex patterns are limited to 256 bytes and note buffers to 16 KiB. Adding
+another editor/search engine would duplicate capabilities already qualified here.
+
+Use pinned pulldown-cmark 0.13.0 with `Options::ENABLE_WIKILINKS` to parse actual
+Markdown references; code examples never become graph edges. Its published
+parser and LinkType contracts own syntax. Lume owns permanent note identities,
+reference limits, active navigation and restoration after deletion.
+
+The standard library's
+[bounded channels](https://doc.rust-lang.org/std/sync/mpsc/fn.sync_channel.html)
+and the existing latest-read adapter cover ordered mutations and replaceable
+search/context reads. Writes never use the replaceable-read adapter. Captured
+identities, admission errors, transaction rollback, bounded SQLite busy retries
+and shutdown durability remain application responsibilities. No async runtime,
+custom protocol/parser or new generic worker framework is introduced.
+
+Continue using tempfile and the existing exact-byte export reconciliation for
+per-note Markdown files. Keep independent note manifests and permanent filenames.
+Fixed review intervals are transparent user choices, not a custom adaptive
+retention model or a claimed implementation of FSRS.
+
+## Modal note writes (2026-10-18)
+
+Reuse pinned `tui-textarea` 0.7.0 for editing, Unicode motions and undo, following
+its [upstream Vim example](https://github.com/rhysd/tui-textarea/blob/v0.7.0/examples/vim.rs)
+and the verified example/method contracts in the cached published crate.
+The existing maintainer/license/compatibility assessment below still applies;
+no dependency version, feature or accepted license changes are needed.
+Adding a second editor or a general Vim emulator would duplicate text ownership
+without a requirement for a full editing language.
+
+The [official Neovim editing reference](https://neovim.io/doc/user/editing/)
+defines write/quit, all-buffer variants, modified-buffer guards and ZZ/ZQ.
+Lume adapts these to one captured note/card editor: closing that editor returns
+to reading, while all-quit variants exit the application. Application policy
+owns the bounded Ex vocabulary, dirty checks, transaction-returned identities
+and session flush. Native storage/failure tests and representative/stress
+write benchmarks qualify the integration; this is not full Vim emulation.
+
+## Contextual article notes (2026-10-18)
+
+Reuse pinned Crossterm 0.28.1 for mouse motion and keyboard event kinds,
+Ratatui 0.29.0 for bounded popup painting and pulldown-cmark's existing source
+mappings for passage positions. The installed Crossterm source's
+`event::EnableMouseCapture` enables all-motion reporting (DECSET 1003) alongside
+its existing SGR encoding. No custom terminal decoder or additional capture
+command is introduced. Keeping the existing terminal guard preserves balanced
+suspension and cleanup. Local contracts own event coalescing, drawing only on
+hover changes, safe quote relocation and captured mutation targets.
+
+Notes use the existing SQLite annotation/undo transactions and editor; no schema,
+dependency, feature or license changes are needed. Native interaction tests
+exercise actual storage and Ratatui buffers. A focused benchmark checks hover
+burst reduction and reversible deletion with representative/stress annotations.
+
+## Local installation and SQLite migration (2026-10-18)
+
+Keep runtime path resolution in Rust's standard library and CLI parsing in the
+already pinned Clap integration. The installer uses Python 3's standard-library
+`sqlite3.Connection.backup`, whose
+[documented contract](https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.backup)
+supports backing up databases concurrently accessed by other clients. SQLite's
+[online backup API](https://www.sqlite.org/backup.html) supplies the committed
+snapshot semantics. A raw file copy cannot supply that contract for an active
+WAL database. No custom SQLite parser, subprocess SQLite CLI, Rust dependency,
+Cargo feature or license policy change is introduced.
+
+Python and its system SQLite are build/install tooling, neither linked into
+nor bundled with the installed executable. Their versions follow the host's
+supported packages; the benchmark records both. Native application SQLite
+remains bundled through the pinned rusqlite integration. The installer owns
+source selection, the backup deadline and publication without overwrites.
+Failure and WAL tests qualify those boundaries using actual SQLite files.
+Installed notices retain the existing product, grammar and extraction licenses.
+
 ## Published registry lock repair (2026-10-18)
 
 Restore `utf-8` 0.7.6 as a transitive dependency of published `tendril` 0.5.0.

@@ -49,4 +49,7 @@ pub struct AnnotationSnapshot {
     pub review: Option<ReviewSchedule>,
     /// User-authored cards retained across deletion/undo.
     pub cards: Vec<StudyCard>,
+    /// Notebook metadata and references, absent in legacy undo records.
+    #[serde(default)]
+    pub metadata: super::NoteMetadata,
 }

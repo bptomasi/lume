@@ -8,7 +8,7 @@ use ratatui::{
     widgets::{Clear, List, ListState, Paragraph},
 };
 
-use crate::app::{App, HELP, Input, InputKind, Mode};
+use crate::app::{App, EditMode, HELP, Input, InputKind, Mode};
 
 use super::{selectors, theme::*};
 
@@ -142,38 +142,44 @@ fn editor(frame: &mut Frame<'_>, app: &App, input: &Input) {
             | InputKind::Highlight { .. }
             | InputKind::StudyCard { .. }
     );
-    let inner = modal(
-        frame,
+    let title = format!(
+        "{}{}",
         editor_title(&input.kind),
-        84,
-        if multiline { 24 } else { 9 },
+        if multiline && input.modified() {
+            " [+]"
+        } else {
+            ""
+        },
     );
+    let inner = modal(frame, &title, 84, if multiline { 24 } else { 9 });
     let editor_area = Rect::new(
         inner.x + 1,
         inner.y + 1,
         inner.width.saturating_sub(2),
-        inner.height.saturating_sub(4),
+        inner.height.saturating_sub(5),
     );
     frame.render_widget(&input.editor, editor_area);
-    editor_footer(frame, app, inner, multiline);
+    editor_footer(frame, app, input, inner, multiline);
 }
 
 fn editor_footer(
     frame: &mut Frame<'_>,
     app: &App,
+    input: &Input,
     inner: Rect,
     multiline: bool,
 ) {
-    let hint = if multiline {
-        "Ctrl-s save · Ctrl-e external editor · Ctrl-z undo · Esc discard"
-    } else {
-        "Enter apply · arrows move cursor · Ctrl-u clear · Esc cancel"
+    let hint = editor_hint(input, multiline);
+    let command = match &input.edit_mode {
+        EditMode::Command(line) => format!(":{line}█"),
+        EditMode::Search(line) => format!("/{line}█"),
+        _ => String::new(),
     };
     let footer = Rect::new(
         inner.x + 1,
-        inner.bottom().saturating_sub(2),
+        inner.bottom().saturating_sub(3),
         inner.width.saturating_sub(2),
-        2,
+        3,
     );
     frame.render_widget(
         Paragraph::new(vec![
@@ -181,14 +187,47 @@ fn editor_footer(
                 crate::content::label(&app.status, 160),
                 Style::new().fg(MUTED),
             ),
+            Line::styled(command, Style::new().fg(TEXT)),
             Line::styled(hint, Style::new().fg(AMBER)),
         ]),
         footer,
     );
 }
 
+pub(super) fn editor_hint(input: &Input, multiline: bool) -> &'static str {
+    if !multiline {
+        return "Enter apply · arrows move cursor · Ctrl-u clear · Esc cancel";
+    }
+    match input.edit_mode {
+        EditMode::Insert => {
+            "INSERT · Esc normal · Ctrl-s save/close · Ctrl-e external"
+        }
+        EditMode::Normal => {
+            "NORMAL · i insert · :w save · :wq close · :wqa quit · :q! discard"
+        }
+        EditMode::PendingZ => {
+            "Z · Z write and close · Q discard and close · Esc cancel"
+        }
+        EditMode::Search(_) => {
+            "SEARCH · Enter finds / highlights · n next · N previous · Esc cancel"
+        }
+        EditMode::Command(_) => {
+            "COMMAND · :w save · :wq close · :wqa quit · :q! discard · Esc cancel"
+        }
+    }
+}
+
 fn editor_title(kind: &InputKind) -> &'static str {
     match kind {
+        InputKind::NoteTags { .. } => {
+            "Note tags · space separated · Enter saves"
+        }
+        InputKind::NoteCollection => {
+            "Save note collection · name for the current query"
+        }
+        InputKind::NoteSearch => {
+            "Search notes · tags, type, status, source · Tab completes"
+        }
         InputKind::Search => "Search · titles, bodies and annotations",
         InputKind::ReaderSearch => {
             "Find in article · exact text · Enter searches"

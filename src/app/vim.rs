@@ -40,6 +40,10 @@ pub(super) struct Vim {
 }
 
 impl Vim {
+    pub(super) fn prefix_pending(&self) -> bool {
+        self.prefix.is_some()
+    }
+
     pub(super) fn clear_input(&mut self) {
         self.count = 0;
         self.prefix = None;
@@ -48,7 +52,10 @@ impl Vim {
 
 impl App {
     pub(super) fn vim_pending(&self) -> bool {
-        self.panel_prefix || self.vim.count > 0 || self.vim.prefix.is_some()
+        self.panel_prefix
+            || self.vim.count > 0
+            || self.vim.prefix.is_some()
+            || self.note_marks.delete.is_some()
     }
 
     pub(super) fn reader_vim_key(&mut self, code: KeyCode) -> Result<bool> {
@@ -195,7 +202,10 @@ impl App {
                     self.find_character(find, count, true);
                 }
             }
-            KeyCode::Char('n' | 'N') if self.selection.is_none() => {
+            KeyCode::Char('n' | 'N')
+                if self.selection.is_none()
+                    && !self.reader_tools.needle.is_empty() =>
+            {
                 for _ in 0..count {
                     self.next_reader_match(code == KeyCode::Char('n'))?;
                 }
@@ -241,6 +251,9 @@ impl App {
             }
             KeyCode::Char('o' | 'i') => {
                 self.vim.clear_input();
+                if code == KeyCode::Char('o') && self.return_to_notebook()? {
+                    return Ok(true);
+                }
                 for _ in 0..count {
                     self.jump_history(code == KeyCode::Char('i'))?;
                 }

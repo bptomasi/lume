@@ -4,7 +4,9 @@ mod document;
 mod extraction;
 mod layout;
 mod layout_history;
+mod notebook;
 pub use layout_history::LayoutHistory;
+pub use notebook::*;
 mod organization;
 mod pane;
 mod study;
@@ -17,6 +19,17 @@ pub use organization::*;
 pub use pane::Pane;
 pub use study::*;
 pub use workspace::*;
+
+/// Smallest cache scope affected by a committed undo transaction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UndoEffect {
+    /// The undo stack was empty.
+    Unchanged,
+    /// Only annotations on this captured article changed.
+    Notes(i64),
+    /// Article/library state changed and needs its ordinary refresh path.
+    Library,
+}
 
 /// Article metadata; bodies are loaded only when an article is selected.
 #[derive(Clone, Debug)]

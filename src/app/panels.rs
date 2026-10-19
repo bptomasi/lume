@@ -16,10 +16,17 @@ impl App {
     pub fn resize_workspace(&mut self, area: Rect) {
         if self.screen != area {
             self.cancel_pointer();
+            self.note_marks.delete = None;
             self.screen = area;
         }
         let areas = ui::workspace_areas(area, self.focus, &self.workspace);
         if let Some(reader) = areas.reader {
+            if self.notebook.is_some() {
+                self.resize_notebook_context(
+                    reader.width.saturating_sub(2).into(),
+                );
+                return;
+            }
             let content = ui::workspace_reader_content(reader, &self.workspace);
             self.resize_reader(content.width.into(), content.height.into());
         }

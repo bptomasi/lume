@@ -16,6 +16,8 @@ use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
 pub fn run(iterations: usize, stress: bool) -> Result<()> {
     selection(iterations, stress)?;
+    super::note_interactions::run(iterations, stress)?;
+    super::annotation_notebook::run(iterations, stress)?;
     source_group(iterations, stress)?;
     trash::run(iterations, stress)
 }

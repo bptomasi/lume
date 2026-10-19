@@ -65,8 +65,7 @@ impl App {
             KeyCode::PageUp => document.row = document.row.saturating_sub(10),
             KeyCode::Enter => {
                 if let Some(action) = document.confirm.clone() {
-                    let previous = self.mode.clone();
-                    self.mode = Mode::Normal;
+                    let previous = std::mem::take(&mut self.mode);
                     if let Err(error) = self.apply_choice(action) {
                         self.mode = previous;
                         return Err(error);

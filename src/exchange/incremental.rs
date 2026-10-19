@@ -85,7 +85,7 @@ fn render(store: &Store, article: i64) -> Result<String> {
     Ok(String::from_utf8(bytes)?)
 }
 
-fn reconcile(
+pub(super) fn reconcile(
     path: &Path,
     previous: Option<&str>,
     content: &str,
@@ -153,10 +153,10 @@ fn read_destination(path: &Path) -> Result<Destination> {
     })
 }
 
-struct ExportLock(PathBuf);
+pub(super) struct ExportLock(PathBuf);
 
 impl ExportLock {
-    fn acquire(directory: &Path) -> Result<Self> {
+    pub(super) fn acquire(directory: &Path) -> Result<Self> {
         let path = directory.join(".lume-export.lock");
         fs::OpenOptions::new()
             .write(true)

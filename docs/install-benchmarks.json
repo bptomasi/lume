@@ -1,0 +1,37 @@
+{
+  "command": "make bench-tools",
+  "scope": "Migration only; setup and verification excluded from timings",
+  "peak_memory_scope": "Process RSS including setup; not backup allocations",
+  "environment": {
+    "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+    "python": "3.13.5",
+    "sqlite": "3.46.1"
+  },
+  "results": [
+    {
+      "workload": "representative",
+      "articles": 1000,
+      "body_bytes_each": 2048,
+      "database_bytes": 4182016,
+      "wall_ms": [
+        6.234,
+        3.506,
+        3.343
+      ],
+      "process_peak_rss_kib": 19780
+    },
+    {
+      "workload": "stress",
+      "articles": 10000,
+      "body_bytes_each": 4096,
+      "database_bytes": 46534656,
+      "wall_ms": [
+        25.307,
+        26.511,
+        26.952
+      ],
+      "process_peak_rss_kib": 19780
+    }
+  ],
+  "comparison": "No prior comparable baseline; no speedup claim"
+}

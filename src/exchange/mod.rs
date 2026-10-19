@@ -6,6 +6,7 @@
 
 pub mod incremental;
 pub mod markdown;
+pub mod notes;
 pub mod opml;
 
 use std::{io::Write, path::Path};

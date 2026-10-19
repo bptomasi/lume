@@ -36,6 +36,12 @@ struct Cached {
     bytes: usize,
 }
 
+struct ImmediateLayout {
+    body: Arc<str>,
+    width: usize,
+    rendered: Rendered,
+}
+
 /// A bounded syntax worker with immediate plain-code layout and exact caching.
 pub struct LiveRenderer {
     requests: mpsc::SyncSender<CodeKey>,
@@ -47,6 +53,7 @@ pub struct LiveRenderer {
     document: String,
     stopped: bool,
     layout: Option<super::layout_worker::LayoutWorker>,
+    immediate: Option<ImmediateLayout>,
 }
 
 impl LiveRenderer {
@@ -83,6 +90,7 @@ impl LiveRenderer {
             document: String::new(),
             stopped: false,
             layout: None,
+            immediate: None,
         })
     }
 
@@ -91,7 +99,11 @@ impl LiveRenderer {
     /// # Errors
     /// Returns thread creation failures without changing synchronous operation.
     pub fn enable_background_layout(&mut self) -> Result<()> {
-        self.layout = Some(super::layout_worker::LayoutWorker::start()?);
+        let mut layout = super::layout_worker::LayoutWorker::start()?;
+        if let Some(cached) = &self.immediate {
+            layout.seed(&cached.body, cached.width, &cached.rendered);
+        }
+        self.layout = Some(layout);
         Ok(())
     }
 
@@ -121,13 +133,17 @@ impl LiveRenderer {
                 .collect();
             return layout.render(body, width, styles);
         }
-        super::render_with(body, width, &mut |text, language| {
-            self.code(text, language)
-        })
+        self.render_now(body, width)
     }
 
     /// Prepare an explicit source-bound jump immediately using cached/plain code.
     pub(crate) fn render_now(&mut self, body: &str, width: usize) -> Rendered {
+        if let Some(cached) = &self.immediate
+            && cached.body.as_ref() == body
+            && cached.width == width
+        {
+            return cached.rendered.clone();
+        }
         if self.document != body {
             self.document = body.to_owned();
             self.submitted.clear();
@@ -139,6 +155,11 @@ impl LiveRenderer {
         if let Some(layout) = &mut self.layout {
             layout.seed(body, width, &rendered);
         }
+        self.immediate = Some(ImmediateLayout {
+            body: Arc::from(body),
+            width,
+            rendered: rendered.clone(),
+        });
         rendered
     }
 
@@ -152,6 +173,7 @@ impl LiveRenderer {
         loop {
             match self.results.try_recv() {
                 Ok(completed) => {
+                    self.immediate = None;
                     self.pending.remove(&completed.key);
                     self.retain(completed);
                     if let Some(layout) = &mut self.layout {

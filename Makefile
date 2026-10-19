@@ -1,6 +1,16 @@
 CARGO ?= cargo
+PREFIX ?= $(HOME)/.local
+ifeq ($(origin LUME_DATA_DIR), undefined)
+DATA_DIR ?= $(HOME)/.local/lume
+else
+DATA_DIR ?= $(LUME_DATA_DIR)
+endif
+TARGET_DIR ?= $(if $(CARGO_TARGET_DIR),$(CARGO_TARGET_DIR),target)
+BINARY ?= $(TARGET_DIR)/release/lume
+MIGRATE_FROM ?=
 
 .PHONY: check check-release check-http check-alacritty fmt lint test bench build demo
+.PHONY: install test-tools bench-tools bench-notes
 
 # Serialize composition even when a caller uses make -j.
 .NOTPARALLEL:
@@ -9,8 +19,9 @@ check:
 	$(MAKE) fmt
 	$(MAKE) lint
 	$(MAKE) test
-	python3 -m py_compile tools/render_preview.py tools/qualify_alacritty.py
-	bash -n lume
+	$(MAKE) test-tools
+	python3 -m py_compile tools/render_preview.py tools/qualify_alacritty.py \
+		tools/install.py tools/bench_install.py tools/bench_notes.py
 
 fmt:
 	$(CARGO) fmt --all -- --check
@@ -18,8 +29,13 @@ fmt:
 lint:
 	$(CARGO) clippy --locked --all-targets -- -D warnings
 
+# Native harnesses run all tests; the custom reader bench verifies every
+# workload with its --test scenario. Full measurements belong to make bench.
 test:
-	$(CARGO) test --locked --all-targets
+	$(CARGO) test --locked --all-targets -- --test
+
+test-tools:
+	python3 -m unittest discover -s tools/tests -p 'test_*.py'
 
 # Real HTTP is an explicit release requirement, never silently skipped.
 check-release:
@@ -40,9 +56,22 @@ bench:
 	$(CARGO) bench --locked --bench reader -- --navigation-only
 	$(CARGO) bench --locked --bench reader -- --stress
 	$(CARGO) bench --locked --bench reader -- --stress --navigation-only
+	$(MAKE) bench-tools
+
+# Repeated resource measurements; ordinary checks exercise the Rust workloads.
+bench-notes:
+	python3 tools/bench_notes.py
+
+bench-tools:
+	python3 tools/bench_install.py
 
 build:
 	$(CARGO) build --locked --release
+
+install: build
+	python3 tools/install.py --binary "$(BINARY)" --prefix "$(PREFIX)" \
+		--data-dir "$(DATA_DIR)" \
+		$(if $(MIGRATE_FROM),--migrate-from "$(MIGRATE_FROM)")
 
 demo:
 	$(CARGO) run --locked -- --demo

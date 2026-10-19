@@ -15,7 +15,7 @@
 │  Grouped ar    │                  │   
 ╰────────────────│ let answer = 42; │   
  NORMAL  Reader  │ 75% · v select · │to 
-  w/W/e word  ·  ╰──────────────────╯  ·
+  w/W/e word · / ╰──────────────────╯ota
 0:0..4 Style::new().fg(Color::Rgb(150, 113, 28)).bg(Color::Rgb(24, 24, 24))
 0:4..8 Style::new().fg(Color::Rgb(141, 131, 106)).bg(Color::Rgb(24, 24, 24)).bold()
 0:8..40 Style::new().fg(Color::Rgb(113, 104, 88)).bg(Color::Rgb(24, 24, 24))

@@ -145,6 +145,8 @@ pub struct Workspace {
     pub panel_order: [Pane; 4],
     /// Optional binary topology; old workspaces retain fixed-width columns.
     pub layout: Option<super::PaneLayout>,
+    /// Independent Notebook arrangement, preserving the reading workspace.
+    pub notebook_layout: Option<super::PanelLayout>,
     /// Request standard terminal mouse reporting; keyboard remains available.
     pub mouse: bool,
     /// Maximum prose width in terminal columns.
@@ -191,6 +193,7 @@ impl Default for Workspace {
             show_annotations: false,
             panel_order: Pane::ALL,
             layout: None,
+            notebook_layout: None,
             mouse: true,
             reading_width: 82,
             fullscreen_width: 80,

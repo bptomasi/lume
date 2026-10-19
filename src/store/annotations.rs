@@ -2,7 +2,7 @@
 
 use anyhow::{Result, ensure};
 
-pub(super) fn collection_name(name: &str) -> Result<&str> {
+pub(crate) fn collection_name(name: &str) -> Result<&str> {
     let name = name.trim();
     ensure!(!name.is_empty(), "List name cannot be empty");
     ensure!(

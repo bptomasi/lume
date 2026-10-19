@@ -42,9 +42,7 @@ impl App {
                 self.layout_command(command)?;
             }
             C::Notebook => {
-                self.set_view(View::Annotated)?;
-                self.workspace.show_reader = true;
-                self.focus = Focus::Reader;
+                self.open_notebook("", None)?;
             }
             C::Queue => self.set_view(View::Queue)?,
             C::Articles => self.open_picker(PickerKind::Articles)?,
@@ -152,12 +150,24 @@ impl App {
     }
 
     pub(super) fn undo(&mut self) -> Result<()> {
-        self.status = if self.store.undo()? {
-            self.reload()?;
-            "Personal edit undone".into()
-        } else {
-            "No personal edits to undo".into()
-        };
+        if let Some(writer) = &mut self.note_tasks {
+            writer.submit(super::note_tasks::Task::Undo)?;
+            self.status = "Undoing personal edit…".into();
+            return Ok(());
+        }
+        match self.store.undo_effect()? {
+            crate::model::UndoEffect::Unchanged => {
+                self.status = "No personal edits to undo".into()
+            }
+            crate::model::UndoEffect::Notes(article) => {
+                self.refresh_notes(article)?;
+                self.status = "Note edit undone".into();
+            }
+            crate::model::UndoEffect::Library => {
+                self.reload()?;
+                self.status = "Personal edit undone".into();
+            }
+        }
         Ok(())
     }
 
@@ -174,6 +184,10 @@ impl App {
         use WorkspaceCommand as C;
         self.mode = Mode::Normal;
         let command = match key.code {
+            KeyCode::Char('/') => {
+                self.begin_global_note_search()?;
+                return Ok(Action::None);
+            }
             KeyCode::Char('p') | KeyCode::Char(' ') => {
                 self.open_picker(PickerKind::Commands)?;
                 return Ok(Action::None);
@@ -362,7 +376,7 @@ impl App {
                 return Ok(Some(Action::None));
             }
             "editor" => {
-                self.edit_comment(false);
+                self.begin_reader_note()?;
                 return Ok(Some(Action::ExternalEditor));
             }
             "width" | "fullscreen-width" | "sidebar-width"

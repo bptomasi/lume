@@ -8,6 +8,9 @@ mod hit;
 pub(crate) use drag_picture::compact as compact_drag_picture;
 mod key_guide;
 mod layout;
+mod note_preview;
+mod notebook;
+pub(crate) use notebook::context_scroll_limit as notebook_scroll_limit;
 mod overlays;
 mod pane_motion;
 mod panes;
@@ -24,6 +27,7 @@ pub use layout::{
     Areas, SplitBoundary, areas, pane_buttons, pane_close_rect, pane_move_rect,
     picker_regions, reader_content, workspace_areas, workspace_reader_content,
 };
+pub use note_preview::note_preview_area;
 
 /// Render cached rows; no SQL, HTTP, syntax parsing or Markdown layout occurs.
 pub fn draw(frame: &mut Frame<'_>, app: &App) {
@@ -60,6 +64,23 @@ fn draw_workspace(frame: &mut Frame<'_>, app: &App) {
         chrome::header(frame, app);
     }
     let areas = workspace_areas(frame.area(), app.focus, &app.workspace);
+    if app.notebook.is_some() {
+        notebook::draw(frame, app, &areas);
+    } else {
+        draw_reading_panes(frame, app, &areas);
+    }
+    chrome::pane_controls(frame, app, &areas);
+    if !app.workspace.fullscreen {
+        chrome::footer(frame, app);
+    }
+    if app.notebook.is_none() {
+        note_preview::draw(frame, app);
+    }
+    overlays::draw(frame, app);
+    key_guide::draw(frame, app);
+}
+
+fn draw_reading_panes(frame: &mut Frame<'_>, app: &App, areas: &Areas) {
     if let Some(area) = areas.library {
         panes::library(frame, app, area);
     }
@@ -72,10 +93,4 @@ fn draw_workspace(frame: &mut Frame<'_>, app: &App) {
     if let Some(area) = areas.annotations {
         annotations::draw(frame, app, area);
     }
-    chrome::pane_controls(frame, app, &areas);
-    if !app.workspace.fullscreen {
-        chrome::footer(frame, app);
-    }
-    overlays::draw(frame, app);
-    key_guide::draw(frame, app);
 }

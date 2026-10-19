@@ -187,7 +187,7 @@ impl App {
         Some(offset)
     }
 
-    fn pointer_offset(
+    pub(super) fn pointer_offset(
         &self,
         content: Rect,
         event: MouseEvent,

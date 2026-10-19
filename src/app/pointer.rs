@@ -7,6 +7,7 @@
 
 mod gestures;
 mod modal;
+mod notes;
 mod reorder;
 mod splits;
 
@@ -89,6 +90,7 @@ pub(super) struct Pointer {
 
 impl App {
     pub(super) fn cancel_pointer(&mut self) {
+        self.note_marks.hover = None;
         self.pane_flight = None;
         self.pane_neighbors = None;
         match self.pointer.gesture.take() {
@@ -190,12 +192,15 @@ impl App {
             MouseEventKind::ScrollLeft | MouseEventKind::ScrollRight => {
                 self.pointer_horizontal(event);
             }
+            MouseEventKind::Moved => self.hover_note(event),
             _ => {}
         }
         Ok(Action::None)
     }
 
     fn pointer_horizontal(&mut self, event: MouseEvent) {
+        self.note_marks.hover = None;
+        self.note_marks.delete = None;
         if self.panel_drag().is_some() {
             return;
         }
@@ -217,6 +222,9 @@ impl App {
     }
 
     fn pointer_down(&mut self, event: MouseEvent) -> Result<()> {
+        if self.note_pointer_down(event)? {
+            return Ok(());
+        }
         self.cancel_pointer();
         let position = Position::new(event.column, event.row);
         if !self.workspace.fullscreen {
@@ -262,10 +270,16 @@ impl App {
         area: Rect,
         event: MouseEvent,
     ) -> Result<()> {
+        if self.notebook.is_some() {
+            return self.click_notebook(pane, area, event);
+        }
         match pane {
             Pane::Library => {
                 if let Some(index) = ui::navigation_at(self, area, event.row) {
                     let view = self.navigation[index].view.clone();
+                    if view == super::View::Annotated {
+                        return self.open_notebook("", None);
+                    }
                     self.set_view(view)?;
                     if let super::View::Group(_) = self.view {
                         self.toggle_navigation_group("")?;
@@ -299,6 +313,7 @@ impl App {
         amount: usize,
     ) -> Result<()> {
         self.pointer.seen = true;
+        self.note_marks.delete = None;
         if !self.workspace.mouse
             || !event.modifiers.is_empty()
             || self.screen.width < 24
@@ -314,6 +329,7 @@ impl App {
         }
         self.pane_flight = None;
         self.pane_neighbors = None;
+        self.note_marks.hover = None;
         let areas =
             ui::workspace_areas(self.screen, self.focus, &self.workspace);
         let target = areas.ordered().into_iter().find(|(_, area)| {
@@ -327,14 +343,24 @@ impl App {
                     pane
                 };
             self.focus = pane;
-            let forward = event.kind == MouseEventKind::ScrollDown;
-            if pane == Pane::Reader {
-                self.scroll_reader(forward, amount);
-            } else {
-                self.move_selection(forward, amount)?;
-            }
+            self.scroll_focused_pane(event, amount)?;
         }
         self.resize_workspace(self.screen);
+        Ok(())
+    }
+    fn scroll_focused_pane(
+        &mut self,
+        event: MouseEvent,
+        amount: usize,
+    ) -> Result<()> {
+        let forward = event.kind == MouseEventKind::ScrollDown;
+        if self.notebook.is_some() {
+            self.move_notebook(forward, amount)?;
+        } else if self.focus == Pane::Reader {
+            self.scroll_reader(forward, amount);
+        } else {
+            self.move_selection(forward, amount)?;
+        }
         Ok(())
     }
 }

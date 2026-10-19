@@ -5,15 +5,23 @@ use anyhow::{Result, bail};
 use super::{Action, App, Input, InputKind, View};
 
 impl App {
-    pub(super) fn apply_input(&mut self, input: &Input) -> Result<Action> {
+    pub(super) fn apply_input(&mut self, input: &mut Input) -> Result<Action> {
+        if self.notebook_input(input)? {
+            return Ok(Action::None);
+        }
         match &input.kind {
+            InputKind::NoteTags { .. }
+            | InputKind::NoteCollection
+            | InputKind::NoteSearch => return Ok(Action::None),
             InputKind::Search => return Ok(Action::None),
             InputKind::ReaderSearch => {
                 self.search_reader(&input.text)?;
                 return Ok(Action::None);
             }
-            InputKind::StudyCard { article, comment } => {
-                self.save_study_card(*article, *comment, &input.text)?;
+            InputKind::StudyCard { .. }
+            | InputKind::Highlight { .. }
+            | InputKind::Comment { .. } => {
+                return self.write_draft(input).map(|_| Action::None);
             }
             InputKind::Command => return self.command(&input.text),
             InputKind::NewList => {
@@ -26,36 +34,29 @@ impl App {
                 self.store.add_member(list, *article)?;
                 self.status = format!("Saved to {}", input.text.trim());
             }
-            InputKind::Highlight { article, passage } => {
-                self.store.save_passage(*article, passage, &input.text)?;
-                self.status = "Highlight and note saved".into();
-            }
             InputKind::Discover
             | InputKind::Import
             | InputKind::ExportArticle(_)
             | InputKind::ExportNotebook
             | InputKind::ExportOpml => return self.exchange_input(input),
-            InputKind::Comment { article, comment } => {
-                self.store.save_comment(*article, *comment, &input.text)?;
-                self.status = "Private comment saved".into();
-            }
         }
         self.reload()?;
         Ok(Action::None)
     }
 
     pub(crate) fn command(&mut self, text: &str) -> Result<Action> {
+        if let Some(action) = self.session_command(text)? {
+            return Ok(action);
+        }
         let (verb, argument) = command_parts(text);
+        self.guard_notebook_article_command(verb)?;
         if let Some(action) = self.layout_commands(verb, argument)? {
             return Ok(action);
         }
         if let Some(action) = self.panel_command(verb, argument)? {
             return Ok(action);
         }
-        if let Some(action) = self.extraction_command(verb, argument)? {
-            return Ok(action);
-        }
-        if let Some(action) = self.reader_tools_command(verb, argument)? {
+        if let Some(action) = self.reading_command(verb, argument)? {
             return Ok(action);
         }
         if let Some(action) = self.organization_command(verb, argument)? {
@@ -65,9 +66,6 @@ impl App {
             return Ok(action);
         }
         if let Some(action) = self.settings_command(verb, argument)? {
-            return Ok(action);
-        }
-        if let Some(action) = self.document_command(verb, argument)? {
             return Ok(action);
         }
         if let Some(action) = self.exchange_command(verb, argument)? {
@@ -85,13 +83,29 @@ impl App {
         self.library_command(verb, argument)
     }
 
+    fn reading_command(
+        &mut self,
+        verb: &str,
+        argument: &str,
+    ) -> Result<Option<Action>> {
+        if let Some(action) = self.notebook_command(verb, argument)? {
+            return Ok(Some(action));
+        }
+        if let Some(action) = self.extraction_command(verb, argument)? {
+            return Ok(Some(action));
+        }
+        if let Some(action) = self.reader_tools_command(verb, argument)? {
+            return Ok(Some(action));
+        }
+        self.document_command(verb, argument)
+    }
+
     fn library_command(
         &mut self,
         verb: &str,
         argument: &str,
     ) -> Result<Action> {
         match verb {
-            "q" | "quit" => return Ok(Action::Quit),
             "r" | "refresh" => return Ok(Action::Refresh),
             "feed" => {
                 self.store.subscribe(argument)?;
@@ -105,7 +119,11 @@ impl App {
             "delete-folder" => {
                 self.store.delete_collection(self.active_list()?)?
             }
-            "delete-comment" => self.delete_selected_comment()?,
+            "delete-comment" => {
+                let note = self.note_target()?;
+                self.delete_captured_note(note.article, note.comment.id)?;
+                return Ok(Action::None);
+            }
             "unfeed" => self.unsubscribe()?,
             "read" => {
                 self.set_view(View::Read)?;
@@ -149,14 +167,12 @@ impl App {
                     self.current().map(|article| article.id).ok_or_else(
                         || anyhow::anyhow!("Select an article first"),
                     )?;
-                let input = Input {
-                    kind: InputKind::AddToList(article),
-                    text: argument.to_owned(),
-                    previous_search: String::new(),
-                    editor: super::editor::textarea(argument),
-                    completion: 0,
-                };
-                return self.apply_input(&input).map(Some);
+                let mut input = Input::new(
+                    InputKind::AddToList(article),
+                    argument.to_owned(),
+                    String::new(),
+                );
+                return self.apply_input(&mut input).map(Some);
             }
             "folders" => self.open_picker(super::PickerKind::Folders)?,
             "organize" => {
@@ -225,18 +241,27 @@ impl App {
         bail!("Select a personal folder in the library first")
     }
 
-    pub(super) fn edit_comment(&mut self, existing: bool) {
+    pub(super) fn edit_comment(&mut self, existing: bool) -> Result<()> {
         let Some(article) = self.current() else {
-            return;
+            return Ok(());
         };
         let article = article.id;
         let selected = existing
             .then(|| self.comments.get(self.comment_selected))
             .flatten();
+        if existing && selected.is_none() {
+            self.status = "Select an existing note to edit".into();
+            return Ok(());
+        }
         let comment = selected.map(|comment| comment.id);
         let text =
             selected.map_or_else(String::new, |comment| comment.body.clone());
+        self.ensure_no_recovery(&crate::model::DraftTarget::Note {
+            article,
+            note: comment,
+        })?;
         self.begin_input(InputKind::Comment { article, comment }, text);
+        Ok(())
     }
 
     pub(super) fn select_comment(&mut self, forward: bool) {
@@ -256,22 +281,15 @@ impl App {
             self.comments.len(),
         );
         let marker = format!("[{}] ", self.comment_selected + 1);
-        self.scroll = self
+        let row = self
             .reader_lines
             .iter()
             .position(|line| line.starts_with(&marker))
             .unwrap_or(self.scroll);
+        self.reader_cursor = row;
+        self.reader_column = 0;
+        self.scroll = row;
         self.clamp_scroll();
-    }
-
-    fn delete_selected_comment(&mut self) -> Result<()> {
-        let Some(article) = self.current() else {
-            bail!("Select an article first");
-        };
-        let Some(comment) = self.comments.get(self.comment_selected) else {
-            bail!("No comment selected");
-        };
-        self.store.delete_comment(article.id, comment.id)
     }
 
     fn unsubscribe(&mut self) -> Result<()> {

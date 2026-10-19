@@ -19,11 +19,33 @@ fn main() -> Result<()> {
     let mode = std::env::args().nth(2).unwrap_or_default();
     let (_directory, mut app) = demo_app(&mode)?;
     finish_colors(&mut app)?;
+    finish_notebook(&mut app)?;
+    if mode == "note-hover" {
+        preview_note_hover(&mut app)?;
+    } else if mode == "note-write" {
+        preview_note_editor(&mut app)?;
+    }
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
     support::export(terminal.backend().buffer(), &output)?;
     println!("{}", output.display());
     Ok(())
+}
+
+fn preview_note_editor(app: &mut App) -> Result<()> {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    app.focus = lume::app::Focus::Reader;
+    app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
+    app.paste("note")?;
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    app.paste(
+        "One owner per transaction.\n\n\
+         Keep retries bounded and preserve the reader's position.\n\n\
+         Compare this with the consensus paper before the next review.",
+    )?;
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
+    app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
+    app.paste("wq")
 }
 
 fn finish_colors(app: &mut App) -> Result<()> {
@@ -33,6 +55,36 @@ fn finish_colors(app: &mut App) -> Result<()> {
         thread::sleep(Duration::from_millis(1));
     }
     ensure!(!app.reader_pending(), "Preview syntax worker timed out");
+    Ok(())
+}
+
+fn finish_notebook(app: &mut App) -> Result<()> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while app.notebook_pending() && Instant::now() < deadline {
+        app.poll_note_workspace()?;
+        thread::sleep(Duration::from_millis(1));
+    }
+    ensure!(!app.notebook_pending(), "Preview notebook worker timed out");
+    Ok(())
+}
+
+fn preview_note_hover(app: &mut App) -> Result<()> {
+    use crossterm::event::{KeyModifiers, MouseEvent, MouseEventKind};
+    let screen = ratatui::layout::Rect::new(0, 0, 144, 44);
+    let area = ui::workspace_areas(screen, app.focus, &app.workspace)
+        .reader
+        .context("Missing reader")?;
+    let column = ui::workspace_reader_content(area, &app.workspace);
+    let row = (0..app.reader_lines.len())
+        .find(|row| !app.reader_note_markers(*row).is_empty())
+        .context("Missing note marker")?;
+    app.scroll = row;
+    app.mouse(MouseEvent {
+        kind: MouseEventKind::Moved,
+        column: column.x - 1,
+        row: column.y,
+        modifiers: KeyModifiers::NONE,
+    })?;
     Ok(())
 }
 
@@ -94,7 +146,10 @@ fn seed_partial(store: &mut Store) -> Result<()> {
 
 fn seed_preview(store: &mut Store, mode: &str) -> Result<()> {
     demo::seed(store)?;
-    if matches!(mode, "annotations" | "reordering") {
+    if matches!(
+        mode,
+        "annotations" | "reordering" | "note-hover" | "notebook"
+    ) {
         seed_annotations(store)?;
     }
     if matches!(mode, "code" | "selection") {
@@ -122,7 +177,9 @@ fn configure_preview(app: &mut App, mode: &str) -> Result<()> {
         "outline" => &["toc"],
         "tables" => &["tables"],
         "help" => &["help layout"],
-        "annotations" | "reordering" => &["articles", "annotations"],
+        "annotations" | "reordering" | "note-hover" => {
+            &["articles", "annotations"]
+        }
         "collapsed" => &["panel library", "panel articles", "panel reader"],
         _ => return Ok(()),
     };

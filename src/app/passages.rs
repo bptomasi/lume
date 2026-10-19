@@ -159,11 +159,19 @@ impl App {
         Ok(Action::Copy(text.to_owned()))
     }
 
-    fn captured_passage(&self) -> Result<(i64, Passage)> {
+    pub(super) fn captured_passage(&self) -> Result<(i64, Passage)> {
         let article = self.current().context("Select an article first")?.id;
         let visible = self
             .selected_range()
             .context("Press v to select a passage")?;
+        self.passage_for_range(article, visible)
+    }
+
+    fn passage_for_range(
+        &self,
+        article: i64,
+        visible: Range<usize>,
+    ) -> Result<(i64, Passage)> {
         ensure!(
             visible.end <= self.article_text_end,
             "Select article text to capture a highlight"
@@ -188,11 +196,31 @@ impl App {
     }
 
     pub(super) fn annotate_selection(&mut self) -> Result<()> {
-        if self.selection.is_none() {
-            self.edit_comment(false);
-            return Ok(());
-        }
-        let (article, passage) = self.captured_passage()?;
+        ensure!(
+            self.notebook.is_none() && self.focus == Focus::Reader,
+            "Focus Reader before creating an article annotation"
+        );
+        let captured = if self.selection.is_some() {
+            self.captured_passage()?
+        } else if self.focus == Focus::Reader
+            && self.cursor_offset() < self.article_text_end
+            && !self.article_preparing()
+        {
+            let article = self.current().context("Select an article")?.id;
+            let range = self
+                .reader_ranges
+                .get(self.reader_cursor)
+                .context("Select a readable article row")?
+                .clone();
+            self.passage_for_range(article, range)?
+        } else {
+            return self.begin_reader_note();
+        };
+        let (article, passage) = captured;
+        self.ensure_no_recovery(&crate::model::DraftTarget::Passage {
+            article,
+            passage: passage.clone(),
+        })?;
         self.begin_input(
             InputKind::Highlight { article, passage },
             String::new(),
@@ -204,9 +232,26 @@ impl App {
     pub(super) fn save_selection(&mut self) -> Result<()> {
         let (article, passage) = self.captured_passage()?;
         let cursor = self.cursor_offset();
+        if let Some(writer) = &mut self.note_tasks {
+            writer.submit(super::note_tasks::Task::Write(
+                crate::model::NoteDraft {
+                    target: crate::model::DraftTarget::Passage {
+                        article,
+                        passage,
+                    },
+                    body: String::new(),
+                    baseline: String::new(),
+                    initial_kind: None,
+                },
+            ))?;
+            self.selection = None;
+            self.status =
+                "Saving highlight… · navigation remains available".into();
+            return Ok(());
+        }
         self.store.save_passage(article, &passage, "")?;
         self.selection = None;
-        self.reload()?;
+        self.refresh_notes(article)?;
         self.pending_anchor = None;
         self.place_cursor(cursor);
         self.ensure_cursor_visible();
@@ -218,18 +263,10 @@ impl App {
 
     pub(super) fn paint_highlights(&self, rendered: &mut Rendered) {
         let marks = self
-            .comments
+            .note_marks
+            .passages
             .iter()
-            .filter(|note| note.source == self.content_source)
-            .filter_map(|note| {
-                let anchor = if note.source_revision == self.content_revision {
-                    note.anchor
-                } else {
-                    self.body.len()
-                };
-                locate_quote(&self.body, &note.quote, anchor)
-            })
-            .flat_map(|range| reader::to_display(&rendered.mappings, range))
+            .map(|(range, _)| range.clone())
             .collect::<Vec<_>>();
         let marks = normalize_marks(marks);
         let mut remaining = marks.as_slice();

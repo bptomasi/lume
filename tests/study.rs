@@ -130,6 +130,18 @@ fn passage_review_rejects_a_note_changed_since_its_preview_opened() -> Result<()
     let writer = Store::open(&directory.path().join("library.sqlite3"))?;
     let mut app = lume::app::App::new(store, false)?;
     app_command(&mut app, "review")?;
+    common::settle_notes(&mut app)?;
+    assert!(
+        matches!(&app.mode, lume::app::Mode::Picker(picker) if picker.choices.len() == 1),
+        "Expected one due note; mode={:?}; due={}",
+        app.mode,
+        writer.search_notes("is:due", None, 0, 100)?.total
+    );
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    assert!(
+        matches!(&app.mode, lume::app::Mode::Picker(picker) if picker.choices.len() == 5),
+        "Expected explicit grades"
+    );
     writer.save_comment(article, Some(comment), "Revised explanation")?;
 
     let reviewed = app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -179,5 +191,50 @@ fn captured_reviews_and_study_edits_require_an_active_article() -> Result<()> {
     assert!(store.link_annotation(article, comment, article).is_err());
     assert!(!store.undo()?);
     assert!(store.annotation(article, comment)?.review.is_none());
+    Ok(())
+}
+
+#[test]
+fn updating_cards_checks_the_exact_annotation_owner_and_rolls_back_failures()
+-> Result<()> {
+    let (_directory, store, article, comment) = annotated()?;
+    let card =
+        store.create_study_card(article, comment, "Who?", "The owner")?;
+    let other = store.save_comment(article, None, "Another note")?;
+    let before = store.annotation(article, comment)?.cards;
+    store.clear_history()?;
+
+    assert!(
+        store
+            .update_study_card(article, other, card, "New?", "Yes")
+            .is_err()
+    );
+    assert!(
+        store
+            .update_study_card(article, comment, card + 1, "New?", "Yes")
+            .is_err()
+    );
+    assert!(
+        store
+            .update_study_card(article + 1, comment, card, "New?", "Yes")
+            .is_err()
+    );
+    assert!(
+        store
+            .update_study_card(article, comment, card, "", "Yes")
+            .is_err()
+    );
+
+    assert_eq!(store.annotation(article, comment)?.cards, before);
+    assert!(!store.undo()?);
+    store.set_deleted(article, true)?;
+    store.clear_history()?;
+    assert!(
+        store
+            .update_study_card(article, comment, card, "New?", "Yes")
+            .is_err()
+    );
+    assert_eq!(store.annotation(article, comment)?.cards, before);
+    assert!(!store.undo()?);
     Ok(())
 }
