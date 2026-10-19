@@ -6,6 +6,7 @@
 //! let annotations capture original text rather than a lossy rendered copy.
 
 pub mod cursor;
+pub mod images;
 pub mod index;
 mod layout_worker;
 mod live;
@@ -46,6 +47,8 @@ pub struct Rendered {
     pub mappings: Vec<SourceMapping>,
     /// Unique, validated HTTP(S) links in encounter order.
     pub links: Vec<(String, String)>,
+    /// Fixed publisher image slots, loaded separately from text layout.
+    pub images: Vec<images::ImageSlot>,
 }
 
 struct Builder<'a> {
@@ -61,6 +64,7 @@ struct Builder<'a> {
     code: Option<String>,
     quote: usize,
     active_link: Option<(usize, usize)>,
+    image: Option<images::PendingImage>,
     highlight: &'a mut dyn FnMut(&str, &str) -> Vec<Line<'static>>,
 }
 
@@ -87,6 +91,7 @@ pub(super) fn render_with(
         code: None,
         quote: 0,
         active_link: None,
+        image: None,
         highlight,
     };
     for (event, range) in Parser::new(body).into_offset_iter() {
@@ -98,6 +103,9 @@ pub(super) fn render_with(
 
 impl Builder<'_> {
     fn event(&mut self, event: Event<'_>, range: Range<usize>) {
+        if self.image_event(&event) {
+            return;
+        }
         match event {
             Event::Start(tag) => self.start(tag, range),
             Event::End(tag) => self.end(tag),
@@ -181,6 +189,14 @@ impl Builder<'_> {
             Tag::Emphasis => self.push_style(Modifier::ITALIC),
             Tag::Strong => self.push_style(Modifier::BOLD),
             Tag::Link { dest_url, .. } => self.begin_link(&dest_url),
+            Tag::Image { dest_url, .. } if self.rendered.images.len() < 32 => {
+                self.flush();
+                self.image = Some(images::PendingImage {
+                    url: dest_url.into_string(),
+                    alt: String::new(),
+                    source: range,
+                });
+            }
             _ => {}
         }
     }

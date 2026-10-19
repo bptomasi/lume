@@ -18,6 +18,7 @@ mod events;
 mod exchange;
 mod extraction;
 mod help;
+mod images;
 mod input;
 mod layouts;
 mod navigation;
@@ -53,6 +54,7 @@ pub use document_view::DocumentView;
 pub use draft_keys::EditMode;
 pub use events::InputBatch;
 pub use help::HELP;
+pub use images::ReaderImages;
 use note_tasks::Edit as NoteEdit;
 pub use notebook::{NoteAction, NoteContext, Notebook, ReviewTarget};
 pub use pane_motion::FloatingPane;
@@ -308,6 +310,8 @@ pub struct App {
     pub reader_text: String,
     /// Cached article structure, local search and source-bound jump history.
     pub reader_tools: ReaderTools,
+    /// Separate image loading state; text layout never waits for it.
+    pub images: ReaderImages,
     renderer: crate::reader::LiveRenderer,
     navigation_worker: Option<navigation_worker::NavigationWorker>,
     session_writer: Option<session_writer::SessionWriter>,
@@ -433,6 +437,7 @@ impl App {
             linewise: false,
             reader_text: String::new(),
             reader_tools: ReaderTools::default(),
+            images: ReaderImages::default(),
             renderer: crate::reader::LiveRenderer::start()?,
             navigation_worker: None,
             session_writer: None,

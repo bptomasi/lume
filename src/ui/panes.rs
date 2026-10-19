@@ -358,6 +358,7 @@ fn reader_body(frame: &mut Frame<'_>, app: &App, column: Rect, inner: Rect) {
         Paragraph::new(lines).style(Style::new().fg(TEXT)),
         column,
     );
+    super::images::draw(frame, app, column);
     super::note_preview::markers(frame, app, column);
     reader_progress(frame, app, column, inner);
 }

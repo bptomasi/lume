@@ -3,6 +3,58 @@
 Lume is an independent desktop/terminal reader. It does not require Miniflux,
 PostgreSQL, containers, an account, or a hosted service. Domain data stays local.
 
+## Inline article images (2026-10-19)
+
+Select `image` **0.25.10** (MIT OR Apache-2.0), with only PNG, JPEG, WebP and
+GIF enabled. The multi-contributor image-rs project supplies format detection,
+decoder limits, first-frame decoding and aspect-preserving resizing. Its
+published API/source and security page were reviewed. Disable default formats,
+Rayon, AVIF and native codecs to bound the dependency and runtime footprint.
+This review is not a completed advisory audit. Remote bytes remain untrusted;
+Lume enforces compressed-byte, dimension and pixel budgets before decoding.
+The decoder allocation setting is best effort, not a process memory sandbox.
+
+Select `ratatui-image` **8.1.1** (MIT), the compatible Ratatui 0.29 integration.
+The active Ratatui community maintains newer releases, but those require a
+different Ratatui version; upgrading the terminal/editor stack is outside this
+capability. Review the published halfblock encoder and use only its fixed,
+bounded buffer output. Disable default features, Chafa, Tokio and terminal
+probing. Alacritty receives ordinary truecolor halfblocks; no unsupported
+graphics protocol or external overlay is assumed. Resize/encoding occur on a
+dedicated worker, with clipping performed from cached cells during drawing.
+
+Select RustCrypto `sha2` **0.11.1** (MIT OR Apache-2.0), without default features,
+for stable URL-derived cache filenames. The multi-maintainer RustCrypto
+implementation replaces custom hashing. This cache key is not authentication
+or a claim of publisher integrity. Retain pinned versions and dependency notices.
+Existing ureq/Rustls and tempfile own bounded HTTP and atomic cache publication.
+Lume owns loading policy, cache eviction, offline behavior and stale results.
+
+SVG uses Linebender `resvg` **0.48.1** (MIT OR Apache-2.0), with text enabled,
+without system font discovery, memory-mapped fonts, SVGZ or embedded raster decoders.
+The maintained multi-contributor SVG ecosystem owns paths, styles, text shaping
+and rasterization. Its published usvg resource resolver explicitly allows local
+files by default: Lume replaces both string and data resolvers with rejection.
+`roxmltree` **0.21.1** (MIT OR Apache-2.0), also used by usvg, owns XML parsing
+with DTD disabled and a node budget. Lume additionally caps SVG bytes and paints
+only a thumbnail-sized surface. Scripts, external styles, linked images and
+data-URL images are not loaded or executed. Only SVGs containing text load one
+fallback font, on the worker, with a 4 MiB file budget and reuse across images.
+Known OS font paths and explicit `LUME_SVG_FONT` replace an unbounded system font
+scan; publisher strings can never choose a font path.
+OS/user fonts are read in place and are not bundled or copied into the cache.
+The resvg/usvg API and resource resolver contracts were checked before use:
+[resvg](https://docs.rs/resvg/0.48.1/resvg/),
+[resource resolver](https://docs.rs/usvg/0.48.1/usvg/struct.ImageHrefResolver.html),
+[XML limits](https://docs.rs/roxmltree/0.21.1/roxmltree/struct.ParsingOptions.html).
+
+Authoritative references: [image-rs](https://github.com/image-rs/image),
+[decoder limits](https://docs.rs/image/0.25.10/image/struct.Limits.html),
+[compatible widget manifest](https://github.com/ratatui/ratatui-image/blob/v8.1.1/Cargo.toml),
+[halfblock encoder](https://docs.rs/ratatui-image/8.1.1/ratatui_image/protocol/halfblocks/index.html),
+[RustCrypto SHA-2](https://github.com/RustCrypto/hashes/tree/master/sha2),
+[Alacritty graphics request](https://github.com/alacritty/alacritty/issues/910).
+
 ## Local recommendations (2026-10-19)
 
 Reuse pinned bundled SQLite FTS5, rusqlite and the existing nom boolean query

@@ -180,6 +180,12 @@ class InstallationTests(unittest.TestCase):
             (installer.PROJECT / "LICENSE").read_bytes(),
         )
         self.assertTrue((licenses / "full-article/NOTICES.md").is_file())
+        self.assertTrue((licenses / "images/NOTICES.md").is_file())
+        self.assertEqual(
+            (licenses / "images/THIRD_PARTY_LICENSES.txt").read_bytes(),
+            (installer.PROJECT / "assets/licenses/images/THIRD_PARTY_LICENSES.txt")
+            .read_bytes(),
+        )
         self.assertTrue((licenses / "syntax/PROVENANCE.md").is_file())
         with closing(sqlite3.connect(self.target)) as library:
             library.execute("UPDATE comments SET body = 'Personal edit'")

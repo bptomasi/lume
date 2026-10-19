@@ -10,6 +10,7 @@ pub mod content;
 pub mod demo;
 pub mod exchange;
 pub mod external_editor;
+pub mod media;
 pub mod model;
 pub mod reader;
 pub mod search;

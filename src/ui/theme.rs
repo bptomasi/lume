@@ -16,6 +16,14 @@ pub(super) const ACCENT: Color = Color::Rgb(225, 179, 109);
 pub(super) const AMBER: Color = Color::Rgb(225, 179, 109);
 pub(super) const BLUE: Color = Color::Rgb(145, 180, 218);
 
+pub(crate) fn image_background(name: &str) -> [u8; 3] {
+    match name {
+        "nord" => [52, 60, 75],
+        "gruvbox" => [40, 40, 40],
+        _ => [23, 23, 26],
+    }
+}
+
 pub(super) fn panel(title: String, focused: bool) -> Block<'static> {
     let color = if focused { ACCENT } else { BORDER };
     Block::bordered()
@@ -40,6 +48,11 @@ pub(super) fn apply(buffer: &mut ratatui::buffer::Buffer, name: &str) {
     };
     let source = [BG, PANEL, RAISED, BORDER, TEXT, MUTED, FAINT, AMBER, BLUE];
     for cell in &mut buffer.content {
+        // Raster cells retain publisher colors, even when a pixel happens to
+        // equal a UI palette token. Transparency already uses the chosen theme.
+        if matches!(cell.symbol(), "▀" | "▄") {
+            continue;
+        }
         if let Some(index) = source.iter().position(|color| *color == cell.fg) {
             cell.set_fg(rgb(colors[index]));
         }

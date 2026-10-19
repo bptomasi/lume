@@ -5,6 +5,7 @@
 
 mod availability;
 mod code;
+mod images;
 mod table;
 
 pub use availability::{BodyKind, MISSING_BODY, body_kind};
@@ -118,6 +119,10 @@ impl Fragment {
         }
         if name == "a" && self.preformatted.is_none() {
             self.begin_link(&tag);
+        }
+        if name == "img" && self.preformatted.is_none() {
+            self.image(&tag);
+            return;
         }
         if self.preformatted.is_none()
             && (self.table.is_some() || name == "table")

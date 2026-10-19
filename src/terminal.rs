@@ -38,6 +38,9 @@ pub(super) fn run(
     }
     let mut app = App::new(store, demo)?;
     app.enable_background_navigation(&path)?;
+    if let Some(directory) = path.parent() {
+        app.enable_images(directory.join("images"), offline || demo)?;
+    }
     let mut background = Background::start(path, !demo && !offline)?;
     if !offline && !app.library.feeds.is_empty() {
         background.refresh(&mut app);
@@ -100,6 +103,7 @@ fn event_loop(
 
 fn poll_reading_workers(app: &mut App) -> bool {
     let mut changed = app.poll_reader();
+    changed |= app.poll_images();
     for result in [app.poll_navigation(), app.poll_recommendations()] {
         match result {
             Ok(ready) => changed |= ready,
@@ -124,6 +128,7 @@ fn sync_mouse(guard: &mut TerminalGuard, app: &mut App) -> bool {
 
 fn poll_interval(app: &App) -> Duration {
     let active = app.reader_pending()
+        || app.images_pending()
         || app.notebook_pending()
         || app.note_inspection_pending()
         || app.note_catalog_pending()

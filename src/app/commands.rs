@@ -100,6 +100,9 @@ impl App {
         if let Some(action) = self.reader_tools_command(verb, argument)? {
             return Ok(Some(action));
         }
+        if let Some(action) = self.image_command(verb, argument)? {
+            return Ok(Some(action));
+        }
         self.document_command(verb, argument)
     }
 

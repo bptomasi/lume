@@ -19,6 +19,8 @@ mod feed_content;
 mod full_article;
 #[path = "workloads/highlighting.rs"]
 mod highlighting;
+#[path = "workloads/images.rs"]
+mod images;
 #[path = "workloads/note_interactions.rs"]
 mod note_interactions;
 #[path = "workloads/note_study.rs"]
@@ -80,6 +82,9 @@ fn main() -> Result<()> {
 }
 
 fn focused_workload(iterations: usize, stress: bool) -> Option<Result<()>> {
+    if std::env::args().any(|argument| argument == "--images-only") {
+        return Some(images::run(iterations, stress));
+    }
     if std::env::args().any(|argument| argument == "--recommendations-only") {
         return Some(recommendations::run(iterations, stress));
     }

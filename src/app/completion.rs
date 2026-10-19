@@ -486,6 +486,18 @@ const COMMANDS: &[CommandSpec] = &[
         aliases: &[],
     },
     CommandSpec {
+        name: "images",
+        usage: "images [on|off|retry]",
+        description: "Load or pause article images; retry failures",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "image-open",
+        usage: "image-open",
+        description: "Open the image under the Reader cursor in a browser",
+        aliases: &[],
+    },
+    CommandSpec {
         name: "tables",
         usage: "tables",
         description: "Inspect full-width tables with horizontal scrolling",

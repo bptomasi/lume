@@ -1,0 +1,196 @@
+{
+  "measured_at": "2026-10-19T16:29:50.483526+00:00",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "binary": "reader-fc86952a85e74996",
+  "binary_sha256": "a2fd43db4e26a0080aa5933cd0055d57c2bd77f8a81888a2e6b74d67317119de",
+  "notes": [
+    "Three repeated processes per representative/stress workload.",
+    "Setup and fallback font initialization are outside operation timers.",
+    "Process resources include fixture generation and setup.",
+    "Frames use TestBackend; physical terminal latency is not measured.",
+    "This new capability has no equivalent pre-feature baseline."
+  ],
+  "runs": [
+    {
+      "stress": false,
+      "run": 1,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 104.17,
+          "mean_ms": 2.604
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 249.652,
+          "mean_ms": 6.241
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 551.256,
+          "mean_ms": 0.276
+        }
+      },
+      "resources": {
+        "wall_seconds": 0.94,
+        "peak_rss_kib": 22716,
+        "user_seconds": 0.92,
+        "system_seconds": 0.0,
+        "input_blocks": 1488,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 104.170 ms total, 2.604 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 249.652 ms total, 6.241 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 551.256 ms total, 0.276 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "run": 2,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 105.628,
+          "mean_ms": 2.641
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 254.53,
+          "mean_ms": 6.363
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 548.736,
+          "mean_ms": 0.274
+        }
+      },
+      "resources": {
+        "wall_seconds": 0.93,
+        "peak_rss_kib": 23092,
+        "user_seconds": 0.93,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 105.628 ms total, 2.641 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 254.530 ms total, 6.363 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 548.736 ms total, 0.274 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "run": 3,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 101.176,
+          "mean_ms": 2.529
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 231.732,
+          "mean_ms": 5.793
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 509.073,
+          "mean_ms": 0.255
+        }
+      },
+      "resources": {
+        "wall_seconds": 0.87,
+        "peak_rss_kib": 23228,
+        "user_seconds": 0.86,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=11819 bytes, SVG=17762 bytes, stress=false\nbounded raster decode + halfblock encode: 40 iterations, 101.176 ms total, 2.529 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 231.732 ms total, 5.793 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 509.073 ms total, 0.255 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 1,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 416.331,
+          "mean_ms": 10.408
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 1428.408,
+          "mean_ms": 35.71
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 513.94,
+          "mean_ms": 0.257
+        }
+      },
+      "resources": {
+        "wall_seconds": 2.43,
+        "peak_rss_kib": 45296,
+        "user_seconds": 2.41,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 416.331 ms total, 10.408 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1428.408 ms total, 35.710 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 513.940 ms total, 0.257 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 2,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 439.169,
+          "mean_ms": 10.979
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 1540.073,
+          "mean_ms": 38.502
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 517.582,
+          "mean_ms": 0.259
+        }
+      },
+      "resources": {
+        "wall_seconds": 2.57,
+        "peak_rss_kib": 44660,
+        "user_seconds": 2.55,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 439.169 ms total, 10.979 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1540.073 ms total, 38.502 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 517.582 ms total, 0.259 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 3,
+      "metrics": {
+        "bounded raster decode + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 442.779,
+          "mean_ms": 11.069
+        },
+        "bounded SVG paths/text + halfblock encode": {
+          "iterations": 40,
+          "total_ms": 1559.83,
+          "mean_ms": 38.996
+        },
+        "cached image scroll + two reader frames": {
+          "iterations": 2000,
+          "total_ms": 556.855,
+          "mean_ms": 0.278
+        }
+      },
+      "resources": {
+        "wall_seconds": 2.63,
+        "peak_rss_kib": 45160,
+        "user_seconds": 2.6,
+        "system_seconds": 0.02,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "images: raster=44519 bytes, SVG=108562 bytes, stress=true\nbounded raster decode + halfblock encode: 40 iterations, 442.779 ms total, 11.069 ms/iteration\nbounded SVG paths/text + halfblock encode: 40 iterations, 1559.830 ms total, 38.996 ms/iteration\ncached image scroll + two reader frames: 2000 iterations, 556.855 ms total, 0.278 ms/iteration\n"
+    }
+  ]
+}

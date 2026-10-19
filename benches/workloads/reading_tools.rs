@@ -16,6 +16,7 @@ use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
 pub fn run(iterations: usize, stress: bool) -> Result<()> {
     super::recommendations::run(iterations, stress)?;
+    super::images::run(iterations, stress)?;
     selection(iterations, stress)?;
     super::note_interactions::run(iterations, stress)?;
     super::annotation_notebook::run(iterations, stress)?;

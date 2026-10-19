@@ -142,7 +142,7 @@ fn fallback_id(
         .map_or_else(String::new, |title| format!("title:{}", title.content))
 }
 
-pub(super) fn agent() -> ureq::Agent {
+pub(crate) fn agent() -> ureq::Agent {
     let roots = rustls_native_certs::load_native_certs()
         .certs
         .iter()

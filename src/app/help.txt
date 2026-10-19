@@ -104,6 +104,11 @@
   :highlights TEXT        Find and jump to a saved highlight
   :copy-code      Copy the whole code block under the cursor
   :tables         Wide table inspector: h/l sideways, j/k vertically
+  :images         Show image loading status; on/off starts/pauses new loads
+  :images retry   Retry failed visible images; cached images work offline
+  :image-open     Open image under cursor at original quality in a browser
+                  PNG, JPEG, WebP, GIF (first frame) and SVG are supported.
+                  Inline previews use truecolor halfblocks, also in Alacritty.
   Reader motions operate on displayed text, including private notes.
   Bracket matching uses displayed characters, without language parsing.
   This reader does not modify publisher text with Vim editing operators.

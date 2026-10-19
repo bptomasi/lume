@@ -5,6 +5,7 @@ mod chrome;
 mod command_line;
 mod drag_picture;
 mod hit;
+mod images;
 pub(crate) use drag_picture::compact as compact_drag_picture;
 mod key_guide;
 mod layout;
@@ -17,6 +18,8 @@ mod panes;
 mod reader_text;
 mod selectors;
 mod theme;
+
+pub(crate) use theme::image_background;
 
 use ratatui::Frame;
 

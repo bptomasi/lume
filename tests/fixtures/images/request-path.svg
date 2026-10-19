@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="240"
+     viewBox="0 0 800 240">
+  <rect x="0" y="40" width="200" height="160" rx="22" fill="#e1b36d"/>
+  <rect x="300" y="40" width="200" height="160" rx="22" fill="#91b4cb"/>
+  <rect x="600" y="40" width="200" height="160" rx="22" fill="#b0c79b"/>
+  <path d="M215 120h65m-20-20 20 20-20 20M515 120h65m-20-20 20 20-20 20"
+        fill="none" stroke="#e0dbd0" stroke-width="8"/>
+  <g font-family="sans-serif" font-size="54" font-weight="bold"
+     fill="#17171a" text-anchor="middle">
+    <text x="100" y="140">API</text>
+    <text x="400" y="140">Q</text>
+    <text x="700" y="140">DB</text>
+  </g>
+</svg>

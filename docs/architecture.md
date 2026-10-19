@@ -938,6 +938,52 @@ One already-running SQLite/reflow/draw operation is not preempted; the reader
 makes no hard real-time guarantee.
 
 
+## Inline publisher images
+
+`content::images` preserves HTTP(S) `img`/lazy-source references as Markdown.
+`reader::images` consumes actual CommonMark image events, outside code blocks,
+and reserves a caption plus twelve raster rows for at most 32 images. Parser
+source ranges remain attached to those slots. The reserved text and row ranges
+do not change when loading succeeds or fails, keeping selection/progress and
+annotation positions independent of network completion.
+
+`app::images` resolves relative URLs once per installed layout against the
+displayed Feed URL or cached Full final URL. It admits one currently visible
+image at a time. Thumbnail keys capture URL, width, height and theme matte;
+results for an earlier article or width cannot paint the current slot. Twenty-
+four prepared results bound retained cells. Pausing affects new admission;
+already admitted work may finish and cached previews remain visible.
+
+`media::Worker` owns bounded HTTP, the disposable file cache, decoder/font state
+and fixed Ratatui-image halfblock encoding. Requests/results use one-slot
+channels. The UI never waits for HTTP, reads cache files or encodes pixels.
+Drop disconnects the lane; an admitted HTTP operation can complete within its
+transport timeout. Worker disconnection and per-image failures are visible.
+Cache write failures retain the visible image and report the lost offline cache.
+
+Raster headers precede full decoding, with dimension/pixel/compressed-byte
+limits. SVG goes through bounded, DTD-disabled XML and resvg, with string/data
+resource resolvers rejecting linked images and local files. Only text-bearing
+SVGs read one bounded OS/user fallback font; there is no system-wide font scan.
+Neither parser nor renderer executes JavaScript. Decoder allocation settings
+are best effort, and these limits do not create a process sandbox.
+
+`ui::images` copies only visible cached cells, including partially scrolled
+images. Uniform-color cells retain halfblock glyphs so theme remapping preserves
+literal publisher colors; transparent pixels already use the selected matte.
+The reader cursor paints above image cells. Normal pane pictures include these
+ordinary Ratatui cells, allowing existing drag/dim/clip behavior without a second
+terminal graphics lifecycle. Standard Alacritty uses the same representation.
+Resolution is cell-limited; `:image-open` delegates the validated original URL
+to the existing browser adapter. There is no Kitty/Sixel/iTerm2 negotiation or
+external overlay process in this integration.
+
+SHA-256 URL keys and atomic tempfile publication isolate the 64 MiB/128-file
+cache from publisher path strings. Eviction selects oldest writes and touches
+only owned regular cache names. Cache files are revalidated before use; offline
+mode never fetches a miss. Raw bytes are discarded after preparation. Publisher
+refreshes and user notes remain in SQLite; no schema migration is introduced.
+
 ## Incremental local recommendations
 
 `model::recommendation` owns explicit interest/profile/feedback contracts.

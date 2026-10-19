@@ -271,6 +271,8 @@ impl App {
             };
         self.rebuild_note_marks(&rendered);
         self.paint_highlights(&mut rendered);
+        self.images.slots = rendered.images;
+        self.resolve_image_urls();
         self.reader_styled = rendered.lines;
         self.line_ranges = rendered.ranges;
         self.code_lines = rendered.code;

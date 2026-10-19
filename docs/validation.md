@@ -1,5 +1,75 @@
 # Validation record — Lume
 
+## Inline images and SVG — 2026-10-19
+
+`make check-release` passed with exact Rust **1.99.1**, locked published crates
+and no source/toolchain substitutions: **447 native Rust tests**, checked
+workloads, **10 installer tests**, Clippy/formatting, examples, Python syntax,
+**all 11 real HTTP tests** and the release build. The real HTTP stage ran with
+loopback socket permission; no HTTP case was silently skipped. An initial
+attempt ran out of disk space. Cleaning generated development artifacts freed
+44.1 GiB; the complete final gate then passed.
+
+Fourteen native image scenarios and two internal worker/font scenarios cover
+known PNG/JPEG/WebP/GIF/SVG colors, first-frame animations, transparency, aspect
+ratio, strict dimensions, malformed/oversized content, DTD/node limits,
+rejected SVG file references, lazy/relative HTML images, source ranges, code
+examples, offline misses/retries, resize keys, literal colors in all themes,
+visible image-row cursors, selection/scroll stability, collapsed Reader
+admission, disk byte/file budgets and unrelated Unicode filenames. Font inputs
+are bounded and a disconnected worker reports failure. Three additional real
+HTTP scenarios cover download/offline reopen, errors/non-images and delayed
+responses with concurrent input/navigation, without stale image painting.
+
+The actual 144×44 Reader preview in [preview-images.png](preview-images.png)
+was exported from Ratatui using `cargo run --locked --example images` and
+visually reviewed. It uses the owned SVG/Markdown request-path fixture and an
+isolated offline cache. A separate final release-executable Linux PTY run at
+144×44 observed cached image halfblocks and truecolor output, accepted reader
+keys, exited cleanly, restored terminal attributes and preserved publisher
+text and its private note. The PTY fixture explicitly enables truecolor and
+removes inherited `NO_COLOR`; the application does not override that user flag.
+
+`make check-alacritty` was attempted and failed its prerequisite check because
+`xdotool` is missing here; `xvfb-run` is also unavailable. No physical Alacritty
+paint/input pass is claimed. CI explicitly installs its terminal tools and a
+fallback font before local/HTTP/terminal qualification. `cargo-audit` is not
+installed here: the pinned package/license review is not an advisory audit.
+The 67 added registry packages, including platform-specific dependencies,
+retain their notices in `assets/licenses/images`; installation verifies that
+the consolidated text is distributed intact. Existing locked versions were
+preserved, and no user database migration was added.
+
+### Measured image workloads
+
+`make bench-images` records three release processes each for representative
+and stress inputs in [image-benchmarks.json](image-benchmarks.json), including
+the executable SHA-256, Rust/platform, checked output, wall time, peak RSS,
+CPU and filesystem block counters. Environment: Linux 7.1.8+deb13-amd64,
+x86_64, Intel Core Ultra 7 155H, 32,347,088 KiB system RAM, Rust 1.99.1.
+Raster inputs are 1200×600 and 2400×1200; SVG inputs contain 150 and 900
+groups with rectangles/text in a 1200×600 viewbox. Output fits 80×12 cells.
+Font initialization and fixture generation are outside operation timers;
+process resources include that setup. One bounded fallback font replaces
+system-wide font scanning; it is not bundled into the executable.
+
+Medians of the three per-run means, in milliseconds:
+
+| Workload | Representative | Stress |
+| --- | ---: | ---: |
+| Raster decode + halfblock encoding | 2.604 | 10.979 |
+| SVG paths/text + halfblock encoding | 6.241 | 38.502 |
+| Cached scrolling + two actual Reader frames | 0.274 | 0.259 |
+| Whole-process peak RSS, KiB | 23,092 | 45,160 |
+
+Process wall times were 0.87–0.94 seconds and 2.43–2.63 seconds. The final
+release executable is 20,738,704 bytes, compared with 16,898,784 bytes for the
+retained preceding build. This records the feature's binary cost, not a
+performance baseline for equivalent image work. These timings use TestBackend
+and direct viewport changes, not physical input/Alacritty latency. Whole-process
+RSS is not idle application RAM or a hard decoder memory ceiling. Shared-host
+scheduling/cache state were uncontrolled; no general speedup is claimed.
+
 ## Continuous horizontal reader movement — 2026-10-19
 
 `make check` passed with pinned Rust **1.99.1** and locked published sources:

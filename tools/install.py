@@ -99,6 +99,11 @@ def install_notices(project, prefix):
         destination / "full-article",
         dirs_exist_ok=True,
     )
+    shutil.copytree(
+        project / "assets/licenses/images",
+        destination / "images",
+        dirs_exist_ok=True,
+    )
     syntax = destination / "syntax"
     syntax.mkdir(exist_ok=True)
     for source in (project / "assets/syntax").iterdir():

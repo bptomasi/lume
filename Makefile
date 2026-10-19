@@ -11,6 +11,7 @@ MIGRATE_FROM ?=
 
 .PHONY: check check-release check-http check-alacritty fmt lint test bench build demo
 .PHONY: install test-tools bench-tools bench-notes bench-recommendations
+.PHONY: bench-images
 
 # Serialize composition even when a caller uses make -j.
 .NOTPARALLEL:
@@ -22,7 +23,7 @@ check:
 	$(MAKE) test-tools
 	python3 -m py_compile tools/render_preview.py tools/qualify_alacritty.py \
 		tools/install.py tools/bench_install.py tools/bench_notes.py \
-		tools/bench_support.py tools/bench_recommendations.py
+		tools/bench_support.py tools/bench_recommendations.py tools/bench_images.py
 
 fmt:
 	$(CARGO) fmt --all -- --check
@@ -45,7 +46,7 @@ check-release:
 	$(CARGO) build --locked --release
 
 check-http:
-	$(CARGO) test --locked --test http -- --ignored
+	$(CARGO) test --locked --test http --test image_http -- --ignored
 
 # Requires a real X11 display, or xvfb-run, and the named GUI test tools.
 # This is separate from local checks because it opens a desktop window.
@@ -65,6 +66,9 @@ bench-notes:
 
 bench-recommendations:
 	python3 tools/bench_recommendations.py
+
+bench-images:
+	python3 tools/bench_images.py
 
 bench-tools:
 	python3 tools/bench_install.py

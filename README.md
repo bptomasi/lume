@@ -463,6 +463,46 @@ are capped at 1 MiB, including the notice; the original article stays intact. St
 events without removing article text. Code copies keep indentation and omit
 Markdown fences; the existing 64 KiB clipboard limit applies.
 
+### Article images
+
+![Actual offline SVG image preview](docs/preview-images.png)
+
+The Reader displays PNG, JPEG, WebP, GIF (first frame) and SVG references from
+HTML or Markdown. HTML `img` references, including `data-src` lazy images, are
+preserved during normalization. Previously cached articles that lost image
+references need a fresh feed collection or `:fetch` for the full article.
+
+Previews use truecolor Unicode halfblocks, including in standard Alacritty.
+They follow normal scrolling, clipping and pane movement; their definition is
+limited by terminal cells. Use `:image-open` with the cursor on an image/caption
+to inspect the original in your browser. GIFs and SVGs are static previews.
+Inline SVG markup and embedded/nested image resources are not rendered.
+
+| Command | Action |
+| --- | --- |
+| :images | Show the current loading policy |
+| :images off / :images on | Pause/resume new loads; keep ready previews |
+| :images retry | Retry failed visible images |
+| :image-open | Open the image under the Reader cursor |
+
+Only visible images are requested, on one background worker. Fixed slots
+prevent late results from shifting text, selections or notes. Decoding and
+encoding happen outside input/drawing. At most 24 prepared thumbnails are
+retained; raw image files use a disposable `images/` cache alongside your
+library, capped at 64 MiB and 128 files, evicting oldest writes. `--offline`
+reads that cache without downloading misses. A failed image leaves the article
+readable, with an inline reason and an explicit retry command.
+Cached bytes are reused by URL until eviction; publisher ETags are not
+revalidated for image resources in this version.
+
+Raster downloads are capped at 8 MiB, 8192 pixels per dimension and 8 million
+pixels total. SVGs are capped at 512 KiB and 5,000 XML nodes; DTDs, scripts,
+external files and nested image loads are disabled. SVG text reuses one fallback
+font, loaded only when needed and limited to a 4 MiB TTF/OTF. Common OS font
+paths are checked; set `LUME_SVG_FONT=/absolute/path/font.ttf` for another font.
+SVG without text needs no font. Decoder limits are not an OS memory sandbox.
+Images add no server, external renderer, GPU overlay or runtime image command.
+
 ### Source rules and health
 
 Use `:extract-preview article.post-content` to test a CSS container on the
