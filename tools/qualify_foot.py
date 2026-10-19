@@ -7,6 +7,7 @@ and physical screen pixels require separate visual inspection.
 """
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -216,6 +217,20 @@ def selected_scroll(directory, process):
     )
 
 
+def reader_aliases(directory, process):
+    expected = "Request ownership"
+    request = b"\x1b]52;c;" + base64.b64encode(expected.encode()) + b"\x1b\\"
+    path = directory / "terminal-output.bin"
+    before = path.stat().st_size
+    # Normalize visual selection regardless of the preceding mouse gesture.
+    send(directory, b"ggIVvAy")
+    wait_for(
+        "I/A visual yank from the heading",
+        lambda: request in path.read_bytes()[before:], process,
+    )
+    return {"keys": "ggIVvAy", "yank": expected, "host_clipboard": "disabled"}
+
+
 def inspect(directory, process, initial, cell_height):
     send(directory, b"gg")
     time.sleep(0.1)
@@ -274,6 +289,7 @@ def qualify(directory, process):
     pixels = verify_pixels(directory, initial, geometry["cell_pixels"][1])
     samples = scrolling(directory, process, initial)
     selections = selection_scroll(directory, process, initial)
+    aliases = reader_aliases(directory, process)
     before = frame(directory)["offset"]
     command(directory, "help")
     wait_for(
@@ -289,7 +305,7 @@ def qualify(directory, process):
     if cleanup != {"returncode": 0, "termios_restored": True}:
         raise RuntimeError(f"Foot terminal cleanup failed: {cleanup}")
     return {"geometry": geometry, "decoded_strips": pixels,
-            "scroll_rows": samples, "selection": selections,
+            "scroll_rows": samples, "selection": selections, "reader_aliases": aliases,
             "inspector": inspector, "cleanup": cleanup}
 
 
@@ -311,6 +327,7 @@ def launch(binary, directory):
     configuration.write_text(
         "[main]\nfont=FiraCode Nerd Font Mono:size=12\n"
         "initial-window-size-chars=120x40\npad=0x0\n"
+        "[security]\nosc52=disabled\n"
     )
     environment = os.environ.copy()
     environment.update(LUME_DATA_DIR=str(directory / "data/lume"))

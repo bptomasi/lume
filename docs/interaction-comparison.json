@@ -1,0 +1,49 @@
+{
+  "baseline": "interaction-baseline.json",
+  "reviewed": "interaction-benchmarks.json",
+  "scope": "Elapsed app-side work in checked TestBackend frames; physical paint and background database navigation latency are outside these workloads.",
+  "medians": [
+    {
+      "stress": false,
+      "workload": "library cursor + full interactive frame",
+      "baseline_ms": 0.272778,
+      "reviewed_ms": 0.19628700000000002,
+      "change_percent": -28.04
+    },
+    {
+      "stress": false,
+      "workload": "deep linewise selection + full interactive frame",
+      "baseline_ms": 0.29766149999999997,
+      "reviewed_ms": 0.2931665,
+      "change_percent": -1.51
+    },
+    {
+      "stress": false,
+      "workload": "deep Unicode cursor boundary",
+      "baseline_ms": 0.36227,
+      "reviewed_ms": 1.3e-05,
+      "change_percent": -100.0
+    },
+    {
+      "stress": true,
+      "workload": "library cursor + full interactive frame",
+      "baseline_ms": 2.4454569999999998,
+      "reviewed_ms": 0.21663149999999998,
+      "change_percent": -91.14
+    },
+    {
+      "stress": true,
+      "workload": "deep linewise selection + full interactive frame",
+      "baseline_ms": 0.3018485,
+      "reviewed_ms": 0.289228,
+      "change_percent": -4.18
+    },
+    {
+      "stress": true,
+      "workload": "deep Unicode cursor boundary",
+      "baseline_ms": 2.7623800000000003,
+      "reviewed_ms": 1.6e-05,
+      "change_percent": -100.0
+    }
+  ]
+}

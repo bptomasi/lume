@@ -10,12 +10,7 @@ pub fn navigation_at(app: &App, area: Rect, row: u16) -> Option<usize> {
     if row < inner.y || row >= inner.bottom() {
         return None;
     }
-    let rows = super::panes::navigation_rows(app, inner.width);
-    let selected = rows
-        .iter()
-        .position(|(_, index)| *index == Some(app.nav_selected))?;
-    let first = selected.saturating_sub(inner.height as usize / 2);
-    rows.get(first + usize::from(row - inner.y))?.1
+    super::navigation::at(app, inner.height, usize::from(row - inner.y))
 }
 
 pub(super) fn article_window(app: &App, height: u16) -> (usize, usize, u16) {

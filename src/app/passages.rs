@@ -134,12 +134,8 @@ impl App {
         let mut range = anchor.min(offset)
             ..cursor::next(&self.reader_text, anchor.max(offset));
         if self.linewise {
-            let first =
-                self.reader_ranges.iter().find(|r| r.contains(&range.start));
-            let last = self
-                .reader_ranges
-                .iter()
-                .find(|r| r.contains(&(range.end - 1)));
+            let first = display_range(&self.reader_ranges, range.start);
+            let last = display_range(&self.reader_ranges, range.end - 1);
             range.start = first.map_or(range.start, |r| r.start);
             range.end = last.map_or(range.end, |r| r.end);
         }
@@ -289,6 +285,14 @@ impl App {
             }
         }
     }
+}
+
+fn display_range(
+    ranges: &[Range<usize>],
+    offset: usize,
+) -> Option<&Range<usize>> {
+    let index = ranges.partition_point(|range| range.end <= offset);
+    ranges.get(index).filter(|range| range.contains(&offset))
 }
 
 fn normalize_marks(mut marks: Vec<Range<usize>>) -> Vec<Range<usize>> {

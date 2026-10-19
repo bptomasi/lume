@@ -58,6 +58,25 @@ impl App {
         self.ensure_cursor_visible();
     }
 
+    pub(super) fn goto_column(&mut self, column: usize) {
+        self.reader_column = cursor::byte_at(self.cursor_line(), column);
+        self.reader_goal = Some(column);
+        self.ensure_cursor_visible();
+    }
+
+    pub(super) fn control_destination(&mut self, code: KeyCode, count: usize) {
+        match code {
+            KeyCode::Left => self.move_word(WordMotion::Previous, false, count),
+            KeyCode::Right => self.move_word(WordMotion::Next, false, count),
+            KeyCode::Home => self.goto_reader_row(0),
+            KeyCode::End => {
+                self.goto_reader_row(self.reader_lines.len().saturating_sub(1))
+            }
+            _ => {}
+        }
+        self.pending_anchor = None;
+    }
+
     pub(super) fn first_nonblank(&mut self) {
         self.reader_column = self
             .cursor_line()
@@ -104,6 +123,7 @@ impl App {
                 self.move_reader(code == KeyCode::Char('j'), count.unwrap_or(1))
             }
             KeyCode::Char('0') => self.line_edge(false),
+            KeyCode::Char('^') => self.first_nonblank(),
             KeyCode::Char('$') => self.line_edge(true),
             KeyCode::Char('_') => {
                 self.line_edge(true);

@@ -1,0 +1,198 @@
+{
+  "measured_at": "2026-10-19T23:32:37.787758+00:00",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "binary_sha256": "cc7d3f5173016e027c7fb3df03b27c5e44c81323ddfd4dba21ea72783a851895",
+  "notes": [
+    "Three repeated processes per representative/stress workload.",
+    "Setup, source layout and syntax completion precede operation timers.",
+    "The sidebar uses projected metadata; no database query is timed there.",
+    "Selection uses actual reader motion, workspace resize and cached frames.",
+    "App-side elapsed work is measured, not physical terminal paint latency.",
+    "Process resources include fixture setup and all three workloads.",
+    "Per-operation means are recomputed from recorded total/iterations, avoiding printed mean rounding."
+  ],
+  "runs": [
+    {
+      "stress": false,
+      "run": 1,
+      "metrics": {
+        "library cursor + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 551.107,
+          "mean_ms": 0.2755535
+        },
+        "deep linewise selection + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 598.504,
+          "mean_ms": 0.299252
+        },
+        "deep Unicode cursor boundary": {
+          "iterations": 1000,
+          "total_ms": 365.348,
+          "mean_ms": 0.365348
+        }
+      },
+      "resources": {
+        "wall_seconds": 1.52,
+        "peak_rss_kib": 15200,
+        "user_seconds": 1.52,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "interaction: 128 projected destinations, 400 paragraphs\nlibrary cursor + full interactive frame: 2000 iterations, 551.107 ms total, 0.276 ms/iteration\ndeep linewise selection + full interactive frame: 2000 iterations, 598.504 ms total, 0.299 ms/iteration\ndeep Unicode cursor boundary: 1000 iterations, 365.348 ms total, 0.365 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "run": 2,
+      "metrics": {
+        "library cursor + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 545.001,
+          "mean_ms": 0.2725005
+        },
+        "deep linewise selection + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 590.7,
+          "mean_ms": 0.29535
+        },
+        "deep Unicode cursor boundary": {
+          "iterations": 1000,
+          "total_ms": 359.817,
+          "mean_ms": 0.359817
+        }
+      },
+      "resources": {
+        "wall_seconds": 1.51,
+        "peak_rss_kib": 14820,
+        "user_seconds": 1.5,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "interaction: 128 projected destinations, 400 paragraphs\nlibrary cursor + full interactive frame: 2000 iterations, 545.001 ms total, 0.273 ms/iteration\ndeep linewise selection + full interactive frame: 2000 iterations, 590.700 ms total, 0.295 ms/iteration\ndeep Unicode cursor boundary: 1000 iterations, 359.817 ms total, 0.360 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "run": 3,
+      "metrics": {
+        "library cursor + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 545.556,
+          "mean_ms": 0.272778
+        },
+        "deep linewise selection + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 595.323,
+          "mean_ms": 0.29766149999999997
+        },
+        "deep Unicode cursor boundary": {
+          "iterations": 1000,
+          "total_ms": 362.27,
+          "mean_ms": 0.36227
+        }
+      },
+      "resources": {
+        "wall_seconds": 1.51,
+        "peak_rss_kib": 15012,
+        "user_seconds": 1.51,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "interaction: 128 projected destinations, 400 paragraphs\nlibrary cursor + full interactive frame: 2000 iterations, 545.556 ms total, 0.273 ms/iteration\ndeep linewise selection + full interactive frame: 2000 iterations, 595.323 ms total, 0.298 ms/iteration\ndeep Unicode cursor boundary: 1000 iterations, 362.270 ms total, 0.362 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 1,
+      "metrics": {
+        "library cursor + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 4890.914,
+          "mean_ms": 2.4454569999999998
+        },
+        "deep linewise selection + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 603.697,
+          "mean_ms": 0.3018485
+        },
+        "deep Unicode cursor boundary": {
+          "iterations": 1000,
+          "total_ms": 2677.165,
+          "mean_ms": 2.677165
+        }
+      },
+      "resources": {
+        "wall_seconds": 8.2,
+        "peak_rss_kib": 23932,
+        "user_seconds": 8.17,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "interaction: 4096 projected destinations, 4000 paragraphs\nlibrary cursor + full interactive frame: 2000 iterations, 4890.914 ms total, 2.445 ms/iteration\ndeep linewise selection + full interactive frame: 2000 iterations, 603.697 ms total, 0.302 ms/iteration\ndeep Unicode cursor boundary: 1000 iterations, 2677.165 ms total, 2.677 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 2,
+      "metrics": {
+        "library cursor + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 5093.28,
+          "mean_ms": 2.54664
+        },
+        "deep linewise selection + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 577.862,
+          "mean_ms": 0.288931
+        },
+        "deep Unicode cursor boundary": {
+          "iterations": 1000,
+          "total_ms": 2762.38,
+          "mean_ms": 2.7623800000000003
+        }
+      },
+      "resources": {
+        "wall_seconds": 8.46,
+        "peak_rss_kib": 24124,
+        "user_seconds": 8.44,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "interaction: 4096 projected destinations, 4000 paragraphs\nlibrary cursor + full interactive frame: 2000 iterations, 5093.280 ms total, 2.547 ms/iteration\ndeep linewise selection + full interactive frame: 2000 iterations, 577.862 ms total, 0.289 ms/iteration\ndeep Unicode cursor boundary: 1000 iterations, 2762.380 ms total, 2.762 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 3,
+      "metrics": {
+        "library cursor + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 4824.815,
+          "mean_ms": 2.4124074999999996
+        },
+        "deep linewise selection + full interactive frame": {
+          "iterations": 2000,
+          "total_ms": 608.391,
+          "mean_ms": 0.3041955
+        },
+        "deep Unicode cursor boundary": {
+          "iterations": 1000,
+          "total_ms": 2861.682,
+          "mean_ms": 2.8616819999999996
+        }
+      },
+      "resources": {
+        "wall_seconds": 8.32,
+        "peak_rss_kib": 23732,
+        "user_seconds": 8.3,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "interaction: 4096 projected destinations, 4000 paragraphs\nlibrary cursor + full interactive frame: 2000 iterations, 4824.815 ms total, 2.412 ms/iteration\ndeep linewise selection + full interactive frame: 2000 iterations, 608.391 ms total, 0.304 ms/iteration\ndeep Unicode cursor boundary: 1000 iterations, 2861.682 ms total, 2.862 ms/iteration\n"
+    }
+  ],
+  "production_baseline": "01e1deb, with interaction benchmark instrumentation added"
+}

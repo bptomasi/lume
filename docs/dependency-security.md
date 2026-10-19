@@ -288,6 +288,13 @@ on shutdown rather than waiting for an in-flight regex. Tests use a controlled
 blocked worker, real grammar completion and disconnected channels.
 
 The existing Unicode libraries own grapheme boundaries and cell widths.
+Local cursor positioning reuses pinned `unicode-segmentation` **1.13.3**'s
+`GraphemeCursor::is_boundary` and `prev_boundary` APIs. Their published source and
+full-context contracts were reviewed before integration. Supply complete text
+at chunk offset zero and preserve the iterator fallback for unresolved context.
+Native regressions compare every byte position, including inside UTF-8, across
+combining marks, Indic conjuncts, Hangul, regional flags and joined emoji.
+No custom Unicode algorithm, dependency, feature or license change is introduced.
 The [Neovim motion contract](https://github.com/neovim/neovim/blob/master/runtime/doc/motion.txt)
 informs reader word/WORD, counts, character-find, line, viewport and visual
 objects. Lume owns the fixed read-only navigation policy; it does not embed

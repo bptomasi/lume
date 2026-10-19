@@ -293,3 +293,43 @@ fn counted_pages_viewport_motions_and_positioning_keep_the_cursor_visible()
     assert_eq!(app.reader_cursor, 4);
     Ok(())
 }
+
+#[test]
+fn uppercase_edges_and_column_motion_extend_selection_without_editing()
+-> Result<()> {
+    let (_directory, mut app) = reading("\t  café 界\nnext row\n")?;
+    let body = app.body.clone();
+    keys(&mut app, "I")?;
+    assert_eq!(app.reader_column, 3);
+    keys(&mut app, "vA")?;
+    assert_eq!(keys(&mut app, "y")?, Action::Copy("café 界".into()));
+    app.selection = None;
+    keys(&mut app, "0g^")?;
+    assert_eq!(app.reader_column, 3);
+    keys(&mut app, "5|")?;
+    assert_eq!(app.reader_column, 1);
+    keys(&mut app, "9|")?;
+    assert_eq!(app.reader_column, 5);
+    assert_eq!(app.body, body);
+    assert!(matches!(app.mode, Mode::Normal));
+    Ok(())
+}
+
+#[test]
+fn control_word_and_document_aliases_are_reader_local() -> Result<()> {
+    let (_directory, mut app) = reading("alpha beta\nlast row")?;
+    let last_row = app.reader_lines.len() - 1;
+    for (code, row, column) in [
+        (KeyCode::Right, 0, 6),
+        (KeyCode::Left, 0, 0),
+        (KeyCode::End, last_row, 0),
+        (KeyCode::Home, 0, 0),
+    ] {
+        app.key(KeyEvent::new(code, KeyModifiers::CONTROL))?;
+        assert_eq!((app.reader_cursor, app.reader_column), (row, column));
+    }
+    app.focus = Focus::Articles;
+    app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::CONTROL))?;
+    assert_eq!(app.focus, Focus::Articles);
+    Ok(())
+}

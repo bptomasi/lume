@@ -34,9 +34,13 @@ impl InputBatch {
 
     /// Whether events require a frame regardless of annotation-hover changes.
     pub fn needs_redraw(&self) -> bool {
-        self.events.iter().any(|event| {
-            !matches!(event, Event::Mouse(mouse)
-                if mouse.kind == MouseEventKind::Moved)
+        self.events.iter().any(|event| match event {
+            Event::Mouse(mouse) if mouse.kind == MouseEventKind::Moved => false,
+            Event::Key(key) => {
+                key.kind != KeyEventKind::Release
+                    && !matches!(key.code, KeyCode::Modifier(_))
+            }
+            _ => true,
         })
     }
 
@@ -55,7 +59,13 @@ impl InputBatch {
                 Action::None
             }
             Event::Mouse(mouse) => self.dispatch_mouse(app, mouse)?,
-            Event::Resize(width, height) => {
+            Event::Resize(mut width, mut height) => {
+                while let Some(Event::Resize(next_width, next_height)) =
+                    self.events.front()
+                {
+                    (width, height) = (*next_width, *next_height);
+                    self.events.pop_front();
+                }
                 app.resize_workspace(ratatui::layout::Rect::new(
                     0, 0, width, height,
                 ));

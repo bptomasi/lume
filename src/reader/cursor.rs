@@ -1,10 +1,32 @@
 //! Unicode cursor boundaries shared by reader input and presentation.
 
-use unicode_segmentation::UnicodeSegmentation;
+use unicode_segmentation::{GraphemeCursor, UnicodeSegmentation};
 use unicode_width::UnicodeWidthStr;
 
 /// Closest grapheme start at or before a byte offset.
 pub fn boundary(text: &str, byte: usize) -> usize {
+    let mut offset = byte.min(text.len());
+    while !text.is_char_boundary(offset) {
+        offset -= 1;
+    }
+    let mut cursor = GraphemeCursor::new(offset, text.len(), true);
+    if offset < text.len() {
+        match cursor.is_boundary(text, 0) {
+            Ok(true) => return offset,
+            Ok(false) => {}
+            Err(_) => return scanned_boundary(text, byte),
+        }
+    }
+    match cursor.prev_boundary(text, 0) {
+        Ok(Some(boundary)) => boundary,
+        Ok(None) => 0,
+        // Full context normally resolves the cursor locally. Preserve the
+        // original contract if a library context request cannot be satisfied.
+        Err(_) => scanned_boundary(text, byte),
+    }
+}
+
+fn scanned_boundary(text: &str, byte: usize) -> usize {
     text.grapheme_indices(true)
         .map(|(start, _)| start)
         .take_while(|start| *start <= byte)
@@ -67,4 +89,43 @@ pub fn word(text: &str, byte: usize, forward: bool) -> usize {
             .unwrap_or_else(|| previous(text, text.len()));
     }
     boundaries.rfind(|start| *start < byte).unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use unicode_segmentation::UnicodeSegmentation;
+
+    #[test]
+    fn local_boundaries_match_complete_unicode_segmentation_at_every_byte() {
+        for text in [
+            "",
+            "plain ASCII",
+            "\r\nnext\r\n",
+            "e\u{301}x",
+            "\u{301}a",
+            "👩‍💻🧑🏽‍🚀",
+            "🇧🇷🇨🇦🇺",
+            "क्\u{200d}षक्ष",
+            "각나",
+            "\u{600}a\u{903}b",
+            "long context 🇦🇧🇨🇩🇪🇫🇬🇭 e\u{301} 👩‍👩‍👧‍👦",
+        ] {
+            let starts = text
+                .grapheme_indices(true)
+                .map(|(byte, _)| byte)
+                .collect::<Vec<_>>();
+            for offset in 0..=text.len() + 3 {
+                let index = starts.partition_point(|start| *start <= offset);
+                let expected =
+                    index.checked_sub(1).map_or(0, |index| starts[index]);
+                assert_eq!(
+                    super::boundary(text, offset),
+                    expected,
+                    "{text:?} at {offset}"
+                );
+            }
+            let expected = starts.last().copied().unwrap_or(0);
+            assert_eq!(super::boundary(text, usize::MAX), expected);
+        }
+    }
 }

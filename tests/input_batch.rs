@@ -213,3 +213,53 @@ fn word_and_horizontal_releases_cancel_repeats_without_losing_the_next_command()
     assert!(matches!(app.mode, lume::app::Mode::Help));
     Ok(())
 }
+
+#[test]
+fn releases_and_modifier_events_do_not_request_an_identical_frame() {
+    use crossterm::event::ModifierKeyCode;
+
+    let releases = InputBatch::new(vec![
+        key(KeyCode::Char('j'), KeyEventKind::Release),
+        key(
+            KeyCode::Modifier(ModifierKeyCode::LeftShift),
+            KeyEventKind::Press,
+        ),
+    ]);
+    assert!(!releases.needs_redraw());
+    let motion = InputBatch::new(vec![
+        key(KeyCode::Char('j'), KeyEventKind::Press),
+        key(KeyCode::Char('j'), KeyEventKind::Release),
+    ]);
+    assert!(motion.needs_redraw());
+}
+
+#[test]
+fn consecutive_resizes_keep_the_final_geometry_and_preserve_input_order()
+-> Result<()> {
+    let (_directory, mut app) = articles()?;
+    app.focus = Focus::Reader;
+    app.workspace.fullscreen = true;
+    let text = app.reader_text.clone();
+    let mut batch = InputBatch::new(vec![
+        Event::Resize(40, 18),
+        Event::Resize(100, 36),
+        key(KeyCode::Char('l'), KeyEventKind::Press),
+        Event::Resize(80, 28),
+        Event::Resize(120, 40),
+    ]);
+    batch.dispatch_next(&mut app)?;
+    let area = ratatui::layout::Rect::new(0, 0, 100, 36);
+    let column = lume::ui::workspace_reader_content(area, &app.workspace);
+    assert_eq!(app.reader_width, usize::from(column.width));
+    assert_eq!(app.reader_height, usize::from(column.height));
+    assert_eq!(app.reader_column, 0);
+    batch.dispatch_next(&mut app)?;
+    assert_eq!(app.reader_column, 1);
+    batch.dispatch_next(&mut app)?;
+    let area = ratatui::layout::Rect::new(0, 0, 120, 40);
+    let column = lume::ui::workspace_reader_content(area, &app.workspace);
+    assert_eq!(app.reader_height, usize::from(column.height));
+    assert!(batch.is_empty());
+    assert_eq!(app.reader_text, text);
+    Ok(())
+}

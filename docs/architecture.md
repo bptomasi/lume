@@ -222,8 +222,15 @@ readable text changes. Counted word destinations use binary searches; cursor
 placement binary-searches display-row ranges. Horizontal motions walk cached
 display rows, crossing soft wraps and empty rows without splitting Unicode
 graphemes. Counts bound the work; viewport adjustment happens once at the final
-destination. Transient Vim counts/prefixes
-belong to the app, never storage. Explicit ex commands retain note/favorite
+destination. `reader::cursor::boundary` delegates local boundary decisions to
+Unicode Segmentation's `GraphemeCursor` with the complete source context. Invalid
+byte positions first retreat to a codepoint boundary; unresolved context requests
+retain the complete segmentation fallback. It preserves clusters and end-of-text
+behavior without normally scanning an entire long row. Linewise selection uses
+binary bounds over sorted display-text ranges rather than repeated linear scans.
+`I`/`A`, `g^`, terminal-column `|`, Backspace and Ctrl arrow/Home/End aliases use
+the same reader-local motion owners; draft editing remains separate.
+Transient Vim counts/prefixes belong to the app, never storage. Explicit ex commands retain note/favorite
 actions where reader motions occupy their former single-key bindings.
 Reflow preserves the readable cursor and explicit jumps clear pending progress
 restoration. Reload snapshots preserve the exact cursor/viewport only for the
@@ -920,8 +927,17 @@ retain distinct taps; a pending release cancels unconsumed autorepeats. Draft,
 search and picker text retain every event. Later commands are never flushed
 as a side effect of discarding repetition. Each batch produces one frame,
 while input arrival wakes the event poll immediately.
+Release-only and standalone modifier batches do not request an identical frame.
+Consecutive resize events collapse to their final geometry, stopping at any
+intervening input so text edits and cursor movements retain their event order.
 Reader word and horizontal repeats also honor reported releases. Pending Vim
 counts/prefixes bypass vertical coalescing so `3j` remains a counted command.
+
+`ui::navigation` supplies one lazy sequence of item identities, blank section
+rows and headings for sidebar drawing and mouse hit tests. Only viewport rows
+format labels and allocate styled text. Offscreen items contribute cheap row
+identities; no additional invalidation cache or persistence state is introduced.
+Its window centering and non-selectable headers preserve the existing layout.
 
 Navigation counts belong to the loaded catalog snapshot. Changing views does
 not mutate the catalog, so `set_view` reuses those counts; mutations and worker

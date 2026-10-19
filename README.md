@@ -364,6 +364,11 @@ viewport positioning and jump history. This is read-only navigation; publisher
 text is never edited with Vim operators.
 Reader `h`/`l` and Left/Right cross display-row boundaries, including soft
 wraps and blank rows. Counts and visual selections follow the same movement.
+Reader `I` and `A` move to the first nonblank and row end. `g^` also moves
+to the first nonblank; `20|` targets terminal column 20, respecting tabs and
+Unicode cell widths. Backspace moves one grapheme left. Ctrl-Left/Right move
+between words; Ctrl-Home/End jump to the first/last display row. These bindings
+remain navigation commands during visual selection and never edit article text.
 
 Personal folders are flat article collections. An article can belong to
 several folders and remain a favorite. The `a` picker keeps membership changes
@@ -809,6 +814,11 @@ make bench
 and installer/preview tooling checks. `check-release` adds actual loopback HTTP
 qualification and an optimized build. Socket failures are not silently skipped.
 `check-http` runs that HTTP qualification independently for diagnosis.
+`make bench-interaction` records three representative and three stress runs of
+cached full-frame sidebar rendering, deep linewise selection and Unicode cursor
+positioning. It includes resource usage and correctness assertions. These app-side
+timings exclude physical terminal paint and database navigation latency.
+
 `test-tools` checks installation, migration failures and data preservation
 using isolated libraries. `bench-tools` measures correctness-checked migration
 of representative and stress libraries; `bench` includes it.

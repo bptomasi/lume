@@ -1,5 +1,49 @@
 # Validation record — Lume
 
+## Cached frame and Unicode input performance — 2026-10-19
+
+The sidebar previously formatted every destination twice per measured frame
+(drawing and mouse hit testing), including offscreen entries. Its lazy shared
+row projection now formats only visible entries. Section/header positions and
+window centering are unchanged; the existing 36 theme/size/scenario snapshots
+pass without fixture updates. Linewise selection uses binary display-range
+bounds. Cursor alignment uses the existing Unicode Segmentation GraphemeCursor
+with complete context and its iterator fallback, preserving every-byte behavior
+for tested combining marks, flags, Indic conjuncts, Hangul and joined emoji.
+
+Release-only and standalone modifier events no longer request an identical frame.
+Adjacent resize events retain only their final geometry, with intervening input
+preserved. These changes do not drop typed text, wheel distance or discrete taps.
+Reader shortcuts add I/A, g^, terminal-column |, Backspace and Ctrl arrow/Home/End
+aliases without modifying publisher content. Selection uses the same motions.
+
+[interaction-baseline.json](interaction-baseline.json) and
+[interaction-benchmarks.json](interaction-benchmarks.json) retain three release
+processes per representative/stress input before and after optimization.
+[interaction-comparison.json](interaction-comparison.json) records medians.
+The sidebar workload uses 128/4096 extra projected destinations and real full
+interactive frames plus hit testing. Median operation wall time changed from
+**0.272778 to 0.196287 ms** for representative input (**28.0% lower**) and from
+**2.445457 to 0.216632 ms** for stress (**91.1% lower**). Deep linewise selection
+plus two frames changed from **0.297662 to 0.293167 ms** and **0.301849 to
+0.289228 ms**, respectively. No broad speedup is inferred from those small
+selection changes. The specialized deep Unicode boundary fixture falls below
+one microsecond per operation; it does not represent whole-application latency.
+
+Reports include exact compiler, platform, executable hashes, repeated raw timing,
+process wall time, CPU and RSS. Fixture construction and source/syntax preparation
+precede operation timers. Sidebar metadata is projected, so these workloads do
+not measure background SQLite navigation or physical terminal paint.
+`make bench-interaction` reproduces the current workload; root tests verify it.
+
+`make check-release` passed with exact Rust **1.99.1**, **475 local Rust tests**,
+**12 real HTTP tests**, **10 installer tests**, checked workloads, formatting,
+Clippy and the release build. No source/toolchain substitution was used. Real
+Foot **1.21.0** passed native scroll/selection, mouse inspection, source zoom,
+I/A with exact yank bytes and terminal cleanup. Its owned configuration disables
+OSC52 clipboard access while output is checked, preserving the host clipboard.
+See [interaction-foot-qualification.json](interaction-foot-qualification.json).
+
 ## Foot selection and bounded image navigation review — 2026-10-19
 
 Visual selection was incorrectly treated as a covering overlay. A mouse-down on

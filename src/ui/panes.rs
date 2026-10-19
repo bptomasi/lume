@@ -20,58 +20,7 @@ pub(super) fn library(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let block = panel(" 01  Library ".into(), app.focus == Focus::Library);
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    let rows = navigation_rows(app, inner.width);
-    let selected_row = rows
-        .iter()
-        .position(|(_, index)| *index == Some(app.nav_selected))
-        .unwrap_or(0);
-    let offset = selected_row.saturating_sub(inner.height as usize / 2);
-    let lines = rows
-        .into_iter()
-        .skip(offset)
-        .take(inner.height as usize)
-        .map(|(line, _)| line)
-        .collect::<Vec<_>>();
-    frame.render_widget(Paragraph::new(lines), inner);
-}
-
-pub(super) fn navigation_rows(
-    app: &App,
-    width: u16,
-) -> Vec<(Line<'static>, Option<usize>)> {
-    let mut lines = Vec::new();
-    let mut group = "";
-    for (index, item) in app.navigation.iter().enumerate() {
-        if item.group != group {
-            group = item.group;
-            lines.push((Line::raw(""), None));
-            lines.push((
-                Line::styled(format!("  {group}"), Style::new().fg(FAINT)),
-                None,
-            ));
-        }
-        let selected = index == app.nav_selected;
-        let marker = if selected { "▎" } else { " " };
-        let title =
-            content::label(&item.title, width.saturating_sub(8) as usize);
-        let padding =
-            width.saturating_sub(title.chars().count() as u16 + 6) as usize;
-        let text = format!(
-            "{marker} {title}{}{:>3} ",
-            " ".repeat(padding),
-            item.count
-        );
-        let style = if selected {
-            Style::new()
-                .fg(ACCENT)
-                .bg(RAISED)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::new().fg(MUTED)
-        };
-        lines.push((Line::styled(text, style), Some(index)));
-    }
-    lines
+    super::navigation::draw(frame, app, inner);
 }
 
 pub(super) fn articles(frame: &mut Frame<'_>, app: &App, area: Rect) {

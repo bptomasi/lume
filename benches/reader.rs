@@ -21,6 +21,8 @@ mod full_article;
 mod highlighting;
 #[path = "workloads/images.rs"]
 mod images;
+#[path = "workloads/interaction.rs"]
+mod interaction;
 #[path = "workloads/note_interactions.rs"]
 mod note_interactions;
 #[path = "workloads/note_study.rs"]
@@ -58,12 +60,7 @@ fn main() -> Result<()> {
     if std::env::args().any(|argument| argument == "--navigation-only") {
         return navigation_workload(store, count, iterations);
     }
-    reading_selection(iterations)?;
-    catalog::run(iterations, stress)?;
-    reading_tools::run(iterations, stress)?;
-    smoothness::run(iterations, stress)?;
-    panes::run(iterations, stress)?;
-    workspaces::run(iterations, stress)?;
+    component_workloads(iterations, stress)?;
     println!("lume baseline · articles={count} · iterations={iterations}");
     metadata(&store, count, iterations)?;
     annotations(&store, iterations)?;
@@ -81,47 +78,42 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    interaction::run(iterations, stress)?;
+    reading_selection(iterations)?;
+    catalog::run(iterations, stress)?;
+    reading_tools::run(iterations, stress)?;
+    smoothness::run(iterations, stress)?;
+    panes::run(iterations, stress)?;
+    workspaces::run(iterations, stress)?;
+    Ok(())
+}
+
+type Workload = fn(usize, bool) -> Result<()>;
+
+const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--interaction-only", interaction::run),
+    ("--images-only", images::run),
+    ("--recommendations-only", recommendations::run),
+    ("--notebook-only", annotation_notebook::run),
+    ("--notes-only", note_interactions::run),
+    ("--workspaces-only", workspaces::run),
+    ("--panes-only", panes::run),
+    ("--smoothness-only", smoothness::run),
+    ("--expansion-only", expansion::run),
+    ("--full-article-only", full_article::run),
+    ("--feed-content-only", feed_content::run),
+    ("--highlighting-only", highlighting::run),
+    ("--reading-tools-only", reading_tools::run),
+    ("--catalog-only", catalog::run),
+];
+
 fn focused_workload(iterations: usize, stress: bool) -> Option<Result<()>> {
-    if std::env::args().any(|argument| argument == "--images-only") {
-        return Some(images::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--recommendations-only") {
-        return Some(recommendations::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--notebook-only") {
-        return Some(annotation_notebook::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--notes-only") {
-        return Some(note_interactions::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--workspaces-only") {
-        return Some(workspaces::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--panes-only") {
-        return Some(panes::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--smoothness-only") {
-        return Some(smoothness::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--expansion-only") {
-        return Some(expansion::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--full-article-only") {
-        return Some(full_article::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--feed-content-only") {
-        return Some(feed_content::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--highlighting-only") {
-        return Some(highlighting::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--reading-tools-only") {
-        return Some(reading_tools::run(iterations, stress));
-    }
-    if std::env::args().any(|argument| argument == "--catalog-only") {
-        return Some(catalog::run(iterations, stress));
-    }
-    None
+    let arguments = std::env::args().collect::<Vec<_>>();
+    FOCUSED_WORKLOADS
+        .iter()
+        .find(|(flag, _)| arguments.iter().any(|argument| argument == flag))
+        .map(|(_, workload)| workload(iterations, stress))
 }
 
 fn seed(store: &mut Store, count: usize) -> Result<()> {

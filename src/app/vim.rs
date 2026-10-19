@@ -147,7 +147,7 @@ impl App {
 
     fn vim_line_key(&mut self, code: KeyCode, count: usize) -> bool {
         match code {
-            KeyCode::Char('h') | KeyCode::Left => {
+            KeyCode::Char('h') | KeyCode::Left | KeyCode::Backspace => {
                 self.move_characters(false, count)
             }
             KeyCode::Char('l') | KeyCode::Right => {
@@ -156,11 +156,12 @@ impl App {
             KeyCode::Char('j') | KeyCode::Down => self.move_reader(true, count),
             KeyCode::Char('k') | KeyCode::Up => self.move_reader(false, count),
             KeyCode::Char('0') | KeyCode::Home => self.line_edge(false),
-            KeyCode::Char('$') | KeyCode::End => {
+            KeyCode::Char('$' | 'A') | KeyCode::End => {
                 self.move_reader(true, count - 1);
                 self.line_edge(true);
             }
-            KeyCode::Char('^') => self.first_nonblank(),
+            KeyCode::Char('^' | 'I') => self.first_nonblank(),
+            KeyCode::Char('|') => self.goto_column(count - 1),
             KeyCode::Char('_') => {
                 self.move_reader(true, count - 1);
                 self.first_nonblank();
@@ -236,6 +237,14 @@ impl App {
             return Ok(false);
         }
         let count = self.vim.count.max(1);
+        if matches!(
+            code,
+            KeyCode::Left | KeyCode::Right | KeyCode::Home | KeyCode::End
+        ) {
+            self.vim.clear_input();
+            self.control_destination(code, count);
+            return Ok(true);
+        }
         let (forward, distance) = match code {
             KeyCode::Char('f' | 'b') => {
                 (code == KeyCode::Char('f'), count * self.reader_height)

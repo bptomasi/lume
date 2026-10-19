@@ -11,7 +11,7 @@ MIGRATE_FROM ?=
 
 .PHONY: check check-release check-http check-alacritty fmt lint test bench build demo
 .PHONY: install test-tools bench-tools bench-notes bench-recommendations
-.PHONY: bench-images check-image-display check-foot
+.PHONY: bench-images bench-interaction check-image-display check-foot
 
 # Serialize composition even when a caller uses make -j.
 .NOTPARALLEL:
@@ -24,7 +24,7 @@ check:
 	python3 -m py_compile tools/render_preview.py tools/qualify_alacritty.py \
 		tools/install.py tools/bench_install.py tools/bench_notes.py \
 		tools/bench_support.py tools/bench_recommendations.py tools/bench_images.py \
-		tools/qualify_foot.py tools/foot_terminal.py
+		tools/qualify_foot.py tools/foot_terminal.py tools/bench_interaction.py
 
 fmt:
 	$(CARGO) fmt --all -- --check
@@ -76,6 +76,9 @@ bench-recommendations:
 
 bench-images:
 	python3 tools/bench_images.py
+
+bench-interaction:
+	python3 tools/bench_interaction.py --output docs/interaction-benchmarks.json
 
 bench-tools:
 	python3 tools/bench_install.py

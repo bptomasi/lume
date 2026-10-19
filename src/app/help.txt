@@ -83,7 +83,13 @@
   W / B / E       Same motions for whitespace-separated WORDs
   ge / gE         Previous word / WORD end
   0 / ^ / $       Row start / first nonblank / row end
-  g0 / g$ / g_    Row start / row end / last nonblank
+  I / A           First nonblank / row end (read-only navigation)
+  20|             Go to terminal column 20, respecting tabs and Unicode
+  Backspace       Previous grapheme, including across display rows
+  Ctrl-Left/Right Previous / next word start
+  Ctrl-Home/End   First / last display row
+  g0 / g^ / g$    Row start / first nonblank / row end
+  g_              Last nonblank in the row
   gg / G          First / last row; 24G or 24gg goes to row 24
   H / M / L       Top / middle / bottom of the visible reader
   { / }           Previous / next blank-line paragraph boundary

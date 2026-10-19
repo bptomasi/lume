@@ -11,6 +11,7 @@ pub(crate) use drag_picture::compact as compact_drag_picture;
 pub use image_view::image_inspector_area;
 mod key_guide;
 mod layout;
+mod navigation;
 mod note_preview;
 mod notebook;
 pub(crate) use notebook::context_scroll_limit as notebook_scroll_limit;
