@@ -58,8 +58,10 @@ impl NoteCatalog {
 
 impl App {
     pub(super) fn refresh_note_catalog(&mut self) {
-        let query = (matches!(self.view, View::Smart(_) | View::Annotated)
-            || !self.search.is_empty())
+        let query = (matches!(
+            self.view,
+            View::Smart(_) | View::Annotated | View::Recommended
+        ) || !self.search.is_empty())
         .then(|| ArticleQuery {
             view: self.view.clone(),
             text: self.search.clone(),
@@ -105,38 +107,9 @@ impl App {
             }
         }
         if let Some((query, page)) = snapshot.page {
-            self.install_note_catalog_page(query, page)?;
+            self.install_metadata_page(query, page)?;
         }
         Ok(true)
-    }
-
-    fn install_note_catalog_page(
-        &mut self,
-        query: ArticleQuery,
-        page: ArticlePage,
-    ) -> Result<()> {
-        if query.view != self.view
-            || query.text != self.search
-            || query.offset != self.page_offset
-            || self.navigation_loading
-        {
-            return Ok(());
-        }
-        let selected = self.current().map(|article| article.id);
-        self.selected = page
-            .articles
-            .iter()
-            .position(|article| Some(article.id) == selected)
-            .unwrap_or(
-                self.selected.min(page.articles.len().saturating_sub(1)),
-            );
-        self.page_total = page.total;
-        self.library.articles = page.articles;
-        self.visible = (0..self.library.articles.len()).collect();
-        if self.current().map(|article| article.id) != selected {
-            self.load_current()?;
-        }
-        Ok(())
     }
 
     /// Whether annotation-derived metadata is still being read.

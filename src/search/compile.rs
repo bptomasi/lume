@@ -11,35 +11,53 @@ pub(crate) struct Compiled {
 }
 
 pub(crate) fn compile(expression: &Expression) -> Result<Compiled> {
+    compile_scope(expression, true, None)
+}
+
+pub(crate) fn compile_publisher(expression: &Expression) -> Result<Compiled> {
+    compile_scope(expression, false, None)
+}
+
+fn compile_scope(
+    expression: &Expression,
+    include_notes: bool,
+    row_range: Option<(i64, i64)>,
+) -> Result<Compiled> {
     let mut values = Vec::new();
-    let sql = expression_sql(expression, &mut values)?;
+    let sql =
+        expression_sql(expression, &mut values, include_notes, row_range)?;
     Ok(Compiled { sql, values })
 }
 
 fn expression_sql(
     expression: &Expression,
     values: &mut Vec<Value>,
+    include_notes: bool,
+    row_range: Option<(i64, i64)>,
 ) -> Result<String> {
     Ok(match expression {
         Expression::All => "1".into(),
         Expression::And(left, right) => format!(
             "({} AND {})",
-            expression_sql(left, values)?,
-            expression_sql(right, values)?
+            expression_sql(left, values, include_notes, row_range)?,
+            expression_sql(right, values, include_notes, row_range)?
         ),
         Expression::Or(left, right) => format!(
             "({} OR {})",
-            expression_sql(left, values)?,
-            expression_sql(right, values)?
+            expression_sql(left, values, include_notes, row_range)?,
+            expression_sql(right, values, include_notes, row_range)?
         ),
         Expression::Not(inner) => {
-            format!("NOT ({})", expression_sql(inner, values)?)
+            format!(
+                "NOT ({})",
+                expression_sql(inner, values, include_notes, row_range)?
+            )
         }
         Expression::Term {
             field,
             value,
             phrase,
-        } => term(field, value, *phrase, values)?,
+        } => term(field, value, *phrase, values, include_notes, row_range)?,
     })
 }
 
@@ -54,11 +72,18 @@ fn term(
     value: &str,
     phrase: bool,
     values: &mut Vec<Value>,
+    include_notes: bool,
+    row_range: Option<(i64, i64)>,
 ) -> Result<String> {
     match field {
-        "" | "title" | "author" | "source" | "body" | "notes" | "topic" => {
-            Ok(full_text(field, value, phrase, values))
+        "notes" | "highlight-tag" if !include_notes => {
+            bail!(
+                "For you searches publisher content; open Notebook to search notes"
+            )
         }
+        "" | "title" | "author" | "source" | "body" | "notes" | "topic" => Ok(
+            full_text(field, value, phrase, values, include_notes, row_range),
+        ),
         "is" => state(value),
         "after" | "before" => date(field, value, values),
         "domain" => domain(value, values),
@@ -94,6 +119,8 @@ fn full_text(
     value: &str,
     phrase: bool,
     values: &mut Vec<Value>,
+    include_notes: bool,
+    row_range: Option<(i64, i64)>,
 ) -> String {
     let literal = format!(
         "\"{}\"{}",
@@ -109,13 +136,14 @@ fn full_text(
         return matching_notes(values, &literal);
     }
     let parameter = bind(values, query);
+    let row = publisher_row_bound(include_notes, row_range, values);
     let article_match = format!(
         r#"a.id IN (
             SELECT rowid FROM article_search
-            WHERE article_search MATCH {parameter}
+            WHERE article_search MATCH {parameter}{row}
         )"#
     );
-    if matches!(field, "" | "topic") {
+    if include_notes && matches!(field, "" | "topic") {
         return format!(
             "({article_match} OR {})",
             matching_notes(values, &literal)
@@ -206,4 +234,30 @@ fn minutes(value: &str, values: &mut Vec<Value>) -> Result<String> {
     let minimum = bind(values, minimum);
     let maximum = bind(values, maximum);
     Ok(format!("a.reading_minutes BETWEEN {minimum} AND {maximum}"))
+}
+
+fn publisher_row_bound(
+    include_notes: bool,
+    row_range: Option<(i64, i64)>,
+    values: &mut Vec<Value>,
+) -> String {
+    if let Some((first, last)) = row_range {
+        let first = bind(values, first);
+        let last = bind(values, last);
+        return format!(" AND rowid BETWEEN {first} AND {last}");
+    }
+    if include_notes {
+        return String::new();
+    }
+    " AND rowid = a.id".into()
+}
+
+pub(crate) fn compile_publisher_range(
+    expression: &Expression,
+    first: i64,
+    last: i64,
+) -> Result<Compiled> {
+    // A bounded range parses each FTS leaf once for the batch. Sparse identity
+    // sets retain correlated lookups rather than scanning unrelated documents.
+    compile_scope(expression, false, Some((first, last)))
 }

@@ -3,6 +3,37 @@
 Lume is an independent desktop/terminal reader. It does not require Miniflux,
 PostgreSQL, containers, an account, or a hosted service. Domain data stays local.
 
+## Local recommendations (2026-10-19)
+
+Reuse pinned bundled SQLite FTS5, rusqlite and the existing nom boolean query
+compiler. The [FTS5 contract](https://www.sqlite.org/fts5.html) documents phrase,
+prefix, column and rowid-constrained matching. Publisher-only compilation omits
+the separate annotation index; recommendation filters cannot search private
+notes. Bounded rowid ranges and correlated lookups constrain classification to
+captured batches, preserving the exact outer identity set.
+No tokenizer, parser, vector database, model runtime or dependency update is
+introduced. The existing license, maintainer and security assessments apply.
+
+The consequential policy choice is stable, explicit interest matching and
+bounded evidence weights, rather than comparing BM25 scores across unrelated
+interest queries or treating vocabulary frequency as editorial quality.
+SQLite supplies matching, not personal preference or content authority. Lume
+owns profiles, topic feedback, canonical grouping and bounded diversity. A
+cached full article is eligible only while its captured URL remains current.
+
+Reuse pinned pulldown-cmark to observe actual code-block events and the existing
+content-availability/reading-time contracts. Code, short text and announcement
+wording are weak observed features; none proves correctness or depth. Initial
+interests are explicit, editable vocabulary, not an automatically trained model.
+
+Rust standard-library bounded channels supply ordered preference/feedback
+admission and separate result acknowledgement. Disposable refresh requests are
+coalesced, while admitted writes are never replaced. Lume owns retries after
+rollback, post-commit acknowledgement and shutdown draining. There is no async
+runtime, subprocess model, network recommendation provider or extra service.
+Behavioral/failure tests and representative/stress workloads qualify these
+contracts; actual recommendation usefulness still requires user feedback.
+
 ## Indexed annotation notebook (2026-10-18)
 
 Reuse bundled SQLite FTS5 through pinned rusqlite for independent note indexing,

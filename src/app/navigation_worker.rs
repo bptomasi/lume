@@ -98,6 +98,8 @@ impl App {
         self.wrap_reader();
         self.navigation_worker = Some(navigation);
         self.session_writer = Some(session);
+        self.recommendations =
+            Some(super::recommendations::Recommendations::start(path)?);
         self.note_tasks = Some(super::note_tasks::NoteTasks::start(path)?);
         self.note_catalog =
             Some(super::note_catalog::NoteCatalog::start(path)?);

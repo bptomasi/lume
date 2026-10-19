@@ -13,10 +13,10 @@
 │  Continue reading              │            Keep one copy & measure.                                                                      │   
 │  Since last visit              │                                                                                                          │   
 │  Grouped articles              │            let answer = 42;                                                                              │   
-│                                │                use_it(answer);                                                                           │   
+│  For you                       │                use_it(answer);                                                                           │   
+│                                │                                                                                                          │   
 │  FEEDS                         │                                                                                                          │   
 │  Systems Journal               │                                                                                                          │   
-│                                │                                                                                                          │   
 │                                │                                                                                                          │   
 │                                │                                                                                                          │   
 │                                │                                                                                                          │   
@@ -148,7 +148,7 @@
 14:140..141 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))
 14:141..144 Style::new().fg(Color::Reset).bg(Color::Rgb(31, 36, 45))
 15:0..1 Style::new().fg(Color::Rgb(45, 51, 63)).bg(Color::Rgb(31, 36, 45))
-15:1..33 Style::new().fg(Color::Rgb(141, 143, 146)).bg(Color::Rgb(31, 36, 45))
+15:1..33 Style::new().fg(Color::Rgb(129, 133, 139)).bg(Color::Rgb(31, 36, 45))
 15:33..34 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))
 15:34..46 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(31, 36, 45))
 15:46..65 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(67, 76, 94))
@@ -156,20 +156,20 @@
 15:140..141 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))
 15:141..144 Style::new().fg(Color::Reset).bg(Color::Rgb(31, 36, 45))
 16:0..1 Style::new().fg(Color::Rgb(45, 51, 63)).bg(Color::Rgb(31, 36, 45))
-16:1..8 Style::new().fg(Color::Rgb(94, 102, 113)).bg(Color::Rgb(31, 36, 45))
-16:8..33 Style::new().fg(Color::Rgb(141, 143, 146)).bg(Color::Rgb(31, 36, 45))
+16:1..33 Style::new().fg(Color::Rgb(141, 143, 146)).bg(Color::Rgb(31, 36, 45))
 16:33..34 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))
 16:34..140 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(31, 36, 45))
 16:140..141 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))
 16:141..144 Style::new().fg(Color::Reset).bg(Color::Rgb(31, 36, 45))
 17:0..1 Style::new().fg(Color::Rgb(45, 51, 63)).bg(Color::Rgb(31, 36, 45))
-17:1..33 Style::new().fg(Color::Rgb(129, 133, 139)).bg(Color::Rgb(31, 36, 45))
+17:1..8 Style::new().fg(Color::Rgb(94, 102, 113)).bg(Color::Rgb(31, 36, 45))
+17:8..33 Style::new().fg(Color::Rgb(141, 143, 146)).bg(Color::Rgb(31, 36, 45))
 17:33..34 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))
 17:34..140 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(31, 36, 45))
 17:140..141 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))
 17:141..144 Style::new().fg(Color::Reset).bg(Color::Rgb(31, 36, 45))
 18:0..1 Style::new().fg(Color::Rgb(45, 51, 63)).bg(Color::Rgb(31, 36, 45))
-18:1..33 Style::new().fg(Color::Rgb(141, 143, 146)).bg(Color::Rgb(31, 36, 45))
+18:1..33 Style::new().fg(Color::Rgb(129, 133, 139)).bg(Color::Rgb(31, 36, 45))
 18:33..34 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))
 18:34..140 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(31, 36, 45))
 18:140..141 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))

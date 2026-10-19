@@ -13,10 +13,10 @@
 │  Continue r    0 ││ 57% · v select · y copy · s highlight · Tab panels · Z fu│
 │  Since last    0 │╰──────────────────────────────────────────────────────────╯
 │  Grouped ar    1 │╭ Annotations · 0 ──────────────────────────────────[≡]─[−]╮
-│                  ││                                                          │
-│  FEEDS           ││  Your reading, annotated.                                │
-│  Systems Jo    1 ││                                                          │
-│                  ││  v selects a passage                                     │
+│  For you       0 ││                                                          │
+│                  ││  Your reading, annotated.                                │
+│  FEEDS           ││                                                          │
+│  Systems Jo    1 ││  v selects a passage                                     │
 │                  ││  s saves a highlight                                     │
 │                  ││  n adds a passage note                                   │
 │                  ││                                                          │
@@ -131,23 +131,23 @@
 14:76..79 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
 14:79..80 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
 15:0..1 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
-15:1..19 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
+15:1..19 Style::new().fg(Color::Rgb(189, 174, 147)).bg(Color::Rgb(40, 40, 40))
 15:19..21 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
 15:21..79 Style::new().fg(Color::Rgb(189, 174, 147)).bg(Color::Rgb(40, 40, 40))
 15:79..80 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
 16:0..1 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
-16:1..8 Style::new().fg(Color::Rgb(146, 131, 116)).bg(Color::Rgb(40, 40, 40))
-16:8..19 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
+16:1..19 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
 16:19..21 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
 16:21..79 Style::new().fg(Color::Rgb(189, 174, 147)).bg(Color::Rgb(40, 40, 40))
 16:79..80 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
 17:0..1 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
-17:1..19 Style::new().fg(Color::Rgb(189, 174, 147)).bg(Color::Rgb(40, 40, 40))
+17:1..8 Style::new().fg(Color::Rgb(146, 131, 116)).bg(Color::Rgb(40, 40, 40))
+17:8..19 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
 17:19..21 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
 17:21..79 Style::new().fg(Color::Rgb(189, 174, 147)).bg(Color::Rgb(40, 40, 40))
 17:79..80 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
 18:0..1 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
-18:1..19 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
+18:1..19 Style::new().fg(Color::Rgb(189, 174, 147)).bg(Color::Rgb(40, 40, 40))
 18:19..21 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
 18:21..79 Style::new().fg(Color::Rgb(189, 174, 147)).bg(Color::Rgb(40, 40, 40))
 18:79..80 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))

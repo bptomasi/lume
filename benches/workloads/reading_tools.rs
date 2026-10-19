@@ -15,6 +15,7 @@ use lume::{
 use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
 pub fn run(iterations: usize, stress: bool) -> Result<()> {
+    super::recommendations::run(iterations, stress)?;
     selection(iterations, stress)?;
     super::note_interactions::run(iterations, stress)?;
     super::annotation_notebook::run(iterations, stress)?;
@@ -26,7 +27,31 @@ fn selection(iterations: usize, stress: bool) -> Result<()> {
     let (_directory, mut app) = selection_app(stress)?;
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     selection_frames(&mut app, &mut terminal, iterations)?;
+    horizontal_wrapping(&mut app, iterations)?;
     selection_history(&mut app, iterations)
+}
+
+fn horizontal_wrapping(app: &mut App, iterations: usize) -> Result<()> {
+    super::measure(
+        "cached grapheme movement across display rows",
+        iterations * 50,
+        || {
+            keys(app, "gg$l")?;
+            ensure!(
+                (app.reader_cursor, app.reader_column) == (1, 0),
+                "Forward motion stopped at the display row boundary"
+            );
+            keys(app, "h")?;
+            ensure!(
+                app.reader_cursor == 0
+                    && app.reader_lines[0]
+                        .get(app.reader_column..)
+                        .is_some_and(|tail| tail == "."),
+                "Backward motion failed to return to the previous row"
+            );
+            Ok(())
+        },
+    )
 }
 
 fn selection_frames(

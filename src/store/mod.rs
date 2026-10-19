@@ -20,6 +20,7 @@ mod notebook;
 mod occurrences;
 mod organization;
 mod query;
+mod recommendations;
 mod study;
 mod workspace;
 pub(crate) use layouts::valid_name as valid_workspace_name;

@@ -21,6 +21,29 @@ struct Criteria {
 }
 
 impl Criteria {
+    fn position_sql(&self) -> &'static str {
+        if self.scope == "recommended" {
+            return include_str!(
+                "sql/recommendations/select_cached_position.sql"
+            );
+        }
+        include_str!("sql/select_matching_position.sql")
+    }
+
+    fn page_sql(&self, predicate: &str) -> String {
+        if self.scope == "recommended" {
+            return format!(
+                "WITH matching AS ({predicate})\n{}",
+                include_str!("sql/recommendations/select_cached_page.sql")
+            );
+        }
+        format!(
+            "WITH matching AS ({predicate})\n{}\n{}",
+            include_str!("sql/select_article_metadata.sql"),
+            include_str!("sql/select_page.sql")
+        )
+    }
+
     fn predicate(&self) -> String {
         let mut conditions = vec![scope_clause(self.scope)];
         if self.filter.unread {
@@ -39,9 +62,14 @@ impl Criteria {
         if self.filter.days.is_some() {
             conditions.push("a.published >= :since");
         }
+        let base = if self.scope == "recommended" {
+            include_str!("sql/recommendations/select_cached_matching.sql")
+        } else {
+            include_str!("sql/select_matching.sql")
+        };
         let matching = format!(
             "{}\nAND ({})\nAND ({})",
-            include_str!("sql/select_matching.sql"),
+            base,
             conditions.join(")\nAND ("),
             self.expression.sql
         );
@@ -111,7 +139,7 @@ impl Store {
         let sql = format!(
             "WITH matching AS ({})\n{}",
             criteria.predicate(),
-            include_str!("sql/select_matching_position.sql"),
+            criteria.position_sql(),
         );
         let mut statement = self.connection.prepare_cached(&sql)?;
         bind(&mut statement, &criteria, query)?;
@@ -146,11 +174,7 @@ impl Store {
         bind(&mut count, criteria, query)?;
         let total =
             count.raw_query().next()?.map_or(Ok(0), |row| row.get(0))?;
-        let page_sql = format!(
-            "WITH matching AS ({predicate})\n{}\n{}",
-            include_str!("sql/select_article_metadata.sql"),
-            include_str!("sql/select_page.sql"),
-        );
+        let page_sql = criteria.page_sql(&predicate);
         let mut page = self.connection.prepare_cached(&page_sql)?;
         bind(&mut page, criteria, query)?;
         let articles = page
@@ -194,7 +218,11 @@ impl Store {
             Box::new(crate::search::parse(&filter.text)?),
             Box::new(crate::search::parse(&query.text)?),
         );
-        let expression = crate::search::compile(&expression)?;
+        let expression = if scope == "recommended" {
+            crate::search::compile::compile_publisher(&expression)?
+        } else {
+            crate::search::compile(&expression)?
+        };
         let since = filter.days.map_or(0, |days| {
             chrono::Utc::now().timestamp() - i64::from(days) * 86_400
         });
@@ -212,6 +240,7 @@ impl Store {
 
 fn scope_clause(scope: &str) -> &'static str {
     match scope {
+        "recommended" => include_str!("sql/recommendations/select_scope.sql"),
         "inbox" => "a.unread = 1 OR a.id = :retained",
         "read" => "a.unread = 0",
         "starred" => "a.starred = 1",
@@ -231,6 +260,7 @@ fn scope_clause(scope: &str) -> &'static str {
 fn scope(view: &View) -> (&'static str, i64) {
     match view {
         View::All | View::Smart(_) => ("all", 0),
+        View::Recommended => ("recommended", 0),
         View::Inbox => ("inbox", 0),
         View::Read => ("read", 0),
         View::Trash => ("trash", 0),

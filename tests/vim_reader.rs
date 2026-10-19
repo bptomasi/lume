@@ -11,10 +11,14 @@ use lume::{
 };
 
 fn reading(code: &str) -> Result<(tempfile::TempDir, App)> {
+    reading_body(&format!("```text\n{code}\n```\n"))
+}
+
+fn reading_body(body: &str) -> Result<(tempfile::TempDir, App)> {
     let (directory, mut store, feed) = common::seeded_store()?;
     let mut parsed =
         source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
-    parsed.articles[0].body = format!("```text\n{code}\n```\n");
+    parsed.articles[0].body = body.into();
     store.ingest(&feed, "Journal", &parsed.articles)?;
     let mut app = App::new(store, false)?;
     app.focus = Focus::Reader;
@@ -79,7 +83,7 @@ fn counts_rows_edges_and_unicode_movement_leave_publisher_text_unchanged()
     assert_eq!(app.reader_cursor, 2);
     assert_eq!(app.reader_column, "界".len());
     keys(&mut app, "2h")?;
-    assert_eq!(app.reader_column, 0);
+    assert_eq!((app.reader_cursor, app.reader_column), (1, 4));
     keys(&mut app, "2gg")?;
     assert_eq!(app.reader_cursor, 1);
     keys(&mut app, "2j")?;
@@ -88,6 +92,60 @@ fn counts_rows_edges_and_unicode_movement_leave_publisher_text_unchanged()
     assert_eq!(app.reader_cursor, 2);
     assert_eq!(app.body, original);
     assert!(matches!(app.mode, Mode::Normal));
+    Ok(())
+}
+
+#[test]
+fn horizontal_motions_cross_soft_wraps_and_yank_the_intervening_space()
+-> Result<()> {
+    let (_directory, mut app) =
+        reading_body("alpha beta gamma delta epsilon zeta")?;
+    app.resize_reader(12, 2);
+    assert_eq!(&app.reader_lines[..2], ["alpha beta", "gamma delta"]);
+    let original = app.body.clone();
+
+    keys(&mut app, "$vl")?;
+
+    assert_eq!((app.reader_cursor, app.reader_column), (1, 0));
+    assert_eq!(keys(&mut app, "y")?, Action::Copy("a g".into()));
+    app.selection = None;
+    app.key(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE))?;
+    assert_eq!((app.reader_cursor, app.reader_column), (0, 9));
+    app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE))?;
+    assert_eq!((app.reader_cursor, app.reader_column), (1, 0));
+    keys(&mut app, "$l")?;
+    assert_eq!((app.reader_cursor, app.reader_column), (2, 0));
+    assert!(app.scroll > 0);
+    assert!(app.reader_cursor < app.scroll + app.reader_height);
+    assert_eq!(app.body, original);
+    Ok(())
+}
+
+#[test]
+fn counted_horizontal_motions_preserve_graphemes_and_visit_empty_rows()
+-> Result<()> {
+    let (_directory, mut app) = reading("e\u{301}👩‍💻\n\n界x")?;
+
+    keys(&mut app, "l")?;
+    assert_eq!((app.reader_cursor, app.reader_column), (0, 3));
+    keys(&mut app, "l")?;
+    assert_eq!((app.reader_cursor, app.reader_column), (1, 0));
+    keys(&mut app, "2l")?;
+    assert_eq!((app.reader_cursor, app.reader_column), (2, 3));
+    keys(&mut app, "h")?;
+    assert_eq!((app.reader_cursor, app.reader_column), (2, 0));
+    keys(&mut app, "h")?;
+    assert_eq!((app.reader_cursor, app.reader_column), (1, 0));
+    keys(&mut app, "h")?;
+    assert_eq!((app.reader_cursor, app.reader_column), (0, 3));
+    keys(&mut app, "gg04l")?;
+    assert_eq!((app.reader_cursor, app.reader_column), (2, 3));
+    keys(&mut app, "G$")?;
+    let end = (app.reader_cursor, app.reader_column);
+    keys(&mut app, "9999l")?;
+    assert_eq!((app.reader_cursor, app.reader_column), end);
+    keys(&mut app, "gg09999h")?;
+    assert_eq!((app.reader_cursor, app.reader_column), (0, 0));
     Ok(())
 }
 

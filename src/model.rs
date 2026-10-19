@@ -7,6 +7,8 @@ mod layout_history;
 mod notebook;
 pub use layout_history::LayoutHistory;
 pub use notebook::*;
+mod recommendation;
+pub use recommendation::*;
 mod organization;
 mod pane;
 mod study;
@@ -32,7 +34,7 @@ pub enum UndoEffect {
 }
 
 /// Article metadata; bodies are loaded only when an article is selected.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Article {
     /// Local, durable SQLite identity.
     pub id: i64,

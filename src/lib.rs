@@ -18,3 +18,6 @@ pub mod store;
 pub mod ui;
 
 mod latest;
+
+/// Local, explainable article recommendation policy.
+pub mod recommendation;

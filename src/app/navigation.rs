@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 
-use crate::model::ArticleQuery;
+use crate::model::{ArticlePage, ArticleQuery};
 
 use super::{App, Focus, NavItem, View};
 
@@ -49,6 +49,7 @@ impl App {
                 "LIBRARY",
             ),
             (View::Grouped, "Grouped articles".into(), "LIBRARY"),
+            (View::Recommended, "For you".into(), "LIBRARY"),
         ];
         destinations.extend(self.library.collections.iter().map(|list| {
             (View::Collection(list.id), list.name.clone(), "YOUR FOLDERS")
@@ -308,7 +309,7 @@ fn read_sensitive(
     lists: &[crate::model::SmartList],
 ) -> Result<bool> {
     match view {
-        View::Inbox | View::Read => Ok(true),
+        View::Inbox | View::Read | View::Recommended => Ok(true),
         View::Smart(id) => {
             let Some(list) = lists.iter().find(|list| list.id == *id) else {
                 return Ok(false);
@@ -318,5 +319,36 @@ fn read_sensitive(
                     .depends_on_read_state())
         }
         _ => Ok(false),
+    }
+}
+
+impl App {
+    pub(super) fn install_metadata_page(
+        &mut self,
+        query: ArticleQuery,
+        page: ArticlePage,
+    ) -> Result<()> {
+        if query.view != self.view
+            || query.text != self.search
+            || query.offset != self.page_offset
+            || self.navigation_loading
+        {
+            return Ok(());
+        }
+        let selected = self.current().map(|article| article.id);
+        self.selected = page
+            .articles
+            .iter()
+            .position(|article| Some(article.id) == selected)
+            .unwrap_or(
+                self.selected.min(page.articles.len().saturating_sub(1)),
+            );
+        self.page_total = page.total;
+        self.library.articles = page.articles;
+        self.visible = (0..self.library.articles.len()).collect();
+        if self.current().map(|article| article.id) != selected {
+            self.load_current()?;
+        }
+        Ok(())
     }
 }

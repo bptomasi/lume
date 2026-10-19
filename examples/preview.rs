@@ -109,6 +109,7 @@ fn demo_app(mode: &str) -> Result<(tempfile::TempDir, App)> {
         "palette" => " p",
         "commands" => ":",
         "notebook" => " n",
+        "recommendations" | "recommend-why" => " R",
         _ => "",
     };
     for character in keys.chars() {
@@ -164,6 +165,13 @@ fn seed_preview(store: &mut Store, mode: &str) -> Result<()> {
     if matches!(mode, "full-article" | "outline" | "tables") {
         seed_full_article(store)?;
     }
+    if matches!(mode, "recommendations" | "recommend-why") {
+        loop {
+            if !store.refresh_recommendations()?.remaining {
+                break;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -174,6 +182,7 @@ fn configure_preview(app: &mut App, mode: &str) -> Result<()> {
             &["workspace load Study", "panel-focus reader"]
         }
         "settings" => &["settings"],
+        "recommend-why" => &["recommend-why"],
         "outline" => &["toc"],
         "tables" => &["tables"],
         "help" => &["help layout"],

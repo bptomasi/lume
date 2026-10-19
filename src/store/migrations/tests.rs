@@ -93,3 +93,35 @@ fn notebook_upgrade_indexes_existing_notes_without_changing_owned_state()
     }
     Ok(())
 }
+
+#[test]
+fn recommendations_adopt_v9_without_changing_articles_or_private_state()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("recommendation-upgrade.sqlite3");
+    v7_library(&path)?;
+    let mut connection = Connection::open(&path)?;
+    let migrations = MIGRATIONS
+        .iter()
+        .take(9)
+        .map(|(name, sql)| Migration::unapplied(name, sql))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Runner::new(&migrations)
+        .set_grouped(true)
+        .run(&mut connection)?;
+    drop(connection);
+    let store = Store::open(&path)?;
+    assert_eq!(store.body(1)?, "Original body");
+    assert!(store.article(1)?.starred);
+    assert_eq!(store.comments(1)?[0].body, "Keep this private note");
+    assert!(store.article_memberships(1)?.contains(&1));
+    assert!(store.recommendations_dirty()?);
+    let update = store.refresh_recommendations()?;
+    assert_eq!(update.processed, 3);
+    assert!(!update.remaining);
+    drop(store);
+    let reopened = Store::open(&path)?;
+    assert!(!reopened.recommendations_dirty()?);
+    assert_eq!(reopened.body(1)?, "Original body");
+    Ok(())
+}

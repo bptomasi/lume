@@ -13,10 +13,10 @@
 │  Continue r    0 ││ 57% · v select · y copy · s highlight · Tab panels · Z fu│
 │  Since last    0 │╰──────────────────────────────────────────────────────────╯
 │  Grouped ar    1 │╭ Annotations · 0 ──────────────────────────────────[≡]─[−]╮
-│       ╭ Layout · Ctrl-w · Reader ──────────────────────────────────────────╮ │
-│  FEEDS│ h j k l   Focus a pane       H J K L   Move a pane                 │ │
-│  Syste│ s         Split below        v         Split right                 │ │
-│       │ + / -     Resize split       c         Collapse                    │ │
+│  For y╭ Layout · Ctrl-w · Reader ──────────────────────────────────────────╮ │
+│       │ h j k l   Focus a pane       H J K L   Move a pane                 │ │
+│  FEEDS│ s         Split below        v         Split right                 │ │
+│  Syste│ + / -     Resize split       c         Collapse                    │ │
 │       │ a         Open annotations   w         Cycle focus                 │ │
 │       │ u / r     Undo / redo layout                                       │ │
 │       │                                                                    │ │
@@ -131,26 +131,26 @@
 14:76..79 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))
 14:79..80 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
 15:0..1 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
-15:1..8 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75))
+15:1..8 Style::new().fg(Color::Rgb(216, 222, 233)).bg(Color::Rgb(52, 60, 75))
 15:8..78 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))
 15:78..79 Style::new().fg(Color::Rgb(216, 222, 233)).bg(Color::Rgb(52, 60, 75))
 15:79..80 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
 16:0..1 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
-16:1..8 Style::new().fg(Color::Rgb(157, 170, 189)).bg(Color::Rgb(52, 60, 75))
+16:1..8 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75))
 16:8..9 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))
 16:9..77 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75))
 16:77..78 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))
 16:78..79 Style::new().fg(Color::Rgb(216, 222, 233)).bg(Color::Rgb(52, 60, 75))
 16:79..80 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
 17:0..1 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
-17:1..8 Style::new().fg(Color::Rgb(216, 222, 233)).bg(Color::Rgb(52, 60, 75))
+17:1..8 Style::new().fg(Color::Rgb(157, 170, 189)).bg(Color::Rgb(52, 60, 75))
 17:8..9 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))
 17:9..77 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75))
 17:77..78 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))
 17:78..79 Style::new().fg(Color::Rgb(216, 222, 233)).bg(Color::Rgb(52, 60, 75))
 17:79..80 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
 18:0..1 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
-18:1..8 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75))
+18:1..8 Style::new().fg(Color::Rgb(216, 222, 233)).bg(Color::Rgb(52, 60, 75))
 18:8..9 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))
 18:9..77 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75))
 18:77..78 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))

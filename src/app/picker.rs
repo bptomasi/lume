@@ -28,6 +28,8 @@ pub enum WorkspaceCommand {
     Compact,
     /// Read source-linked annotations.
     Notebook,
+    /// Open the local, cached recommendation shortlist.
+    Recommendations,
     /// Open the explicit reading queue.
     Queue,
     /// Search all articles.
@@ -396,6 +398,11 @@ fn command_choices() -> Vec<Choice> {
 use WorkspaceCommand as C;
 
 const COMMANDS: &[(&str, &str, WorkspaceCommand)] = &[
+    (
+        "For you",
+        "Space R · local recommendations · :recommend-why explains",
+        WorkspaceCommand::Recommendations,
+    ),
     (
         "Fetch full article",
         "Retrieve and cache the original page in the background · :fetch",

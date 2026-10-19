@@ -1,7 +1,6 @@
 //! Reader motion destinations and captured character-search state.
 
 use crossterm::event::KeyCode;
-use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     app::App,
@@ -31,25 +30,30 @@ impl App {
     }
 
     pub(super) fn move_characters(&mut self, forward: bool, count: usize) {
-        let line = self.cursor_line();
-        let target = if forward {
-            line.get(self.reader_column..)
-                .unwrap_or_default()
-                .grapheme_indices(true)
-                .nth(count)
-                .map_or_else(
-                    || cursor::previous(line, line.len()),
-                    |(byte, _)| self.reader_column + byte,
-                )
-        } else {
-            line.get(..self.reader_column)
-                .unwrap_or_default()
-                .grapheme_indices(true)
-                .rev()
-                .nth(count - 1)
-                .map_or(0, |(byte, _)| byte)
-        };
-        self.reader_column = target;
+        // Traverse cached display rows so soft wraps and blank rows remain
+        // navigable without scanning the article or splitting a grapheme.
+        for _ in 0..count {
+            let line = self.cursor_line();
+            if forward {
+                let next = cursor::next(line, self.reader_column);
+                if next < line.len() {
+                    self.reader_column = next;
+                } else if self.reader_cursor + 1 < self.reader_lines.len() {
+                    self.reader_cursor += 1;
+                    self.reader_column = 0;
+                } else {
+                    break;
+                }
+            } else if self.reader_column > 0 {
+                self.reader_column = cursor::previous(line, self.reader_column);
+            } else if self.reader_cursor > 0 {
+                self.reader_cursor -= 1;
+                let previous = self.cursor_line();
+                self.reader_column = cursor::previous(previous, previous.len());
+            } else {
+                break;
+            }
+        }
         self.reader_goal = None;
         self.ensure_cursor_visible();
     }

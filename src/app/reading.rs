@@ -541,6 +541,7 @@ impl App {
     /// # Errors
     /// Returns local storage errors while preserving terminal cleanup.
     pub fn end_session(&mut self) -> Result<()> {
+        self.flush_recommendations()?;
         self.checkpoint_draft()?;
         // Global Ctrl-c can leave this modal without its explicit confirmation.
         if let super::Mode::Settings(draft) = &self.mode {

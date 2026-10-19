@@ -39,6 +39,7 @@ mod pointer;
 mod reader_tools;
 mod reading;
 mod reading_data;
+mod recommendations;
 mod recovery;
 mod session_writer;
 mod settings;
@@ -312,6 +313,7 @@ pub struct App {
     session_writer: Option<session_writer::SessionWriter>,
     note_tasks: Option<note_tasks::NoteTasks>,
     note_catalog: Option<note_catalog::NoteCatalog>,
+    recommendations: Option<recommendations::Recommendations>,
     pending_note_write: Option<note_tasks::PendingWrite>,
     pending_note_deletes: std::collections::BTreeMap<u64, i64>,
     recovery: recovery::Recovery,
@@ -436,6 +438,7 @@ impl App {
             session_writer: None,
             note_tasks: None,
             note_catalog: None,
+            recommendations: None,
             pending_note_write: None,
             pending_note_deletes: std::collections::BTreeMap::new(),
             recovery: recovery::Recovery::default(),

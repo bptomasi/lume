@@ -44,6 +44,7 @@ impl App {
             C::Notebook => {
                 self.open_notebook("", None)?;
             }
+            C::Recommendations => return self.command("recommendations"),
             C::Queue => self.set_view(View::Queue)?,
             C::Articles => self.open_picker(PickerKind::Articles)?,
             C::Lists => self.open_memberships()?,
@@ -184,6 +185,9 @@ impl App {
         use WorkspaceCommand as C;
         self.mode = Mode::Normal;
         let command = match key.code {
+            KeyCode::Char('R') => {
+                return self.command("recommendations");
+            }
             KeyCode::Char('/') => {
                 self.begin_global_note_search()?;
                 return Ok(Action::None);

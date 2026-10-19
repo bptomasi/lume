@@ -69,14 +69,7 @@ fn event_loop(
     loop {
         dirty |= sync_mouse(guard, app);
         dirty |= background.tick(app)?;
-        match app.poll_navigation() {
-            Ok(changed) => dirty |= changed,
-            Err(error) => {
-                app.status = format!("{error:#}");
-                dirty = true;
-            }
-        }
-        dirty |= app.poll_reader();
+        dirty |= poll_reading_workers(app);
         match app.poll_note_workspace() {
             Ok(Some(Action::Quit)) => break,
             Ok(Some(_)) => dirty = true,
@@ -105,6 +98,20 @@ fn event_loop(
     app.end_session()
 }
 
+fn poll_reading_workers(app: &mut App) -> bool {
+    let mut changed = app.poll_reader();
+    for result in [app.poll_navigation(), app.poll_recommendations()] {
+        match result {
+            Ok(ready) => changed |= ready,
+            Err(error) => {
+                app.status = format!("{error:#}");
+                changed = true;
+            }
+        }
+    }
+    changed
+}
+
 fn sync_mouse(guard: &mut TerminalGuard, app: &mut App) -> bool {
     if let Err(error) = guard.mouse.sync(app.workspace.mouse) {
         app.status = format!(
@@ -121,6 +128,7 @@ fn poll_interval(app: &App) -> Duration {
         || app.note_inspection_pending()
         || app.note_catalog_pending()
         || app.notes_pending()
+        || app.recommendations_pending()
         || app.navigation_loading
         || app.pane_motion_active();
     Duration::from_millis(if active { 16 } else { 100 })

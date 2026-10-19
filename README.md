@@ -47,6 +47,48 @@ an exported file.
 
 ![Lume's actual annotation notebook](docs/preview-notebook.png)
 
+## A local For you shortlist
+
+![Actual local recommendations](docs/preview-recommendations.png)
+
+`Space R` or `:recommendations` opens up to 100 recommendations from your
+cached library. Bundled, editable interests cover infrastructure, systems,
+security and AI. No model, GPU, hosted account or additional service is needed.
+
+```text
+:interest Kernel networking | 9 | conntrack OR cilium OR XDP
+:recommend-exclude title:webinar OR title:sponsored
+:recommend-settings minutes 20
+:recommend-settings source 12 5
+:recommend-why
+:recommend-feedback useful
+```
+
+`:recommend-profile` shows interests and settings. Priority is 1–10;
+source preference is -10..10 (zero clears). `minutes off` removes the time
+limit; `read on/off` includes/excludes articles marked read.
+`:interest-remove NAME` removes a topic; an empty profile stays empty.
+`:recommend-feedback not-interested`, `too-basic` or `too-advanced` hides an
+article and its canonical duplicates. `clear` removes its rating. Useful and
+not-interested feedback adjust matching interest affinities within bounds;
+difficulty feedback does not reject the subject. Opening an article never
+counts as approval. `:similar` filters For you by up to four strongest shared
+interest rules. `:help recommendations` explains the complete workflow.
+
+Explanations identify matching interests, title matches and whether the
+available evidence is feed content, a summary, references or a cached full
+article. Code and announcement wording are observed signals, not verified
+quality or difficulty. Matching uses explicit vocabulary and FTS5 prefixes/
+phrases; it does not provide neural semantic understanding. Relevance and
+technical correctness remain different questions.
+
+New/changed publisher text is processed in durable batches of 64 on a bounded
+worker; state edits reuse cached evidence. The published shortlist is stored
+in SQLite, so navigating never runs classification. A 512-candidate pool bounds
+in-memory diversification; this is a shortlist, not an exhaustive relevance
+ordering. Initial indexing can take time. No recommendation request downloads
+an article, sends notes elsewhere or requires connectivity.
+
 ## Start reading
 
 ```sh
@@ -320,6 +362,8 @@ creates a folder and `z` toggles Zen. Reader `f`, `e`, `N` and `z` belong
 to Vim motions. See `:help vim` for paragraphs, brackets, visual word objects,
 viewport positioning and jump history. This is read-only navigation; publisher
 text is never edited with Vim operators.
+Reader `h`/`l` and Left/Right cross display-row boundaries, including soft
+wraps and blank rows. Counts and visual selections follow the same movement.
 
 Personal folders are flat article collections. An article can belong to
 several folders and remain a favorite. The `a` picker keeps membership changes

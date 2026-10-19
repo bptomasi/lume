@@ -27,6 +27,8 @@ mod note_study;
 mod panes;
 #[path = "workloads/reading_tools.rs"]
 mod reading_tools;
+#[path = "workloads/recommendations.rs"]
+mod recommendations;
 #[path = "workloads/smoothness.rs"]
 mod smoothness;
 #[path = "workloads/workspace_reflow.rs"]
@@ -78,6 +80,9 @@ fn main() -> Result<()> {
 }
 
 fn focused_workload(iterations: usize, stress: bool) -> Option<Result<()>> {
+    if std::env::args().any(|argument| argument == "--recommendations-only") {
+        return Some(recommendations::run(iterations, stress));
+    }
     if std::env::args().any(|argument| argument == "--notebook-only") {
         return Some(annotation_notebook::run(iterations, stress));
     }

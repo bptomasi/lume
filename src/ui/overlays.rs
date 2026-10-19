@@ -262,7 +262,7 @@ const LEADER: &str = "
  p  Command palette         f  Find an article
  l  Organize in folders       n  Your notebook
  q  Read-next queue         z  Zen reading
- Z  Fullscreen article
+ Z  Fullscreen article     R  For you
  b  Toggle library         a  Toggle headlines
  v  Toggle reader          t  Article annotations
  c  Compact headlines      s  Smart list

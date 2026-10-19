@@ -10,39 +10,20 @@ import subprocess
 import tempfile
 
 
-TIMING = re.compile(
-    r"(.+): (\d+) iterations, ([\d.]+) ms total, ([\d.]+) ms/iteration"
-)
+from bench_support import TIMING, benchmark_binary, run_workload
+
+
 LATENCY = re.compile(
     r"note context/frame latency: p50=([\d.]+) p95=([\d.]+) "
     r"p99=([\d.]+) ms"
 )
 
 
-def benchmark_binary():
-    completed = subprocess.run(
-        ["cargo", "bench", "--locked", "--bench", "reader", "--no-run"],
-        check=True, capture_output=True, text=True,
-    )
-    matches = re.findall(
-        r"Executable benches/reader.rs \(([^)]+)\)",
-        completed.stdout + completed.stderr,
-    )
-    if not matches:
-        raise RuntimeError("Cargo did not report the compiled benchmark path")
-    return Path(matches[-1]).resolve()
-
-
 def measure(binary, workload, stress, trial, resources):
-    command = [
-        "/usr/bin/time", "-f",
-        '{"wall_seconds":%e,"peak_rss_kib":%M,"user_seconds":%U,'
-        '"system_seconds":%S,"input_blocks":%I,"output_blocks":%O}',
-        "-o", str(resources), str(binary), f"--{workload}-only",
-    ]
+    arguments = [f"--{workload}-only"]
     if stress:
-        command.append("--stress")
-    completed = subprocess.run(command, check=True, capture_output=True, text=True)
+        arguments.append("--stress")
+    completed = run_workload(binary, arguments, resources)
     timings = [
         {
             "operation": operation,

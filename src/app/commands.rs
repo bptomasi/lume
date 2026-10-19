@@ -50,6 +50,9 @@ impl App {
         }
         let (verb, argument) = command_parts(text);
         self.guard_notebook_article_command(verb)?;
+        if let Some(action) = self.recommendation_command(verb, argument)? {
+            return Ok(action);
+        }
         if let Some(action) = self.layout_commands(verb, argument)? {
             return Ok(action);
         }

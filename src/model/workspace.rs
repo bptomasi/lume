@@ -11,6 +11,8 @@ pub enum View {
     Inbox,
     /// All cached articles.
     All,
+    /// Cached, diverse local recommendations.
+    Recommended,
     /// Read articles, derived from the durable read flag.
     Read,
     /// Recoverable deleted articles, excluded from other destinations.

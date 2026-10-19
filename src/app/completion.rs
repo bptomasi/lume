@@ -857,4 +857,58 @@ const COMMANDS: &[CommandSpec] = &[
         description: "Incrementally export Note-ID.md files; preserve local edits",
         aliases: &[],
     },
+    CommandSpec {
+        name: "recommendations",
+        usage: "recommendations",
+        description: "Open the cached For you shortlist",
+        aliases: &["for-you"],
+    },
+    CommandSpec {
+        name: "recommend-profile",
+        usage: "recommend-profile",
+        description: "Show local interests and preferences",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "interest",
+        usage: "interest NAME | PRIORITY | QUERY",
+        description: "Add or replace an interest; priority 1–10",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "interest-remove",
+        usage: "interest-remove NAME",
+        description: "Remove one interest",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "recommend-exclude",
+        usage: "recommend-exclude [QUERY]",
+        description: "Exclude matches; empty clears exclusions",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "recommend-settings",
+        usage: "recommend-settings minutes N/off | read on/off | source ID WEIGHT | reset",
+        description: "Configure local recommendations",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "recommend-feedback",
+        usage: "recommend-feedback useful/not-interested/too-basic/too-advanced/clear",
+        description: "Rate the selected article explicitly",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "recommend-why",
+        usage: "recommend-why",
+        description: "Explain cached matching evidence",
+        aliases: &["why"],
+    },
+    CommandSpec {
+        name: "similar",
+        usage: "similar",
+        description: "Find articles sharing current interests",
+        aliases: &[],
+    },
 ];

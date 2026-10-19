@@ -10,7 +10,7 @@ BINARY ?= $(TARGET_DIR)/release/lume
 MIGRATE_FROM ?=
 
 .PHONY: check check-release check-http check-alacritty fmt lint test bench build demo
-.PHONY: install test-tools bench-tools bench-notes
+.PHONY: install test-tools bench-tools bench-notes bench-recommendations
 
 # Serialize composition even when a caller uses make -j.
 .NOTPARALLEL:
@@ -21,7 +21,8 @@ check:
 	$(MAKE) test
 	$(MAKE) test-tools
 	python3 -m py_compile tools/render_preview.py tools/qualify_alacritty.py \
-		tools/install.py tools/bench_install.py tools/bench_notes.py
+		tools/install.py tools/bench_install.py tools/bench_notes.py \
+		tools/bench_support.py tools/bench_recommendations.py
 
 fmt:
 	$(CARGO) fmt --all -- --check
@@ -61,6 +62,9 @@ bench:
 # Repeated resource measurements; ordinary checks exercise the Rust workloads.
 bench-notes:
 	python3 tools/bench_notes.py
+
+bench-recommendations:
+	python3 tools/bench_recommendations.py
 
 bench-tools:
 	python3 tools/bench_install.py

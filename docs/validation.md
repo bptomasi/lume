@@ -1,5 +1,98 @@
 # Validation record — Lume
 
+## Continuous horizontal reader movement — 2026-10-19
+
+`make check` passed with pinned Rust **1.99.1** and locked published sources:
+**431 native tests**, all checked Rust workloads, **10 installer tests**,
+Clippy, formatting and Python tooling syntax. No sources or toolchains were
+substituted. Reader `l`/Right continues at the next display row; `h`/Left
+returns to the preceding row. Counts preserve grapheme boundaries and stop at
+document boundaries, including on empty rows. Visual selection across a soft
+wrap retains the original intervening space, and the viewport follows the
+cursor. Two new native scenarios exercise these behaviors through actual key
+dispatch. The existing Unicode motion scenario now asserts reverse wrapping.
+
+The checked reader workload includes repeated forward/backward row crossing
+over the existing representative article/highlight fixture. It checks both
+destinations and uses cached display rows; no speedup is inferred from this
+change or its verification-mode timing.
+
+## Local For you recommendations — 2026-10-19
+
+`make check` passed using exact Rust **1.99.1**, locked published sources and
+no dependency/source/toolchain substitution: **429 native tests**, all checked
+Rust workloads, **10 installer tests**, examples and Python tooling syntax.
+There are 23 new recommendation/storage/migration/interaction scenarios.
+They cover publisher-only phrase/boolean matching, configured related vocabulary,
+private-note separation, observed code/announcement evidence, source/time
+preferences, exclusions, duplicate grouping, reversible explicit feedback,
+Trash/undo, unchanged ingestion, URL/full-cache invalidation, ranked pagination,
+64-row batches and restart. A real V9 database upgrades without altering private
+notes, favorites, memberships or article text. Frames cover tiny through 144×44
+viewports; 24 existing visual snapshots changed only for the new sidebar row
+and consequent vertical/style shifts, across all three themes.
+
+Actual key dispatch qualifies commands, Space R, saved settings, explanations,
+Reader selection preservation and Notebook scope guards. Real SQLite locks
+prove that input remains admissible while writes cannot commit. Queue overload
+rejects a ninth unacknowledged edit, and shutdown preserves all eight admitted
+preferences without replacing them. Preference and feedback writes own captured
+identities; deletion checks share their transaction snapshot.
+
+`make check-release` was attempted in the sandbox and reached its HTTP stage,
+where socket creation is prohibited. A combined outside-sandbox attempt timed
+out in automatic permission review before execution. Its constituents were then
+qualified separately: `make check` in the sandbox, **all 8 real HTTP cases**
+through `make check-http` outside it, and `make build` with `--locked --release`.
+No HTTP case was skipped and no containers were started. These are constituent
+results, not a claimed successful combined command in the sandbox.
+
+A separate final release-executable Linux PTY run at 140×36 passed initial
+recommendation publication, Space R, captured useful feedback, provenance
+explanations, time preferences, shutdown write draining, private-note
+preservation and terminal-attribute restoration. This is not physical Alacritty
+paint/input qualification. The actual recommendation preview was exported from
+Ratatui and visually reviewed in `preview-recommendations.png`.
+
+### Measured recommendation workloads
+
+`python3 tools/bench_recommendations.py --baseline-report
+ docs/recommendation-performance-before.json` records three release runs at
+10,000 and 50,000 articles over ten sources. The
+[raw report](recommendation-benchmarks.json) records environment, exact binary
+checksum, process wall time, peak RSS, CPU and filesystem block counters.
+[Before measurements](recommendation-performance-before.json) retain three
+runs of the experimental pre-optimization binary on the exact same 10k fixture.
+This is an experimental baseline, not a previously shipped release.
+
+Classification/publication, cached reads, single publisher changes, a useful/
+clear feedback cycle and actual source navigation/frames all check correctness.
+Setup uses normal bounded ingestion and is excluded from operation timers,
+but included in process resource measurements. Body fixtures are repeated
+publisher prose; this stresses library size rather than maximum document size.
+Values below are medians of three per-run means in milliseconds.
+
+| Workload | Before, 10k | After, 10k | After, 50k |
+| --- | ---: | ---: | ---: |
+| Complete initial incremental classification | 15340.492 | 920.017 | 10996.161 |
+| Cached count + 100 metadata rows + idle refresh | 4.090 | 0.108 | 0.106 |
+| One changed article + classification/publication | 4.253 | 4.478 | 10.504 |
+| Useful + clear feedback, cached evidence reweight | 246.645 | 256.695 | 1346.473 |
+| Article down/up + two actual TestBackend frames | 0.484 | 0.495 | 0.491 |
+| Navigation pair p95, ms | 0.517 | 0.508 | 0.540 |
+| Process peak RSS, KiB | 18,564 | 18,476 | 21,984 |
+
+The observed gains concern initial batching and cached page queries; the other
+workflows do not show a universal improvement. Feedback can reweight many
+cached rows and remains off the UI thread. Initial indexing publishes partial
+shortlists; production's event-poll cadence adds time beyond the batch-only
+measurements. TestBackend source navigation here uses synchronous source loads;
+these statistics exclude physical input, terminal-emulator/display latency and
+the interactive worker polling delay. They are not idle-app RAM, allocation,
+battery, hard real-time or recommendation-quality guarantees. Host scheduling
+and cache state were not controlled. Recommendation usefulness requires
+explicit reader feedback; vocabulary/code signals cannot verify correctness.
+
 ## Indexed study notebook — 2026-10-18
 
 `make check` passed as the local constituent of `make check-release`, using

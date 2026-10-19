@@ -77,6 +77,7 @@
   ── VIM READER MOTIONS ──────────────────────────────────────────────
   j/k, arrows     Move by display row, keeping the desired column
   h/l             Move by Unicode grapheme (including combining marks)
+                  Wrap to the previous / next display row; arrows also wrap
   w / b / e       Next word start / previous start / word end
   W / B / E       Same motions for whitespace-separated WORDs
   ge / gE         Previous word / WORD end
@@ -287,3 +288,37 @@
   Again / Hard / Good / Easy use fixed 1 / 3 / 7 / 14 day intervals.
   Postpone sets tomorrow without increasing completed reviews.
   These are explicit local choices, not adaptive or inferred scheduling.
+
+  ── RECOMMENDATIONS ────────────────────────────────────────────────────────
+
+  Space R / :recommendations    Open For you; runs locally without a model
+  :recommend-why                Explain interests, source and observed evidence
+  :recommend-profile            Show explicit preferences and example commands
+  :interest NAME | 1–10 | QUERY  Add/replace an interest using boolean search
+  :interest-remove NAME         Remove one interest; empty profiles stay empty
+  :recommend-exclude QUERY      Exclude matches; no argument clears exclusions
+  :recommend-settings minutes 20   Limit estimated reading time (off clears)
+  :recommend-settings read on/off  Include/exclude articles marked read
+  :recommend-settings source ID -10..10   Prefer/deprioritize a subscription
+  :recommend-settings reset     Restore bundled computing interests/settings
+  :recommend-feedback useful    Approve this article and its matching interests
+  :recommend-feedback not-interested   Hide it; reduce matching affinities
+  :recommend-feedback too-basic / too-advanced   Hide it without rejecting topic
+  :recommend-feedback clear     Remove the rating; eligible articles can return
+  :similar                      Find articles sharing its configured interests
+
+  Example: :interest Kernel networking | 9 | conntrack OR cilium OR XDP
+  Terms support prefixes, phrases, AND/OR/NOT and parentheses. Explicit fields:
+  title, body, source, author, domain and tag. Private notes never affect matches.
+  Profile priorities dominate bounded topic feedback. Opening/reading is not
+  approval. Favorites add a small bonus. A code block and announcement wording
+  are observed signals, not proof of depth, correctness or editorial quality.
+
+  For you contains at most 100 diverse entries from 512 scored candidates.
+  Duplicate canonical URLs share one entry. Negative ratings hide duplicates.
+  No age cutoff discards older reference material. New/changed text is indexed
+  in durable batches of 64; read/favorite edits reuse text evidence. Work runs
+  on a bounded background queue, and cached lists remain usable offline.
+  Initial classification can take time for large libraries. Navigation never
+  runs recommendation analysis. :recommend-why identifies feed/summary/full
+  evidence; the recommender never downloads articles or sends personal data.

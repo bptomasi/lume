@@ -212,7 +212,10 @@ ambiguous revisions never navigate to a guessed occurrence. Search ranges are
 sorted before drawing, so each visible row visits only intersecting matches.
 `reader::motion::WordIndex` caches grapheme-safe word/WORD boundaries when
 readable text changes. Counted word destinations use binary searches; cursor
-placement binary-searches display-row ranges. Transient Vim counts/prefixes
+placement binary-searches display-row ranges. Horizontal motions walk cached
+display rows, crossing soft wraps and empty rows without splitting Unicode
+graphemes. Counts bound the work; viewport adjustment happens once at the final
+destination. Transient Vim counts/prefixes
 belong to the app, never storage. Explicit ex commands retain note/favorite
 actions where reader motions occupy their former single-key bindings.
 Reflow preserves the readable cursor and explicit jumps clear pending progress
@@ -933,3 +936,87 @@ Unsupported detection falls back to legacy input. Legacy events contain no
 physical release time, so precise release cancellation is unavailable there.
 One already-running SQLite/reflow/draw operation is not preempted; the reader
 makes no hard real-time guarantee.
+
+
+## Incremental local recommendations
+
+`model::recommendation` owns explicit interest/profile/feedback contracts.
+`recommendation` owns profile validation, bundled computing vocabulary and
+bounded metadata-only diversity. `store::recommendations` owns publisher
+matching, cached features, durable feedback and publication. The application
+adapter owns ordered commands and refresh scheduling; the existing article
+panels render `View::Recommended`. No model, service or network adapter is part
+of this capability. Publisher extraction remains independently initiated by
+ordinary reading and collection workflows.
+
+Migration V10 creates a dirty queue, article/interest matches, evidence/scores,
+explicit feedback with captured topic identities and a ranked shortlist.
+Earlier migrations remain unchanged. Publisher text, URL, source-title and
+article-tag changes enqueue text classification in their own transaction.
+Read/favorite/Trash changes enqueue score refresh only. Unchanged ingestion,
+reading progress, private notes and extraction failures do not invalidate text.
+A valid changed full cache does; an obsolete-URL cache is excluded from both
+matching and provenance. User feedback survives publisher refresh and Trash.
+
+Each refresh opens a consistent transaction and consumes at most 64 identities.
+FTS5 evaluates validated query leaves against publisher fields. Captured ID
+ranges spanning at most 256 identities use a bounded FTS rowid range, parsing
+each leaf once per batch. Sparse sets retain correlated rowid lookups. The
+outer captured-ID predicate preserves exact membership in either path. Ordinary article search retains its separate note-search
+behavior. Recommendation interests reject note/state/date-dependent criteria;
+For you text filters use publisher-only compilation. Text classification streams
+one feed/full pair at a time, captures matches, title evidence, available words,
+reading time, real code-block events and announcement wording, then discards
+publisher bodies. State refreshes reuse that evidence. Profile replacement is
+atomic, clears previous publication and invalidates all classifications; old
+profile matches cannot leak into the new shortlist during incremental rebuild.
+
+Scoring adds ten times each matching priority (1–10), twelve for title evidence,
+and four times each topic's signed useful/not-interested count, clamped to
+minus/plus three. Explicit source preference contributes five times -10..10;
+favorites add eight and an observed code block adds three. Announcement wording
+subtracts eight and fewer than 80 available words subtracts ten. A matching
+article retains a positive score; an unmatched article cannot acquire relevance
+from its source or favorite alone. These weights are transparent heuristics,
+not probabilities, learned editorial quality or verified difficulty.
+
+Publication retrieves at most 512 eligible metadata rows by cached score,
+excludes Trash/read/time/query exclusions and negative ratings, and groups
+canonical URL occurrences. Negative ratings cover canonical duplicates. A
+greedy selection reduces prominence with source/topic repetition and publishes
+at most 100 IDs/positions. Ties use publication time and ID deterministically.
+There is no fixed publication-age cutoff, but candidate limits trade exhaustive
+recall for bounded selection work. Queries start at the small cached shortlist,
+including counts, and preserve its rank for pagination/session positioning.
+The cached page has its own bounded join/order; ordinary article destinations
+retain their published-order query and covering-index behavior.
+
+The recommendation worker admits at most eight unacknowledged jobs. Preference
+and feedback edits are ordered, captured and never replaced. Mutations retry
+SQLite busy/locked only after rollback; post-commit refresh failures never replay
+the edit. Result acknowledgement decrements pending counts, so shutdown cannot
+mistake a committed but unobserved failure for success. Idle checks run at most
+once per two seconds; an empty dirty queue neither classifies nor republishes.
+Remaining batches resume without another external event. Dropping disconnects
+the adapter; admitted edits finish and unfinished indexing remains durable.
+
+Ready batches update sidebar counts. Article-page refresh is deferred while
+reading, editing, selecting or using Notebook, then installed with selection preserved by identity. The recommendation worker
+reads its captured metadata page directly after publication; it never recounts
+unrelated smart lists or subscriptions. Unchanged metadata does not redraw the
+screen. Page installation shares navigation policy with the annotation catalog.
+Drawing performs no recommendation I/O. `Space R`, the command palette and
+`:recommendations` share the destination operation. `:recommend-why` shows
+cached provenance and observations. Profile commands expose the same bounded
+query grammar; `:similar` filters the shortlist with up to four strongest shared
+rules. Hidden Notebook article selections cannot receive feedback or article
+explanations. Explicit feedback is independent of read state and undo history;
+`:recommend-feedback clear` is its reversible operation.
+
+Native tests qualify migration, matching, private-note separation, exclusions,
+canonical duplicates, feedback clearing, source changes, batch/reopen behavior,
+ranked pagination, preserved selection and keyboard admission under a real SQLite
+write lock. Checked workloads measure initial batches, cached reads, one changed
+article, feedback reweighting and actual article navigation/frames at 10k/50k
+articles. GNU time records process wall/RSS/CPU/I/O; these resource totals include
+setup. TestBackend timing does not establish physical terminal input latency.
