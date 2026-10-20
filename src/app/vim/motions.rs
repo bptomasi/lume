@@ -59,7 +59,7 @@ impl App {
     }
 
     pub(super) fn goto_column(&mut self, column: usize) {
-        self.reader_column = cursor::byte_at(self.cursor_line(), column);
+        self.reader_column = self.row_byte_at(self.reader_cursor, column);
         self.reader_goal = Some(column);
         self.ensure_cursor_visible();
     }

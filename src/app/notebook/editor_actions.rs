@@ -5,7 +5,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result, ensure};
 
 use super::super::{
-    App, ChoiceAction, EditMode, Input, InputKind, Mode, note_tasks::Task,
+    App, ChoiceAction, EditMode, Input, InputKind, Mode, personal_tasks::Task,
 };
 use super::{NoteAction, inspection::Inspection};
 
@@ -153,7 +153,7 @@ impl App {
         current: Arc<crate::model::AnnotationSnapshot>,
         version: i64,
     ) -> Result<()> {
-        if let Some(writer) = &mut self.note_tasks {
+        if let Some(writer) = &mut self.personal_writes {
             writer.submit(Task::Edit(
                 crate::app::NoteEdit::RestoreVersion { current, version },
             ))?;
@@ -173,7 +173,7 @@ impl App {
         current: Arc<crate::model::AnnotationSnapshot>,
         passage: crate::model::Passage,
     ) -> Result<()> {
-        if let Some(writer) = &mut self.note_tasks {
+        if let Some(writer) = &mut self.personal_writes {
             writer.submit(Task::Edit(crate::app::NoteEdit::Reanchor {
                 current,
                 passage,

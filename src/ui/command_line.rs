@@ -15,7 +15,7 @@ use super::{overlays::modal, theme::*};
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App, input: &Input) {
     let suggestions = command_suggestions(&input.text);
     let title = format!(": Commands · {} matches", suggestions.len());
-    let inner = modal(frame, &title, 100, 25);
+    let inner = modal(frame, &title, super::popup::Popup::Command);
     let areas = Layout::vertical([
         Constraint::Length(2),
         Constraint::Min(1),

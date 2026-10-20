@@ -1,4 +1,4 @@
-//! Ordered note writes own one connection and a bounded admission/result queue.
+//! Ordered personal writes own one connection and a bounded admission/result queue.
 //!
 //! An admitted mutation is never replaced. Results retain captured identities;
 //! later navigation cannot redirect them. Explicit shutdown drains writes.
@@ -8,14 +8,7 @@ mod operation;
 mod review;
 pub(super) use review::review;
 
-use std::{
-    path::Path,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-        mpsc,
-    },
-};
+use std::{cell::Cell, path::Path, sync::mpsc};
 
 use anyhow::{Result, anyhow};
 
@@ -26,6 +19,10 @@ pub(super) enum Task {
     Write(NoteDraft),
     Query(QueryEdit),
     Edit(Edit),
+    Read {
+        articles: std::collections::BTreeSet<i64>,
+        unread: bool,
+    },
     Undo,
     Export(std::path::PathBuf),
     ExportArticles(std::path::PathBuf),
@@ -86,6 +83,7 @@ pub(super) enum Outcome {
         effect: UndoEffect,
         comments: Result<Vec<Comment>>,
     },
+    Read,
     Checkpoint,
     Collections,
     SearchHistory(Vec<String>),
@@ -102,22 +100,21 @@ pub(super) struct Completion {
     pub(super) result: Result<Outcome>,
 }
 
-pub(super) struct NoteTasks {
+pub(super) struct PersonalWrites {
     requests: mpsc::SyncSender<Job>,
     results: mpsc::Receiver<Completion>,
     next: u64,
-    pending: Arc<AtomicUsize>,
+    pending: Cell<usize>,
 }
 
-impl NoteTasks {
+impl PersonalWrites {
     pub(super) fn start(path: &Path) -> Result<Self> {
         let store = crate::store::Store::open(path)?;
         let (requests, receiver) = mpsc::sync_channel::<Job>(16);
         let (sender, results) = mpsc::sync_channel(16);
-        let pending = Arc::new(AtomicUsize::new(0));
-        let active = pending.clone();
+        let pending = Cell::new(0);
         std::thread::Builder::new()
-            .name("lume-note-writes".into())
+            .name("lume-personal-writes".into())
             .spawn(move || {
                 while let Ok(job) = receiver.recv() {
                     let result = operation::retry(&store, job.task);
@@ -125,7 +122,6 @@ impl NoteTasks {
                         ticket: job.ticket,
                         result,
                     });
-                    active.fetch_sub(1, Ordering::AcqRel);
                 }
             })?;
         Ok(Self {
@@ -137,27 +133,31 @@ impl NoteTasks {
     }
 
     pub(super) fn submit(&mut self, task: Task) -> Result<u64> {
-        // At most 16 queued jobs prevent identity aliasing across a u64 wrap.
+        // Bounded request/result queues prevent live ticket aliasing on wrap.
         self.next = self.next.wrapping_add(1);
-        self.pending.fetch_add(1, Ordering::AcqRel);
+        self.pending.set(self.pending.get() + 1);
         if let Err(error) = self.requests.try_send(Job {
             ticket: self.next,
             task,
         }) {
-            self.pending.fetch_sub(1, Ordering::AcqRel);
+            self.pending.set(self.pending.get() - 1);
             return Err(anyhow!(
-                "Note write not admitted: {error}; retry the action"
+                "Personal write not admitted: {error}; retry the action"
             ));
         }
         Ok(self.next)
     }
 
     pub(super) fn poll(&self) -> Option<Completion> {
-        self.results.try_recv().ok()
+        let result = self.results.try_recv().ok()?;
+        // A durable mutation remains pending until its UI acknowledgement,
+        // including failures. Shutdown must also drain completed outcomes.
+        self.pending.set(self.pending.get() - 1);
+        Some(result)
     }
 
     pub(super) fn pending(&self) -> bool {
-        self.pending.load(Ordering::Acquire) != 0
+        self.pending.get() != 0
     }
 }
 

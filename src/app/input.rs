@@ -17,6 +17,9 @@ impl App {
             self.note_marks.delete = None;
         }
         self.cancel_pointer();
+        if self.stale_reader_key(key) {
+            return Ok(Action::None);
+        }
         if key.modifiers.contains(KeyModifiers::CONTROL)
             && key.code == KeyCode::Char('c')
         {
@@ -40,6 +43,30 @@ impl App {
             Mode::Normal if self.notebook.is_some() => self.notebook_key(key),
             Mode::Normal => self.normal_key(key),
         }
+    }
+
+    fn stale_reader_key(&mut self, key: KeyEvent) -> bool {
+        let blocked = matches!(self.mode, Mode::Normal)
+            && self.notebook.is_none()
+            && self.reader_stale()
+            && matches!(self.focus, Focus::Reader | Focus::Annotations)
+            && !matches!(
+                key.code,
+                KeyCode::Esc
+                    | KeyCode::Tab
+                    | KeyCode::BackTab
+                    | KeyCode::F(11)
+                    | KeyCode::Char('q' | ':' | '?' | 'Z' | 'z')
+            )
+            && !preview_motion(key.code)
+            && !key
+                .modifiers
+                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+            && !self.panel_prefix;
+        if blocked {
+            self.status = "Loading selection… · article actions paused".into();
+        }
+        blocked
     }
 
     fn ignored_key(&self, key: KeyEvent) -> bool {
@@ -323,4 +350,34 @@ impl App {
             _ => {}
         }
     }
+}
+
+fn preview_motion(code: KeyCode) -> bool {
+    matches!(
+        code,
+        KeyCode::Char(
+            'h' | 'j'
+                | 'k'
+                | 'l'
+                | 'g'
+                | 'G'
+                | 'w'
+                | 'W'
+                | 'b'
+                | 'B'
+                | 'e'
+                | 'E'
+                | 'I'
+                | 'A'
+                | '0'..='9' | '^' | '$' | '%'
+        ) | KeyCode::Up
+            | KeyCode::Down
+            | KeyCode::Left
+            | KeyCode::Right
+            | KeyCode::Home
+            | KeyCode::End
+            | KeyCode::Backspace
+            | KeyCode::PageUp
+            | KeyCode::PageDown
+    )
 }

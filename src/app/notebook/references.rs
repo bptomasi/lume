@@ -88,8 +88,8 @@ impl App {
                 kind,
             } => {
                 let change = crate::model::NoteChange::Kind(kind);
-                if let Some(writer) = &mut self.note_tasks {
-                    writer.submit(super::super::note_tasks::Task::Edit(
+                if let Some(writer) = &mut self.personal_writes {
+                    writer.submit(super::super::personal_tasks::Task::Edit(
                         crate::app::NoteEdit::Metadata {
                             article,
                             note,

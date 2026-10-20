@@ -44,6 +44,7 @@ impl App {
     }
 
     pub(in crate::app) fn captured_image(&self) -> Result<ImageInspector> {
+        self.guard_stale_command("image")?;
         ensure!(
             self.focus == Focus::Reader && self.notebook.is_none(),
             "Focus Reader before opening an image"

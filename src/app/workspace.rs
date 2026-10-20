@@ -31,6 +31,9 @@ impl App {
         command: WorkspaceCommand,
     ) -> Result<Action> {
         use WorkspaceCommand as C;
+        if matches!(command, C::Links | C::Lists | C::ExportArticle) {
+            self.guard_stale_command("article-action")?;
+        }
         match command {
             C::ReaderPane
             | C::Annotations
@@ -151,8 +154,8 @@ impl App {
     }
 
     pub(super) fn undo(&mut self) -> Result<()> {
-        if let Some(writer) = &mut self.note_tasks {
-            writer.submit(super::note_tasks::Task::Undo)?;
+        if let Some(writer) = &mut self.personal_writes {
+            writer.submit(super::personal_tasks::Task::Undo)?;
             self.status = "Undoing personal edit…".into();
             return Ok(());
         }

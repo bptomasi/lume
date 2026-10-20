@@ -6,7 +6,7 @@ use crate::model::{AnnotationSnapshot, NoteChange, NoteKind};
 
 use super::super::{
     Action, App, Focus, InputKind,
-    note_tasks::{QueryEdit, Task},
+    personal_tasks::{QueryEdit, Task},
 };
 
 impl App {
@@ -126,7 +126,7 @@ impl App {
         if query.trim().is_empty() {
             return Ok(());
         }
-        if let Some(writer) = &mut self.note_tasks {
+        if let Some(writer) = &mut self.personal_writes {
             writer.submit(Task::Query(QueryEdit::Remember(query.into())))?;
         } else {
             self.store.remember_note_search(query)?;
@@ -158,7 +158,7 @@ impl App {
                 self.show_recent_note_searches()?;
             }
             "note-collection-delete" => {
-                if let Some(writer) = &mut self.note_tasks {
+                if let Some(writer) = &mut self.personal_writes {
                     writer.submit(Task::Query(QueryEdit::Delete(
                         argument.into(),
                     )))?;
@@ -191,7 +191,7 @@ impl App {
     fn export_note_files(&mut self, argument: &str) -> Result<()> {
         ensure!(!argument.is_empty(), "Use :export-note-files DIRECTORY");
         let path = std::path::PathBuf::from(argument);
-        if let Some(writer) = &mut self.note_tasks {
+        if let Some(writer) = &mut self.personal_writes {
             writer.submit(Task::Export(path))?;
         } else {
             let report = crate::exchange::notes::notebook(&self.store, &path)?;
@@ -211,6 +211,7 @@ impl App {
                 .map(|context| context.note.clone())
                 .context("Wait for the selected note's context");
         }
+        self.guard_stale_command("note")?;
         let article = self.current().context("Select an article")?.id;
         let id = self
             .cursor_note()
@@ -239,7 +240,7 @@ impl App {
             "note-status-toggle" => NoteChange::ToggleResolved,
             _ => NoteChange::TogglePin,
         };
-        if let Some(writer) = &mut self.note_tasks {
+        if let Some(writer) = &mut self.personal_writes {
             writer.submit(Task::Edit(crate::app::NoteEdit::Metadata {
                 article: note.article,
                 note: note.comment.id,
@@ -290,7 +291,7 @@ impl App {
             text.split_whitespace().map(str::to_owned).collect()
         };
         let tags = crate::store::validate_tags(&tags)?;
-        if let Some(writer) = &mut self.note_tasks {
+        if let Some(writer) = &mut self.personal_writes {
             writer.submit(Task::Edit(crate::app::NoteEdit::Tags {
                 article,
                 note,
@@ -314,7 +315,7 @@ impl App {
             .as_ref()
             .context("Open Notebook and choose a query first")?;
         crate::store::validate_collection_name(name)?;
-        if let Some(writer) = &mut self.note_tasks {
+        if let Some(writer) = &mut self.personal_writes {
             writer.submit(Task::Query(QueryEdit::Save {
                 name: name.into(),
                 query: notebook.query.clone(),

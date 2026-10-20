@@ -5,7 +5,6 @@ use ratatui::layout::{Position, Rect};
 
 use crate::{
     model::{Pane, Workspace},
-    reader::cursor,
     ui,
 };
 
@@ -197,7 +196,7 @@ impl App {
         }
         let row = event.row.clamp(content.y, content.bottom() - 1);
         let index = self.scroll + usize::from(row - content.y);
-        let text = self.reader_lines.get(index)?;
+        self.reader_lines.get(index)?;
         let column = event.column.clamp(content.x, content.right() - 1);
         let goal = usize::from(column - content.x)
             + if self.code_lines.get(index) == Some(&true) {
@@ -205,7 +204,7 @@ impl App {
             } else {
                 0
             };
-        let byte = cursor::byte_at(text, goal);
+        let byte = self.row_byte_at(index, goal);
         Some(self.reader_ranges.get(index)?.start + byte)
     }
 }

@@ -34,7 +34,10 @@ impl App {
         event: MouseEvent,
         gutter_only: bool,
     ) -> Option<i64> {
-        if self.notebook.is_some() || self.article_preparing() {
+        if self.notebook.is_some()
+            || self.article_preparing()
+            || self.reader_stale()
+        {
             return None;
         }
         let area =

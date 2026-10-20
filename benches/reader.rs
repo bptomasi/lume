@@ -11,6 +11,8 @@ use ratatui::{Terminal, backend::TestBackend};
 mod annotation_notebook;
 #[path = "workloads/catalog.rs"]
 mod catalog;
+#[path = "workloads/code_viewport.rs"]
+mod code_viewport;
 #[path = "workloads/expansion.rs"]
 mod expansion;
 #[path = "workloads/feed_content.rs"]
@@ -79,6 +81,7 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    code_viewport::run(iterations, stress)?;
     interaction::run(iterations, stress)?;
     reading_selection(iterations)?;
     catalog::run(iterations, stress)?;
@@ -93,6 +96,7 @@ type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--interaction-only", interaction::run),
+    ("--code-viewport-only", code_viewport::run),
     ("--images-only", images::run),
     ("--recommendations-only", recommendations::run),
     ("--notebook-only", annotation_notebook::run),

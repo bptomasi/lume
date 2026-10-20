@@ -135,8 +135,9 @@ fn poll_interval(app: &App) -> Duration {
         || app.notes_pending()
         || app.recommendations_pending()
         || app.navigation_loading
+        || app.catalog_pending()
         || app.pane_motion_active();
-    Duration::from_millis(if active { 16 } else { 100 })
+    Duration::from_millis(if active { 8 } else { 100 })
 }
 
 fn draw_workspace(

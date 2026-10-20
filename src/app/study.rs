@@ -56,7 +56,7 @@ impl App {
 
     fn open_card(&mut self, argument: &str) -> Result<()> {
         let (article, comment) = self.selected_annotation()?;
-        if argument.is_empty() || self.note_tasks.is_some() {
+        if argument.is_empty() || self.personal_writes.is_some() {
             self.ensure_no_recovery(&crate::model::DraftTarget::Card {
                 article,
                 note: comment,
@@ -86,8 +86,8 @@ impl App {
 
     fn link_note_article(&mut self, related: i64) -> Result<()> {
         let (article, comment) = self.selected_annotation()?;
-        if let Some(writer) = &mut self.note_tasks {
-            writer.submit(super::note_tasks::Task::LinkArticle {
+        if let Some(writer) = &mut self.personal_writes {
+            writer.submit(super::personal_tasks::Task::LinkArticle {
                 article,
                 note: comment,
                 related,
@@ -190,8 +190,8 @@ impl App {
 
     fn export_incremental(&mut self, directory: &str) -> Result<()> {
         anyhow::ensure!(!directory.is_empty(), "Use :export-notes DIRECTORY");
-        if let Some(writer) = &mut self.note_tasks {
-            writer.submit(super::note_tasks::Task::ExportArticles(
+        if let Some(writer) = &mut self.personal_writes {
+            writer.submit(super::personal_tasks::Task::ExportArticles(
                 directory.into(),
             ))?;
             self.status =

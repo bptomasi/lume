@@ -5,6 +5,7 @@
 //! selected article identity whenever it still belongs to the current view.
 
 mod annotations;
+mod catalog_worker;
 mod commands;
 mod completion;
 mod deletion;
@@ -28,15 +29,16 @@ mod note_catalog;
 mod note_io;
 mod note_marks;
 mod note_refresh;
-mod note_tasks;
 mod notebook;
 mod organization;
 mod pane_motion;
 mod panel_docking;
 mod panels;
 mod passages;
+mod personal_tasks;
 mod picker;
 mod pointer;
+mod read_state;
 mod reader_tools;
 mod reading;
 mod reading_data;
@@ -56,9 +58,9 @@ pub use events::InputBatch;
 pub use help::HELP;
 pub use images::ImageInspector;
 pub use images::ReaderImages;
-use note_tasks::Edit as NoteEdit;
 pub use notebook::{NoteAction, NoteContext, Notebook, ReviewTarget};
 pub use pane_motion::FloatingPane;
+use personal_tasks::Edit as NoteEdit;
 pub use picker::{Choice, ChoiceAction, Picker, PickerKind, WorkspaceCommand};
 pub use pointer::PanelDrag;
 pub use reader_tools::{ReaderLocation, ReaderTools};
@@ -317,16 +319,23 @@ pub struct App {
     pub images: ReaderImages,
     renderer: crate::reader::LiveRenderer,
     navigation_worker: Option<navigation_worker::NavigationWorker>,
+    catalog_worker: Option<catalog_worker::CatalogWorker>,
     session_writer: Option<session_writer::SessionWriter>,
-    note_tasks: Option<note_tasks::NoteTasks>,
+    personal_writes: Option<personal_tasks::PersonalWrites>,
     note_catalog: Option<note_catalog::NoteCatalog>,
     recommendations: Option<recommendations::Recommendations>,
-    pending_note_write: Option<note_tasks::PendingWrite>,
+    pending_note_write: Option<personal_tasks::PendingWrite>,
     pending_note_deletes: std::collections::BTreeMap<u64, i64>,
     recovery: recovery::Recovery,
     note_inspector: Option<notebook::inspection::Inspector>,
     suspended_note: Option<Box<Input>>,
     reading_article: Option<i64>,
+    displayed_article: Option<Article>,
+    catalog_loading: bool,
+    library_revision: u64,
+    read_reconcile_required: bool,
+    projecting_navigation: bool,
+    pending_reads: std::collections::BTreeMap<u64, (Vec<i64>, bool)>,
     immediate_layout: bool,
     pending_reflow: bool,
     progress_memory: std::cell::RefCell<session_writer::ProgressMemory>,
@@ -341,6 +350,7 @@ pub struct App {
     pub(crate) article_text_end: usize,
     /// Original source ranges for selectable rendered lines.
     pub line_ranges: Vec<std::ops::Range<usize>>,
+    pub(crate) reader_columns: Vec<Option<crate::reader::viewport::RowIndex>>,
     /// Cached rich lines; drawing does not parse or highlight.
     pub reader_styled: Vec<ratatui::text::Line<'static>>,
     /// HTTP(S) references extracted from the current content.
@@ -443,8 +453,9 @@ impl App {
             images: ReaderImages::default(),
             renderer: crate::reader::LiveRenderer::start()?,
             navigation_worker: None,
+            catalog_worker: None,
             session_writer: None,
-            note_tasks: None,
+            personal_writes: None,
             note_catalog: None,
             recommendations: None,
             pending_note_write: None,
@@ -453,6 +464,12 @@ impl App {
             note_inspector: None,
             suspended_note: None,
             reading_article: None,
+            displayed_article: None,
+            catalog_loading: false,
+            library_revision: 0,
+            read_reconcile_required: false,
+            projecting_navigation: false,
+            pending_reads: std::collections::BTreeMap::new(),
             immediate_layout: false,
             pending_reflow: false,
             progress_memory: std::cell::RefCell::default(),
@@ -462,6 +479,7 @@ impl App {
             reader_mappings: Vec::new(),
             article_text_end: 0,
             line_ranges: Vec::new(),
+            reader_columns: Vec::new(),
             reader_styled: Vec::new(),
             links: Vec::new(),
             horizontal: 0,
@@ -511,8 +529,13 @@ impl App {
     /// # Errors
     /// Returns SQLite or selected-content errors.
     pub fn reload(&mut self) -> Result<()> {
-        if let Some(worker) = &mut self.navigation_worker {
-            worker.cancel();
+        self.library_revision = self.library_revision.wrapping_add(1);
+        if self.navigation_worker.is_some() {
+            self.save_reading_position()?;
+            self.catalog_loading = true;
+            self.request_catalog(catalog_worker::Scope::Library);
+            self.invalidate_notebook();
+            return Ok(());
         }
         self.navigation_loading = false;
         self.invalidate_notebook();
@@ -553,7 +576,9 @@ impl App {
         let reflow = self.reader_width != width;
         if reflow {
             self.reader_width = width;
-            self.wrap_reader();
+            if !self.navigation_loading && !self.projecting_navigation {
+                self.wrap_reader();
+            }
         }
         if self.renderer.preparing(&self.body, self.reader_width) {
             self.pending_reflow |= pending.is_none() && reflow;

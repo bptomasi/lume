@@ -599,3 +599,24 @@ Capture limits, frame cadence, interruptions and interpolation are owned by
 `app::pane_motion`; native failure/behavior tests and representative/stress
 frame benchmarks qualify the integration. Physical terminal timing is not
 inferred from TestBackend CPU timings.
+
+
+## Interactive projection and measurement — 2026-10-19
+
+No Rust dependency, pin, feature or accepted license changes. The existing
+qualified Rusqlite transaction/WAL contract owns consistent catalog and page
+snapshots; bounded standard-library channels own replaceable reads and ordered
+personal writes. Unicode Segmentation/Unicode Width retain grapheme and cell
+semantics in the sparse row index. Ratatui Line/Span/Buffer retain styling and
+cached native-image cells. No custom Markdown, Unicode or image codec is added.
+
+The isolated Python Foot qualification reuses standard-library PTYs, JSON and
+loopback HTTP. Foot 1.21.0's installed `foot-ctlseqs(7)` documents DSR 5 for
+device status and DSR 6 for cursor position. The relay owns DSR 5 replies only,
+after a correlated synchronized frame; application replies remain forwarded.
+This is a test observer, not a terminal parser in Lume. It proves terminal
+parsing acknowledgement rather than compositor presentation. Upstream control
+sequence ownership remains with the existing terminal integration:
+[Foot control sequences](https://codeberg.org/dnkl/foot/src/branch/master/doc/foot-ctlseqs.7.scd),
+[Rusqlite transaction API](https://docs.rs/rusqlite/0.32.1/rusqlite/struct.Transaction.html),
+[SQLite snapshots](https://sqlite.org/isolation.html).

@@ -274,6 +274,11 @@ impl App {
         if self.notebook.is_some() {
             return self.click_notebook(pane, area, event);
         }
+        if self.reader_stale()
+            && matches!(pane, Pane::Reader | Pane::Annotations)
+        {
+            return Ok(());
+        }
         match pane {
             Pane::Library => {
                 if let Some(index) = ui::navigation_at(self, area, event.row) {
@@ -287,14 +292,7 @@ impl App {
                     }
                 }
             }
-            Pane::Articles => {
-                if let Some(index) = ui::article_at(self, area, event.row) {
-                    self.save_reading_position()?;
-                    self.selected = index;
-                    self.load_current()?;
-                    self.open_reader()?;
-                }
-            }
+            Pane::Articles => self.click_article(area, event)?,
             Pane::Reader => {
                 if !self.open_pointer_image(area, event) {
                     self.begin_selection(area, event);
@@ -309,6 +307,16 @@ impl App {
             }
         }
         self.resize_workspace(self.screen);
+        Ok(())
+    }
+
+    fn click_article(&mut self, area: Rect, event: MouseEvent) -> Result<()> {
+        if let Some(index) = ui::article_at(self, area, event.row) {
+            self.save_reading_position()?;
+            self.selected = index;
+            self.load_current_deferred()?;
+            self.open_reader()?;
+        }
         Ok(())
     }
 

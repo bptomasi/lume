@@ -1,0 +1,1123 @@
+{
+  "measured_at": "2026-10-20T01:41:36.651844+00:00",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "logical_cpus": 22,
+  "scope": "Private input injection through correlated output and Foot DSR 5 acknowledgement. Excludes compositor and physical presentation.",
+  "notes": [
+    "Three independent 10k-article processes per version; 100 samples per workload per process.",
+    "50k-article stress results are one qualification process per version, not a repeated performance comparison.",
+    "The baseline is the previously installed 710f874 build. Source activation/yank verification runs after final timed workloads.",
+    "Image-scroll acknowledgement timings include terminal parsing and scheduling; no general speedup is claimed."
+  ],
+  "runs": {
+    "baseline": [
+      {
+        "measured_at": "2026-10-20T00:54:23.451228+00:00",
+        "binary_sha256": "a4ffe3a79de8422b3e2a93c8ed41a3da84fb97db91907bfeba40af644fbd289f",
+        "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+        "corpus": {
+          "articles": 10002,
+          "feeds": 16,
+          "smart_lists": 64
+        },
+        "summary": {
+          "scroll-during-collection": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 0.973418,
+                "p95": 2.488167,
+                "p99": 2.793872,
+                "max": 3.108552
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 2.444773,
+                "p95": 3.611651,
+                "p99": 3.716968,
+                "max": 4.046884
+              },
+              "relay_admission_ms": {
+                "p50": 0.118702,
+                "p95": 0.189198,
+                "p99": 0.222022,
+                "max": 0.230763
+              }
+            },
+            "output_bytes": 1961300
+          },
+          "cached-image-scroll": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 0.953526,
+                "p95": 2.226151,
+                "p99": 2.534793,
+                "max": 2.700023
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 2.493705,
+                "p95": 3.433916,
+                "p99": 3.535777,
+                "max": 3.680055
+              },
+              "relay_admission_ms": {
+                "p50": 0.112175,
+                "p95": 0.193675,
+                "p99": 0.220529,
+                "max": 0.24236
+              }
+            },
+            "output_bytes": 1961400
+          },
+          "article-switch": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 34.15793,
+                "p95": 35.07518,
+                "p99": 35.261011,
+                "max": 182.52866
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 34.618218,
+                "p95": 35.45991,
+                "p99": 35.930015,
+                "max": 182.96604
+              },
+              "relay_admission_ms": {
+                "p50": 0.11671,
+                "p95": 0.175327,
+                "p99": 0.236301,
+                "max": 0.241698
+              }
+            },
+            "output_bytes": 2937365
+          }
+        },
+        "cleanup": {
+          "returncode": 0,
+          "termios_restored": true
+        },
+        "source_report_sha256": "7de385892b232dc37432cc72e82639c9f4ce9bda37a3c1881ac5147e1dff19d1",
+        "publisher_request_count": 16,
+        "publisher_content_preserved": true,
+        "sample_rows": 300
+      },
+      {
+        "measured_at": "2026-10-20T01:18:43.312840+00:00",
+        "binary_sha256": "a4ffe3a79de8422b3e2a93c8ed41a3da84fb97db91907bfeba40af644fbd289f",
+        "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+        "corpus": {
+          "articles": 10002,
+          "feeds": 16,
+          "smart_lists": 64
+        },
+        "summary": {
+          "scroll-during-collection": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.052348,
+                "p95": 2.315394,
+                "p99": 2.637795,
+                "max": 2.744808
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 2.158065,
+                "p95": 3.410884,
+                "p99": 3.561247,
+                "max": 3.846211
+              },
+              "relay_admission_ms": {
+                "p50": 0.121996,
+                "p95": 0.195231,
+                "p99": 0.243201,
+                "max": 0.263881
+              }
+            },
+            "output_bytes": 1961300
+          },
+          "cached-image-scroll": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.067058,
+                "p95": 2.432957,
+                "p99": 2.688341,
+                "max": 65.221405
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 2.401429,
+                "p95": 3.513685,
+                "p99": 3.694349,
+                "max": 67.77319
+              },
+              "relay_admission_ms": {
+                "p50": 0.138474,
+                "p95": 0.220901,
+                "p99": 0.258218,
+                "max": 0.264354
+              }
+            },
+            "output_bytes": 1978760
+          },
+          "article-switch": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 34.548293,
+                "p95": 35.217918,
+                "p99": 35.323576,
+                "max": 35.343728
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 34.960712,
+                "p95": 35.633607,
+                "p99": 35.80989,
+                "max": 35.848984
+              },
+              "relay_admission_ms": {
+                "p50": 0.129542,
+                "p95": 0.214196,
+                "p99": 0.242587,
+                "max": 0.245224
+              }
+            },
+            "output_bytes": 2938500
+          }
+        },
+        "cleanup": {
+          "returncode": 0,
+          "termios_restored": true
+        },
+        "source_report_sha256": "76199c8482fa84809e2906eb209c53dec133c397fe1dfa4c61b1386fe846f5a9",
+        "publisher_request_count": 16,
+        "publisher_content_preserved": true,
+        "resources": {
+          "lume": {
+            "memory": {
+              "VmHWM": "34208 kB",
+              "VmRSS": "34208 kB",
+              "voluntary_ctxt_switches": "941",
+              "nonvoluntary_ctxt_switches": "121"
+            },
+            "io": {
+              "rchar": "26974967",
+              "wchar": "31691101",
+              "syscr": "7682",
+              "syscw": "15271",
+              "read_bytes": "0",
+              "write_bytes": "872448",
+              "cancelled_write_bytes": "872448"
+            }
+          },
+          "foot": {
+            "memory": {
+              "VmHWM": "24792 kB",
+              "VmRSS": "24792 kB",
+              "voluntary_ctxt_switches": "12151",
+              "nonvoluntary_ctxt_switches": "311"
+            },
+            "io": {
+              "rchar": "7440506",
+              "wchar": "1449",
+              "syscr": "3732",
+              "syscw": "311",
+              "read_bytes": "6832128",
+              "write_bytes": "0",
+              "cancelled_write_bytes": "0"
+            }
+          }
+        },
+        "sample_rows": 300
+      },
+      {
+        "measured_at": "2026-10-20T01:27:10.894728+00:00",
+        "binary_sha256": "a4ffe3a79de8422b3e2a93c8ed41a3da84fb97db91907bfeba40af644fbd289f",
+        "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+        "corpus": {
+          "articles": 10002,
+          "feeds": 16,
+          "smart_lists": 64
+        },
+        "summary": {
+          "scroll-during-collection": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.095712,
+                "p95": 2.139413,
+                "p99": 2.702303,
+                "max": 2.913173
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 3.011855,
+                "p95": 3.640706,
+                "p99": 3.737355,
+                "max": 3.90466
+              },
+              "relay_admission_ms": {
+                "p50": 0.134041,
+                "p95": 0.210139,
+                "p99": 0.237386,
+                "max": 0.277701
+              }
+            },
+            "output_bytes": 1961300
+          },
+          "cached-image-scroll": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.000848,
+                "p95": 2.759323,
+                "p99": 2.87988,
+                "max": 83.441036
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 3.014817,
+                "p95": 3.536112,
+                "p99": 3.644672,
+                "max": 86.002087
+              },
+              "relay_admission_ms": {
+                "p50": 0.103047,
+                "p95": 0.179579,
+                "p99": 0.219751,
+                "max": 0.304071
+              }
+            },
+            "output_bytes": 1978760
+          },
+          "article-switch": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 34.855517,
+                "p95": 35.201865,
+                "p99": 35.314137,
+                "max": 35.544547
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 35.310266,
+                "p95": 35.642012,
+                "p99": 35.895801,
+                "max": 36.09272
+              },
+              "relay_admission_ms": {
+                "p50": 0.141156,
+                "p95": 0.215235,
+                "p99": 0.288298,
+                "max": 0.358463
+              }
+            },
+            "output_bytes": 2938510
+          }
+        },
+        "cleanup": {
+          "returncode": 0,
+          "termios_restored": true
+        },
+        "source_report_sha256": "49b1f0561c135d30b8edeadc1f8887e7f4c84c91bc9960a7a5c7456167f9f55c",
+        "publisher_request_count": 16,
+        "publisher_content_preserved": true,
+        "resources": {
+          "lume": {
+            "memory": {
+              "VmHWM": "32948 kB",
+              "VmRSS": "32948 kB",
+              "voluntary_ctxt_switches": "972",
+              "nonvoluntary_ctxt_switches": "98"
+            },
+            "io": {
+              "rchar": "26966780",
+              "wchar": "31691111",
+              "syscr": "7681",
+              "syscw": "15271",
+              "read_bytes": "0",
+              "write_bytes": "872448",
+              "cancelled_write_bytes": "872448"
+            }
+          },
+          "foot": {
+            "memory": {
+              "VmHWM": "24892 kB",
+              "VmRSS": "24892 kB",
+              "voluntary_ctxt_switches": "11489",
+              "nonvoluntary_ctxt_switches": "264"
+            },
+            "io": {
+              "rchar": "7440511",
+              "wchar": "1449",
+              "syscr": "3738",
+              "syscw": "311",
+              "read_bytes": "425984",
+              "write_bytes": "0",
+              "cancelled_write_bytes": "0"
+            }
+          }
+        },
+        "sample_rows": 300
+      }
+    ],
+    "current": [
+      {
+        "measured_at": "2026-10-20T01:37:18.442902+00:00",
+        "binary_sha256": "f7d7321c7ee8d1c0a8d343b7b0cfd0ecbd5760c906c6a410f2187220a97948d2",
+        "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+        "corpus": {
+          "articles": 10002,
+          "feeds": 16,
+          "smart_lists": 64
+        },
+        "summary": {
+          "scroll-during-collection": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.193439,
+                "p95": 2.798113,
+                "p99": 3.401458,
+                "max": 3.814901
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 3.26652,
+                "p95": 3.947793,
+                "p99": 5.370996,
+                "max": 6.429793
+              },
+              "relay_admission_ms": {
+                "p50": 0.146005,
+                "p95": 0.236071,
+                "p99": 0.28875,
+                "max": 0.388489
+              }
+            },
+            "output_bytes": 1961300
+          },
+          "cached-image-scroll": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.053662,
+                "p95": 2.058396,
+                "p99": 2.813286,
+                "max": 2.87119
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 2.498429,
+                "p95": 3.646512,
+                "p99": 3.783483,
+                "max": 3.791552
+              },
+              "relay_admission_ms": {
+                "p50": 0.120682,
+                "p95": 0.190924,
+                "p99": 0.254579,
+                "max": 0.26311
+              }
+            },
+            "output_bytes": 1961400
+          },
+          "article-switch": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 18.041163,
+                "p95": 18.569396,
+                "p99": 18.680153,
+                "max": 18.684298
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 18.511962,
+                "p95": 19.100661,
+                "p99": 19.19667,
+                "max": 19.239488
+              },
+              "relay_admission_ms": {
+                "p50": 0.115363,
+                "p95": 0.173003,
+                "p99": 0.221155,
+                "max": 0.323234
+              }
+            },
+            "output_bytes": 3547006
+          }
+        },
+        "cleanup": {
+          "returncode": 0,
+          "termios_restored": true
+        },
+        "source_report_sha256": "2788d7de7d6e52cf3c924a98e498f81cba677c090bd433beb920cd23fbc1a878",
+        "publisher_request_count": 16,
+        "publisher_content_preserved": true,
+        "resources": {
+          "lume": {
+            "memory": {
+              "VmHWM": "38292 kB",
+              "VmRSS": "38292 kB",
+              "voluntary_ctxt_switches": "1041",
+              "nonvoluntary_ctxt_switches": "131"
+            },
+            "io": {
+              "rchar": "29092706",
+              "wchar": "32453413",
+              "syscr": "8202",
+              "syscw": "15480",
+              "read_bytes": "0",
+              "write_bytes": "872448",
+              "cancelled_write_bytes": "872448"
+            }
+          },
+          "foot": {
+            "memory": {
+              "VmHWM": "25156 kB",
+              "VmRSS": "25156 kB",
+              "voluntary_ctxt_switches": "9410",
+              "nonvoluntary_ctxt_switches": "290"
+            },
+            "io": {
+              "rchar": "8177426",
+              "wchar": "1449",
+              "syscr": "3450",
+              "syscw": "311",
+              "read_bytes": "57344",
+              "write_bytes": "0",
+              "cancelled_write_bytes": "0"
+            }
+          }
+        },
+        "activation": {
+          "read_saved": true,
+          "retained_heading": "ALPHA HEADMARK @@@@@@@@@@@@",
+          "host_clipboard": "disabled"
+        },
+        "sample_rows": 300
+      },
+      {
+        "measured_at": "2026-10-20T01:38:08.098190+00:00",
+        "binary_sha256": "f7d7321c7ee8d1c0a8d343b7b0cfd0ecbd5760c906c6a410f2187220a97948d2",
+        "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+        "corpus": {
+          "articles": 10002,
+          "feeds": 16,
+          "smart_lists": 64
+        },
+        "summary": {
+          "scroll-during-collection": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.141046,
+                "p95": 2.739407,
+                "p99": 3.003297,
+                "max": 3.036392
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 3.327239,
+                "p95": 3.724119,
+                "p99": 3.953374,
+                "max": 3.966242
+              },
+              "relay_admission_ms": {
+                "p50": 0.163407,
+                "p95": 0.260363,
+                "p99": 0.312617,
+                "max": 0.317501
+              }
+            },
+            "output_bytes": 1961300
+          },
+          "cached-image-scroll": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.216683,
+                "p95": 2.737116,
+                "p99": 3.014197,
+                "max": 3.108992
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 3.36695,
+                "p95": 3.861127,
+                "p99": 4.048523,
+                "max": 4.146628
+              },
+              "relay_admission_ms": {
+                "p50": 0.168474,
+                "p95": 0.255944,
+                "p99": 0.303645,
+                "max": 0.337398
+              }
+            },
+            "output_bytes": 1961400
+          },
+          "article-switch": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 18.546633,
+                "p95": 18.85855,
+                "p99": 19.061133,
+                "max": 20.079074
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 19.07811,
+                "p95": 19.394615,
+                "p99": 19.51297,
+                "max": 20.511669
+              },
+              "relay_admission_ms": {
+                "p50": 0.151914,
+                "p95": 0.207782,
+                "p99": 0.233966,
+                "max": 0.245056
+              }
+            },
+            "output_bytes": 3547000
+          }
+        },
+        "cleanup": {
+          "returncode": 0,
+          "termios_restored": true
+        },
+        "source_report_sha256": "299cfbc658278b9e4ac5f687502f7c94ebd06d9001f7368d437b5e569b368ba4",
+        "publisher_request_count": 16,
+        "publisher_content_preserved": true,
+        "resources": {
+          "lume": {
+            "memory": {
+              "VmHWM": "38292 kB",
+              "VmRSS": "38292 kB",
+              "voluntary_ctxt_switches": "1068",
+              "nonvoluntary_ctxt_switches": "95"
+            },
+            "io": {
+              "rchar": "29092706",
+              "wchar": "32410586",
+              "syscr": "8203",
+              "syscw": "15452",
+              "read_bytes": "0",
+              "write_bytes": "872448",
+              "cancelled_write_bytes": "872448"
+            }
+          },
+          "foot": {
+            "memory": {
+              "VmHWM": "25164 kB",
+              "VmRSS": "25164 kB",
+              "voluntary_ctxt_switches": "9254",
+              "nonvoluntary_ctxt_switches": "255"
+            },
+            "io": {
+              "rchar": "8134599",
+              "wchar": "1449",
+              "syscr": "3436",
+              "syscw": "311",
+              "read_bytes": "0",
+              "write_bytes": "0",
+              "cancelled_write_bytes": "0"
+            }
+          }
+        },
+        "activation": {
+          "read_saved": true,
+          "retained_heading": "ALPHA HEADMARK @@@@@@@@@@@@",
+          "host_clipboard": "disabled"
+        },
+        "sample_rows": 300
+      },
+      {
+        "measured_at": "2026-10-20T01:38:25.802570+00:00",
+        "binary_sha256": "f7d7321c7ee8d1c0a8d343b7b0cfd0ecbd5760c906c6a410f2187220a97948d2",
+        "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+        "corpus": {
+          "articles": 10002,
+          "feeds": 16,
+          "smart_lists": 64
+        },
+        "summary": {
+          "scroll-during-collection": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.172049,
+                "p95": 2.734556,
+                "p99": 2.946567,
+                "max": 2.980897
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 3.371266,
+                "p95": 3.787086,
+                "p99": 4.088372,
+                "max": 4.091106
+              },
+              "relay_admission_ms": {
+                "p50": 0.168493,
+                "p95": 0.264117,
+                "p99": 0.279437,
+                "max": 0.368139
+              }
+            },
+            "output_bytes": 1961300
+          },
+          "cached-image-scroll": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.140508,
+                "p95": 2.804693,
+                "p99": 2.925986,
+                "max": 3.07433
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 3.385556,
+                "p95": 3.754106,
+                "p99": 3.789448,
+                "max": 3.820218
+              },
+              "relay_admission_ms": {
+                "p50": 0.168645,
+                "p95": 0.253254,
+                "p99": 0.32805,
+                "max": 0.334253
+              }
+            },
+            "output_bytes": 1961400
+          },
+          "article-switch": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 18.447798,
+                "p95": 18.716598,
+                "p99": 18.87813,
+                "max": 18.902105
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 18.984531,
+                "p95": 19.298642,
+                "p99": 19.468987,
+                "max": 19.505766
+              },
+              "relay_admission_ms": {
+                "p50": 0.145896,
+                "p95": 0.211387,
+                "p99": 0.237487,
+                "max": 0.249032
+              }
+            },
+            "output_bytes": 3547000
+          }
+        },
+        "cleanup": {
+          "returncode": 0,
+          "termios_restored": true
+        },
+        "source_report_sha256": "48c3cea6b882d824861f006e02ded0358536f9eb060e053cf97e7d9a55099959",
+        "publisher_request_count": 16,
+        "publisher_content_preserved": true,
+        "resources": {
+          "lume": {
+            "memory": {
+              "VmHWM": "38152 kB",
+              "VmRSS": "38152 kB",
+              "voluntary_ctxt_switches": "1081",
+              "nonvoluntary_ctxt_switches": "90"
+            },
+            "io": {
+              "rchar": "29354850",
+              "wchar": "32469785",
+              "syscr": "8266",
+              "syscw": "15484",
+              "read_bytes": "0",
+              "write_bytes": "872448",
+              "cancelled_write_bytes": "872448"
+            }
+          },
+          "foot": {
+            "memory": {
+              "VmHWM": "24880 kB",
+              "VmRSS": "24880 kB",
+              "voluntary_ctxt_switches": "8949",
+              "nonvoluntary_ctxt_switches": "219"
+            },
+            "io": {
+              "rchar": "8177398",
+              "wchar": "1449",
+              "syscr": "3435",
+              "syscw": "311",
+              "read_bytes": "0",
+              "write_bytes": "0",
+              "cancelled_write_bytes": "0"
+            }
+          }
+        },
+        "activation": {
+          "read_saved": true,
+          "retained_heading": "ALPHA HEADMARK @@@@@@@@@@@@",
+          "host_clipboard": "disabled"
+        },
+        "sample_rows": 300
+      }
+    ],
+    "stress_baseline": [
+      {
+        "measured_at": "2026-10-20T01:19:07.296333+00:00",
+        "binary_sha256": "a4ffe3a79de8422b3e2a93c8ed41a3da84fb97db91907bfeba40af644fbd289f",
+        "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+        "corpus": {
+          "articles": 50002,
+          "feeds": 16,
+          "smart_lists": 64
+        },
+        "summary": {
+          "scroll-during-collection": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.046613,
+                "p95": 2.564209,
+                "p99": 2.684497,
+                "max": 3.027932
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 2.632539,
+                "p95": 3.419673,
+                "p99": 3.589275,
+                "max": 3.851728
+              },
+              "relay_admission_ms": {
+                "p50": 0.116565,
+                "p95": 0.17985,
+                "p99": 0.227269,
+                "max": 0.252269
+              }
+            },
+            "output_bytes": 1961300
+          },
+          "cached-image-scroll": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.085907,
+                "p95": 2.575032,
+                "p99": 2.825362,
+                "max": 1140.95189
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 2.834663,
+                "p95": 3.520905,
+                "p99": 3.941845,
+                "max": 1142.676531
+              },
+              "relay_admission_ms": {
+                "p50": 0.139105,
+                "p95": 0.220316,
+                "p99": 0.260583,
+                "max": 0.34455
+              }
+            },
+            "output_bytes": 1961451
+          },
+          "article-switch": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 34.712477,
+                "p95": 35.220108,
+                "p99": 35.429062,
+                "max": 35.87131
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 35.113109,
+                "p95": 35.679411,
+                "p99": 35.836863,
+                "max": 35.994372
+              },
+              "relay_admission_ms": {
+                "p50": 0.144639,
+                "p95": 0.234961,
+                "p99": 0.249885,
+                "max": 0.286243
+              }
+            },
+            "output_bytes": 2938510
+          }
+        },
+        "cleanup": {
+          "returncode": 0,
+          "termios_restored": true
+        },
+        "source_report_sha256": "fdaf936f71181041cec6fc4954571c77f61592e4e4a3b388463a98e2b30075af",
+        "publisher_request_count": 16,
+        "publisher_content_preserved": true,
+        "resources": {
+          "lume": {
+            "memory": {
+              "VmHWM": "40548 kB",
+              "VmRSS": "40548 kB",
+              "voluntary_ctxt_switches": "1587",
+              "nonvoluntary_ctxt_switches": "381"
+            },
+            "io": {
+              "rchar": "364522457",
+              "wchar": "78150341",
+              "syscr": "90077",
+              "syscw": "37095",
+              "read_bytes": "0",
+              "write_bytes": "7823360",
+              "cancelled_write_bytes": "7823360"
+            }
+          },
+          "foot": {
+            "memory": {
+              "VmHWM": "24880 kB",
+              "VmRSS": "24880 kB",
+              "voluntary_ctxt_switches": "11192",
+              "nonvoluntary_ctxt_switches": "279"
+            },
+            "io": {
+              "rchar": "7352037",
+              "wchar": "1449",
+              "syscr": "3705",
+              "syscw": "311",
+              "read_bytes": "6316032",
+              "write_bytes": "0",
+              "cancelled_write_bytes": "0"
+            }
+          }
+        },
+        "sample_rows": 300
+      }
+    ],
+    "stress_current": [
+      {
+        "measured_at": "2026-10-20T01:38:46.748759+00:00",
+        "binary_sha256": "f7d7321c7ee8d1c0a8d343b7b0cfd0ecbd5760c906c6a410f2187220a97948d2",
+        "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+        "corpus": {
+          "articles": 50002,
+          "feeds": 16,
+          "smart_lists": 64
+        },
+        "summary": {
+          "scroll-during-collection": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.257265,
+                "p95": 2.695976,
+                "p99": 2.86558,
+                "max": 3.451368
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 3.339907,
+                "p95": 3.68251,
+                "p99": 3.889503,
+                "max": 4.236853
+              },
+              "relay_admission_ms": {
+                "p50": 0.155703,
+                "p95": 0.226029,
+                "p99": 0.245909,
+                "max": 0.285144
+              }
+            },
+            "output_bytes": 1961300
+          },
+          "cached-image-scroll": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 1.039779,
+                "p95": 2.595324,
+                "p99": 2.659831,
+                "max": 2.669651
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 2.702939,
+                "p95": 3.515507,
+                "p99": 3.734458,
+                "max": 3.882618
+              },
+              "relay_admission_ms": {
+                "p50": 0.118199,
+                "p95": 0.20633,
+                "p99": 0.270047,
+                "max": 0.304573
+              }
+            },
+            "output_bytes": 1961400
+          },
+          "article-switch": {
+            "samples": 100,
+            "metrics": {
+              "input_to_frame_ms": {
+                "p50": 18.125701,
+                "p95": 18.583385,
+                "p99": 18.715564,
+                "max": 19.007357
+              },
+              "input_to_terminal_ack_ms": {
+                "p50": 18.473144,
+                "p95": 19.060024,
+                "p99": 19.231865,
+                "max": 19.396764
+              },
+              "relay_admission_ms": {
+                "p50": 0.094441,
+                "p95": 0.150872,
+                "p99": 0.204538,
+                "max": 0.30084
+              }
+            },
+            "output_bytes": 3547000
+          }
+        },
+        "cleanup": {
+          "returncode": 0,
+          "termios_restored": true
+        },
+        "source_report_sha256": "269e87d0e50f510952306eb52fd71e48df0a5fd9c906d41a4032448413d2ea43",
+        "publisher_request_count": 16,
+        "publisher_content_preserved": true,
+        "resources": {
+          "lume": {
+            "memory": {
+              "VmHWM": "38724 kB",
+              "VmRSS": "38724 kB",
+              "voluntary_ctxt_switches": "1776",
+              "nonvoluntary_ctxt_switches": "165"
+            },
+            "io": {
+              "rchar": "348756830",
+              "wchar": "68272295",
+              "syscr": "86244",
+              "syscw": "31755",
+              "read_bytes": "0",
+              "write_bytes": "0",
+              "cancelled_write_bytes": "0"
+            }
+          },
+          "foot": {
+            "memory": {
+              "VmHWM": "25044 kB",
+              "VmRSS": "25044 kB",
+              "voluntary_ctxt_switches": "9467",
+              "nonvoluntary_ctxt_switches": "226"
+            },
+            "io": {
+              "rchar": "8134228",
+              "wchar": "1449",
+              "syscr": "3437",
+              "syscw": "311",
+              "read_bytes": "0",
+              "write_bytes": "0",
+              "cancelled_write_bytes": "0"
+            }
+          }
+        },
+        "activation": {
+          "read_saved": true,
+          "retained_heading": "ALPHA HEADMARK @@@@@@@@@@@@",
+          "host_clipboard": "disabled"
+        },
+        "sample_rows": 300
+      }
+    ]
+  },
+  "comparison": {
+    "scroll-during-collection": {
+      "baseline": {
+        "input_to_frame_ms": {
+          "p50": 1.052348,
+          "p95": 2.315394,
+          "p99": 2.702303,
+          "max": 2.913173
+        },
+        "input_to_terminal_ack_ms": {
+          "p50": 2.444773,
+          "p95": 3.611651,
+          "p99": 3.716968,
+          "max": 3.90466
+        }
+      },
+      "current": {
+        "input_to_frame_ms": {
+          "p50": 1.172049,
+          "p95": 2.739407,
+          "p99": 3.003297,
+          "max": 3.036392
+        },
+        "input_to_terminal_ack_ms": {
+          "p50": 3.327239,
+          "p95": 3.787086,
+          "p99": 4.088372,
+          "max": 4.091106
+        }
+      }
+    },
+    "cached-image-scroll": {
+      "baseline": {
+        "input_to_frame_ms": {
+          "p50": 1.000848,
+          "p95": 2.432957,
+          "p99": 2.688341,
+          "max": 65.221405
+        },
+        "input_to_terminal_ack_ms": {
+          "p50": 2.493705,
+          "p95": 3.513685,
+          "p99": 3.644672,
+          "max": 67.77319
+        }
+      },
+      "current": {
+        "input_to_frame_ms": {
+          "p50": 1.140508,
+          "p95": 2.737116,
+          "p99": 2.925986,
+          "max": 3.07433
+        },
+        "input_to_terminal_ack_ms": {
+          "p50": 3.36695,
+          "p95": 3.754106,
+          "p99": 3.789448,
+          "max": 3.820218
+        }
+      }
+    },
+    "article-switch": {
+      "baseline": {
+        "input_to_frame_ms": {
+          "p50": 34.548293,
+          "p95": 35.201865,
+          "p99": 35.314137,
+          "max": 35.544547
+        },
+        "input_to_terminal_ack_ms": {
+          "p50": 34.960712,
+          "p95": 35.633607,
+          "p99": 35.895801,
+          "max": 36.09272
+        }
+      },
+      "current": {
+        "input_to_frame_ms": {
+          "p50": 18.447798,
+          "p95": 18.716598,
+          "p99": 18.87813,
+          "max": 18.902105
+        },
+        "input_to_terminal_ack_ms": {
+          "p50": 18.984531,
+          "p95": 19.298642,
+          "p99": 19.468987,
+          "max": 19.505766
+        }
+      }
+    }
+  },
+  "raw_samples_file": "navigation-latency-samples.csv"
+}

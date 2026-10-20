@@ -4,7 +4,6 @@ use ratatui::{
     style::{Modifier, Style},
     text::{Line, Span},
 };
-use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     app::{App, Focus, Mode},
@@ -20,6 +19,11 @@ pub(super) fn row(
     selected: Option<&std::ops::Range<usize>>,
     width: usize,
 ) -> Line<'static> {
+    if let Some(columns) =
+        app.reader_columns.get(index).and_then(Option::as_ref)
+    {
+        return indexed_row(app, index, cached, selected, width, columns);
+    }
     let mut line = cached.clone();
     paint_search(app, index, &mut line);
     let code = app.code_lines.get(index) == Some(&true);
@@ -40,10 +44,7 @@ pub(super) fn row(
         }
     }
     paint_cursor(app, index, &mut line);
-    if !code && !line.spans.iter().any(|span| span.content.contains('\t')) {
-        return line;
-    }
-    scroll(line, if code { app.horizontal } else { 0 }, width)
+    line
 }
 
 fn paint_search(app: &App, index: usize, line: &mut Line<'static>) {
@@ -63,49 +64,59 @@ fn paint_search(app: &App, index: usize, line: &mut Line<'static>) {
     }
 }
 
-fn scroll(line: Line<'static>, skip: usize, width: usize) -> Line<'static> {
-    let mut column = 0;
-    let end = skip.saturating_add(width);
-    let mut spans = Vec::new();
-    for span in line.spans {
-        if column >= end {
-            break;
-        }
-        let mut text = String::new();
-        for grapheme in span.content.graphemes(true) {
-            if column >= end {
-                break;
+fn indexed_row(
+    app: &App,
+    row: usize,
+    cached: &Line<'static>,
+    selected: Option<&std::ops::Range<usize>>,
+    width: usize,
+    columns: &crate::reader::viewport::RowIndex,
+) -> Line<'static> {
+    let code = app.code_lines.get(row) == Some(&true);
+    let text = app.reader_lines.get(row).map_or("", String::as_str);
+    let base = app.reader_ranges.get(row).map_or(0, |range| range.start);
+    let cursor = (app.focus == Focus::Reader
+        && matches!(app.mode, Mode::Normal)
+        && row == app.reader_cursor)
+        .then_some(app.reader_column);
+    let mut line = columns.project(
+        cached,
+        text,
+        if code { app.horizontal } else { 0 },
+        width,
+        |bytes, mut style| {
+            let absolute = base + bytes.start..base + bytes.end;
+            let hits = &app.reader_tools.hits;
+            let first = hits.partition_point(|hit| hit.end <= absolute.start);
+            if hits.get(first).is_some_and(|hit| hit.start < absolute.end) {
+                style = style.fg(AMBER).add_modifier(Modifier::UNDERLINED);
             }
-            let next = column + cursor::width(grapheme, column);
-            append_visible(&mut text, grapheme, column..next, skip..end);
-            column = next;
-        }
-        if !text.is_empty() {
-            spans.push(Span::styled(text, span.style));
-        }
+            if selected.is_some_and(|selection| {
+                selection.start < absolute.end && selection.end > absolute.start
+            }) {
+                style = style.bg(AMBER).fg(BG);
+            }
+            if cursor.is_some_and(|cursor| bytes.contains(&cursor)) {
+                style = style.patch(cursor_style());
+            }
+            style
+        },
+    );
+    if code {
+        line = line.style(Style::new().bg(RAISED));
     }
-    Line::from(spans).style(line.style)
+    if text.is_empty() && cursor.is_some() && (!code || app.horizontal == 0) {
+        line.spans.push(Span::styled(" ", cursor_style()));
+    }
+    line
 }
 
-fn append_visible(
-    text: &mut String,
-    grapheme: &str,
-    cells: std::ops::Range<usize>,
-    viewport: std::ops::Range<usize>,
-) {
-    if cells.end <= viewport.start {
-        return;
-    }
-    if grapheme == "\t"
-        || cells.start < viewport.start
-        || cells.end > viewport.end
-    {
-        let visible =
-            cells.end.min(viewport.end) - cells.start.max(viewport.start);
-        text.push_str(&" ".repeat(visible));
-    } else {
-        text.push_str(grapheme);
-    }
+fn cursor_style() -> Style {
+    Style::new()
+        .bg(TEXT)
+        .fg(BG)
+        .add_modifier(Modifier::BOLD)
+        .remove_modifier(Modifier::DIM | Modifier::REVERSED)
 }
 
 fn paint_cursor(app: &App, index: usize, line: &mut Line<'static>) {
@@ -115,11 +126,7 @@ fn paint_cursor(app: &App, index: usize, line: &mut Line<'static>) {
     {
         // Paint the only reader cursor. A hardware block on this same cell
         // can invert it again, cancelling contrast in terminals like Alacritty.
-        let style = Style::new()
-            .bg(TEXT)
-            .fg(BG)
-            .add_modifier(Modifier::BOLD)
-            .remove_modifier(Modifier::DIM | Modifier::REVERSED);
+        let style = cursor_style();
         let text = app.reader_lines.get(index).map_or("", String::as_str);
         if text.is_empty() {
             line.spans.push(Span::styled(" ", style));
@@ -146,7 +153,9 @@ mod tests {
             format!("\t界x{}", "a".repeat(100_000)),
             ratatui::style::Style::new().fg(Color::Blue),
         ));
-        let clipped = super::scroll(line, 5, 4);
+        let text = line.to_string();
+        let columns = crate::reader::viewport::RowIndex::new(&text, &line);
+        let clipped = columns.project(&line, &text, 5, 4, |_, style| style);
         assert_eq!(clipped.to_string(), " xaa");
         assert_eq!(clipped.width(), 4);
         assert_eq!(clipped.spans[0].style.fg, Some(Color::Blue));

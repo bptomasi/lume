@@ -88,7 +88,8 @@ impl App {
             self.scroll = self.reader_cursor + 1 - self.reader_height;
         }
         if self.code_lines.get(self.reader_cursor) == Some(&true) {
-            let column = cursor::column(self.cursor_line(), self.reader_column);
+            let column =
+                self.row_column(self.reader_cursor, self.reader_column);
             if column < self.horizontal {
                 self.horizontal = column;
             }
@@ -168,6 +169,7 @@ impl App {
         article: i64,
         visible: Range<usize>,
     ) -> Result<(i64, Passage)> {
+        self.guard_stale_command("highlight")?;
         ensure!(
             visible.end <= self.article_text_end,
             "Select article text to capture a highlight"
@@ -228,8 +230,8 @@ impl App {
     pub(super) fn save_selection(&mut self) -> Result<()> {
         let (article, passage) = self.captured_passage()?;
         let cursor = self.cursor_offset();
-        if let Some(writer) = &mut self.note_tasks {
-            writer.submit(super::note_tasks::Task::Write(
+        if let Some(writer) = &mut self.personal_writes {
+            writer.submit(super::personal_tasks::Task::Write(
                 crate::model::NoteDraft {
                     target: crate::model::DraftTarget::Passage {
                         article,

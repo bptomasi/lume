@@ -34,11 +34,22 @@ pub fn note_preview_area(screen: Rect, anchor: Position) -> Rect {
     )
 }
 
+pub(super) fn area(app: &App, screen: Rect) -> Option<Rect> {
+    if !matches!(app.mode, Mode::Normal) || app.layout_prefix_pending() {
+        return None;
+    }
+    let (id, anchor) = app.hovered_note()?;
+    app.comments
+        .iter()
+        .any(|note| note.id == id)
+        .then(|| note_preview_area(screen, anchor))
+}
+
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     if !matches!(app.mode, Mode::Normal) || app.layout_prefix_pending() {
         return;
     }
-    let Some((id, anchor)) = app.hovered_note() else {
+    let Some((id, _)) = app.hovered_note() else {
         return;
     };
     let Some((index, note)) = app
@@ -49,7 +60,9 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     else {
         return;
     };
-    let area = note_preview_area(frame.area(), anchor);
+    let Some(area) = area(app, frame.area()) else {
+        return;
+    };
     let block = panel(
         format!(" Note {} · {} ", index + 1, note.source.as_str()),
         true,

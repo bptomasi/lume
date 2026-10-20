@@ -193,6 +193,20 @@ impl LiveRenderer {
         changed
     }
 
+    /// Admit a source projection once, retaining the current UI presentation.
+    pub(crate) fn prepare_source(&mut self, body: &str, width: usize) -> bool {
+        if !self.preparing(body, width) {
+            return true;
+        }
+        let queued = self.layout.as_ref().is_some_and(|layout| {
+            layout.error.is_none() && layout.requested(body, width)
+        });
+        if !queued {
+            self.render(body, width);
+        }
+        !self.preparing(body, width)
+    }
+
     pub(crate) fn source_ready(&self, body: &str) -> bool {
         self.layout
             .as_ref()

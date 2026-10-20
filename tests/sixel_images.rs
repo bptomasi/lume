@@ -270,8 +270,7 @@ fn mouse_click_and_drag_keep_inline_pixels_through_every_selection_frame()
 }
 
 #[test]
-fn layout_prefix_help_covers_native_pixels_and_cancel_restores_them()
--> Result<()> {
+fn layout_prefix_help_preserves_pixels_above_its_footprint() -> Result<()> {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     let (_directory, mut app) = reading()?;
@@ -279,7 +278,7 @@ fn layout_prefix_help_covers_native_pixels_and_cancel_restores_them()
     assert!(app.layout_prefix_pending());
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
     terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
-    assert_eq!(native_rows(terminal.backend().buffer()), 0);
+    assert_eq!(native_rows(terminal.backend().buffer()), 12);
     assert!(
         terminal
             .backend()
@@ -329,4 +328,40 @@ fn visible_image_bounds_include_captions_clips_gaps_and_empty_viewports() {
             .collect::<Vec<_>>();
         assert_eq!(actual, expected, "viewport {scroll}+{height}");
     }
+}
+
+#[test]
+fn popup_occlusion_hides_only_intersecting_strips() -> Result<()> {
+    let image = Decoder::default().render(SVG, &key())?;
+    let rows = image.rows.context("Native Sixel strips")?;
+    let mut cells = Buffer::empty(Rect::new(0, 0, 100, 20));
+    cells[(10, 5)].set_symbol("Popup");
+    let popup = Rect::new(10, 5, 8, 3);
+
+    rows.render_uncovered(Rect::new(3, 2, 80, 12), 0, &mut cells, &[popup]);
+
+    assert_eq!(native_rows(&cells), 9);
+    assert_eq!(cells[(10, 5)].symbol(), "Popup");
+    for y in 2..14 {
+        assert_eq!(
+            cells[(3, y)].symbol().starts_with("\x1bP"),
+            !(5..8).contains(&y)
+        );
+        assert_eq!(cells[(4, y)].skip, !(5..8).contains(&y));
+    }
+    Ok(())
+}
+
+#[test]
+fn layout_guide_below_an_image_leaves_that_image_visible() -> Result<()> {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let (_directory, mut app) = reading()?;
+    app.resize_workspace(Rect::new(0, 0, 100, 60));
+    app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
+    let mut terminal = Terminal::new(TestBackend::new(100, 60))?;
+
+    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+
+    assert_eq!(native_rows(terminal.backend().buffer()), 12);
+    Ok(())
 }

@@ -216,7 +216,7 @@ pub fn pane_close_rect(area: Rect) -> Option<Rect> {
 
 /// Choice and preview rectangles shared by selector drawing and mouse input.
 pub fn picker_regions(screen: Rect) -> (Rect, Rect) {
-    let outer = super::overlays::centered(screen, 110, 28);
+    let outer = super::popup::Popup::Picker.area(screen);
     let inner = outer.inner(ratatui::layout::Margin::new(1, 1));
     let body = Rect::new(
         inner.x,

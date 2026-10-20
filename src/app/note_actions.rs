@@ -110,8 +110,8 @@ impl App {
             self.status = "This note's deletion is already pending".into();
             return Ok(());
         }
-        if let Some(writer) = &mut self.note_tasks {
-            let ticket = writer.submit(super::note_tasks::Task::Edit(
+        if let Some(writer) = &mut self.personal_writes {
+            let ticket = writer.submit(super::personal_tasks::Task::Edit(
                 crate::app::NoteEdit::Delete { article, note: id },
             ))?;
             self.pending_note_deletes.insert(ticket, id);

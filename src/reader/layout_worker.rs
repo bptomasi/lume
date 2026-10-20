@@ -49,13 +49,7 @@ impl LayoutWorker {
         width: usize,
         styles: Styles,
     ) -> Rendered {
-        let same = self.requested.as_ref().is_some_and(
-            |(source, columns, revision)| {
-                source.as_ref() == body
-                    && *columns == width
-                    && *revision == self.revision
-            },
-        );
+        let same = self.requested(body, width);
         if !same {
             let body: Arc<str> = Arc::from(body);
             self.requested = Some((body.clone(), width, self.revision));
@@ -70,6 +64,16 @@ impl LayoutWorker {
             .filter(|ready| ready.body.as_ref() == body)
             .map(|ready| ready.rendered.clone())
             .unwrap_or_default()
+    }
+
+    pub(super) fn requested(&self, body: &str, width: usize) -> bool {
+        self.requested
+            .as_ref()
+            .is_some_and(|(source, columns, revision)| {
+                source.as_ref() == body
+                    && *columns == width
+                    && *revision == self.revision
+            })
     }
 
     pub(super) fn poll(&mut self) -> Option<Vec<CodeKey>> {

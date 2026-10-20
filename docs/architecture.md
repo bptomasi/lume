@@ -116,7 +116,7 @@ process-memory limit. Oversized blocks/results remain plain. Per-document
 submission tracking prevents repeated work when blocks exceed the cache.
 Dropping the controller disconnects queues without waiting for a grammar;
 an already running grammar can finish independently. Worker failure clears
-pending work and keeps plain text. The terminal polls admitted work at 16 ms
+pending work and keeps plain text. The terminal polls admitted work at 8 ms
 and rebuilds layout on completed results while preserving readable cursor,
 selection and viewport. Unchanged geometry does not reflow. Synchronous
 `reader::render` remains available for deterministic noninteractive consumers.
@@ -483,10 +483,11 @@ unchanged existing buffers create no extra undo entry. No newest-row query is
 used: inserting undo history itself changes SQLite's last-insert identity.
 
 The event loop redraws after input, resize or completion and otherwise polls
-at 100 ms, or 16 ms while reader/navigation/motion work is pending. Interactive
-navigation reads, regular Markdown reflow and progress/preferences writes have
-bounded workers. Explicit source-bound jumps, personal transactions, catalog
-counts and exchange operations can still delay input. No constant-latency
+at 100 ms, or 8 ms while reader/navigation/catalog/write/motion work is pending.
+Interactive navigation, collection-driven catalog counts, read flags, regular
+Markdown reflow and progress/preferences writes have bounded workers. Explicit
+source-bound jumps, other personal transactions and exchange operations can
+still delay input. No constant-latency
 claim follows from the page or channel limits.
 
 ### Panels, pointer capture and article annotations
@@ -618,7 +619,7 @@ Partial wide glyphs at a clipped right edge become blanks to prevent autowrap.
 `app::pane_motion::Slide` owns 160 ms elapsed-time cubic translation in both
 axes. Changing the target starts from the currently displayed position;
 repeating the same target does not restart the clock. Neighbor transitions
-run at 16 ms polling while needed, including while the mouse is held still.
+advance at a 16 ms frame cadence while needed, including while the mouse is held still.
 Finished held previews become idle. Delayed ticks jump ahead without backlog.
 
 On release, the final order commits immediately and the captured pictures
@@ -1135,3 +1136,111 @@ write lock. Checked workloads measure initial batches, cached reads, one changed
 article, feedback reweighting and actual article navigation/frames at 10k/50k
 articles. GNU time records process wall/RSS/CPU/I/O; these resource totals include
 setup. TestBackend timing does not establish physical terminal input latency.
+
+
+## Interactive publication and terminal measurements — 2026-10-19
+
+`app::personal_tasks` owns ordered, bounded personal transactions. Automatic
+read-on-open, manual read/unread, bulk read/unread, annotations and undo use the
+same lane so a later unread or undo cannot overtake an admitted automatic read.
+Read admission changes the visible flag immediately; a failed admission changes
+nothing. Completions remain pending until the UI consumes them, including
+errors. Shutdown drains these acknowledgements. Failed saves trigger a catalog
+reconciliation; pending newer read intentions overlay older page snapshots.
+Successful automatic reads refresh counts without filtering away the article
+currently being read, including unread-only smart lists. Manual changes and
+failed saves reconcile the page. A counts-only request cannot downgrade a
+pending full publisher refresh. A stale article-only read keeps its captured
+retained identity when rereading after a successful automatic read.
+The two-second busy retry applies only to rolled-back transactions, never to a
+committed write whose presentation read subsequently failed.
+
+Catalog refresh has its own latest-request worker and SQLite connection.
+Collection completion requests metadata and counts without doing SQL in the
+input callback. It cannot queue ahead of article navigation. Counts share one
+WAL read snapshot; page/count/reading-data queries on the navigation connection
+also share a snapshot. Nested read operations reuse that snapshot. Only the
+newest generation is delivered. Committed personal changes and publisher reloads
+advance a library revision; older navigation/catalog snapshots are rejected and
+reread so they cannot undo a newer optimistic flag or restore stale notes. Applying catalog metadata preserves the current
+article page, validates the active destination, then refreshes its page using
+the latest selected identity. Drafts and live selections postpone publication.
+A note mutation invalidates an older in-flight refresh before it can restore
+obsolete comments or counts.
+
+The selected metadata identity and displayed source identity are distinct during
+navigation. Previous text, title and native images remain visible until the new
+source has a prepared Markdown projection. The UI labels this retained preview;
+source-bound keyboard, mouse, command and captured-note actions wait. Read-only
+motions and scrolling remain available, without recording stale jump targets.
+A ready
+navigation result admits layout preparation once, then stays pending while the
+layout worker runs. Polling syntax/layout during this stage does not rewrap the
+old source or replace its displayed rows. Full-content preparation validates the
+incoming page's URL, including page changes where current metadata is empty.
+Publication installs matching metadata/content together. An unchanged source
+restores its live byte cursor, scroll and selection; a changed source cannot
+inherit an obsolete quotation. Initial startup and explicit source-bound jumps
+retain their synchronous fallback contracts.
+
+`reader::viewport::RowIndex` caches terminal-cell checkpoints approximately every
+256 bytes at real Unicode grapheme boundaries, plus styled-span ends. Code-row
+motions and pointer positioning use those checkpoints. Visible projection seeks
+the viewport, visits its graphemes, then applies search, visual-selection and
+cursor styles using original byte ranges. Hidden prefixes are neither cloned
+nor rescanned per frame. Tabs retain absolute four-cell stops; partial wide
+cells become spaces. Index construction happens when styled rows change, not
+during drawing. It trades retained checkpoint/span offsets for bounded repeated
+viewport work; exceptionally long graphemes still require Unicode context.
+
+Modal geometry is owned by `ui::popup::Popup`; drawing and native-image
+occlusion consume the same rectangles. Prefix help and note previews likewise
+share their actual footprint. Native Sixel strips outside these footprints stay
+visible. A strip intersecting a popup is omitted because its encoded payload
+cannot be clipped sideways. Full image inspection and moving-pane pictures own
+exclusive presentation. No decoder, resize, network request or encoding runs in
+drawing, and no dependency or image protocol was added.
+
+`make bench-code` runs the correctness-checked deep-code full-frame workload,
+with representative and stress Unicode/tab rows, three processes each and GNU
+time wall/CPU/RSS/I/O evidence. `tools/bench_code.py --baseline-binary PATH`
+compares the exact same workload against a retained executable. Setup precedes
+operation timing; process resource totals include setup.
+
+`make check-latency LATENCY_ARGS="--binary PATH --artifacts DIR"` opens an owned
+Foot Wayland window and seeds a separate 10k-article library with 64 smart lists.
+`--stress` uses 50k articles. Each of three workloads has at least 100 samples:
+scrolling during an active loopback feed request, cached native-image scrolling,
+and article-preview switching from the titles pane. Unique changed publisher
+markers correlate each input to its synchronized output frame. Scroll samples
+also require native image payloads. DSR 5, documented in Foot's installed
+`foot-ctlseqs(7)`, acknowledges terminal parsing after the matching frame;
+fragmented replies are consumed only by this isolated relay. Unrelated terminal
+input is forwarded. The report records raw sample times, p50/p95/p99/max,
+output bytes, environment, executable hash, process RSS/I/O, real HTTP overlap,
+publisher-text preservation and terminal restoration. Missing display, HTTP,
+feedback or replies fails the command. This measures private input injection
+through application/PTY processing and Foot acknowledgement. It excludes OS
+keyboard delivery, compositor presentation and physical display latency.
+
+
+Final release evidence: `make check-release` passed with Rust 1.99.1, 502 native
+Rust tests including real HTTP, 14 Python tool tests and the release build.
+`docs/navigation-foot-qualification.json` qualifies the same final binary on
+Foot 1.21.0, including native pixel decoding, clipped scrolling, selection,
+mouse inspection, zoom, source preservation and terminal restoration.
+
+`docs/code-viewport-benchmarks.json` records the pre-index baseline and final
+checked executable. Median full-frame/motion time fell from 1.356 to 0.166 ms
+for a 32 KiB code row and from 20.571 to 0.166 ms for a 512 KiB row. Peak process
+RSS remained about 27 MiB for the stress fixture; resource totals include setup.
+These results concern the indexed code viewport, not every application action.
+
+`docs/navigation-latency.json` retains process summaries and points to every
+per-input timing in `docs/navigation-latency-samples.csv`. Across three independent 10k-article runs per version,
+median p95 article-preview acknowledgement fell from about 35.6 to 19.3 ms.
+Final image-scroll p95 acknowledgement was about 3.8 ms, versus about 3.5 ms
+before; no image-scroll speedup is claimed. A separate 50k-article qualification
+passed, including collection overlap. Final runs also verified real Enter/read
+persistence and yanked the unchanged owning heading after acknowledgement.
+These terminal observations exclude compositor and physical presentation.

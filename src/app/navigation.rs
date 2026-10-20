@@ -11,18 +11,17 @@ use super::{App, Focus, NavItem, View};
 
 impl App {
     pub(crate) fn rebuild_navigation(&mut self) -> Result<()> {
-        let destinations = self.catalog_destinations();
-        self.navigation = destinations
-            .into_iter()
-            .map(|(view, title, group)| {
-                Ok(NavItem {
-                    count: self.store.view_count(&view)?,
-                    view,
-                    title,
-                    group,
-                })
-            })
-            .collect::<Result<_>>()?;
+        let items = catalog_navigation(
+            &self.store,
+            &self.library,
+            self.workspace.last_visit,
+        )?;
+        self.install_navigation(items);
+        Ok(())
+    }
+
+    pub(super) fn install_navigation(&mut self, items: Vec<NavItem>) {
+        self.navigation = items;
         self.customize_navigation();
         self.nav_selected = self
             .navigation
@@ -30,40 +29,6 @@ impl App {
             .position(|item| item.view.same_destination(&self.view))
             .unwrap_or(1);
         self.view = self.navigation[self.nav_selected].view.clone();
-        Ok(())
-    }
-
-    fn catalog_destinations(&self) -> Vec<(View, String, &'static str)> {
-        let mut destinations = vec![
-            (View::Inbox, "Inbox".into(), "LIBRARY"),
-            (View::All, "All articles".into(), "LIBRARY"),
-            (View::Queue, "Read next".into(), "LIBRARY"),
-            (View::Starred, "Favorites".into(), "LIBRARY"),
-            (View::Read, "Read".into(), "LIBRARY"),
-            (View::Annotated, "Notebook".into(), "LIBRARY"),
-            (View::Trash, "Trash".into(), "LIBRARY"),
-            (View::Continue, "Continue reading".into(), "LIBRARY"),
-            (
-                View::SinceLastVisit(self.workspace.last_visit),
-                "Since last visit".into(),
-                "LIBRARY",
-            ),
-            (View::Grouped, "Grouped articles".into(), "LIBRARY"),
-            (View::Recommended, "For you".into(), "LIBRARY"),
-        ];
-        destinations.extend(self.library.collections.iter().map(|list| {
-            (View::Collection(list.id), list.name.clone(), "YOUR FOLDERS")
-        }));
-        destinations.extend(self.library.smart_lists.iter().map(|list| {
-            (View::Smart(list.id), list.name.clone(), "SMART LISTS")
-        }));
-        destinations.extend(
-            self.library
-                .feeds
-                .iter()
-                .map(|feed| (View::Feed(feed.id), feed.title.clone(), "FEEDS")),
-        );
-        destinations
     }
 
     pub(crate) fn filter(&mut self) -> Result<()> {
@@ -92,7 +57,7 @@ impl App {
         self.apply_page(page)
     }
 
-    fn article_query(&self) -> ArticleQuery {
+    pub(super) fn article_query(&self) -> ArticleQuery {
         ArticleQuery {
             view: self.view.clone(),
             text: self.search.clone(),
@@ -233,19 +198,19 @@ impl App {
         let article = &mut self.library.articles[index];
         let changed = article.unread;
         if changed {
-            self.store.set_unread(article.id, false)?;
-            article.unread = false;
+            let id = article.id;
+            self.submit_read_state(std::iter::once(id).collect(), false)?;
         }
-        self.retained_article = Some(article.id);
+        self.retained_article = self.current().map(|article| article.id);
         self.focus = Focus::Reader;
         self.workspace.show_reader = true;
-        if changed {
+        if changed && self.personal_writes.is_none() {
             self.refresh_read_counts()?;
         }
         Ok(())
     }
 
-    fn refresh_read_counts(&mut self) -> Result<()> {
+    pub(super) fn refresh_read_counts(&mut self) -> Result<()> {
         for item in &mut self.navigation {
             if read_sensitive(&item.view, &self.library.smart_lists)? {
                 item.count = self.store.view_count(&item.view)?;
@@ -351,4 +316,60 @@ impl App {
         }
         Ok(())
     }
+}
+
+pub(super) fn catalog_navigation(
+    store: &crate::store::Store,
+    library: &crate::model::Library,
+    last_visit: i64,
+) -> Result<Vec<NavItem>> {
+    catalog_destinations(library, last_visit)
+        .into_iter()
+        .map(|(view, title, group)| {
+            Ok(NavItem {
+                count: store.view_count(&view)?,
+                view,
+                title,
+                group,
+            })
+        })
+        .collect()
+}
+
+fn catalog_destinations(
+    library: &crate::model::Library,
+    last_visit: i64,
+) -> Vec<(View, String, &'static str)> {
+    let mut destinations = vec![
+        (View::Inbox, "Inbox".into(), "LIBRARY"),
+        (View::All, "All articles".into(), "LIBRARY"),
+        (View::Queue, "Read next".into(), "LIBRARY"),
+        (View::Starred, "Favorites".into(), "LIBRARY"),
+        (View::Read, "Read".into(), "LIBRARY"),
+        (View::Annotated, "Notebook".into(), "LIBRARY"),
+        (View::Trash, "Trash".into(), "LIBRARY"),
+        (View::Continue, "Continue reading".into(), "LIBRARY"),
+        (
+            View::SinceLastVisit(last_visit),
+            "Since last visit".into(),
+            "LIBRARY",
+        ),
+        (View::Grouped, "Grouped articles".into(), "LIBRARY"),
+        (View::Recommended, "For you".into(), "LIBRARY"),
+    ];
+    destinations.extend(library.collections.iter().map(|list| {
+        (View::Collection(list.id), list.name.clone(), "YOUR FOLDERS")
+    }));
+    destinations.extend(
+        library.smart_lists.iter().map(|list| {
+            (View::Smart(list.id), list.name.clone(), "SMART LISTS")
+        }),
+    );
+    destinations.extend(
+        library
+            .feeds
+            .iter()
+            .map(|feed| (View::Feed(feed.id), feed.title.clone(), "FEEDS")),
+    );
+    destinations
 }

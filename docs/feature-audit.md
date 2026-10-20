@@ -43,7 +43,7 @@ limitations belong to [validation](validation.md).
 | Configurable shortcuts | Command bindings respect modal editors and input batching | `tests/library_workflows.rs` |
 | Parallel collection | Four bounded lanes, subscription-host pacing, incremental results and durable Retry-After | `src/source/scheduler/tests.rs`; real HTTP qualification remains required |
 | Performance evidence | Correctness-checked representative/stress frames, smart-list switches, reflow and concurrent writes | `benches/workloads/smoothness.rs`, `benches/workloads/expansion.rs`, `benches/workloads/panes.rs`; [validation](validation.md) |
-| Inline images | Bounded raster/SVG previews; persistent X11 pixels, click-to-inspect, source zoom/pan and exact clipping; optional Wayland helper and portable fallback | `tests/images.rs`, `tests/image_inspector.rs`, `tests/overlay.rs`, `tests/image_http.rs`, `tools/qualify_images.py` |
+| Inline images | Bounded raster/SVG previews; Foot Sixel strips, popup-aware clipping, click-to-inspect and source zoom/pan; portable halfblock fallback | `tests/images.rs`, `tests/image_inspector.rs`, `tests/sixel_images.rs`, `tests/image_http.rs`, `tools/qualify_foot.py` |
 | Native terminal image protocols | Kitty, Sixel and iTerm2 inspector encodings, conservative automatic selection and manual override | `tests/image_inspector.rs`; built-in encoders remain confined to the inspector |
 
 ## Deliberate product boundaries
@@ -74,3 +74,12 @@ are not preempted, and no hard real-time guarantee is made.
 Real loopback HTTP and the pinned published-registry build are qualified.
 Current live-publisher availability, connected dependency/advisory audits and
 physical terminal latency remain explicit validation limits.
+
+
+The interactive publication review additionally qualifies ordered background
+read flags, independent catalog counts, retained source previews, indexed long
+code rows and shared popup footprints. Native regression coverage lives in
+`tests/background_navigation.rs`, `src/reader/viewport/tests.rs` and
+`tests/sixel_images.rs`. `make check-latency` requires real Foot/Wayland and
+loopback HTTP; it measures matching-frame terminal acknowledgement, not physical
+presentation. `make bench-code` records repeated checked CPU/resource evidence.

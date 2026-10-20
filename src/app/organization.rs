@@ -89,11 +89,19 @@ impl App {
                 "Use :bulk read|unread|favorite|unfavorite|queue|unqueue|tag NAME|folder NAME"
             ),
         };
-        self.store.edit_articles(&self.marked, &edit)?;
+        if let BulkEdit::Unread(unread) = edit {
+            self.submit_read_state(self.marked.clone(), unread)?;
+        } else {
+            self.store.edit_articles(&self.marked, &edit)?;
+        }
         let count = self.marked.len();
         self.marked.clear();
         self.retained_article = None;
-        self.reload()?;
+        if self.personal_writes.is_none()
+            || !matches!(edit, BulkEdit::Unread(_))
+        {
+            self.reload()?;
+        }
         self.status = format!(
             "Updated {count} captured articles · u undoes the entire batch"
         );

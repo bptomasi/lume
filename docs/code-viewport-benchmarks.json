@@ -1,0 +1,234 @@
+{
+  "measured_at": "2026-10-20T01:37:49.050245+00:00",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "scope": "Two cursor motions, a selected full interactive frame, and exact source/tail assertions. Source layout precedes timers; process resources include setup.",
+  "binaries": {
+    "baseline": {
+      "sha256": "db04c584811439dc8c4ce67dd456e6b61d4967816267dded3206c6e22235abce",
+      "runs": [
+        {
+          "stress": false,
+          "run": 0,
+          "iterations": 1000,
+          "mean_ms": 1.3533810000000002,
+          "resources": {
+            "wall_seconds": 1.36,
+            "peak_rss_kib": 14324,
+            "user_seconds": 1.36,
+            "system_seconds": 0.0,
+            "input_blocks": 0,
+            "output_blocks": 0
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 1353.381 ms total, 1.353 ms/iteration\n"
+        },
+        {
+          "stress": false,
+          "run": 1,
+          "iterations": 1000,
+          "mean_ms": 1.356134,
+          "resources": {
+            "wall_seconds": 1.36,
+            "peak_rss_kib": 14300,
+            "user_seconds": 1.36,
+            "system_seconds": 0.0,
+            "input_blocks": 0,
+            "output_blocks": 0
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 1356.134 ms total, 1.356 ms/iteration\n"
+        },
+        {
+          "stress": false,
+          "run": 2,
+          "iterations": 1000,
+          "mean_ms": 1.397706,
+          "resources": {
+            "wall_seconds": 1.41,
+            "peak_rss_kib": 14312,
+            "user_seconds": 1.4,
+            "system_seconds": 0.0,
+            "input_blocks": 0,
+            "output_blocks": 0
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 1397.706 ms total, 1.398 ms/iteration\n"
+        },
+        {
+          "stress": true,
+          "run": 0,
+          "iterations": 1000,
+          "mean_ms": 20.972114,
+          "resources": {
+            "wall_seconds": 21.03,
+            "peak_rss_kib": 27172,
+            "user_seconds": 20.99,
+            "system_seconds": 0.01,
+            "input_blocks": 0,
+            "output_blocks": 1128
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 20972.114 ms total, 20.972 ms/iteration\n"
+        },
+        {
+          "stress": true,
+          "run": 1,
+          "iterations": 1000,
+          "mean_ms": 20.571021000000002,
+          "resources": {
+            "wall_seconds": 20.62,
+            "peak_rss_kib": 27380,
+            "user_seconds": 20.59,
+            "system_seconds": 0.01,
+            "input_blocks": 0,
+            "output_blocks": 1064
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 20571.021 ms total, 20.571 ms/iteration\n"
+        },
+        {
+          "stress": true,
+          "run": 2,
+          "iterations": 1000,
+          "mean_ms": 20.537547999999997,
+          "resources": {
+            "wall_seconds": 20.59,
+            "peak_rss_kib": 27360,
+            "user_seconds": 20.55,
+            "system_seconds": 0.0,
+            "input_blocks": 0,
+            "output_blocks": 1064
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 20537.548 ms total, 20.538 ms/iteration\n"
+        }
+      ],
+      "median_mean_ms": {
+        "False": 1.356134,
+        "True": 20.571021000000002
+      }
+    },
+    "current": {
+      "sha256": "b04eafc514bd12230666b33642f97d3baf36ef03b8f5dc1b19cc2814ac2b0e1d",
+      "runs": [
+        {
+          "stress": false,
+          "run": 0,
+          "iterations": 1000,
+          "mean_ms": 0.155828,
+          "resources": {
+            "wall_seconds": 0.17,
+            "peak_rss_kib": 14852,
+            "user_seconds": 0.16,
+            "system_seconds": 0.0,
+            "input_blocks": 0,
+            "output_blocks": 0
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 155.828 ms total, 0.156 ms/iteration\n"
+        },
+        {
+          "stress": false,
+          "run": 1,
+          "iterations": 1000,
+          "mean_ms": 0.16687200000000002,
+          "resources": {
+            "wall_seconds": 0.18,
+            "peak_rss_kib": 14484,
+            "user_seconds": 0.17,
+            "system_seconds": 0.0,
+            "input_blocks": 0,
+            "output_blocks": 0
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 166.872 ms total, 0.167 ms/iteration\n"
+        },
+        {
+          "stress": false,
+          "run": 2,
+          "iterations": 1000,
+          "mean_ms": 0.165962,
+          "resources": {
+            "wall_seconds": 0.18,
+            "peak_rss_kib": 13916,
+            "user_seconds": 0.18,
+            "system_seconds": 0.0,
+            "input_blocks": 0,
+            "output_blocks": 0
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 165.962 ms total, 0.166 ms/iteration\n"
+        },
+        {
+          "stress": true,
+          "run": 0,
+          "iterations": 1000,
+          "mean_ms": 0.228792,
+          "resources": {
+            "wall_seconds": 0.29,
+            "peak_rss_kib": 27204,
+            "user_seconds": 0.28,
+            "system_seconds": 0.01,
+            "input_blocks": 0,
+            "output_blocks": 1224
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 228.792 ms total, 0.229 ms/iteration\n"
+        },
+        {
+          "stress": true,
+          "run": 1,
+          "iterations": 1000,
+          "mean_ms": 0.165994,
+          "resources": {
+            "wall_seconds": 0.22,
+            "peak_rss_kib": 27324,
+            "user_seconds": 0.21,
+            "system_seconds": 0.01,
+            "input_blocks": 0,
+            "output_blocks": 1064
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 165.994 ms total, 0.166 ms/iteration\n"
+        },
+        {
+          "stress": true,
+          "run": 2,
+          "iterations": 1000,
+          "mean_ms": 0.16525499999999999,
+          "resources": {
+            "wall_seconds": 0.23,
+            "peak_rss_kib": 26868,
+            "user_seconds": 0.21,
+            "system_seconds": 0.01,
+            "input_blocks": 0,
+            "output_blocks": 1064
+          },
+          "stdout": "deep code motion + selected full frame: 1000 iterations, 165.255 ms total, 0.165 ms/iteration\n"
+        }
+      ],
+      "median_mean_ms": {
+        "False": 0.165962,
+        "True": 0.165994
+      }
+    }
+  },
+  "baseline_scope": "The same checked workload, captured before sparse code-row indexing; this is a viewport-path comparison, not a whole-application speedup.",
+  "comparison": {
+    "False": {
+      "baseline_ms": 1.356134,
+      "current_ms": 0.165962,
+      "reduction_percent": 87.76212380192518
+    },
+    "True": {
+      "baseline_ms": 20.571021000000002,
+      "current_ms": 0.165994,
+      "reduction_percent": 99.19306873489653
+    }
+  },
+  "workloads": {
+    "representative": {
+      "code_row_bytes": 32772,
+      "repeats": 4096
+    },
+    "stress": {
+      "code_row_bytes": 524292,
+      "repeats": 65536
+    },
+    "terminal_cells": [
+      144,
+      44
+    ],
+    "reading_width_cells": 80
+  }
+}

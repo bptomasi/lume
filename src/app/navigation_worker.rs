@@ -17,6 +17,11 @@ pub(super) enum Request {
         query: ArticleQuery,
         selected: usize,
     },
+    Refresh {
+        query: ArticleQuery,
+        selected: usize,
+        article: Option<i64>,
+    },
     Article {
         id: i64,
         feed: i64,
@@ -32,6 +37,8 @@ pub(super) struct Completed {
 pub(super) struct NavigationWorker {
     worker: Latest<Request, Completed>,
     ready: Option<Result<Completed>>,
+    revision: u64,
+    preserve_identity: bool,
 }
 
 impl NavigationWorker {
@@ -39,9 +46,11 @@ impl NavigationWorker {
         let store = Store::open(path)?;
         Ok(Self {
             worker: Latest::start("lume-navigation", move |request| {
-                read(&store, request)
+                store.read_snapshot(|store| read(store, request))
             })?,
             ready: None,
+            revision: 0,
+            preserve_identity: false,
         })
     }
 
@@ -50,39 +59,71 @@ impl NavigationWorker {
         self.ready = None;
     }
 
-    pub(super) fn submit(&mut self, request: Request) {
+    pub(super) fn submit(&mut self, request: Request, revision: u64) {
         self.ready = None;
+        self.revision = revision;
+        self.preserve_identity = matches!(request, Request::Article { .. });
         self.worker.submit(request);
     }
 }
 
 fn read(store: &Store, request: Request) -> Result<Completed> {
-    let (page, article) = match request {
-        Request::Page {
-            mut query,
+    match request {
+        Request::Article { id, feed } => Ok(Completed {
+            page: None,
+            article: Some(id),
+            reading: Some(ReadingData::load(store, id, feed)?),
+        }),
+        Request::Page { query, selected } => read_page(store, query, selected),
+        Request::Refresh {
+            query,
             selected,
+            article,
         } => {
-            let mut page = store.query_articles(&query)?;
-            if page.articles.is_empty() && page.total > 0 {
-                query.offset = (page.total - 1) / query.limit * query.limit;
-                page = store.query_articles(&query)?;
+            if let Some(id) = article
+                && let Some((offset, page)) =
+                    store.page_containing(&query, id)?
+            {
+                let selected = page
+                    .articles
+                    .iter()
+                    .position(|item| item.id == id)
+                    .unwrap_or(0);
+                complete_page(store, offset, page, selected)
+            } else {
+                read_page(store, query, selected)
             }
-            let selected = selected.min(page.articles.len().saturating_sub(1));
-            let article = page
-                .articles
-                .get(selected)
-                .map(|article| (article.id, article.feed_id));
-            (Some((query.offset, page, selected)), article)
         }
-        Request::Article { id, feed } => (None, Some((id, feed))),
-    };
-    let reading = article
-        .map(|(id, feed)| ReadingData::load(store, id, feed))
-        .transpose()?;
+    }
+}
+
+fn read_page(
+    store: &Store,
+    mut query: ArticleQuery,
+    selected: usize,
+) -> Result<Completed> {
+    let mut page = store.query_articles(&query)?;
+    if page.articles.is_empty() && page.total > 0 {
+        query.offset = (page.total - 1) / query.limit * query.limit;
+        page = store.query_articles(&query)?;
+    }
+    complete_page(store, query.offset, page, selected)
+}
+
+fn complete_page(
+    store: &Store,
+    offset: usize,
+    page: ArticlePage,
+    selected: usize,
+) -> Result<Completed> {
+    let selected = selected.min(page.articles.len().saturating_sub(1));
+    let target = page.articles.get(selected);
     Ok(Completed {
-        page,
-        article: article.map(|(id, _)| id),
-        reading,
+        reading: target
+            .map(|item| ReadingData::load(store, item.id, item.feed_id))
+            .transpose()?,
+        article: target.map(|item| item.id),
+        page: Some((offset, page, selected)),
     })
 }
 
@@ -97,23 +138,69 @@ impl App {
         self.renderer.enable_background_layout()?;
         self.wrap_reader();
         self.navigation_worker = Some(navigation);
+        self.catalog_worker =
+            Some(super::catalog_worker::CatalogWorker::start(path)?);
         self.session_writer = Some(session);
         self.recommendations =
             Some(super::recommendations::Recommendations::start(path)?);
-        self.note_tasks = Some(super::note_tasks::NoteTasks::start(path)?);
+        self.personal_writes =
+            Some(super::personal_tasks::PersonalWrites::start(path)?);
         self.note_catalog =
             Some(super::note_catalog::NoteCatalog::start(path)?);
         Ok(())
     }
 
     pub(super) fn defer_navigation(&mut self, request: Request) {
+        self.cancel_reader_pointer();
+        self.note_marks.hover = None;
+        self.selection = None;
+        self.projecting_navigation = false;
         if let Some(worker) = &mut self.navigation_worker {
-            worker.submit(request);
+            worker.submit(request, self.library_revision);
         }
         self.navigation_loading = true;
-        self.clear_current();
         self.status =
             "Loading selection… · navigation remains available".into();
+    }
+
+    pub(super) fn refresh_catalog_page(&mut self) {
+        self.projecting_navigation = true;
+        self.note_marks.hover = None;
+        let request = Request::Refresh {
+            query: self.article_query(),
+            selected: self.selected,
+            article: self.current().map(|article| article.id),
+        };
+        if let Some(worker) = &mut self.navigation_worker {
+            worker.submit(request, self.library_revision);
+        }
+    }
+
+    fn refresh_stale_navigation(&mut self) {
+        let preserve = self
+            .navigation_worker
+            .as_ref()
+            .is_some_and(|worker| worker.preserve_identity);
+        if preserve
+            && !self.read_reconcile_required
+            && let Some(article) = self.current()
+            && self.retained_article == Some(article.id)
+        {
+            self.defer_navigation(Request::Article {
+                id: article.id,
+                feed: article.feed_id,
+            });
+        } else {
+            self.refresh_catalog_page();
+        }
+    }
+
+    /// Whether a catalog or page refresh still awaits safe delivery.
+    pub fn catalog_pending(&self) -> bool {
+        self.catalog_loading
+            || self.navigation_worker.as_ref().is_some_and(|worker| {
+                worker.worker.pending() || worker.ready.is_some()
+            })
     }
 
     /// Whether the session worker still has unconfirmed durable writes.
@@ -154,33 +241,117 @@ impl App {
             self.progress_memory.borrow_mut().clear();
             anyhow::bail!("Background save failed: {error}");
         }
+        let catalog_changed = self.poll_catalog()?;
         let Some(worker) = &mut self.navigation_worker else {
-            return Ok(false);
+            return Ok(catalog_changed);
         };
         if let Some(result) = worker.worker.poll() {
             worker.ready = Some(result);
         }
         if !matches!(self.mode, Mode::Normal) || self.selection.is_some() {
-            return Ok(false);
+            return Ok(catalog_changed);
         }
         let Some(result) = worker.ready.take() else {
-            return Ok(false);
+            return Ok(catalog_changed);
         };
+        if worker.revision != self.library_revision {
+            self.refresh_stale_navigation();
+            return Ok(catalog_changed);
+        }
+        Ok(self.publish_navigation(result)? || catalog_changed)
+    }
+
+    fn publish_navigation(
+        &mut self,
+        result: Result<Completed>,
+    ) -> Result<bool> {
+        if let Ok(completed) = &result
+            && let Some(reading) = &completed.reading
+        {
+            let article = completed
+                .page
+                .as_ref()
+                .and_then(|(_, page, selected)| page.articles.get(*selected))
+                .or_else(|| self.current());
+            let url = article.map_or("", |article| article.url.as_str());
+            let full = self.workspace.content_source
+                == crate::model::ContentSource::Full;
+            let body = reading.source_body(full, url);
+            if !self.renderer.prepare_source(body, self.reader_width) {
+                self.projecting_navigation = true;
+                if let Some(worker) = &mut self.navigation_worker {
+                    worker.ready = Some(result);
+                }
+                return Ok(false);
+            }
+        }
+        let navigating = self.navigation_loading;
         self.navigation_loading = false;
-        let result = result.context("Navigation failed")?;
+        self.projecting_navigation = false;
+        self.apply_navigation(result.context("Navigation failed")?)?;
+        if navigating {
+            self.status = "Selection loaded".into();
+        }
+        Ok(true)
+    }
+
+    pub(super) fn invalidate_reading_refresh(&mut self) {
+        self.library_revision = self.library_revision.wrapping_add(1);
+        if self.catalog_loading {
+            self.request_catalog(super::catalog_worker::Scope::Counts);
+        }
+        if self.projecting_navigation && !self.navigation_loading {
+            self.refresh_catalog_page();
+        }
+    }
+
+    fn apply_navigation(&mut self, result: Completed) -> Result<()> {
+        let snapshot = self.capture_reader();
         if let Some((offset, page, selected)) = result.page {
+            self.read_reconcile_required = false;
             self.page_offset = offset;
             self.selected = selected;
             self.page_total = page.total;
             self.library.articles = page.articles;
             self.visible = (0..self.library.articles.len()).collect();
+            self.overlay_pending_reads();
         }
-        if self.current().map(|article| article.id) == result.article
-            && let Some(reading) = result.reading
-        {
-            self.install_reading_data(reading)?;
+        if self.current().map(|article| article.id) == result.article {
+            if let Some(reading) = result.reading {
+                self.install_reading_data(reading)?;
+                self.restore_reader(snapshot);
+            } else {
+                self.clear_current();
+            }
         }
-        self.status = "Selection loaded".into();
-        Ok(true)
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::App;
+    use anyhow::{Context, Result};
+
+    #[test]
+    fn an_obsolete_storage_error_is_replaced_after_a_personal_commit()
+    -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("library.sqlite3");
+        let store = crate::store::Store::open(&path)?;
+        let mut app = App::new(store, false)?;
+        app.enable_background_navigation(&path)?;
+        app.navigation_worker
+            .as_mut()
+            .context("Navigation worker")?
+            .ready = Some(Err(anyhow::anyhow!("obsolete page failure")));
+        app.library_revision = 1;
+
+        assert!(!app.poll_navigation()?);
+
+        assert!(app.catalog_pending(), "Latest page was not requested");
+        assert!(!app.status.contains("obsolete"));
+        app.end_session()?;
+        Ok(())
     }
 }

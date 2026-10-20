@@ -15,7 +15,12 @@ use ratatui::layout::Rect;
 
 fn settle(app: &mut App) -> Result<()> {
     let deadline = Instant::now() + Duration::from_secs(10);
-    while app.navigation_loading || app.reader_pending() {
+    while app.navigation_loading
+        || app.reader_pending()
+        || app.catalog_pending()
+        || app.notes_pending()
+    {
+        app.poll_note_workspace()?;
         app.poll_navigation()?;
         app.poll_reader();
         app.resize_workspace(Rect::new(0, 0, 144, 44));
@@ -260,4 +265,317 @@ fn additional_article_steps_replace_the_selection_of_a_page_still_loading()
     assert_eq!(app.selected, 1);
     app.end_session()?;
     Ok(())
+}
+
+#[test]
+fn opening_unread_admits_write_without_waiting_for_a_locked_database()
+-> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let path = directory.path().join("library.sqlite3");
+    let observer = Store::open(&path)?;
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(&path)?;
+    app.set_view(View::All)?;
+    settle(&mut app)?;
+    let id = app.current().context("Article")?.id;
+    let lock = rusqlite::Connection::open(&path)?;
+    lock.execute_batch("BEGIN IMMEDIATE")?;
+
+    app.focus = Pane::Articles;
+    let start = Instant::now();
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    assert!(start.elapsed() < Duration::from_millis(200));
+    assert_eq!(app.focus, Pane::Reader);
+    assert!(!app.current().context("Selection")?.unread);
+    assert!(observer.article(id)?.unread);
+    assert!(app.notes_pending());
+
+    lock.execute_batch("ROLLBACK")?;
+    settle(&mut app)?;
+    assert!(!observer.article(id)?.unread);
+    let count = app
+        .navigation
+        .iter()
+        .find(|item| item.view == View::Read)
+        .context("Read folder")?
+        .count;
+    assert_eq!(count, observer.view_count(&View::Read)?);
+    app.end_session()?;
+    Ok(())
+}
+
+#[test]
+fn manual_unread_and_undo_follow_the_admitted_automatic_read() -> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let path = directory.path().join("library.sqlite3");
+    let observer = Store::open(&path)?;
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(&path)?;
+    app.set_view(View::All)?;
+    settle(&mut app)?;
+    let id = app.current().context("Article")?.id;
+    let lock = rusqlite::Connection::open(&path)?;
+    lock.execute_batch("BEGIN IMMEDIATE")?;
+    app.focus = Pane::Articles;
+
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    command(&mut app, "mark-unread")?;
+    app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE))?;
+    lock.execute_batch("ROLLBACK")?;
+    settle(&mut app)?;
+
+    assert!(
+        !observer.article(id)?.unread,
+        "Undo must revert manual unread"
+    );
+    assert!(!app.current().context("Selection")?.unread);
+    app.end_session()?;
+    Ok(())
+}
+
+#[test]
+fn catalog_refresh_preserves_selection_and_a_live_publisher_quotation()
+-> Result<()> {
+    let (directory, store, feed) = common::seeded_store()?;
+    let path = directory.path().join("library.sqlite3");
+    let mut publisher = Store::open(&path)?;
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(&path)?;
+    app.set_view(View::All)?;
+    settle(&mut app)?;
+    let id = app.current().context("Article")?.id;
+    app.focus = Pane::Reader;
+    app.key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))?;
+    app.key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))?;
+    let anchor = app.selection;
+    let cursor = (app.reader_cursor, app.reader_column);
+    let text = app.reader_text.clone();
+    publisher.ingest(&feed, "Refreshed source", &[new_article()])?;
+
+    app.reload()?;
+    assert!(app.catalog_pending());
+    assert_eq!(app.reader_text, text);
+    assert_eq!(app.current().context("Selection")?.id, id);
+    app.poll_navigation()?;
+    assert_eq!(app.selection, anchor);
+    app.selection = None;
+    settle(&mut app)?;
+
+    assert_eq!(app.current().context("Selection lost")?.id, id);
+    assert_eq!(app.reader_text, text);
+    assert_eq!((app.reader_cursor, app.reader_column), cursor);
+    assert_eq!(app.page_total, 2);
+    app.end_session()?;
+    Ok(())
+}
+
+fn new_article() -> lume::model::IncomingArticle {
+    lume::model::IncomingArticle {
+        external_id: "new-refresh".into(),
+        title: "New collection arrival".into(),
+        url: "https://journal.example/new".into(),
+        author: "Publisher".into(),
+        published: 9_000_000_000,
+        body: "New publisher text.".into(),
+        body_origin: lume::model::FeedOrigin::Feed,
+    }
+}
+
+#[test]
+fn retained_preview_keeps_its_title_and_rejects_source_bound_actions()
+-> Result<()> {
+    let (directory, mut store, feed) = common::seeded_store()?;
+    store.ingest(&feed, "More articles", &[new_article()])?;
+    let path = directory.path().join("library.sqlite3");
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(&path)?;
+    app.set_view(View::All)?;
+    settle(&mut app)?;
+    let title = app.current().context("Article")?.title.clone();
+    let body = app.reader_text.clone();
+    app.focus = Pane::Articles;
+
+    app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
+    assert!(app.reader_stale());
+    assert_eq!(app.reader_text, body);
+    assert_eq!(
+        app.displayed_article().context("Retained title")?.title,
+        title
+    );
+    app.focus = Pane::Reader;
+    app.key(KeyEvent::new(KeyCode::Char('G'), KeyModifiers::NONE))?;
+    assert_eq!(app.reader_cursor, app.reader_lines.len() - 1);
+    app.key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))?;
+    assert!(app.selection.is_none());
+    assert!(command(&mut app, "note").is_err());
+    app.mode = lume::app::Mode::Normal;
+    settle(&mut app)?;
+
+    assert!(!app.reader_stale());
+    assert_ne!(app.reader_text, body);
+    app.end_session()?;
+    Ok(())
+}
+
+#[test]
+fn newer_destination_replaces_a_pending_catalog_refresh() -> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(
+        &directory.path().join("library.sqlite3"),
+    )?;
+    app.reload()?;
+    app.set_view(View::Starred)?;
+    app.set_view(View::All)?;
+    settle(&mut app)?;
+
+    assert_eq!(app.view, View::All);
+    assert_eq!(app.page_total, 1);
+    assert!(app.current().is_some());
+    assert!(!app.reader_text.is_empty());
+    app.end_session()?;
+    Ok(())
+}
+
+#[test]
+fn failed_read_save_reports_the_failure_and_reconciles_optimistic_flags()
+-> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let path = directory.path().join("library.sqlite3");
+    let observer = Store::open(&path)?;
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(&path)?;
+    app.set_view(View::All)?;
+    settle(&mut app)?;
+    let id = app.current().context("Article")?.id;
+    let injector = rusqlite::Connection::open(&path)?;
+    injector.execute_batch(include_str!(
+        "../src/store/sql/test_create_reject_read_state.sql"
+    ))?;
+    app.focus = Pane::Articles;
+
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let error = loop {
+        if let Err(error) = app.poll_note_tasks() {
+            break error;
+        }
+        anyhow::ensure!(Instant::now() < deadline, "Write failure was lost");
+        std::thread::yield_now();
+    };
+    assert!(format!("{error:#}").contains("rejects writes"));
+    settle(&mut app)?;
+
+    assert!(observer.article(id)?.unread);
+    assert!(app.current().context("Selection")?.unread);
+    app.end_session()?;
+    Ok(())
+}
+
+#[test]
+fn page_navigation_publishes_full_content_only_after_its_projection_is_ready()
+-> Result<()> {
+    let (directory, store, full) = paged_full_source()?;
+    let mut app = App::new(store, false)?;
+    app.page_size = 1;
+    app.enable_background_navigation(
+        &directory.path().join("library.sqlite3"),
+    )?;
+    app.set_view(View::All)?;
+    settle(&mut app)?;
+    let previous = app.reader_text.clone();
+    app.focus = Pane::Articles;
+
+    app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while app.navigation_loading {
+        assert_eq!(app.reader_text, previous, "Retained preview was cleared");
+        app.poll_reader();
+        app.poll_navigation()?;
+        anyhow::ensure!(
+            Instant::now() < deadline,
+            "Projection did not publish"
+        );
+        std::thread::yield_now();
+    }
+
+    assert_eq!(app.body, full);
+    assert_eq!(app.content_source, lume::model::ContentSource::Full);
+    assert!(!app.article_preparing());
+    assert!(app.reader_text.contains("Full source content."));
+    app.end_session()?;
+    Ok(())
+}
+
+fn paged_full_source() -> Result<(tempfile::TempDir, Store, String)> {
+    let (directory, mut store, feed) = common::seeded_store()?;
+    let old = store.library()?.articles.remove(0);
+    let full = format!(
+        "# Cached source\n\n{}",
+        "Full source content.\n\n".repeat(200)
+    );
+    store.cache_document(
+        &lume::model::ArticleTarget {
+            article: old.id,
+            url: old.url,
+        },
+        &lume::model::ExtractedDocument {
+            final_url: "https://journal.example/full".into(),
+            body: full.clone(),
+        },
+    )?;
+    store.ingest(&feed, "Page source", &[new_article()])?;
+    Ok((directory, store, full))
+}
+
+#[test]
+fn automatic_read_keeps_an_opened_unread_smart_list_article() -> Result<()> {
+    for pending in [false, true] {
+        let (_directory, mut app, observer, view) = unread_smart_reader()?;
+        app.focus = Pane::Articles;
+        if pending {
+            app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
+        }
+        let id = app.current().context("Selected article")?.id;
+        let expected = observer.body(id)?;
+
+        app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+        settle(&mut app)?;
+
+        assert_eq!(app.current().context("Retained article")?.id, id);
+        assert_eq!(app.body, expected);
+        assert!(!observer.article(id)?.unread);
+        let count = app
+            .navigation
+            .iter()
+            .find(|item| item.view == view)
+            .context("Unread smart list")?
+            .count;
+        assert_eq!(count, 1);
+        app.set_view(view)?;
+        settle(&mut app)?;
+        assert_ne!(app.current().context("Remaining unread")?.id, id);
+        app.end_session()?;
+    }
+    Ok(())
+}
+
+fn unread_smart_reader() -> Result<(tempfile::TempDir, App, Store, View)> {
+    let (directory, mut store, feed) = common::seeded_store()?;
+    store.ingest(&feed, "Unread source", &[new_article()])?;
+    store.save_smart_list(
+        "Unread systems",
+        &lume::model::SmartFilter {
+            unread: true,
+            ..Default::default()
+        },
+    )?;
+    let view = View::Smart(store.catalog()?.smart_lists[0].id);
+    let path = directory.path().join("library.sqlite3");
+    let observer = Store::open(&path)?;
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(&path)?;
+    app.set_view(view.clone())?;
+    settle(&mut app)?;
+    Ok((directory, app, observer, view))
 }

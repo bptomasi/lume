@@ -39,6 +39,19 @@ pub struct Store {
 }
 
 impl Store {
+    pub(crate) fn read_snapshot<T>(
+        &self,
+        read: impl FnOnce(&Self) -> Result<T>,
+    ) -> Result<T> {
+        if !self.connection.is_autocommit() {
+            return read(self);
+        }
+        let transaction = self.connection.unchecked_transaction()?;
+        let result = read(self)?;
+        transaction.commit()?;
+        Ok(result)
+    }
+
     pub(crate) fn database_path(&self) -> Result<std::path::PathBuf> {
         self.connection
             .path()

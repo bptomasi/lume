@@ -5,7 +5,7 @@ use anyhow::{Context, Result, ensure};
 use super::{
     Action, App, InputKind, Mode,
     draft_commands::{Destination, ExCommand},
-    note_tasks::{Completion, Outcome, PendingWrite, Task},
+    personal_tasks::{Completion, Outcome, PendingWrite, Task},
 };
 
 impl App {
@@ -13,7 +13,7 @@ impl App {
         &mut self,
         command: ExCommand,
     ) -> Result<bool> {
-        if self.note_tasks.is_none() {
+        if self.personal_writes.is_none() {
             return Ok(false);
         }
         let ExCommand::Write(destination) = command else {
@@ -53,7 +53,7 @@ impl App {
             initial_kind: input.initial_kind,
         };
         let writer = self
-            .note_tasks
+            .personal_writes
             .as_mut()
             .context("Note writer is unavailable")?;
         let ticket = writer.submit(Task::Write(draft))?;
@@ -75,8 +75,10 @@ impl App {
     pub fn poll_note_tasks(&mut self) -> Result<Option<Action>> {
         self.tick_draft_recovery()?;
         let mut changed = false;
-        while let Some(completion) =
-            self.note_tasks.as_ref().and_then(|writer| writer.poll())
+        while let Some(completion) = self
+            .personal_writes
+            .as_ref()
+            .and_then(|writer| writer.poll())
         {
             changed = true;
             let action = self.apply_note_completion(completion)?;
@@ -109,28 +111,25 @@ impl App {
     ) -> Result<Action> {
         self.pending_note_deletes.remove(&completion.ticket);
         let pending = self.take_completed_write(completion.ticket);
+        if self
+            .complete_read_state(completion.ticket, completion.result.is_err())
+        {
+            completion.result?;
+            return Ok(Action::None);
+        }
         match completion.result? {
             Outcome::Written {
                 draft,
                 target,
                 comments,
             } => {
-                self.install_saved_identity(&draft, target.clone())?;
-                self.install_note_changes(target.article(), comments?);
-                self.select_written_note(&target);
-                let action = if let Some(pending) = pending {
-                    self.finish_note_write(pending.destination)?
-                } else {
-                    self.status = "Annotation saved · u undo".into();
-                    Action::None
-                };
-                self.observe_draft();
-                return Ok(action);
+                return self
+                    .finish_written_note(draft, target, comments, pending);
             }
             Outcome::Changed { effect, comments } => {
                 self.install_note_effect(effect, comments?)?;
             }
-            Outcome::Checkpoint => {}
+            Outcome::Read | Outcome::Checkpoint => {}
             Outcome::Collections => self.invalidate_notebook(),
             Outcome::SearchHistory(history) => {
                 if let Some(notebook) = &mut self.notebook {
@@ -142,6 +141,26 @@ impl App {
             }
         }
         Ok(Action::None)
+    }
+
+    fn finish_written_note(
+        &mut self,
+        draft: crate::model::NoteDraft,
+        target: crate::model::DraftTarget,
+        comments: Result<Vec<crate::model::Comment>>,
+        pending: Option<PendingWrite>,
+    ) -> Result<Action> {
+        self.install_saved_identity(&draft, target.clone())?;
+        self.install_note_changes(target.article(), comments?);
+        self.select_written_note(&target);
+        let action = if let Some(pending) = pending {
+            self.finish_note_write(pending.destination)?
+        } else {
+            self.status = "Annotation saved · u undo".into();
+            Action::None
+        };
+        self.observe_draft();
+        Ok(action)
     }
 
     fn select_written_note(&mut self, target: &crate::model::DraftTarget) {
@@ -266,11 +285,11 @@ impl App {
         Ok(())
     }
 
-    /// Whether admitted note transactions still need completion handling.
+    /// Whether personal transactions still need UI acknowledgement.
     pub fn notes_pending(&self) -> bool {
         self.pending_note_write.is_some()
             || self
-                .note_tasks
+                .personal_writes
                 .as_ref()
                 .is_some_and(|writer| writer.pending())
     }
@@ -285,7 +304,7 @@ impl App {
             }
             ensure!(
                 std::time::Instant::now() < deadline,
-                "Note writes did not finish before shutdown"
+                "Personal writes did not finish before shutdown"
             );
             std::thread::sleep(std::time::Duration::from_millis(1));
         }

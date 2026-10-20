@@ -59,6 +59,7 @@ pub(super) fn perform(store: &Store, task: Task) -> Result<Outcome> {
         Task::Edit(edit) => {
             changed(store, UndoEffect::Notes(edit_note(store, edit)?))
         }
+        Task::Read { articles, unread } => read_state(store, articles, unread),
         Task::Undo => changed(store, store.undo_effect()?),
         Task::Checkpoint(draft) => {
             store.save_note_draft(&draft)?;
@@ -149,4 +150,22 @@ fn query_edit(store: &Store, edit: super::QueryEdit) -> Result<Outcome> {
             Ok(Outcome::SearchHistory(store.note_search_history()?))
         }
     }
+}
+
+fn read_state(
+    store: &Store,
+    articles: std::collections::BTreeSet<i64>,
+    unread: bool,
+) -> Result<Outcome> {
+    if articles.len() == 1 {
+        for article in articles {
+            store.set_unread(article, unread)?;
+        }
+    } else {
+        store.edit_articles(
+            &articles,
+            &crate::model::BulkEdit::Unread(unread),
+        )?;
+    }
+    Ok(Outcome::Read)
 }

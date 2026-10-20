@@ -128,11 +128,10 @@ impl Store {
     /// Returns invalid smart-list or SQLite errors, preserving existing data.
     pub fn query_articles(&self, query: &ArticleQuery) -> Result<ArticlePage> {
         // Count and page must observe one snapshot while the collector commits.
-        let snapshot = self.connection.unchecked_transaction()?;
-        let criteria = self.criteria(query)?;
-        let page = self.read_page(query, &criteria)?;
-        snapshot.commit()?;
-        Ok(page)
+        self.read_snapshot(|store| {
+            let criteria = store.criteria(query)?;
+            store.read_page(query, &criteria)
+        })
     }
 
     /// Locate a matching article and load its bounded page in one snapshot.
@@ -144,7 +143,14 @@ impl Store {
         query: &ArticleQuery,
         article: i64,
     ) -> Result<Option<(usize, ArticlePage)>> {
-        let snapshot = self.connection.unchecked_transaction()?;
+        self.read_snapshot(|store| store.locate_page(query, article))
+    }
+
+    fn locate_page(
+        &self,
+        query: &ArticleQuery,
+        article: i64,
+    ) -> Result<Option<(usize, ArticlePage)>> {
         let criteria = self.criteria(query)?;
         let sql = format!(
             "WITH matching AS ({})\n{}",
@@ -169,7 +175,6 @@ impl Store {
         let limit = query.limit.clamp(1, 500);
         query.offset = position / limit * limit;
         let page = self.read_page(&query, &criteria)?;
-        snapshot.commit()?;
         Ok(Some((query.offset, page)))
     }
 

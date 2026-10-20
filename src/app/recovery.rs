@@ -10,7 +10,7 @@ use anyhow::Result;
 
 use crate::model::NoteDraft;
 
-use super::{App, Input, Mode, note_tasks::Task};
+use super::{App, Input, Mode, personal_tasks::Task};
 
 #[derive(Default)]
 pub(super) struct Recovery {
@@ -81,7 +81,7 @@ impl App {
         let Some(draft) = self.recovery.snapshot.clone() else {
             return Ok(());
         };
-        if let Some(writer) = &mut self.note_tasks {
+        if let Some(writer) = &mut self.personal_writes {
             writer.submit(Task::Checkpoint(draft))?;
         } else {
             self.store.save_note_draft(&draft)?;
@@ -96,7 +96,7 @@ impl App {
         input: &Input,
     ) -> Result<()> {
         if let Some(target) = input.draft_target() {
-            if let Some(writer) = &mut self.note_tasks {
+            if let Some(writer) = &mut self.personal_writes {
                 writer.submit(Task::Discard(target))?;
             } else {
                 self.store.discard_note_draft(&target)?;

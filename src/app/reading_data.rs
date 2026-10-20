@@ -17,6 +17,17 @@ pub(super) struct ReadingData {
 }
 
 impl ReadingData {
+    pub(super) fn source_body(&self, full: bool, url: &str) -> &str {
+        if full
+            && let Some(document) = &self.document
+            && document.url == url
+            && !document.body.is_empty()
+        {
+            return &document.body;
+        }
+        &self.body
+    }
+
     pub(super) fn load(store: &Store, id: i64, feed: i64) -> Result<Self> {
         Ok(Self {
             body: store.body(id)?,

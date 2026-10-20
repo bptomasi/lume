@@ -11,7 +11,8 @@ MIGRATE_FROM ?=
 
 .PHONY: check check-release check-http check-alacritty fmt lint test bench build demo
 .PHONY: install test-tools bench-tools bench-notes bench-recommendations
-.PHONY: bench-images bench-interaction check-image-display check-foot
+.PHONY: bench-images bench-interaction bench-code check-image-display check-foot
+.PHONY: check-latency
 
 # Serialize composition even when a caller uses make -j.
 .NOTPARALLEL:
@@ -24,7 +25,9 @@ check:
 	python3 -m py_compile tools/render_preview.py tools/qualify_alacritty.py \
 		tools/install.py tools/bench_install.py tools/bench_notes.py \
 		tools/bench_support.py tools/bench_recommendations.py tools/bench_images.py \
-		tools/qualify_foot.py tools/foot_terminal.py tools/bench_interaction.py
+		tools/qualify_foot.py tools/foot_terminal.py tools/bench_interaction.py \
+		tools/terminal_latency.py tools/latency_fixture.py tools/qualify_latency.py \
+		tools/bench_code.py
 
 fmt:
 	$(CARGO) fmt --all -- --check
@@ -57,6 +60,9 @@ check-alacritty:
 # Requires Foot and native Wayland; opens only an owned qualification window.
 check-image-display: check-foot
 
+check-latency:
+	python3 tools/qualify_latency.py $(LATENCY_ARGS)
+
 check-foot:
 	python3 tools/qualify_foot.py $(FOOT_ARGS)
 
@@ -76,6 +82,9 @@ bench-recommendations:
 
 bench-images:
 	python3 tools/bench_images.py
+
+bench-code:
+	python3 tools/bench_code.py --output docs/code-viewport-benchmarks.json
 
 bench-interaction:
 	python3 tools/bench_interaction.py --output docs/interaction-benchmarks.json

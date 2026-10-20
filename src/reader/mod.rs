@@ -14,6 +14,7 @@ pub mod motion;
 mod projection;
 mod syntax;
 pub mod table_view;
+pub(crate) mod viewport;
 
 pub use live::LiveRenderer;
 pub use projection::{SourceMapping, style_range, to_display, to_source};

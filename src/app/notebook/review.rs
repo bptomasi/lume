@@ -46,8 +46,8 @@ impl App {
         days: u16,
         postpone: bool,
     ) -> Result<()> {
-        if let Some(writer) = &mut self.note_tasks {
-            writer.submit(super::super::note_tasks::Task::Edit(
+        if let Some(writer) = &mut self.personal_writes {
+            writer.submit(super::super::personal_tasks::Task::Edit(
                 crate::app::NoteEdit::Review {
                     target,
                     days,
@@ -55,7 +55,7 @@ impl App {
                 },
             ))?;
         } else {
-            let article = super::super::note_tasks::review(
+            let article = super::super::personal_tasks::review(
                 &self.store,
                 &target,
                 days,

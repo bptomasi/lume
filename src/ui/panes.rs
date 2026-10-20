@@ -143,11 +143,11 @@ pub(super) fn reader(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let block = panel(title.into(), app.focus == Focus::Reader);
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    if app.navigation_loading {
+    if app.navigation_loading && app.displayed_article().is_none() {
         frame.render_widget(Paragraph::new("Loading article…"), inner);
         return;
     }
-    let Some(article) = app.current() else {
+    let Some(article) = app.displayed_article() else {
         frame.render_widget(
             Paragraph::new(
                 if app.view == crate::model::View::Trash
@@ -213,7 +213,7 @@ fn reader_metadata(
     column: Rect,
     inner: Rect,
 ) {
-    let Some(article) = app.current() else {
+    let Some(article) = app.displayed_article() else {
         return;
     };
     let availability = match app.body_kind {
@@ -253,10 +253,12 @@ fn article_fetch_status(
     column: Rect,
     inner: Rect,
 ) {
-    let Some(article) = app.current() else {
+    let Some(article) = app.displayed_article() else {
         return;
     };
-    let message = if app.article_fetching.as_ref().is_some_and(|target| {
+    let message = if app.reader_stale() {
+        "Previous article · loading selection… · article actions paused".into()
+    } else if app.article_fetching.as_ref().is_some_and(|target| {
         target.article == article.id && target.url == article.url
     }) {
         "Fetching article… · reading remains available".into()
@@ -279,7 +281,7 @@ fn article_fetch_status(
 }
 
 fn reader_body(frame: &mut Frame<'_>, app: &App, column: Rect, inner: Rect) {
-    if app.article_preparing() {
+    if app.article_preparing() && !app.reader_stale() {
         frame.render_widget(
             Paragraph::new("Preparing article…").style(Style::new().fg(MUTED)),
             column,

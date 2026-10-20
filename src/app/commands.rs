@@ -50,6 +50,7 @@ impl App {
         }
         let (verb, argument) = command_parts(text);
         self.guard_notebook_article_command(verb)?;
+        self.guard_stale_command(verb)?;
         if let Some(action) = self.recommendation_command(verb, argument)? {
             return Ok(action);
         }
@@ -219,9 +220,12 @@ impl App {
             };
             return Ok(());
         }
-        self.store.set_unread(article.id, unread)?;
+        let id = article.id;
+        self.submit_read_state(std::iter::once(id).collect(), unread)?;
         self.retained_article = None;
-        self.reload()?;
+        if self.personal_writes.is_none() {
+            self.reload()?;
+        }
         self.status = if unread {
             "Marked unread · returned to Inbox · u undo".into()
         } else {
@@ -248,6 +252,7 @@ impl App {
     }
 
     pub(super) fn edit_comment(&mut self, existing: bool) -> Result<()> {
+        self.guard_stale_command("note")?;
         let Some(article) = self.current() else {
             return Ok(());
         };

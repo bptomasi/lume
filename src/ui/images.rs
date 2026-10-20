@@ -44,12 +44,10 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
 }
 
 pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
-    if !matches!(app.mode, crate::app::Mode::Normal)
+    if matches!(app.mode, crate::app::Mode::Image(_))
         || app.pane_motion_active()
-        || app.hovered_note().is_some()
         || app.notebook.is_some()
-        || app.layout_prefix_pending()
-        || app.article_preparing()
+        || (app.article_preparing() && !app.reader_stale())
         || frame.area().width < 24
         || frame.area().height < 10
     {
@@ -61,6 +59,15 @@ pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
         return;
     };
     let column = super::workspace_reader_content(reader, &app.workspace);
+    let occlusions = [
+        super::popup::Popup::from_mode(&app.mode)
+            .map(|popup| popup.area(frame.area())),
+        super::key_guide::area(app, frame.area()),
+        super::note_preview::area(app, frame.area()),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
     for slot in app
         .images
         .visible_slots(app.scroll, usize::from(column.height))
@@ -72,7 +79,7 @@ pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
             && let Some(rows) = &image.rows
             && let Some((area, first)) = native_area(app, slot, column, image)
         {
-            rows.render(area, first, frame.buffer_mut());
+            rows.render_uncovered(area, first, frame.buffer_mut(), &occlusions);
         }
     }
 }

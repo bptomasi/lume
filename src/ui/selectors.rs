@@ -10,11 +10,11 @@ use ratatui::{
 
 use crate::app::{ChoiceAction, Picker, PickerKind, SmartForm};
 
-use super::{overlays::modal, theme::*};
+use super::{overlays::modal, popup::Popup, theme::*};
 
 pub(super) fn picker(frame: &mut Frame<'_>, picker: &Picker) {
     let title = picker_title(&picker.kind);
-    let inner = modal(frame, title, 110, 28);
+    let inner = modal(frame, title, Popup::Picker);
     frame.render_widget(
         Paragraph::new(format!(" › {}▎", picker.query))
             .style(Style::new().fg(AMBER)),
@@ -76,7 +76,7 @@ pub(super) fn smart(frame: &mut Frame<'_>, form: &SmartForm) {
     } else {
         format!("Smart list · {} grouped sources retained", form.feeds.len())
     };
-    let inner = modal(frame, &title, 82, 22);
+    let inner = modal(frame, &title, Popup::Smart);
     if inner.height < 18 || inner.width < 60 {
         compact_smart(frame, form, inner);
         return;

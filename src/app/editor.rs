@@ -102,7 +102,7 @@ impl App {
         if control && key.code == KeyCode::Char('s')
             || key.code == KeyCode::Enter && !multiline(&input.kind)
         {
-            if multiline(&input.kind) && self.note_tasks.is_some() {
+            if multiline(&input.kind) && self.personal_writes.is_some() {
                 self.request_draft_write(
                     super::draft_commands::Destination::Reader,
                 )?;

@@ -235,6 +235,7 @@ impl App {
     }
 
     pub(super) fn reader_location(&self) -> Result<ReaderLocation> {
+        self.guard_stale_command("reader-jump")?;
         let offset = self.cursor_offset();
         let end = crate::reader::cursor::next(&self.reader_text, offset);
         let anchor =
@@ -258,6 +259,9 @@ impl App {
     }
 
     pub(super) fn remember_reader_jump(&mut self) {
+        if self.reader_stale() {
+            return;
+        }
         if let Ok(location) = self.reader_location() {
             self.reader_tools.back.push_back(location);
             if self.reader_tools.back.len() > 128 {

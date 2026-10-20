@@ -26,9 +26,49 @@ pub(super) struct ReaderSnapshot {
 }
 
 impl App {
+    pub(super) fn guard_stale_command(&self, verb: &str) -> Result<()> {
+        if self.notebook.is_some() || !self.reader_stale() {
+            return Ok(());
+        }
+        anyhow::ensure!(
+            verb.starts_with("panel-")
+                || matches!(
+                    verb,
+                    "help"
+                        | "workspace"
+                        | "fullscreen"
+                        | "zen"
+                        | "sidebar"
+                        | "headlines"
+                        | "reader"
+                        | "annotations"
+                        | "layout-undo"
+                        | "layout-redo"
+                        | "reading-width"
+                        | "fullscreen-width"
+                        | "quit"
+                        | "q"
+                        | "refresh"
+                        | "r"
+                        | "read"
+                        | "favorites"
+                        | "inbox"
+                        | "all"
+                        | "continue"
+                        | "since-last-visit"
+                        | "undo"
+                ),
+            "Wait for the selected article; the previous source is still displayed"
+        );
+        Ok(())
+    }
+
     /// Apply ready syntax styles without changing text, cursor or selection.
     pub fn poll_reader(&mut self) -> bool {
         if !self.renderer.poll() {
+            return false;
+        }
+        if self.navigation_loading || self.projecting_navigation {
             return false;
         }
         if self.renderer.is_stopped() {
@@ -74,6 +114,25 @@ impl App {
                 && !self.renderer.source_ready(&self.body))
     }
 
+    /// The previous article stays visible while a new selection is loading.
+    /// Source-bound actions must wait for the matching content identity.
+    pub fn reader_stale(&self) -> bool {
+        self.reading_article.is_some()
+            && (self.navigation_loading
+                || self.projecting_navigation
+                || self.current().map(|article| article.id)
+                    != self.reading_article)
+    }
+
+    /// Metadata for the source actually displayed, including a retained preview.
+    pub fn displayed_article(&self) -> Option<&crate::model::Article> {
+        if self.reader_stale() {
+            self.displayed_article.as_ref()
+        } else {
+            self.current()
+        }
+    }
+
     /// Whether the independent syntax worker still has admitted work.
     pub fn reader_pending(&self) -> bool {
         self.renderer.is_pending()
@@ -82,7 +141,7 @@ impl App {
     pub(super) fn capture_reader(&self) -> ReaderSnapshot {
         let cursor = self.cursor_offset();
         ReaderSnapshot {
-            article: self.current().map(|article| article.id),
+            article: self.reading_article,
             comment: self
                 .comments
                 .get(self.comment_selected)
@@ -155,6 +214,7 @@ impl App {
             worker.cancel();
         }
         self.navigation_loading = false;
+        self.projecting_navigation = false;
         self.cancel_reader_pointer();
         let Some(article) = self.current() else {
             self.clear_current();
@@ -176,6 +236,7 @@ impl App {
         mut data: super::reading_data::ReadingData,
     ) -> Result<()> {
         self.pending_reflow = false;
+        self.displayed_article = self.current().cloned();
         self.reading_article = self.current().map(|article| article.id);
         self.apply_article_content(&mut data);
         self.comments = data.comments;
@@ -236,6 +297,7 @@ impl App {
     pub(super) fn clear_current(&mut self) {
         self.pending_reflow = false;
         self.reading_article = None;
+        self.displayed_article = None;
         self.pending_anchor = None;
         self.selection = None;
         self.body.clear();
@@ -261,14 +323,13 @@ impl App {
         } else {
             &self.body
         };
-        let mut rendered =
-            if self.view == View::Annotated || self.navigation_loading {
-                crate::reader::Rendered::default()
-            } else if self.immediate_layout {
-                self.renderer.render_now(body, self.reader_width)
-            } else {
-                self.renderer.render(body, self.reader_width)
-            };
+        let mut rendered = if self.view == View::Annotated {
+            crate::reader::Rendered::default()
+        } else if self.immediate_layout {
+            self.renderer.render_now(body, self.reader_width)
+        } else {
+            self.renderer.render(body, self.reader_width)
+        };
         self.rebuild_note_marks(&rendered);
         self.paint_highlights(&mut rendered);
         self.images.slots = rendered.images;
@@ -281,14 +342,28 @@ impl App {
         self.reader_mappings = rendered.mappings;
         self.links = self.merge_article_links(rendered.links);
         self.article_text_end = self.reader_text.len();
-        if self.view != View::Annotated && !self.navigation_loading {
+        if self.view != View::Annotated {
             self.append_feed_notice();
         }
         self.append_comments();
         self.refresh_reader_search();
+        self.cache_reader_rows();
+        self.restore_reflow_position(&previous, previous_article_end, cursor);
+    }
+
+    fn cache_reader_rows(&mut self) {
         self.reader_lines =
             self.reader_styled.iter().map(ToString::to_string).collect();
-        self.restore_reflow_position(&previous, previous_article_end, cursor);
+        self.reader_columns = self
+            .reader_lines
+            .iter()
+            .zip(&self.reader_styled)
+            .zip(&self.code_lines)
+            .map(|((text, line), code)| {
+                (*code || text.contains('\t'))
+                    .then(|| crate::reader::viewport::RowIndex::new(text, line))
+            })
+            .collect();
     }
 
     fn restore_reflow_position(
@@ -451,6 +526,28 @@ impl App {
         self.reader_column = 0;
     }
 
+    pub(super) fn row_column(&self, row: usize, byte: usize) -> usize {
+        let text = self.reader_lines.get(row).map_or("", String::as_str);
+        self.reader_columns
+            .get(row)
+            .and_then(Option::as_ref)
+            .map_or_else(
+                || crate::reader::cursor::column(text, byte),
+                |index| index.column(text, byte),
+            )
+    }
+
+    pub(super) fn row_byte_at(&self, row: usize, goal: usize) -> usize {
+        let text = self.reader_lines.get(row).map_or("", String::as_str);
+        self.reader_columns
+            .get(row)
+            .and_then(Option::as_ref)
+            .map_or_else(
+                || crate::reader::cursor::byte_at(text, goal),
+                |index| index.byte_at(text, goal),
+            )
+    }
+
     pub(super) fn clamp_scroll(&mut self) {
         self.scroll = self
             .scroll
@@ -459,10 +556,9 @@ impl App {
     }
 
     pub(super) fn move_reader(&mut self, forward: bool, amount: usize) {
-        use crate::reader::cursor;
         self.pending_anchor = None;
         let goal = self.reader_goal.unwrap_or_else(|| {
-            cursor::column(self.cursor_line(), self.reader_column)
+            self.row_column(self.reader_cursor, self.reader_column)
         });
         self.reader_goal = Some(goal);
         self.reader_cursor = if forward {
@@ -472,7 +568,7 @@ impl App {
         } else {
             self.reader_cursor.saturating_sub(amount)
         };
-        self.reader_column = cursor::byte_at(self.cursor_line(), goal);
+        self.reader_column = self.row_byte_at(self.reader_cursor, goal);
         self.ensure_cursor_visible();
     }
 

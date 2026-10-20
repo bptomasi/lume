@@ -23,6 +23,25 @@ impl App {
         self.invalidate_notebook();
         self.refresh_note_catalog();
         let count = comments.len();
+        self.update_note_counts(article, count);
+        self.invalidate_reading_refresh();
+        if self.current().is_none_or(|item| item.id != article) {
+            return;
+        }
+        let snapshot = self.capture_reader();
+        self.comments = comments;
+        self.comment_selected =
+            self.comment_selected.min(count.saturating_sub(1));
+        self.rebuild_annotations();
+        if self.projecting_navigation {
+            return;
+        }
+        self.wrap_reader();
+        self.restore_reader(snapshot);
+        self.clamp_cursor();
+        self.ensure_cursor_visible();
+    }
+    fn update_note_counts(&mut self, article: i64, count: usize) {
         if let Some(metadata) = self
             .library
             .articles
@@ -44,17 +63,5 @@ impl App {
                 };
             }
         }
-        if self.current().is_none_or(|item| item.id != article) {
-            return;
-        }
-        let snapshot = self.capture_reader();
-        self.comments = comments;
-        self.comment_selected =
-            self.comment_selected.min(count.saturating_sub(1));
-        self.rebuild_annotations();
-        self.wrap_reader();
-        self.restore_reader(snapshot);
-        self.clamp_cursor();
-        self.ensure_cursor_visible();
     }
 }

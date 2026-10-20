@@ -10,7 +10,7 @@ use ratatui::{
 
 use crate::app::{App, EditMode, HELP, Input, InputKind, Mode};
 
-use super::{selectors, theme::*};
+use super::{popup::Popup, selectors, theme::*};
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     match &app.mode {
@@ -34,8 +34,7 @@ fn settings(
     let inner = modal(
         frame,
         "Visual preview · ↑↓ field · ←→ change · Enter save · Esc discard",
-        96,
-        15,
+        Popup::Settings,
     );
     let lines = visual_preferences(app)
         .into_iter()
@@ -78,7 +77,7 @@ fn visual_preferences(
 }
 
 fn document_view(frame: &mut Frame<'_>, document: &crate::app::DocumentView) {
-    let inner = modal(frame, &document.title, u16::MAX, u16::MAX);
+    let inner = modal(frame, &document.title, Popup::Document);
     let lines = document
         .lines
         .iter()
@@ -109,8 +108,11 @@ fn clip_columns(text: &str, skip: usize) -> String {
 }
 
 fn help(frame: &mut Frame<'_>, app: &App) {
-    let inner =
-        modal(frame, "Lume · field guide · j/k scroll · Esc close", 88, 40);
+    let inner = modal(
+        frame,
+        "Lume · field guide · j/k scroll · Esc close",
+        Popup::Help,
+    );
     let capacity = inner.height as usize;
     let offset = app.help_scroll.min(HELP.lines().count().saturating_sub(1));
     let lines = HELP
@@ -137,12 +139,7 @@ fn editor(frame: &mut Frame<'_>, app: &App, input: &Input) {
         super::command_line::draw(frame, app, input);
         return;
     }
-    let multiline = matches!(
-        input.kind,
-        InputKind::Comment { .. }
-            | InputKind::Highlight { .. }
-            | InputKind::StudyCard { .. }
-    );
+    let multiline = super::popup::multiline(&input.kind);
     let title = format!(
         "{}{}",
         editor_title(&input.kind),
@@ -152,7 +149,7 @@ fn editor(frame: &mut Frame<'_>, app: &App, input: &Input) {
             ""
         },
     );
-    let inner = modal(frame, &title, 84, if multiline { 24 } else { 9 });
+    let inner = modal(frame, &title, Popup::Editor(multiline));
     let editor_area = Rect::new(
         inner.x + 1,
         inner.y + 1,
@@ -252,7 +249,7 @@ fn editor_title(kind: &InputKind) -> &'static str {
 }
 
 fn leader(frame: &mut Frame<'_>) {
-    let inner = modal(frame, "Space · choose an action", 72, 15);
+    let inner = modal(frame, "Space · choose an action", Popup::Leader);
     frame.render_widget(
         Paragraph::new(LEADER).style(Style::new().fg(TEXT)),
         inner,
@@ -274,13 +271,8 @@ const LEADER: &str = "
  Esc cancel · Ctrl-p opens the palette directly
 ";
 
-pub(super) fn modal(
-    frame: &mut Frame<'_>,
-    title: &str,
-    width: u16,
-    height: u16,
-) -> Rect {
-    let rect = centered(frame.area(), width, height);
+pub(super) fn modal(frame: &mut Frame<'_>, title: &str, popup: Popup) -> Rect {
+    let rect = popup.area(frame.area());
     frame.render_widget(Clear, rect);
     let block = panel(format!(" {title} "), true);
     let inner = block.inner(rect);

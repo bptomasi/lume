@@ -62,6 +62,18 @@ impl SixelRows {
     /// Narrow, empty and out-of-bounds targets draw nothing. The caller owns
     /// centering and synchronized presentation; this method performs no I/O.
     pub fn render(&self, area: Rect, first_row: u16, buffer: &mut Buffer) {
+        self.render_uncovered(area, first_row, buffer, &[]);
+    }
+
+    /// Paint cached strips outside popup footprints; partial strips stay hidden.
+    /// A Sixel strip spans the fitted image width and cannot be cropped sideways.
+    pub fn render_uncovered(
+        &self,
+        area: Rect,
+        first_row: u16,
+        buffer: &mut Buffer,
+        occlusions: &[Rect],
+    ) {
         if area.is_empty()
             || area.width < self.area.width
             || first_row >= self.area.height
@@ -71,6 +83,13 @@ impl SixelRows {
         }
         let height = area.height.min(self.area.height - first_row);
         for row in 0..height {
+            let strip = Rect::new(area.x, area.y + row, self.area.width, 1);
+            if occlusions
+                .iter()
+                .any(|popup| !strip.intersection(*popup).is_empty())
+            {
+                continue;
+            }
             buffer[(area.x, area.y + row)] =
                 self.rows[usize::from(first_row + row)].clone();
             for column in 1..self.area.width {
