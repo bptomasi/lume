@@ -22,7 +22,8 @@ make bench-recommendations
 
 The native benchmark also accepts focused flags, including
 `--configuration-only`, `--welcome-only`, `--code-viewport-only`, `--images-only`,
-`--tables-only`, `--rich-text-only` and `--recommendations-only`. Add `--stress`
+`--tables-only`, `--rich-text-only`, `--recommendations-only`,
+`--pane-search-only` and `--query-editing-only`. Add `--stress`
 for larger workloads.
 Setup precedes operation timers; resource reports identify process-wide
 memory/I/O scope.
@@ -164,3 +165,30 @@ Across three release processes of 800 cycles each, median cycle times were
 the operation timer. Peak process RSS, including setup, ranged from 14,412 to
 17,084 KiB. This characterizes the new feature; it is neither a before/after
 speedup comparison nor physical terminal latency.
+
+## Query editing and navigation review
+
+The [checked comparison](performance/interaction-review.json) uses production
+code from `2e03a8a` as the baseline, with the same new query workload applied to
+both builds. Three alternating process pairs per size measure 800 cycles of
+two query-caret motions and a full cached TestBackend frame. Setup precedes
+the operation timer; process resource records include setup.
+
+At 2,000 matching articles, the median iteration mean fell from 5.528 to
+0.301 ms (94.55% less); at 20,000 articles, from 47.598 to 0.329 ms
+(99.31% less). Unchanged query text no longer reissues a database query,
+replaces results or reloads the selected article. Native editor change signals
+also avoid reconstructing unchanged draft text on caret motions.
+
+Sidebar projection now bounds work by visible rows and preserves Unicode count
+alignment. This does not establish a frame speedup: full sidebar-frame medians
+were 0.312/0.339 ms before/after at 128 destinations and 0.344/0.353 ms at
+4,096 destinations. Selected reader-frame results were also slightly slower.
+These differences remain visible in the report; the query improvement is not
+a claim that all interactions became faster. Peak process RSS across workloads
+was 15,188–25,984 KiB before and 15,128–26,020 KiB after.
+
+Repeat with `cargo bench --locked --bench reader -- --query-editing-only` and
+`--interaction-only`, adding `--stress` for larger fixtures. These measurements
+cover application work, excluding terminal transport and physical display
+latency.

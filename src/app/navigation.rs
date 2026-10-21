@@ -21,6 +21,15 @@ impl App {
     }
 
     pub(super) fn install_navigation(&mut self, items: Vec<NavItem>) {
+        let editing = matches!(
+            &self.mode,
+            super::Mode::Input(input)
+                if matches!(input.kind, super::InputKind::LibrarySearch)
+        );
+        let selected = editing
+            .then(|| self.navigation.get(self.nav_selected))
+            .flatten()
+            .map(|item| item.view.clone());
         self.navigation = items;
         self.customize_navigation();
         self.nav_selected = self
@@ -30,6 +39,15 @@ impl App {
             .unwrap_or(1);
         self.view = self.navigation[self.nav_selected].view.clone();
         self.refresh_library_search();
+        if let Some(selected) = selected
+            && let Some(index) = self
+                .navigation
+                .iter()
+                .position(|item| item.view.same_destination(&selected))
+            && self.navigation_position(index).is_some()
+        {
+            self.nav_selected = index;
+        }
     }
 
     pub(crate) fn filter(&mut self) -> Result<()> {

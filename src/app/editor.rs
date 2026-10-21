@@ -123,17 +123,20 @@ impl App {
         let Mode::Input(input) = &self.mode else {
             return Ok(());
         };
+        if key.code != KeyCode::Char('[')
+            || !matches!(
+                input.kind,
+                InputKind::Comment { .. } | InputKind::Highlight { .. }
+            )
+        {
+            return Ok(());
+        }
         let (row, column) = input.editor.cursor();
         let prefix = input.editor.lines()[row]
             .chars()
             .take(column)
             .collect::<String>();
-        if matches!(
-            input.kind,
-            InputKind::Comment { .. } | InputKind::Highlight { .. }
-        ) && prefix.ends_with("[[")
-            && key.code == KeyCode::Char('[')
-        {
+        if prefix.ends_with("[[") {
             self.note_link_completion("")?;
         }
         Ok(())
@@ -158,6 +161,7 @@ impl App {
         }
         if let Mode::Input(input) = &self.mode
             && matches!(input.kind, InputKind::Search)
+            && self.search != input.text
         {
             self.search.clone_from(&input.text);
             self.page_offset = 0;
@@ -184,6 +188,7 @@ impl App {
         }
         if let Mode::Input(input) = &self.mode
             && matches!(input.kind, InputKind::Search)
+            && self.search != input.previous_search
         {
             self.search.clone_from(&input.previous_search);
             self.page_offset = 0;
@@ -264,15 +269,18 @@ impl Input {
         if self.text.len() + inserted_bytes(key.code) > 16_384 && !control {
             return;
         }
-        if control && key.code == KeyCode::Char('u') {
+        let changed = if control && key.code == KeyCode::Char('u') {
             self.editor.select_all();
-            self.editor.cut();
+            self.editor.cut()
         } else if control && key.code == KeyCode::Char('z') {
-            self.editor.undo();
+            self.editor.undo()
         } else if control && key.code == KeyCode::Char('r') {
-            self.editor.redo();
+            self.editor.redo()
         } else {
-            self.editor.input(key);
+            self.editor.input(key)
+        };
+        if !changed {
+            return;
         }
         let bytes = self.editor.lines().iter().map(String::len).sum::<usize>()
             + self.editor.lines().len().saturating_sub(1);

@@ -43,6 +43,8 @@ mod pane_search;
 mod panes;
 #[path = "workloads/presentation.rs"]
 mod presentation;
+#[path = "workloads/query_editing.rs"]
+mod query_editing;
 #[path = "workloads/reading_tools.rs"]
 mod reading_tools;
 #[path = "workloads/recommendations.rs"]
@@ -118,6 +120,7 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
     smoothness::run(iterations, stress)?;
     panes::run(iterations, stress)?;
     pane_search::run(iterations, stress)?;
+    query_editing::run(iterations, stress)?;
     workspaces::run(iterations, stress)?;
     Ok(())
 }
@@ -140,6 +143,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--workspaces-only", workspaces::run),
     ("--panes-only", panes::run),
     ("--pane-search-only", pane_search::run),
+    ("--query-editing-only", query_editing::run),
     ("--smoothness-only", smoothness::run),
     ("--expansion-only", expansion::run),
     ("--full-article-only", full_article::run),

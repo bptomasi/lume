@@ -188,6 +188,15 @@ marks before changing fullscreen or library state. Subsequent Escape restores
 the layout and returns focus to Articles, revealing that pane if collapsed.
 Leaving Reader with an empty search does not cause a redundant article reload.
 
+Query editors reuse results while only their caret moves. Native editor change
+signals avoid rebuilding draft text on those motions; article and notebook
+queries only refresh when their text changes. Sidebar refreshes preserve an
+uncommitted match by destination identity. Its row window walks backward from
+the selected match only far enough to fill the viewport, then streams visible
+rows. Drawing and pointer hits share that projection without a separate cache
+that could become stale when the catalog changes. Title truncation and count
+alignment use grapheme widths in terminal cells.
+
 ### Terminal frame map
 
 | Surface | Frame owner |

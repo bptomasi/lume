@@ -61,6 +61,21 @@ fn application() -> Result<(tempfile::TempDir, App)> {
     Ok((directory, app))
 }
 
+fn two_article_application() -> Result<(tempfile::TempDir, App)> {
+    let (directory, mut app) = application()?;
+    let mut store =
+        lume::store::Store::open(&directory.path().join("library.sqlite3"))?;
+    let feed = store.feeds()?.remove(0);
+    let parsed =
+        lume::source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
+    let mut second = parsed.articles.into_iter().next().context("Article")?;
+    second.external_id.push_str("-second");
+    second.url.push_str("-second");
+    store.ingest(&feed, &feed.title, &[second])?;
+    app.reload()?;
+    Ok((directory, app))
+}
+
 #[test]
 fn library_search_filters_locally_and_commits_a_captured_destination()
 -> Result<()> {
@@ -253,5 +268,68 @@ fn reader_escape_reveals_articles_in_collapsed_and_zen_layouts() -> Result<()> {
                 .is_some()
         );
     }
+    Ok(())
+}
+
+#[test]
+fn query_cursor_motion_preserves_selection_and_does_not_start_navigation()
+-> Result<()> {
+    for background in [false, true] {
+        let (directory, mut app) = two_article_application()?;
+        if background {
+            app.enable_background_navigation(
+                &directory.path().join("library.sqlite3"),
+            )?;
+        }
+        app.focus = Focus::Articles;
+        key(&mut app, KeyCode::Char('/'))?;
+        app.paste("is:unread")?;
+        common::settle_notes(&mut app)?;
+        assert_eq!(app.page_total, 2);
+        key(&mut app, KeyCode::Down)?;
+        common::settle_notes(&mut app)?;
+        let selected = app.current().context("Second result missing")?.id;
+
+        for code in [KeyCode::Left, KeyCode::Right, KeyCode::Home, KeyCode::End]
+        {
+            key(&mut app, code)?;
+            assert!(!app.navigation_loading, "Caret motion queried storage");
+            assert_eq!(app.selected, 1);
+            assert_eq!(app.current().context("Selection lost")?.id, selected);
+        }
+        key(&mut app, KeyCode::Enter)?;
+        key(&mut app, KeyCode::Char('/'))?;
+        key(&mut app, KeyCode::Esc)?;
+        assert!(
+            !app.navigation_loading,
+            "Unchanged cancellation queried storage"
+        );
+        assert_eq!(app.selected, 1);
+        assert_eq!(app.current().context("Selection lost")?.id, selected);
+        app.end_session()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn catalog_refresh_preserves_an_uncommitted_library_match() -> Result<()> {
+    let (directory, mut app) = application()?;
+    let original = app.view.clone();
+    app.focus = Focus::Library;
+    key(&mut app, KeyCode::Char('/'))?;
+    app.paste("security")?;
+    key(&mut app, KeyCode::Down)?;
+    let selected = app.navigation[app.nav_selected].view.clone();
+    assert_ne!(selected, original);
+
+    let store =
+        lume::store::Store::open(&directory.path().join("library.sqlite3"))?;
+    store.create_collection("Security architecture")?;
+    app.reload()?;
+
+    assert_eq!(app.view, original, "Refresh applied an uncommitted filter");
+    assert_eq!(app.navigation[app.nav_selected].view, selected);
+    key(&mut app, KeyCode::Enter)?;
+    assert_eq!(app.view, selected);
     Ok(())
 }

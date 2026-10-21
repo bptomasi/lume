@@ -50,6 +50,32 @@ fn section_headers_are_not_selectable_and_item_rows_keep_their_identity()
     Ok(())
 }
 
+#[test]
+fn wide_titles_keep_large_counts_inside_the_sidebar() -> Result<()> {
+    let (_directory, mut app) = application()?;
+    app.navigation[0].title = "界面 🦀 e\u{301} ".repeat(20);
+    app.navigation[0].count = 123_456;
+    let screen = Rect::new(0, 0, 40, 18);
+    app.resize_workspace(screen);
+    let area = ui::workspace_areas(screen, app.focus, &app.workspace)
+        .library
+        .context("Library pane")?;
+    let mut terminal = Terminal::new(TestBackend::new(40, 18))?;
+
+    terminal.draw(|frame| ui::draw(frame, &app))?;
+
+    let row = area.y + 3;
+    let count = (area.right() - 8..area.right() - 1)
+        .map(|column| terminal.backend().buffer()[(column, row)].symbol())
+        .collect::<String>();
+    assert_eq!(count, "123456 ");
+    assert_eq!(
+        terminal.backend().buffer()[(area.right() - 1, row)].symbol(),
+        "│"
+    );
+    Ok(())
+}
+
 fn application() -> Result<(tempfile::TempDir, App)> {
     let (_directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;

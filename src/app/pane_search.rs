@@ -2,6 +2,7 @@
 //!
 //! Cached normalized names and matching identities change only with the query
 //! or catalog. Drawing and pointer lookup share those same identities.
+//! Matching indices retain catalog order for binary position lookups.
 
 use anyhow::{Context, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -31,6 +32,13 @@ impl App {
             0
         };
         (0..count).chain(self.library_search.matches.iter().copied())
+    }
+
+    pub(crate) fn navigation_position(&self, index: usize) -> Option<usize> {
+        if self.library_search.query.is_empty() {
+            return self.navigation.get(index).map(|_| index);
+        }
+        self.library_search.matches.binary_search(&index).ok()
     }
 
     pub(super) fn refresh_library_search(&mut self) {
@@ -102,10 +110,9 @@ impl App {
     }
 
     pub(super) fn commit_library_search(&mut self) -> Result<()> {
-        let selected = self
-            .navigation_indices()
-            .find(|index| *index == self.nav_selected)
+        self.navigation_position(self.nav_selected)
             .context("No matching library destinations")?;
+        let selected = self.nav_selected;
         self.set_view(self.navigation[selected].view.clone())?;
         self.library_search.before = None;
         self.focus_pane(Focus::Articles)
@@ -127,9 +134,7 @@ impl App {
             return self.navigation.get(next).map(|_| next);
         }
         let matches = &self.library_search.matches;
-        let position = matches
-            .iter()
-            .position(|index| *index == self.nav_selected)?;
+        let position = matches.binary_search(&self.nav_selected).ok()?;
         let next = if forward {
             position
                 .saturating_add(distance)

@@ -133,6 +133,33 @@ fn search_cancel_saved_collections_and_reference_history_preserve_the_query()
 }
 
 #[test]
+fn query_cursor_motion_keeps_the_selected_note_and_ready_context() -> Result<()>
+{
+    let (_directory, mut app, _store, _, _) = annotated()?;
+    command(&mut app, "notes body:A")?;
+    common::settle_notes(&mut app)?;
+    key(&mut app, KeyCode::Char('j'))?;
+    common::settle_notes(&mut app)?;
+    let selected = app
+        .notebook
+        .as_ref()
+        .and_then(|book| book.current())
+        .context("Second note missing")?
+        .id;
+    key(&mut app, KeyCode::Char('/'))?;
+
+    for code in [KeyCode::Left, KeyCode::Right, KeyCode::Home, KeyCode::End] {
+        key(&mut app, code)?;
+        let book = app.notebook.as_ref().context("Notebook closed")?;
+        assert_eq!(book.selected, 1);
+        assert_eq!(book.current().context("Selection lost")?.id, selected);
+        assert!(book.current_context().is_some());
+        assert!(!app.notebook_pending());
+    }
+    Ok(())
+}
+
+#[test]
 fn deleting_and_undoing_a_notebook_row_never_deletes_its_article() -> Result<()>
 {
     let (_directory, mut app, store, article, first) = annotated()?;

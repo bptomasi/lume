@@ -1,0 +1,776 @@
+{
+  "measured_at": "2026-10-21T23:07:14.572231+00:00",
+  "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "baseline_revision": "2e03a8a",
+  "profile": "release, thin LTO, one codegen unit",
+  "scope": [
+    "Identical checked workloads and fixtures for both binaries.",
+    "Three alternating baseline/current process pairs per workload and size.",
+    "Query workload: two caret motions and a cached full TestBackend frame; 2,000/20,000 matching articles; 800 cycles.",
+    "Interaction workload: sidebar selection, cached interactive frame and pointer identity at 128/4,096 projected destinations; existing selection and Unicode workloads also checked.",
+    "Setup precedes operation timers. Wall time, RSS and I/O include process setup.",
+    "Measurements cover application work, excluding terminal transport and physical display latency."
+  ],
+  "binaries": {
+    "baseline": "bf8b21c8837bb6c1f846b7914b2b365b1b6ece880fe933b3b1cd7aa683aad669",
+    "current": "1c2ea04da3ca444bf0f9878bbfeba9396f99d4f39834bc6a6fa02c8e40c24238"
+  },
+  "runs": [
+    {
+      "binary": "baseline",
+      "workload": "query-editing",
+      "stress": false,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 4346.284,
+          "mean_ms": 5.432855
+        }
+      ],
+      "resources": {
+        "wall_seconds": 4.47,
+        "peak_rss_kib": 16880,
+        "user_seconds": 4.43,
+        "system_seconds": 0.04,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "query-editing",
+      "stress": false,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 242.408,
+          "mean_ms": 0.30301
+        }
+      ],
+      "resources": {
+        "wall_seconds": 0.37,
+        "peak_rss_kib": 16664,
+        "user_seconds": 0.33,
+        "system_seconds": 0.03,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "baseline",
+      "workload": "query-editing",
+      "stress": false,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 4422.298,
+          "mean_ms": 5.5278725
+        }
+      ],
+      "resources": {
+        "wall_seconds": 4.55,
+        "peak_rss_kib": 16568,
+        "user_seconds": 4.51,
+        "system_seconds": 0.02,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "query-editing",
+      "stress": false,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 240.981,
+          "mean_ms": 0.30122625
+        }
+      ],
+      "resources": {
+        "wall_seconds": 0.37,
+        "peak_rss_kib": 16804,
+        "user_seconds": 0.33,
+        "system_seconds": 0.03,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "baseline",
+      "workload": "query-editing",
+      "stress": false,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 4427.857,
+          "mean_ms": 5.53482125
+        }
+      ],
+      "resources": {
+        "wall_seconds": 4.58,
+        "peak_rss_kib": 17076,
+        "user_seconds": 4.51,
+        "system_seconds": 0.05,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "query-editing",
+      "stress": false,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 240.996,
+          "mean_ms": 0.301245
+        }
+      ],
+      "resources": {
+        "wall_seconds": 0.36,
+        "peak_rss_kib": 17048,
+        "user_seconds": 0.32,
+        "system_seconds": 0.04,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "baseline",
+      "workload": "query-editing",
+      "stress": true,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 37536.083,
+          "mean_ms": 46.920103749999996
+        }
+      ],
+      "resources": {
+        "wall_seconds": 38.69,
+        "peak_rss_kib": 23460,
+        "user_seconds": 35.82,
+        "system_seconds": 2.79,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "query-editing",
+      "stress": true,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 253.006,
+          "mean_ms": 0.3162575
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.49,
+        "peak_rss_kib": 23640,
+        "user_seconds": 1.09,
+        "system_seconds": 0.39,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "baseline",
+      "workload": "query-editing",
+      "stress": true,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 39506.985,
+          "mean_ms": 49.383731250000004
+        }
+      ],
+      "resources": {
+        "wall_seconds": 40.7,
+        "peak_rss_kib": 22652,
+        "user_seconds": 37.41,
+        "system_seconds": 3.14,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "query-editing",
+      "stress": true,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 267.011,
+          "mean_ms": 0.33376375
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.49,
+        "peak_rss_kib": 23220,
+        "user_seconds": 1.09,
+        "system_seconds": 0.39,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "baseline",
+      "workload": "query-editing",
+      "stress": true,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 38078.167,
+          "mean_ms": 47.59770875
+        }
+      ],
+      "resources": {
+        "wall_seconds": 39.36,
+        "peak_rss_kib": 22832,
+        "user_seconds": 36.48,
+        "system_seconds": 2.76,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "query-editing",
+      "stress": true,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "total_ms": 263.521,
+          "mean_ms": 0.32940125000000003
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.52,
+        "peak_rss_kib": 23512,
+        "user_seconds": 1.2,
+        "system_seconds": 0.31,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "baseline",
+      "workload": "interaction",
+      "stress": false,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 623.939,
+          "mean_ms": 0.31196949999999996
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 874.707,
+          "mean_ms": 0.4373535
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.023,
+          "mean_ms": 2.3e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.52,
+        "peak_rss_kib": 15188,
+        "user_seconds": 1.51,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "interaction",
+      "stress": false,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 654.476,
+          "mean_ms": 0.327238
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 905.504,
+          "mean_ms": 0.452752
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.02,
+          "mean_ms": 2e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.58,
+        "peak_rss_kib": 15936,
+        "user_seconds": 1.57,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "baseline",
+      "workload": "interaction",
+      "stress": false,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 621.944,
+          "mean_ms": 0.31097199999999997
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 874.685,
+          "mean_ms": 0.43734249999999997
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.021,
+          "mean_ms": 2.1000000000000002e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.52,
+        "peak_rss_kib": 15272,
+        "user_seconds": 1.51,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "interaction",
+      "stress": false,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 689.227,
+          "mean_ms": 0.34461349999999996
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 925.762,
+          "mean_ms": 0.462881
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.034,
+          "mean_ms": 3.4e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.64,
+        "peak_rss_kib": 15128,
+        "user_seconds": 1.63,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "baseline",
+      "workload": "interaction",
+      "stress": false,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 662.817,
+          "mean_ms": 0.3314085
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 928.926,
+          "mean_ms": 0.464463
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.03,
+          "mean_ms": 2.9999999999999997e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.62,
+        "peak_rss_kib": 15876,
+        "user_seconds": 1.61,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "interaction",
+      "stress": false,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 678.271,
+          "mean_ms": 0.3391355
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 919.767,
+          "mean_ms": 0.4598835
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.021,
+          "mean_ms": 2.1000000000000002e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.62,
+        "peak_rss_kib": 15992,
+        "user_seconds": 1.61,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "baseline",
+      "workload": "interaction",
+      "stress": true,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 684.791,
+          "mean_ms": 0.3423955
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 877.83,
+          "mean_ms": 0.438915
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.023,
+          "mean_ms": 2.3e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.62,
+        "peak_rss_kib": 25752,
+        "user_seconds": 1.59,
+        "system_seconds": 0.02,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "interaction",
+      "stress": true,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 706.043,
+          "mean_ms": 0.3530215
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 937.54,
+          "mean_ms": 0.46876999999999996
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.022,
+          "mean_ms": 2.2e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.7,
+        "peak_rss_kib": 25600,
+        "user_seconds": 1.69,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "baseline",
+      "workload": "interaction",
+      "stress": true,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 688.16,
+          "mean_ms": 0.34408
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 926.64,
+          "mean_ms": 0.46332
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.023,
+          "mean_ms": 2.3e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.67,
+        "peak_rss_kib": 25580,
+        "user_seconds": 1.66,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "interaction",
+      "stress": true,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 742.43,
+          "mean_ms": 0.37121499999999996
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 932.429,
+          "mean_ms": 0.4662145
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.021,
+          "mean_ms": 2.1000000000000002e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.74,
+        "peak_rss_kib": 26020,
+        "user_seconds": 1.72,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "baseline",
+      "workload": "interaction",
+      "stress": true,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 746.294,
+          "mean_ms": 0.373147
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 968.246,
+          "mean_ms": 0.48412299999999997
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.028,
+          "mean_ms": 2.8e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.78,
+        "peak_rss_kib": 25984,
+        "user_seconds": 1.75,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "binary": "current",
+      "workload": "interaction",
+      "stress": true,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "library cursor + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 699.48,
+          "mean_ms": 0.34974
+        },
+        {
+          "operation": "deep linewise selection + full interactive frame",
+          "iterations": 2000,
+          "total_ms": 1038.949,
+          "mean_ms": 0.5194745000000001
+        },
+        {
+          "operation": "deep Unicode cursor boundary",
+          "iterations": 1000,
+          "total_ms": 0.02,
+          "mean_ms": 2e-05
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.81,
+        "peak_rss_kib": 25592,
+        "user_seconds": 1.78,
+        "system_seconds": 0.02,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    }
+  ],
+  "comparison": [
+    {
+      "workload": "query-editing",
+      "stress": false,
+      "operation": "query cursor round trip + cached frame",
+      "median_mean_ms": {
+        "baseline": 5.5278725,
+        "current": 0.301245
+      },
+      "reduction_percent": 94.55043509053438
+    },
+    {
+      "workload": "query-editing",
+      "stress": true,
+      "operation": "query cursor round trip + cached frame",
+      "median_mean_ms": {
+        "baseline": 47.59770875,
+        "current": 0.32940125000000003
+      },
+      "reduction_percent": 99.30794725491907
+    },
+    {
+      "workload": "interaction",
+      "stress": false,
+      "operation": "library cursor + full interactive frame",
+      "median_mean_ms": {
+        "baseline": 0.31196949999999996,
+        "current": 0.3391355
+      },
+      "reduction_percent": -8.707902535344015
+    },
+    {
+      "workload": "interaction",
+      "stress": false,
+      "operation": "deep linewise selection + full interactive frame",
+      "median_mean_ms": {
+        "baseline": 0.4373535,
+        "current": 0.4598835
+      },
+      "reduction_percent": -5.151439281953851
+    },
+    {
+      "workload": "interaction",
+      "stress": false,
+      "operation": "deep Unicode cursor boundary",
+      "median_mean_ms": {
+        "baseline": 2.3e-05,
+        "current": 2.1000000000000002e-05
+      },
+      "reduction_percent": 8.695652173913038
+    },
+    {
+      "workload": "interaction",
+      "stress": true,
+      "operation": "library cursor + full interactive frame",
+      "median_mean_ms": {
+        "baseline": 0.34408,
+        "current": 0.3530215
+      },
+      "reduction_percent": -2.5986689142059927
+    },
+    {
+      "workload": "interaction",
+      "stress": true,
+      "operation": "deep linewise selection + full interactive frame",
+      "median_mean_ms": {
+        "baseline": 0.46332,
+        "current": 0.46876999999999996
+      },
+      "reduction_percent": -1.1762928429595032
+    },
+    {
+      "workload": "interaction",
+      "stress": true,
+      "operation": "deep Unicode cursor boundary",
+      "median_mean_ms": {
+        "baseline": 2.3e-05,
+        "current": 2.1000000000000002e-05
+      },
+      "reduction_percent": 8.695652173913038
+    }
+  ]
+}

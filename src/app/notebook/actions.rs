@@ -56,8 +56,11 @@ impl App {
         &mut self,
         text: &str,
     ) -> Result<()> {
-        crate::search::notes::validate(text)?;
         let notebook = self.notebook.as_mut().context("Open Notebook first")?;
+        if notebook.query == text {
+            return Ok(());
+        }
+        crate::search::notes::validate(text)?;
         notebook.query = text.into();
         notebook.offset = 0;
         notebook.selected = 0;
