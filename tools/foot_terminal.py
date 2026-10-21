@@ -10,6 +10,8 @@ import fcntl
 import os
 import pty
 import select
+import signal
+import time
 import struct
 import subprocess
 import sys
@@ -19,8 +21,8 @@ import tty
 from qualify_alacritty import write_json
 
 
-def relay(binary, directory, arguments=("--offline",), measure=False):
-    from terminal_latency import Probe
+def relay(binary, directory, arguments=("--offline",), measure=False, startup_markers=None):
+    from terminal_latency import Probe, Startup
     probe = Probe(directory) if measure else None
     before = termios.tcgetattr(sys.stdin.fileno())
     master, slave = pty.openpty()
@@ -28,24 +30,30 @@ def relay(binary, directory, arguments=("--offline",), measure=False):
     control = directory / "input.fifo"
     os.mkfifo(control, 0o600)
     commands = os.open(control, os.O_RDWR | os.O_NONBLOCK)
-    size = fcntl.ioctl(sys.stdin.fileno(), termios.TIOCGWINSZ, bytes(8))
+    size = initial_geometry()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, size)
+    startup = Startup(directory, startup_markers) if startup_markers else None
     process = subprocess.Popen(
         [str(binary), *arguments], stdin=slave, stdout=slave, stderr=slave,
         start_new_session=True,
     )
-    rows, columns, width, height = struct.unpack("HHHH", size)
-    write_json(directory / "terminal.json", {
-        "pid": process.pid, "columns": columns, "rows": rows,
-        "cell_pixels": [width // columns, height // rows],
-    })
+    def resized(*_):
+        current = fcntl.ioctl(sys.stdin.fileno(), termios.TIOCGWINSZ, bytes(8))
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, current)
+        record_geometry(directory, process.pid, current)
+        if process.poll() is None:
+            process.send_signal(signal.SIGWINCH)
+
+    previous_resize = signal.signal(signal.SIGWINCH, resized)
+    record_geometry(directory, process.pid, size)
     try:
         tty.setraw(sys.stdin.fileno())
         with (directory / "terminal-output.bin").open("wb", buffering=0) as capture:
-            pump(process, master, commands, capture, probe)
+            pump(process, master, commands, capture, probe, startup)
         returncode = process.wait(timeout=10)
         restored = termios.tcgetattr(slave) == inner_before
     finally:
+        signal.signal(signal.SIGWINCH, previous_resize)
         termios.tcsetattr(sys.stdin.fileno(), termios.TCSANOW, before)
         if probe:
             probe.close()
@@ -60,7 +68,27 @@ def relay(binary, directory, arguments=("--offline",), measure=False):
     return 0 if returncode == 0 and restored else 1
 
 
-def pump(process, master, commands, capture, probe):
+def initial_geometry():
+    deadline = time.monotonic() + 5
+    while True:
+        size = fcntl.ioctl(sys.stdin.fileno(), termios.TIOCGWINSZ, bytes(8))
+        rows, columns, width, height = struct.unpack("HHHH", size)
+        if rows and columns and width >= columns and height >= rows:
+            return size
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Foot did not publish usable terminal cell geometry")
+        time.sleep(0.01)
+
+
+def record_geometry(directory, pid, size):
+    rows, columns, width, height = struct.unpack("HHHH", size)
+    write_json(directory / "terminal.json", {
+        "pid": pid, "columns": columns, "rows": rows,
+        "cell_pixels": [width // max(columns, 1), height // max(rows, 1)],
+    })
+
+
+def pump(process, master, commands, capture, probe, startup=None):
     while True:
         descriptors = [sys.stdin.fileno(), master, commands]
         if probe:
@@ -77,6 +105,8 @@ def pump(process, master, commands, capture, probe):
                 return
             if descriptor == master:
                 capture.write(data)
+                if startup:
+                    startup.output(data)
                 write_all(sys.stdout.fileno(), data)
                 if probe:
                     probe.output(

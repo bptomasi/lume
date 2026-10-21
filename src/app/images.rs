@@ -314,8 +314,8 @@ impl App {
         }
         match argument {
             "" => {}
-            "on" => self.images.enabled = true,
-            "off" => self.images.enabled = false,
+            "on" => self.workspace.images.enabled = true,
+            "off" => self.workspace.images.enabled = false,
             "retry" => {
                 self.images.cache.retain(|(_, value)| value.is_ok());
                 if self.images.worker.is_none()
@@ -326,6 +326,10 @@ impl App {
                 }
             }
             _ => anyhow::bail!("Usage: :images [on|off|retry]"),
+        }
+        if matches!(argument, "on" | "off") {
+            self.apply_image_preferences();
+            self.persist_preferences()?;
         }
         self.status = format!(
             "Image loading {} · :images on/off · :image-open",

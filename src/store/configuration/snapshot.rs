@@ -9,28 +9,15 @@ use crate::{
 };
 
 impl Store {
-    pub(super) fn capture_configuration(&self) -> Result<Configuration> {
+    pub(in crate::store) fn capture_configuration(
+        &self,
+    ) -> Result<Configuration> {
         self.connection.execute_batch(include_str!(
             "../sql/configuration/insert_bindings.sql"
         ))?;
         let (workspace, layouts) = self.configuration_preferences()?;
         let profile = self.recommendation_profile()?;
-        let feeds = self
-            .connection
-            .prepare_cached(include_str!(
-                "../sql/configuration/select_feeds.sql"
-            ))?
-            .query_map([], |row| {
-                let id: i64 = row.get(0)?;
-                Ok(config::Feed {
-                    id: row.get(1)?,
-                    url: row.get(2)?,
-                    enabled: row.get(3)?,
-                    selector: row.get(4)?,
-                    priority: profile.sources.get(&id).copied().unwrap_or(0),
-                })
-            })?
-            .collect::<rusqlite::Result<_>>()?;
+        let feeds = self.configuration_feeds(&profile)?;
         let mut config = Configuration {
             schema_version: 1,
             ui: Ui::capture(&workspace),
@@ -49,6 +36,34 @@ impl Store {
         config.normalize();
         config.validate()?;
         Ok(config)
+    }
+
+    fn configuration_feeds(
+        &self,
+        profile: &crate::model::RecommendationProfile,
+    ) -> Result<Vec<config::Feed>> {
+        self.connection
+            .prepare_cached(include_str!(
+                "../sql/configuration/select_feeds.sql"
+            ))?
+            .query_map([], |row| {
+                let id: i64 = row.get(0)?;
+                Ok(config::Feed {
+                    id: row.get(1)?,
+                    url: row.get(2)?,
+                    enabled: row.get(3)?,
+                    selector: row.get(4)?,
+                    fetch_policy: match row.get::<_, String>(5)?.as_str() {
+                        "missing" => crate::model::FetchPolicy::Missing,
+                        "always" => crate::model::FetchPolicy::Always,
+                        "manual" => crate::model::FetchPolicy::Manual,
+                        _ => return Err(rusqlite::Error::InvalidQuery),
+                    },
+                    priority: profile.sources.get(&id).copied().unwrap_or(0),
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(Into::into)
     }
 
     fn configuration_preferences(

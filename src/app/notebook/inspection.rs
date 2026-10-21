@@ -68,13 +68,9 @@ impl App {
             Ok(Prepared::Synthesis { article, text }) => {
                 self.close_notebook();
                 self.jump_article(article)?;
-                self.focus = super::super::Focus::Reader;
-                self.begin_reader_note()?;
-                self.replace_draft(text)?;
-                if let super::super::Mode::Input(input) = &mut self.mode {
-                    input.initial_kind =
-                        Some(crate::model::NoteKind::Synthesis);
-                }
+                self.on_navigation_arrival(
+                    super::super::navigation_worker::Arrival::Synthesis(text),
+                )?;
             }
             Err(error) => {
                 self.resume_note_editor();
@@ -82,6 +78,19 @@ impl App {
             }
         }
         Ok(true)
+    }
+
+    pub(in crate::app) fn install_synthesis(
+        &mut self,
+        text: String,
+    ) -> Result<()> {
+        self.focus = super::super::Focus::Reader;
+        self.begin_reader_note()?;
+        self.replace_draft(text)?;
+        if let super::super::Mode::Input(input) = &mut self.mode {
+            input.initial_kind = Some(crate::model::NoteKind::Synthesis);
+        }
+        Ok(())
     }
 
     pub(in crate::app) fn cancel_note_inspection(&mut self) {

@@ -31,18 +31,15 @@ impl App {
         article: i64,
         deleted: bool,
     ) -> Result<()> {
-        if !self.store.set_deleted(article, deleted)? {
-            self.status = if deleted {
-                "Article is already in Trash".into()
-            } else {
-                "Article is already in the library".into()
-            };
-            return Ok(());
-        }
+        self.submit_library_edit(
+            super::personal_tasks::LibraryEdit::Deleted { article, deleted },
+        )?;
         if self.retained_article == Some(article) {
             self.retained_article = None;
         }
-        self.reload()?;
+        if self.personal_writes.is_none() {
+            self.reload()?;
+        }
         self.status = if deleted {
             "Article moved to Trash · u undo · :trash to restore".into()
         } else {

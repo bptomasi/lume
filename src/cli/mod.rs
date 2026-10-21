@@ -91,6 +91,18 @@ pub(super) enum Command {
         #[arg(long, default_value_t = 50, value_parser = clap::value_parser!(u16).range(1..=500))]
         limit: u16,
     },
+    /// Snapshot committed articles, annotations and declarative preferences.
+    Backup {
+        /// New SQLite snapshot file; never overwrites an existing file.
+        output: PathBuf,
+    },
+    /// Validate and restore a snapshot into a new isolated directory.
+    Restore {
+        /// Existing SQLite snapshot, opened read-only.
+        snapshot: PathBuf,
+        /// New directory receiving library.sqlite3 and config.toml.
+        output: PathBuf,
+    },
     /// Undo the last personal edit.
     Undo,
 }

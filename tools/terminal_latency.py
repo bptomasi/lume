@@ -17,6 +17,28 @@ ACK = b"\x1b[0n"
 MAX_FRAME_BYTES = 16 * 1024 * 1024
 
 
+class Startup:
+    """Observe bounded output milestones from process launch, not presentation."""
+
+    def __init__(self, directory, markers, clock=time.monotonic_ns):
+        self.path = directory / "startup.json"
+        self.markers = dict(markers)
+        self.clock = clock
+        self.started = clock()
+        self.tail = b""
+        self.observed = {}
+
+    def output(self, data):
+        # A marker can straddle PTY reads. Keep only the longest marker suffix.
+        window = self.tail + data
+        for name, marker in self.markers.items():
+            if name not in self.observed and marker in window:
+                self.observed[name] = (self.clock() - self.started) / 1_000_000
+                self.path.write_text(json.dumps(self.observed, indent=2) + "\n")
+        retained = max((len(marker) for marker in self.markers.values()), default=1)
+        self.tail = window[-retained:]
+
+
 class Probe:
     def __init__(self, directory, clock=time.monotonic_ns):
         self.clock = clock

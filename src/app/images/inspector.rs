@@ -29,8 +29,19 @@ impl App {
         cell_pixels: (u16, u16),
     ) {
         self.images.automatic_protocol = protocol;
-        self.images.protocol = protocol;
+        self.apply_image_preferences();
         self.update_image_cell_pixels(cell_pixels);
+    }
+
+    pub(in crate::app) fn apply_image_preferences(&mut self) {
+        use crate::model::ImagePreference;
+        self.images.enabled = self.workspace.images.enabled;
+        self.images.protocol = match self.workspace.images.protocol {
+            ImagePreference::Auto => self.images.automatic_protocol,
+            ImagePreference::Blocks => ImageProtocol::Blocks,
+            ImagePreference::Sixel => ImageProtocol::Sixel,
+            ImagePreference::Iterm2 => ImageProtocol::Iterm2,
+        };
     }
 
     /// Update OS-reported cell geometry; unusable reports fall back to 10×20.
@@ -109,16 +120,20 @@ impl App {
         &mut self,
         argument: &str,
     ) -> Result<()> {
-        self.images.protocol = match argument {
-            "" => self.images.protocol,
-            "auto" => self.images.automatic_protocol,
-            "blocks" => ImageProtocol::Blocks,
-            "sixel" => ImageProtocol::Sixel,
-            "iterm2" => ImageProtocol::Iterm2,
-            _ => {
-                bail!("Usage: :image-protocol [auto|blocks|sixel|iterm2]")
-            }
+        use crate::model::ImagePreference;
+        let preference = match argument {
+            "" => self.workspace.images.protocol,
+            "auto" => ImagePreference::Auto,
+            "blocks" => ImagePreference::Blocks,
+            "sixel" => ImagePreference::Sixel,
+            "iterm2" => ImagePreference::Iterm2,
+            _ => bail!("Usage: :image-protocol [auto|blocks|sixel|iterm2]"),
         };
+        if self.workspace.images.protocol != preference {
+            self.workspace.images.protocol = preference;
+            self.persist_preferences()?;
+        }
+        self.apply_image_preferences();
         self.status = format!(
             "Images: {} · :image opens · :image-open shows original",
             self.images.protocol.label(),

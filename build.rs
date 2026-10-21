@@ -6,6 +6,7 @@ use anyhow::{Context, Result, ensure};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 
 fn main() -> Result<()> {
+    record_revision()?;
     println!("cargo:rerun-if-changed=assets/syntax");
     let directory =
         std::env::var_os("OUT_DIR").context("Cargo must provide OUT_DIR")?;
@@ -22,6 +23,32 @@ fn main() -> Result<()> {
         "Unlinked grammar contexts: {unresolved:?}"
     );
     syntect::dumps::dump_to_file(&syntaxes, output)?;
+    Ok(())
+}
+
+fn record_revision() -> Result<()> {
+    println!("cargo:rerun-if-env-changed=LUME_BUILD_REVISION");
+    println!("cargo:rerun-if-changed=.git/HEAD");
+    println!("cargo:rerun-if-changed=.git/refs/heads/main");
+    let revision = std::env::var("LUME_BUILD_REVISION")
+        .ok()
+        .or_else(|| {
+            let output = std::process::Command::new("git")
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .ok()?;
+            output.status.success().then(|| {
+                String::from_utf8_lossy(&output.stdout).trim().to_owned()
+            })
+        })
+        .unwrap_or_else(|| "unknown".into());
+    ensure!(
+        revision == "unknown"
+            || (revision.len() == 40
+                && revision.bytes().all(|byte| byte.is_ascii_hexdigit())),
+        "LUME_BUILD_REVISION must be a full Git revision"
+    );
+    println!("cargo:rustc-env=LUME_BUILD_REVISION={revision}");
     Ok(())
 }
 

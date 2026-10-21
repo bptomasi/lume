@@ -59,7 +59,10 @@ pub(super) fn perform(store: &Store, task: Task) -> Result<Outcome> {
         Task::Edit(edit) => {
             changed(store, UndoEffect::Notes(edit_note(store, edit)?))
         }
-        Task::Read { articles, unread } => read_state(store, articles, unread),
+        Task::Articles { articles, edit } => {
+            article_edit(store, articles, edit)
+        }
+        Task::Library(edit) => library_edit(store, edit),
         Task::Undo => changed(store, store.undo_effect()?),
         Task::Checkpoint(draft) => {
             store.save_note_draft(&draft)?;
@@ -152,20 +155,35 @@ fn query_edit(store: &Store, edit: super::QueryEdit) -> Result<Outcome> {
     }
 }
 
-fn read_state(
+pub(in crate::app) fn article_edit(
     store: &Store,
     articles: std::collections::BTreeSet<i64>,
-    unread: bool,
+    edit: crate::model::BulkEdit,
 ) -> Result<Outcome> {
     if articles.len() == 1 {
         for article in articles {
-            store.set_unread(article, unread)?;
+            match edit {
+                crate::model::BulkEdit::Unread(value) => {
+                    store.set_unread(article, value)?
+                }
+                crate::model::BulkEdit::Favorite(value) => {
+                    store.set_starred(article, value)?
+                }
+                crate::model::BulkEdit::Queue(value) => {
+                    store.set_queued(article, value)?
+                }
+                _ => store.edit_articles(&[article].into(), &edit)?,
+            }
         }
     } else {
-        store.edit_articles(
-            &articles,
-            &crate::model::BulkEdit::Unread(unread),
-        )?;
+        store.edit_articles(&articles, &edit)?;
     }
-    Ok(Outcome::Read)
+    Ok(Outcome::Articles)
+}
+
+pub(in crate::app) fn library_edit(
+    store: &Store,
+    edit: super::LibraryEdit,
+) -> Result<Outcome> {
+    super::library::perform(store, edit)
 }

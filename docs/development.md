@@ -2,7 +2,7 @@
 
 Use the exact stable toolchain in `rust-toolchain.toml`; CI must use the same
 version. Install the normal C build tools required by bundled SQLite. Local
-tool checks require Python 3. Product runtime requires no Python interpreter,
+tool checks require Python 3.11 or newer. Product runtime requires no Python interpreter,
 source checkout, containers or external database.
 
 ## Build and installation commands
@@ -37,8 +37,9 @@ make check-release
 
 `check` serially composes formatting, Clippy for every target, native behavioral
 and benchmark correctness tests, Python tooling tests and syntax checks.
-`check-release` additionally runs real loopback HTTP fixtures and builds the
-locked release binary. Required HTTP tests are not silently skipped. Ordinary
+`check-release` additionally requires the current RustSec gate, real loopback
+HTTP fixtures and the locked release build. Install cargo-audit 0.22.2 explicitly
+with `cargo install cargo-audit --version 0.22.2 --locked --no-default-features`. Required HTTP tests are not silently skipped. Ordinary
 checks never start containers or bootstrap development tools.
 
 Keep `Cargo.lock` versioned and use `--locked`. Dependency changes update only
@@ -57,7 +58,14 @@ xvfb-run -a make check-alacritty
 make check-latency
 ```
 
-Foot qualification requires native Wayland, Foot and ImageMagick's `convert`.
+Foot qualification requires native Wayland, Foot, ImageMagick's `convert` and
+Pillow. Install the optional visual tools into a virtualenv:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r tools/requirements-visual.txt
+make check-foot PYTHON=.venv/bin/python
+```
 Alacritty qualification requires X11/Xvfb, Alacritty, xdotool, xclip and x11-apps.
 The latency harness requires a real Foot session plus an owned loopback HTTP
 publisher. It requires at least 100 samples per workload for reported p99.
@@ -133,6 +141,28 @@ Tests use temporary libraries and explicit configuration paths. They must not
 read or modify the developer's personal configuration, subscriptions, clipboard
 or terminal preferences. No network fixtures contact arbitrary live publishers.
 
-CI runs the pinned toolchain, local checks, real HTTP, release build and an
-isolated Alacritty/Xvfb window. Native Wayland/Foot qualification remains a
-separate required validation for changes to its image and input contracts.
+CI is configured for the pinned toolchain, local/license/advisory/HTTP checks,
+a release build, isolated Alacritty/Xvfb and native Wayland Foot under a headless
+Weston compositor. It retains terminal output, pixel checks and binary hashes.
+These wire checks complement physical display inspection; they do not measure
+compositor presentation latency. A workflow definition alone is not evidence
+that a hosted CI run passed. See [release qualification](release.md).
+
+## Terminal support
+
+| Environment | Text/input | Images | Qualification scope |
+| --- | --- | --- | --- |
+| Linux x86_64, Foot, native Wayland | Supported | Native Sixel | Required real Foot wire/pixel/input/cleanup gate; physical presentation checked separately. |
+| Linux, Alacritty | Supported | Character previews | Real Alacritty/Xvfb input/cleanup gate; no XWayland image helper is required. |
+| Generic ANSI terminal | Portable baseline | Character previews | Native Rust frame/input tests; terminal-specific differences remain possible. |
+| tmux or Zellij | Portable baseline | Character previews by default | Native graphics passthrough is not qualified; force a protocol only deliberately. |
+| WezTerm/iTerm2 | Experimental | iTerm2 encoder | Encoder fixtures pass independently; native desktop behavior is not yet qualified. |
+| macOS/Windows | Unqualified | Unqualified | No release binaries or native CI commitment for these platforms yet. |
+
+Yank uses OSC52; the terminal controls clipboard permission. It can reject the
+request, and Lume cannot verify the system clipboard contents. Qualification
+windows disable clipboard access. No publisher content can copy itself.
+
+`make install DATA_DIR=/custom/path` prints the explicit `--data-dir` invocation
+and `LUME_DATA_DIR` export needed to select that library at runtime. The binary
+retains portable defaults and never embeds an installer's personal paths.

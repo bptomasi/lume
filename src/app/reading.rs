@@ -9,12 +9,21 @@ use ratatui::{
 use super::{App, View};
 use crate::content::{self, BodyKind};
 
+/// Identity of the actual displayed publisher text, independent of selection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReaderIdentity {
+    /// Durable article whose bytes produced the reader projection.
+    pub article: i64,
+    /// Feed or independently cached Full source.
+    pub source: crate::model::ContentSource,
+    /// Full revision, or zero for Feed.
+    pub revision: i64,
+}
+
 /// In-memory viewport, reusable only while the displayed source stays intact.
 pub(super) struct ReaderSnapshot {
-    article: Option<i64>,
+    identity: Option<ReaderIdentity>,
     comment: Option<i64>,
-    source: crate::model::ContentSource,
-    revision: i64,
     body: String,
     notes: Option<String>,
     cursor: usize,
@@ -117,11 +126,24 @@ impl App {
     /// The previous article stays visible while a new selection is loading.
     /// Source-bound actions must wait for the matching content identity.
     pub fn reader_stale(&self) -> bool {
-        self.reading_article.is_some()
+        self.reading_article().is_some()
             && (self.navigation_loading
                 || self.projecting_navigation
                 || self.current().map(|article| article.id)
-                    != self.reading_article)
+                    != self.reading_article())
+    }
+
+    pub(super) fn reading_article(&self) -> Option<i64> {
+        self.displayed_article.as_ref().map(|article| article.id)
+    }
+
+    /// Source-bound identity retained while a different selection is loading.
+    pub fn reader_identity(&self) -> Option<ReaderIdentity> {
+        Some(ReaderIdentity {
+            article: self.reading_article()?,
+            source: self.content_source,
+            revision: self.content_revision,
+        })
     }
 
     /// Metadata for the source actually displayed, including a retained preview.
@@ -141,13 +163,11 @@ impl App {
     pub(super) fn capture_reader(&self) -> ReaderSnapshot {
         let cursor = self.cursor_offset();
         ReaderSnapshot {
-            article: self.reading_article,
+            identity: self.reader_identity(),
             comment: self
                 .comments
                 .get(self.comment_selected)
                 .map(|note| note.id),
-            source: self.content_source,
-            revision: self.content_revision,
             body: self.body.clone(),
             notes: (cursor >= self.article_text_end)
                 .then(|| self.reader_text.clone()),
@@ -161,9 +181,10 @@ impl App {
     }
 
     pub(super) fn restore_reader(&mut self, snapshot: ReaderSnapshot) {
-        if snapshot.article.is_none()
-            || self.current().map(|article| article.id) != snapshot.article
-        {
+        let Some(identity) = snapshot.identity else {
+            return;
+        };
+        if self.current().map(|article| article.id) != Some(identity.article) {
             return;
         }
         if let Some(position) = self
@@ -173,8 +194,7 @@ impl App {
         {
             self.comment_selected = position;
         }
-        if self.content_source != snapshot.source
-            || self.content_revision != snapshot.revision
+        if self.reader_identity() != Some(identity)
             || self.body != snapshot.body
             || snapshot
                 .notes
@@ -235,9 +255,13 @@ impl App {
         &mut self,
         mut data: super::reading_data::ReadingData,
     ) -> Result<()> {
+        anyhow::ensure!(
+            self.current()
+                .is_some_and(|article| article.id == data.article),
+            "Reader result belongs to an obsolete article selection"
+        );
         self.pending_reflow = false;
         self.displayed_article = self.current().cloned();
-        self.reading_article = self.current().map(|article| article.id);
         self.apply_article_content(&mut data);
         self.comments = data.comments;
         self.rebuild_annotations();
@@ -245,25 +269,7 @@ impl App {
             .comment_selected
             .min(self.comments.len().saturating_sub(1));
         self.prepare_reader_metadata();
-        let anchor = if self.content_source == crate::model::ContentSource::Full
-        {
-            self.document
-                .as_ref()
-                .map_or(0, |document| document.progress)
-        } else {
-            data.progress
-        };
-        // Terminal geometry arrives after construction. Retain the source
-        // anchor until the first real layout instead of clamping it away.
-        let anchor = self
-            .reading_article
-            .and_then(|id| {
-                self.progress_memory
-                    .borrow()
-                    .get(&id, self.content_source, self.content_revision)
-                    .copied()
-            })
-            .map_or(anchor, |progress| progress.anchor);
+        let anchor = self.reading_anchor(data.progress);
         self.pending_anchor = Some(anchor);
         self.scroll = 0;
         self.reader_cursor = 0;
@@ -294,9 +300,29 @@ impl App {
         };
     }
 
+    fn reading_anchor(&self, feed_progress: usize) -> usize {
+        let anchor = if self.content_source == crate::model::ContentSource::Full
+        {
+            self.document
+                .as_ref()
+                .map_or(0, |document| document.progress)
+        } else {
+            feed_progress
+        };
+        // Terminal geometry arrives after construction. Retain the source
+        // anchor until the first real layout instead of clamping it away.
+        self.reading_article()
+            .and_then(|id| {
+                self.progress_memory
+                    .borrow()
+                    .get(&id, self.content_source, self.content_revision)
+                    .copied()
+            })
+            .map_or(anchor, |progress| progress.anchor)
+    }
+
     pub(super) fn clear_current(&mut self) {
         self.pending_reflow = false;
-        self.reading_article = None;
         self.displayed_article = None;
         self.pending_anchor = None;
         self.selection = None;
@@ -576,7 +602,7 @@ impl App {
     pub(super) fn save_reading_position(&self) -> Result<()> {
         let Some(article) = self
             .current()
-            .filter(|article| Some(article.id) == self.reading_article)
+            .filter(|article| Some(article.id) == self.reading_article())
         else {
             return Ok(());
         };
@@ -616,11 +642,12 @@ impl App {
     /// # Errors
     /// Returns storage failures; the terminal runner still restores its state.
     pub fn save_session(&mut self) -> Result<()> {
-        self.save_reading_position()?;
+        let position = self.save_reading_position();
         self.workspace.article = self.current().map(|article| article.id);
         self.workspace.view = self.view.clone();
         self.workspace.page_offset = self.page_offset;
-        self.persist_preferences()
+        let preferences = self.persist_preferences();
+        finish_writes([position, preferences])
     }
 
     pub(super) fn persist_preferences(&mut self) -> Result<()> {
@@ -640,16 +667,37 @@ impl App {
     /// # Errors
     /// Returns local storage errors while preserving terminal cleanup.
     pub fn end_session(&mut self) -> Result<()> {
-        self.flush_recommendations()?;
-        self.checkpoint_draft()?;
+        // Independent durability boundaries must all run, even after a failed
+        // background edit. Disposable ranking must never suppress note recovery.
+        let recommendations = self.flush_recommendations();
+        let draft = self.checkpoint_draft();
         // Global Ctrl-c can leave this modal without its explicit confirmation.
         if let super::Mode::Settings(draft) = &self.mode {
             self.workspace = draft.before.clone();
             self.mode = super::Mode::Normal;
         }
         self.workspace.last_visit = chrono::Utc::now().timestamp();
+        let barrier = self.flush_session();
+        let configuration = self.finish_configuration_preferences();
         let save = self.save_session();
         let flush = self.flush_session();
-        save.and(flush)
+        finish_writes([
+            recommendations,
+            draft,
+            barrier,
+            configuration,
+            save,
+            flush,
+        ])
     }
+}
+
+fn finish_writes<const N: usize>(results: [Result<()>; N]) -> Result<()> {
+    let failures = results
+        .into_iter()
+        .filter_map(Result::err)
+        .map(|error| format!("{error:#}"))
+        .collect::<Vec<_>>();
+    anyhow::ensure!(failures.is_empty(), "{}", failures.join("; "));
+    Ok(())
 }

@@ -1,0 +1,2 @@
+# Optional development tooling only. Runtime has no Python dependency.
+Pillow==13.0.0

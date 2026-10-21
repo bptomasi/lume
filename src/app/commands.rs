@@ -25,13 +25,12 @@ impl App {
             }
             InputKind::Command => return self.command(&input.text),
             InputKind::NewList => {
-                self.store.create_collection(&input.text)?;
+                self.save_folder(&input.text, None)?;
                 self.status =
                     "Folder created · a organizes the selected article".into();
             }
             InputKind::AddToList(article) => {
-                let list = self.store.create_collection(&input.text)?;
-                self.store.add_member(list, *article)?;
+                self.save_folder(&input.text, Some(*article))?;
                 self.status = format!("Saved to {}", input.text.trim());
             }
             InputKind::Discover
@@ -120,12 +119,7 @@ impl App {
                 self.status = "Feed added; collecting in the background".into();
                 return Ok(Action::Refresh);
             }
-            "rename" => self
-                .store
-                .rename_collection(self.active_list()?, argument)?,
-            "delete-folder" => {
-                self.store.delete_collection(self.active_list()?)?
-            }
+            "rename" | "delete-folder" => self.edit_folder(verb, argument)?,
             "delete-comment" => {
                 let note = self.note_target()?;
                 self.delete_captured_note(note.article, note.comment.id)?;
@@ -153,6 +147,30 @@ impl App {
         Ok(Action::None)
     }
 
+    fn save_folder(&mut self, name: &str, article: Option<i64>) -> Result<()> {
+        crate::store::validate_collection_name(name)?;
+        self.submit_library_edit(
+            super::personal_tasks::LibraryEdit::CreateFolder {
+                name: name.into(),
+                article,
+            },
+        )
+    }
+
+    fn edit_folder(&mut self, verb: &str, name: &str) -> Result<()> {
+        let folder = self.active_list()?;
+        let edit = if verb == "rename" {
+            crate::store::validate_collection_name(name)?;
+            super::personal_tasks::LibraryEdit::RenameFolder {
+                folder,
+                name: name.into(),
+            }
+        } else {
+            super::personal_tasks::LibraryEdit::DeleteFolder(folder)
+        };
+        self.submit_library_edit(edit)
+    }
+
     fn folder_command(
         &mut self,
         verb: &str,
@@ -163,8 +181,7 @@ impl App {
                 self.begin_input(InputKind::NewList, String::new());
             }
             "folder" => {
-                self.store.create_collection(argument)?;
-                self.reload()?;
+                self.save_folder(argument, None)?;
                 self.status = format!(
                     "Folder created · {argument} · a organizes articles"
                 );
@@ -194,8 +211,13 @@ impl App {
 
     pub(super) fn toggle_favorite(&mut self) -> Result<()> {
         if let Some(article) = self.current() {
-            self.store.set_starred(article.id, !article.starred)?;
-            self.reload()?;
+            self.submit_article_edit(
+                [article.id].into(),
+                crate::model::BulkEdit::Favorite(!article.starred),
+            )?;
+            if self.personal_writes.is_none() {
+                self.reload()?;
+            }
             self.status = "Favorite updated".into();
         }
         Ok(())
@@ -237,8 +259,12 @@ impl App {
     pub(super) fn remove_from_list(&mut self) -> Result<()> {
         let list = self.active_list()?;
         if let Some(article) = self.current() {
-            self.store.remove_member(list, article.id)?;
-            self.reload()?;
+            self.submit_library_edit(
+                super::personal_tasks::LibraryEdit::RemoveMember {
+                    article: article.id,
+                    folder: list,
+                },
+            )?;
             self.status = "Article removed from this list".into();
         }
         Ok(())

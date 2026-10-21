@@ -226,13 +226,24 @@ impl App {
     pub fn jump_article(&mut self, article: i64) -> Result<()> {
         self.suspend_notebook_for_source();
         self.save_reading_position()?;
-        let position = self.store.article_position(article)?;
         self.view = View::All;
         self.search.clear();
-        self.page_offset = position / self.page_limit() * self.page_limit();
-        self.selected = position % self.page_limit();
-        self.rebuild_navigation()?;
-        self.filter_now()?;
+        if self.navigation_worker.is_some() {
+            self.defer_navigation(super::navigation_worker::Request::Jump {
+                query: self.article_query(),
+                article,
+            });
+        } else {
+            let position = self.store.article_position(article)?;
+            self.page_offset = position / self.page_limit() * self.page_limit();
+            self.selected = position % self.page_limit();
+            self.filter_now()?;
+        }
+        self.nav_selected = self
+            .navigation
+            .iter()
+            .position(|item| item.view == View::All)
+            .unwrap_or(0);
         self.workspace.show_reader = true;
         self.focus = Focus::Reader;
         Ok(())
@@ -316,6 +327,21 @@ impl App {
         }
         Ok(())
     }
+}
+
+pub(super) fn pending_navigation(
+    library: &crate::model::Library,
+    last_visit: i64,
+) -> Vec<NavItem> {
+    catalog_destinations(library, last_visit)
+        .into_iter()
+        .map(|(view, title, group)| NavItem {
+            view,
+            title,
+            group,
+            count: 0,
+        })
+        .collect()
 }
 
 pub(super) fn catalog_navigation(

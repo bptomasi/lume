@@ -151,6 +151,8 @@ pub struct Workspace {
     pub notebook_layout: Option<super::PanelLayout>,
     /// Request standard terminal mouse reporting; keyboard remains available.
     pub mouse: bool,
+    /// Portable image loading and protocol preferences.
+    pub images: ImageSettings,
     /// Maximum prose width in terminal columns.
     pub reading_width: u16,
     /// Centered prose width in fullscreen, independent of the panel layout.
@@ -197,6 +199,7 @@ impl Default for Workspace {
             layout: None,
             notebook_layout: None,
             mouse: true,
+            images: ImageSettings::default(),
             reading_width: 82,
             fullscreen_width: 80,
             library_width: 23,
@@ -264,4 +267,40 @@ impl Workspace {
             self.panel_order.iter().filter(|item| *item == pane).count() == 1
         })
     }
+}
+
+/// Portable image rendering policy; terminal detection remains runtime state.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ImageSettings {
+    /// Permit image downloads and preparation after opening an article.
+    pub enabled: bool,
+    /// Explicit protocol override, or conservative terminal detection.
+    pub protocol: ImagePreference,
+}
+
+impl Default for ImageSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            protocol: ImagePreference::Auto,
+        }
+    }
+}
+
+/// Persisted override, separate from the protocol detected in this terminal.
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum ImagePreference {
+    /// Detect supported terminals; use character cells otherwise.
+    #[default]
+    Auto,
+    /// Character-cell preview, requiring no graphics extension.
+    Blocks,
+    /// Sixel graphics, qualified on Foot.
+    Sixel,
+    /// iTerm2 inline graphics.
+    Iterm2,
 }

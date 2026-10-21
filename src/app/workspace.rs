@@ -75,6 +75,7 @@ impl App {
         self.open_picker(PickerKind::Lists {
             article,
             checked: self.store.article_memberships(article)?,
+            names: Default::default(),
         })
     }
 
@@ -177,8 +178,13 @@ impl App {
 
     pub(super) fn toggle_queue(&mut self) -> Result<()> {
         if let Some(article) = self.current() {
-            self.store.set_queued(article.id, !article.queued)?;
-            self.reload()?;
+            self.submit_article_edit(
+                [article.id].into(),
+                crate::model::BulkEdit::Queue(!article.queued),
+            )?;
+            if self.personal_writes.is_none() {
+                self.reload()?;
+            }
             self.status = "Read-next queue updated · u undo".into();
         }
         Ok(())

@@ -4,11 +4,13 @@
 //! later navigation cannot redirect them. Explicit shutdown drains writes.
 //! Dropping disconnects the adapter; the worker finishes admitted transactions.
 
-mod operation;
+mod library;
+pub(super) mod operation;
+pub(super) use library::LibraryEdit;
 mod review;
 pub(super) use review::review;
 
-use std::{cell::Cell, path::Path, sync::mpsc};
+use std::{cell::RefCell, collections::VecDeque, path::Path, sync::mpsc};
 
 use anyhow::{Result, anyhow};
 
@@ -19,10 +21,11 @@ pub(super) enum Task {
     Write(NoteDraft),
     Query(QueryEdit),
     Edit(Edit),
-    Read {
+    Articles {
         articles: std::collections::BTreeSet<i64>,
-        unread: bool,
+        edit: crate::model::BulkEdit,
     },
+    Library(LibraryEdit),
     Undo,
     Export(std::path::PathBuf),
     ExportArticles(std::path::PathBuf),
@@ -83,7 +86,7 @@ pub(super) enum Outcome {
         effect: UndoEffect,
         comments: Result<Vec<Comment>>,
     },
-    Read,
+    Articles,
     Checkpoint,
     Collections,
     SearchHistory(Vec<String>),
@@ -104,7 +107,7 @@ pub(super) struct PersonalWrites {
     requests: mpsc::SyncSender<Job>,
     results: mpsc::Receiver<Completion>,
     next: u64,
-    pending: Cell<usize>,
+    pending: RefCell<VecDeque<u64>>,
 }
 
 impl PersonalWrites {
@@ -112,7 +115,7 @@ impl PersonalWrites {
         let store = crate::store::Store::open(path)?;
         let (requests, receiver) = mpsc::sync_channel::<Job>(16);
         let (sender, results) = mpsc::sync_channel(16);
-        let pending = Cell::new(0);
+        let pending = RefCell::new(VecDeque::new());
         std::thread::Builder::new()
             .name("lume-personal-writes".into())
             .spawn(move || {
@@ -135,33 +138,68 @@ impl PersonalWrites {
     pub(super) fn submit(&mut self, task: Task) -> Result<u64> {
         // Bounded request/result queues prevent live ticket aliasing on wrap.
         self.next = self.next.wrapping_add(1);
-        self.pending.set(self.pending.get() + 1);
         if let Err(error) = self.requests.try_send(Job {
             ticket: self.next,
             task,
         }) {
-            self.pending.set(self.pending.get() - 1);
             return Err(anyhow!(
                 "Personal write not admitted: {error}; retry the action"
             ));
         }
+        self.pending.borrow_mut().push_back(self.next);
         Ok(self.next)
     }
 
     pub(super) fn poll(&self) -> Option<Completion> {
-        let result = self.results.try_recv().ok()?;
-        // A durable mutation remains pending until its UI acknowledgement,
-        // including failures. Shutdown must also drain completed outcomes.
-        self.pending.set(self.pending.get() - 1);
-        Some(result)
+        let completion = match self.results.try_recv() {
+            Ok(completion) => completion,
+            Err(mpsc::TryRecvError::Empty) => return None,
+            Err(mpsc::TryRecvError::Disconnected) => Completion {
+                ticket: *self.pending.borrow().front()?,
+                result: Err(anyhow!(
+                    "Personal writer stopped before acknowledgement; inspect the library before retrying"
+                )),
+            },
+        };
+        self.pending.borrow_mut().pop_front();
+        Some(completion)
     }
 
     pub(super) fn pending(&self) -> bool {
-        self.pending.get() != 0
+        !self.pending.borrow().is_empty()
     }
 }
 
 pub(super) struct PendingWrite {
     pub(super) ticket: u64,
     pub(super) destination: super::draft_commands::Destination,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_stopped_worker_acknowledges_each_pending_ticket_as_a_failure()
+    -> Result<()> {
+        let (requests, _receiver) = mpsc::sync_channel(1);
+        let (sender, results) = mpsc::sync_channel(1);
+        let writer = PersonalWrites {
+            requests,
+            results,
+            next: 2,
+            pending: RefCell::new([1, 2].into()),
+        };
+        drop(sender);
+        for ticket in [1, 2] {
+            let result = writer
+                .poll()
+                .ok_or_else(|| anyhow!("Missing failure acknowledgement"))?;
+            assert_eq!(result.ticket, ticket);
+            assert!(result.result.is_err());
+        }
+        assert!(!writer.pending());
+        assert!(writer.poll().is_none());
+        Ok(())
+    }
 }

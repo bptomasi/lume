@@ -20,7 +20,9 @@ pub(crate) mod viewport;
 mod wrapping;
 
 pub use live::LiveRenderer;
-pub use projection::{SourceMapping, style_range, to_display, to_source};
+pub use projection::{
+    SourceIndex, SourceMapping, style_range, to_display, to_source,
+};
 
 use std::ops::Range;
 

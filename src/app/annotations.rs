@@ -61,6 +61,7 @@ impl App {
     }
 
     pub(super) fn rebuild_annotations(&mut self) {
+        let mut relocated = std::collections::HashMap::new();
         self.annotations = self
             .comments
             .iter()
@@ -68,15 +69,19 @@ impl App {
             .map(|(index, note)| AnnotationEntry {
                 id: note.id,
                 comment_index: index,
-                position: self.annotation_position(note),
+                position: self.annotation_position(note, &mut relocated),
             })
             .collect();
         self.annotations.sort_by_key(AnnotationEntry::order);
     }
 
-    fn annotation_position(
+    fn annotation_position<'a>(
         &self,
-        note: &crate::model::Comment,
+        note: &'a crate::model::Comment,
+        relocated: &mut std::collections::HashMap<
+            &'a str,
+            Option<std::ops::Range<usize>>,
+        >,
     ) -> AnnotationPosition {
         if note.quote.is_empty() {
             return AnnotationPosition::General;
@@ -91,7 +96,21 @@ impl App {
         } else {
             self.body.len()
         };
-        match locate_quote(&self.body, &note.quote, anchor) {
+        let exact = self
+            .body
+            .get(anchor..)
+            .is_some_and(|tail| tail.starts_with(&note.quote));
+        let range = if exact {
+            Some(anchor..anchor + note.quote.len())
+        } else {
+            relocated
+                .entry(note.quote.as_str())
+                .or_insert_with(|| {
+                    locate_quote(&self.body, &note.quote, self.body.len())
+                })
+                .clone()
+        };
+        match range {
             Some(range) => AnnotationPosition::Located {
                 anchor: range.start,
                 percent: range.start.saturating_mul(100)

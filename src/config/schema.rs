@@ -59,6 +59,9 @@ pub struct Feed {
     /// Optional CSS override; empty selects automatic full-article extraction.
     #[serde(default)]
     pub selector: String,
+    /// Automatic extraction on opening: missing, always or manual.
+    #[serde(default)]
+    pub fetch_policy: crate::model::FetchPolicy,
     /// Recommendation source preference, minus ten through ten.
     #[serde(default)]
     pub priority: i8,
@@ -132,6 +135,8 @@ pub struct Ui {
     pub theme: String,
     /// Request standard terminal mouse reporting.
     pub mouse: bool,
+    /// Image downloads and protocol override.
+    pub images: crate::model::ImageSettings,
     /// Normal-mode key names mapped to ex commands.
     pub keybindings: BTreeMap<String, String>,
     /// Pane arrangement and prose widths, without article identities.
@@ -149,6 +154,7 @@ impl Ui {
         Self {
             theme: workspace.theme.clone(),
             mouse: workspace.mouse,
+            images: workspace.images.clone(),
             keybindings: workspace.keybindings.clone(),
             layout: PanelLayout::capture(workspace),
         }
@@ -159,6 +165,7 @@ impl Ui {
         self.layout.apply(workspace);
         workspace.theme = self.theme.clone();
         workspace.mouse = self.mouse;
+        workspace.images = self.images.clone();
         workspace.keybindings = self.keybindings.clone();
     }
 }

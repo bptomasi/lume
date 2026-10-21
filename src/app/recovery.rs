@@ -111,17 +111,26 @@ impl App {
     /// # Errors
     /// Returns pending transaction failures or recovery storage errors.
     pub fn checkpoint_draft(&mut self) -> Result<()> {
-        self.flush_note_tasks()?;
+        let pending = self.flush_note_tasks();
         let input = match &self.mode {
             Mode::Input(input) => Some(input.as_ref()),
             _ => self.suspended_note.as_deref(),
         };
-        if let Some(input) = input.filter(|input| input.modified())
+        let checkpoint = if let Some(input) =
+            input.filter(|input| input.modified())
             && let Some(draft) = snapshot(input)
         {
-            self.store.save_note_draft(&draft)?;
+            self.store.save_note_draft(&draft)
+        } else {
+            Ok(())
+        };
+        match (pending, checkpoint) {
+            (Err(first), Err(second)) => {
+                anyhow::bail!("{first:#}; draft recovery failed: {second:#}")
+            }
+            (Err(error), _) | (_, Err(error)) => Err(error),
+            _ => Ok(()),
         }
-        Ok(())
     }
 }
 

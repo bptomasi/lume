@@ -65,7 +65,8 @@ make check
 make check-release
 ```
 
-See [development and terminal support](docs/development.md),
+See [release and recovery](docs/release.md),
+[development and terminal support](docs/development.md),
 [architecture](docs/architecture.md) and [performance](docs/performance.md).
 
 MIT licensed. Retain the [third-party notices](docs/dependency-security.md)

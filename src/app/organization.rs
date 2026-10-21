@@ -89,17 +89,11 @@ impl App {
                 "Use :bulk read|unread|favorite|unfavorite|queue|unqueue|tag NAME|folder NAME"
             ),
         };
-        if let BulkEdit::Unread(unread) = edit {
-            self.submit_read_state(self.marked.clone(), unread)?;
-        } else {
-            self.store.edit_articles(&self.marked, &edit)?;
-        }
+        self.submit_article_edit(self.marked.clone(), edit)?;
         let count = self.marked.len();
         self.marked.clear();
         self.retained_article = None;
-        if self.personal_writes.is_none()
-            || !matches!(edit, BulkEdit::Unread(_))
-        {
+        if self.personal_writes.is_none() {
             self.reload()?;
         }
         self.status = format!(
@@ -132,8 +126,10 @@ impl App {
         } else {
             argument.split_whitespace().map(str::to_owned).collect()
         };
-        self.store.set_tags(target, &tags)?;
-        self.reload()?;
+        self.submit_library_edit(super::personal_tasks::LibraryEdit::Tags {
+            target,
+            tags,
+        })?;
         self.status =
             "Tags saved · u undo · tags do not change folder membership".into();
         Ok(())

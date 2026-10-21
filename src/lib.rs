@@ -19,6 +19,7 @@ pub mod source;
 pub mod store;
 pub mod ui;
 
+mod http_body;
 mod latest;
 
 /// Local, explainable article recommendation policy.

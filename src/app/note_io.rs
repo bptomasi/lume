@@ -111,9 +111,10 @@ impl App {
     ) -> Result<Action> {
         self.pending_note_deletes.remove(&completion.ticket);
         let pending = self.take_completed_write(completion.ticket);
-        if self
-            .complete_read_state(completion.ticket, completion.result.is_err())
-        {
+        if self.complete_article_edit(
+            completion.ticket,
+            completion.result.is_err(),
+        ) {
             completion.result?;
             return Ok(Action::None);
         }
@@ -127,9 +128,9 @@ impl App {
                     .finish_written_note(draft, target, comments, pending);
             }
             Outcome::Changed { effect, comments } => {
-                self.install_note_effect(effect, comments?)?;
+                self.install_personal_effect(effect, comments?)?;
             }
-            Outcome::Read | Outcome::Checkpoint => {}
+            Outcome::Articles | Outcome::Checkpoint => {}
             Outcome::Collections => self.invalidate_notebook(),
             Outcome::SearchHistory(history) => {
                 if let Some(notebook) = &mut self.notebook {
@@ -266,7 +267,7 @@ impl App {
         Ok(Action::None)
     }
 
-    fn install_note_effect(
+    fn install_personal_effect(
         &mut self,
         effect: crate::model::UndoEffect,
         comments: Vec<crate::model::Comment>,
@@ -275,7 +276,11 @@ impl App {
             crate::model::UndoEffect::Notes(article) => {
                 self.install_note_changes(article, comments)
             }
-            crate::model::UndoEffect::Library => self.reload()?,
+            crate::model::UndoEffect::Library => {
+                self.reload()?;
+                self.status = "Personal edit saved · u undo".into();
+                return Ok(());
+            }
             crate::model::UndoEffect::Unchanged => {
                 self.status = "No personal edits to undo".into();
                 return Ok(());

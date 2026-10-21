@@ -39,7 +39,17 @@ pub struct Passage {
 }
 
 /// Automatic fetching policy for one subscription; manual fetching is separate.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "lowercase")]
 pub enum FetchPolicy {
     /// Fetch on opening an entry that contains no independent article text.
     #[default]

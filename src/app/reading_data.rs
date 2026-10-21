@@ -8,6 +8,7 @@ use crate::{
 };
 
 pub(super) struct ReadingData {
+    pub(super) article: i64,
     pub(super) body: String,
     pub(super) origin: FeedOrigin,
     pub(super) document: Option<CachedDocument>,
@@ -30,6 +31,7 @@ impl ReadingData {
 
     pub(super) fn load(store: &Store, id: i64, feed: i64) -> Result<Self> {
         Ok(Self {
+            article: id,
             body: store.body(id)?,
             origin: store.feed_origin(id)?,
             document: store.cached_document(id)?,

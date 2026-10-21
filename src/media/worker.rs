@@ -109,11 +109,7 @@ fn download(client: &ureq::Agent, address: &str) -> Result<Vec<u8>> {
         "Image returned HTTP {}",
         response.status()
     );
-    Ok(response
-        .body_mut()
-        .with_config()
-        .limit(MAX_BYTES as u64)
-        .read_to_vec()?)
+    crate::http_body::read(response.body_mut(), MAX_BYTES)
 }
 
 #[cfg(test)]

@@ -56,13 +56,24 @@ impl Store {
         let id = if let Some(id) = self.configuration_id("feed", &feed.id)? {
             self.connection.execute(
                 include_str!("../sql/configuration/update_feed.sql"),
-                (id, url.as_str(), feed.enabled, &feed.selector),
+                (
+                    id,
+                    url.as_str(),
+                    feed.enabled,
+                    &feed.selector,
+                    feed.fetch_policy.as_str(),
+                ),
             )?;
             id
         } else {
             self.connection.execute(
                 include_str!("../sql/configuration/insert_feed.sql"),
-                (url.as_str(), feed.enabled, &feed.selector),
+                (
+                    url.as_str(),
+                    feed.enabled,
+                    &feed.selector,
+                    feed.fetch_policy.as_str(),
+                ),
             )?;
             self.connection.query_row(
                 "SELECT id FROM feeds WHERE url = ?1",

@@ -12,10 +12,15 @@ use crate::{
 
 use super::{App, Mode, reading_data::ReadingData};
 
+#[derive(Clone)]
 pub(super) enum Request {
     Page {
         query: ArticleQuery,
         selected: usize,
+    },
+    Jump {
+        query: ArticleQuery,
+        article: i64,
     },
     Refresh {
         query: ArticleQuery,
@@ -26,6 +31,11 @@ pub(super) enum Request {
         id: i64,
         feed: i64,
     },
+}
+
+pub(super) enum Arrival {
+    Reader(super::ReaderLocation),
+    Synthesis(String),
 }
 
 pub(super) struct Completed {
@@ -39,6 +49,8 @@ pub(super) struct NavigationWorker {
     ready: Option<Result<Completed>>,
     revision: u64,
     preserve_identity: bool,
+    request: Option<Request>,
+    arrival: Option<Arrival>,
 }
 
 impl NavigationWorker {
@@ -51,18 +63,24 @@ impl NavigationWorker {
             ready: None,
             revision: 0,
             preserve_identity: false,
+            request: None,
+            arrival: None,
         })
     }
 
     pub(super) fn cancel(&mut self) {
         self.worker.cancel();
         self.ready = None;
+        self.request = None;
+        self.arrival = None;
     }
 
     pub(super) fn submit(&mut self, request: Request, revision: u64) {
         self.ready = None;
         self.revision = revision;
         self.preserve_identity = matches!(request, Request::Article { .. });
+        self.request = Some(request.clone());
+        self.arrival = None;
         self.worker.submit(request);
     }
 }
@@ -75,6 +93,17 @@ fn read(store: &Store, request: Request) -> Result<Completed> {
             reading: Some(ReadingData::load(store, id, feed)?),
         }),
         Request::Page { query, selected } => read_page(store, query, selected),
+        Request::Jump { query, article } => {
+            let (offset, page) = store
+                .page_containing(&query, article)?
+                .context("Article no longer belongs to this destination")?;
+            let selected = page
+                .articles
+                .iter()
+                .position(|item| item.id == article)
+                .context("Jump target missing from its page")?;
+            complete_page(store, offset, page, selected)
+        }
         Request::Refresh {
             query,
             selected,
@@ -150,6 +179,16 @@ impl App {
         Ok(())
     }
 
+    /// Start disposable startup projections after the first terminal frame.
+    pub fn load_workspace(&mut self) {
+        self.request_catalog(super::catalog_worker::Scope::Counts);
+        self.defer_navigation(Request::Refresh {
+            query: self.article_query(),
+            selected: self.selected,
+            article: self.workspace.article,
+        });
+    }
+
     pub(super) fn defer_navigation(&mut self, request: Request) {
         self.cancel_reader_pointer();
         self.note_marks.hover = None;
@@ -177,12 +216,21 @@ impl App {
     }
 
     fn refresh_stale_navigation(&mut self) {
+        if let Some(worker) = &mut self.navigation_worker
+            && let Some(request @ Request::Jump { .. }) = worker.request.clone()
+        {
+            let arrival = worker.arrival.take();
+            worker.submit(request, self.library_revision);
+            worker.arrival = arrival;
+            return;
+        }
+
         let preserve = self
             .navigation_worker
             .as_ref()
             .is_some_and(|worker| worker.preserve_identity);
         if preserve
-            && !self.read_reconcile_required
+            && !self.article_edits.reconcile_required
             && let Some(article) = self.current()
             && self.retained_article == Some(article.id)
         {
@@ -241,7 +289,8 @@ impl App {
             self.progress_memory.borrow_mut().clear();
             anyhow::bail!("Background save failed: {error}");
         }
-        let catalog_changed = self.poll_catalog()?;
+        let catalog_changed =
+            self.poll_configuration()? | self.poll_catalog()?;
         let Some(worker) = &mut self.navigation_worker else {
             return Ok(catalog_changed);
         };
@@ -292,7 +341,33 @@ impl App {
         if navigating {
             self.status = "Selection loaded".into();
         }
+        if let Some(arrival) = self
+            .navigation_worker
+            .as_mut()
+            .and_then(|worker| worker.arrival.take())
+        {
+            self.apply_navigation_arrival(arrival)?;
+        }
         Ok(true)
+    }
+
+    pub(super) fn on_navigation_arrival(
+        &mut self,
+        arrival: Arrival,
+    ) -> Result<()> {
+        if let Some(worker) = &mut self.navigation_worker {
+            worker.arrival = Some(arrival);
+            Ok(())
+        } else {
+            self.apply_navigation_arrival(arrival)
+        }
+    }
+
+    fn apply_navigation_arrival(&mut self, arrival: Arrival) -> Result<()> {
+        match arrival {
+            Arrival::Reader(location) => self.apply_reader_location(location),
+            Arrival::Synthesis(text) => self.install_synthesis(text),
+        }
     }
 
     pub(super) fn invalidate_reading_refresh(&mut self) {
@@ -308,13 +383,13 @@ impl App {
     fn apply_navigation(&mut self, result: Completed) -> Result<()> {
         let snapshot = self.capture_reader();
         if let Some((offset, page, selected)) = result.page {
-            self.read_reconcile_required = false;
+            self.article_edits.reconcile_required = false;
             self.page_offset = offset;
             self.selected = selected;
             self.page_total = page.total;
             self.library.articles = page.articles;
             self.visible = (0..self.library.articles.len()).collect();
-            self.overlay_pending_reads();
+            self.overlay_article_edits();
         }
         if self.current().map(|article| article.id) == result.article {
             if let Some(reading) = result.reading {

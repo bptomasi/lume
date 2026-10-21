@@ -10,13 +10,16 @@ DATA_DIR ?= $(LUME_DATA_DIR)
 endif
 TARGET_DIR ?= $(if $(CARGO_TARGET_DIR),$(CARGO_TARGET_DIR),target)
 BINARY ?= $(TARGET_DIR)/release/lume
+CARGO_ABOUT ?= cargo-about
+CARGO_AUDIT ?= cargo-audit
+REPORT_DIR ?= reports
 MIGRATE_FROM ?=
 
 .PHONY: help paths check check-release check-http check-alacritty fmt format
 .PHONY: lint test bench build run demo clean
 .PHONY: install upgrade test-tools bench-tools bench-notes bench-recommendations
 .PHONY: bench-images bench-interaction bench-code check-image-display check-foot
-.PHONY: check-latency bench-configuration
+.PHONY: check-latency bench-configuration check-licenses check-security licenses package
 
 # Serialize composition even when a caller uses make -j.
 .NOTPARALLEL:
@@ -38,7 +41,10 @@ help:
 		'' \
 		'Checks:' \
 		'  check                 Run all local checks; no services required' \
-		'  check-release         Local checks, real HTTP fixtures and release build' \
+		'  check-release         Local, current security, HTTP and release build' \
+		'  check-security        Current RustSec gate; requires cargo-audit 0.22.2' \
+		'  licenses              Refresh complete notices with cargo-about 0.9.2' \
+		'  package               Verify and package standalone Linux executable' \
 		'  fmt / format          Check / apply Rust formatting' \
 		'  lint                  Run Clippy for every target' \
 		'  test / test-tools     Rust behavior and benchmark checks / Python tests' \
@@ -71,6 +77,7 @@ paths:
 		'Use lume config path for the runtime configuration location.'
 
 check:
+	$(MAKE) check-licenses
 	$(MAKE) fmt
 	$(MAKE) lint
 	$(MAKE) test
@@ -80,7 +87,9 @@ check:
 		tools/bench_support.py tools/bench_recommendations.py tools/bench_images.py \
 		tools/qualify_foot.py tools/foot_terminal.py tools/bench_interaction.py \
 		tools/terminal_latency.py tools/latency_fixture.py tools/qualify_latency.py \
-		tools/bench_code.py tools/bench_configuration.py
+		tools/bench_code.py tools/bench_configuration.py \
+		tools/advisories.py tools/dependency_inventory.py tools/visual_dependencies.py \
+		tools/package_release.py
 
 fmt:
 	$(CARGO) fmt --all -- --check
@@ -102,6 +111,7 @@ test-tools:
 # Real HTTP is an explicit release requirement, never silently skipped.
 check-release:
 	$(MAKE) check
+	$(MAKE) check-security
 	$(MAKE) check-http
 	$(MAKE) build
 
@@ -172,3 +182,18 @@ demo:
 
 clean:
 	$(CARGO) clean --target-dir "$(TARGET_DIR)"
+
+# Verification uses committed evidence and never downloads tools.
+check-licenses:
+	$(PYTHON) tools/dependency_inventory.py
+
+licenses:
+	$(PYTHON) tools/dependency_inventory.py --generate --cargo-about "$(CARGO_ABOUT)"
+
+check-security:
+	mkdir -p "$(REPORT_DIR)"
+	$(PYTHON) tools/advisories.py --cargo-audit "$(CARGO_AUDIT)" \
+		--output "$(REPORT_DIR)/advisories.json"
+
+package: build check-licenses
+	$(PYTHON) tools/package_release.py --binary "$(BINARY)" $(PACKAGE_ARGS)

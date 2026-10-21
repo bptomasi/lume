@@ -5,6 +5,7 @@
 //! selected article identity whenever it still belongs to the current view.
 
 mod annotations;
+mod article_edits;
 mod catalog_worker;
 mod commands;
 mod completion;
@@ -39,9 +40,9 @@ mod passages;
 mod personal_tasks;
 mod picker;
 mod pointer;
-mod read_state;
 mod reader_tools;
 mod reading;
+pub use reading::ReaderIdentity;
 mod reading_data;
 mod recommendations;
 mod recovery;
@@ -224,7 +225,7 @@ pub enum Action {
 
 /// State owned by the UI thread. Drawing reads this without performing I/O.
 pub struct App {
-    configuration_document: Option<crate::config::Update>,
+    configuration: configuration::ConfigurationState,
     /// Independent annotation workspace, suspended while a draft is open.
     pub notebook: Option<Box<Notebook>>,
     notebook_return: Option<Box<Notebook>>,
@@ -334,13 +335,11 @@ pub struct App {
     recovery: recovery::Recovery,
     note_inspector: Option<notebook::inspection::Inspector>,
     suspended_note: Option<Box<Input>>,
-    reading_article: Option<i64>,
     displayed_article: Option<Article>,
     catalog_loading: bool,
     library_revision: u64,
-    read_reconcile_required: bool,
     projecting_navigation: bool,
-    pending_reads: std::collections::BTreeMap<u64, (Vec<i64>, bool)>,
+    article_edits: article_edits::ArticleEdits,
     immediate_layout: bool,
     pending_reflow: bool,
     progress_memory: std::cell::RefCell<session_writer::ProgressMemory>,
@@ -382,11 +381,24 @@ impl App {
     ///
     /// # Errors
     /// Returns storage or content-loading errors.
+    pub fn new(store: Store, demo: bool) -> Result<Self> {
+        Self::initialize(store, demo, true)
+    }
+
+    /// Restore preferences without synchronously counting or rendering articles.
+    /// Call `load_workspace` after enabling background navigation.
+    ///
+    /// # Errors
+    /// Returns preference, catalog metadata or layout decoding failures.
+    pub fn open_interactive(store: Store, demo: bool) -> Result<Self> {
+        Self::initialize(store, demo, false)
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "Keep complete initial state visible together before loading its caches"
     )]
-    pub fn new(store: Store, demo: bool) -> Result<Self> {
+    fn initialize(store: Store, demo: bool, eager: bool) -> Result<Self> {
         let library = store.catalog()?;
         let workspace = store.workspace()?;
         let page_offset = workspace.page_offset;
@@ -397,7 +409,7 @@ impl App {
         };
         let layouts = store.layouts(&workspace)?;
         let mut app = Self {
-            configuration_document: None,
+            configuration: configuration::ConfigurationState::default(),
             notebook: None,
             notebook_return: None,
             store,
@@ -471,13 +483,11 @@ impl App {
             recovery: recovery::Recovery::default(),
             note_inspector: None,
             suspended_note: None,
-            reading_article: None,
             displayed_article: None,
             catalog_loading: false,
             library_revision: 0,
-            read_reconcile_required: false,
             projecting_navigation: false,
-            pending_reads: std::collections::BTreeMap::new(),
+            article_edits: article_edits::ArticleEdits::default(),
             immediate_layout: false,
             pending_reflow: false,
             progress_memory: std::cell::RefCell::default(),
@@ -501,11 +511,19 @@ impl App {
             pane_flight: None,
             pane_neighbors: None,
         };
-        app.rebuild_navigation()?;
-        app.filter()?;
-        if let Some(article) = app.workspace.article {
-            app.restore_article(article)?;
+        if eager {
+            app.rebuild_navigation()?;
+            app.filter()?;
+            if let Some(article) = app.workspace.article {
+                app.restore_article(article)?;
+            }
+        } else {
+            app.install_navigation(navigation::pending_navigation(
+                &app.library,
+                app.workspace.last_visit,
+            ));
         }
+        app.apply_image_preferences();
         app.ensure_visible_focus();
         let drafts = app.store.note_draft_count()?;
         if drafts > 0 {

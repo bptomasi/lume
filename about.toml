@@ -1,0 +1,19 @@
+# Complete runtime and build graph; no blanket copyleft acceptance.
+accepted = [
+    "MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC",
+    "Zlib", "Unicode-3.0", "Unicode-DFS-2016", "CC0-1.0", "BSL-1.0",
+]
+ignore-dev-dependencies = true
+workarounds = ["ring"]
+
+[selectors]
+accepted = ["MPL-2.0"]
+
+[cssparser]
+accepted = ["MPL-2.0"]
+
+[cssparser-macros]
+accepted = ["MPL-2.0"]
+
+[dtoa-short]
+accepted = ["MPL-2.0"]

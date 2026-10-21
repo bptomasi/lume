@@ -27,8 +27,11 @@ pub fn settle_notes(app: &mut lume::app::App) -> Result<()> {
     let deadline =
         std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
+        app.poll_reader();
+        app.poll_navigation()?;
         app.poll_note_workspace()?;
-        if !app.notes_pending()
+        if !app.navigation_loading
+            && !app.notes_pending()
             && !app.notebook_pending()
             && !app.note_inspection_pending()
             && !app.note_catalog_pending()

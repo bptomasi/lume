@@ -221,3 +221,44 @@ fn http_error_and_non_image_content_keep_the_article_and_show_recoverable_errors
     }
     Ok(())
 }
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn decoded_image_limit_applies_after_gzip_and_rejects_invalid_streams()
+-> Result<()> {
+    let exact = include_bytes!("fixtures/http/image-exact.gz");
+    let over = include_bytes!("fixtures/http/image-over.gz");
+    for (body, accepted) in [
+        (exact.as_slice(), true),
+        (over.as_slice(), false),
+        (b"invalid gzip".as_slice(), false),
+    ] {
+        let server = server(
+            200,
+            "Content-Type: image/png\r\nContent-Encoding: gzip\r\n",
+            body,
+        )?;
+        let (directory, mut app) = reading(&server.url)?;
+        let key = app.image_key(&app.images.slots[0]).context("Image key")?;
+        app.poll_images();
+        server.request.recv_timeout(Duration::from_secs(5))?;
+        server.release.send(())?;
+        settle(&mut app)?;
+        assert_eq!(
+            app.images.thumbnail(&key).is_some(),
+            accepted,
+            "{:?}",
+            app.images.error(&key)
+        );
+        assert_eq!(
+            media::cache::read(&directory.path().join("images"), &server.url)?
+                .is_some(),
+            accepted
+        );
+        server
+            .finished
+            .recv_timeout(Duration::from_secs(5))?
+            .map_err(anyhow::Error::msg)?;
+    }
+    Ok(())
+}

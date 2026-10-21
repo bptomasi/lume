@@ -1,5 +1,8 @@
 # Rust build output; Cargo.lock is versioned for this application.
 /target/
+/dist/
+/.venv/
+/reports/
 
 # Local libraries, subscriptions and private development configuration.
 /.local/

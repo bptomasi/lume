@@ -144,3 +144,6 @@ with cached images and 22.174 ms for article switching. This excludes physical
 presentation; it is not a before/after terminal speedup comparison. Native image
 scroll, selection, welcome entry and terminal cleanup also passed. Alacritty was
 not rerun for this revision because xdotool was unavailable.
+
+See the [durability and navigation qualification](performance/audit-remediation.md)
+for dense annotations, startup phases and validated snapshot measurements.

@@ -53,6 +53,56 @@ pub fn to_display(
         .collect()
 }
 
+/// Source interval index for projecting many annotations through one rendering.
+/// Supports overlapping and reordered tokens, including expanded table cells.
+pub struct SourceIndex<'a> {
+    mappings: &'a [SourceMapping],
+    order: Vec<usize>,
+    prefix_end: Vec<usize>,
+}
+
+impl<'a> SourceIndex<'a> {
+    /// Build once per rendering; annotation queries borrow its immutable tokens.
+    pub fn new(mappings: &'a [SourceMapping]) -> Self {
+        let mut order = (0..mappings.len()).collect::<Vec<_>>();
+        order.sort_unstable_by_key(|&index| mappings[index].source.start);
+        let mut maximum = 0;
+        let prefix_end = order
+            .iter()
+            .map(|&index| {
+                maximum = maximum.max(mappings[index].source.end);
+                maximum
+            })
+            .collect();
+        Self {
+            mappings,
+            order,
+            prefix_end,
+        }
+    }
+
+    /// Return intersecting readable fragments in their original display order.
+    pub fn to_display(&self, source: Range<usize>) -> Vec<Range<usize>> {
+        let first = self.prefix_end.partition_point(|&end| end <= source.start);
+        let last = self.order.partition_point(|&index| {
+            self.mappings[index].source.start < source.end
+        });
+        if first >= last {
+            return Vec::new();
+        }
+        let mut hits = self.order[first..last]
+            .iter()
+            .filter_map(|&index| {
+                let mapping = &self.mappings[index];
+                project(&mapping.source, &mapping.display, &source)
+                    .map(|range| (index, range))
+            })
+            .collect::<Vec<_>>();
+        hits.sort_unstable_by_key(|(index, _)| *index);
+        hits.into_iter().map(|(_, range)| range).collect()
+    }
+}
+
 fn project(
     from: &Range<usize>,
     to: &Range<usize>,

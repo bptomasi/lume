@@ -412,3 +412,48 @@ fn read_request(stream: &mut std::net::TcpStream) -> Result<String> {
     }
     Ok(String::from_utf8(request)?)
 }
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn decoded_article_boundaries_cover_gzip_and_preserve_a_good_cache()
+-> Result<()> {
+    let exact = include_bytes!("fixtures/http/article-exact.gz");
+    let over = include_bytes!("fixtures/http/article-over.gz");
+    for (body, accepted) in [
+        (exact.as_slice(), true),
+        (over.as_slice(), false),
+        (b"broken gzip".as_slice(), false),
+    ] {
+        let (directory, mut store, feed) = common::seeded_store()?;
+        let (address, request) = server(
+            200,
+            body,
+            "Content-Type: text/html\r\nContent-Encoding: gzip\r\n",
+        )?;
+        let target = set_article_url(&mut store, &feed, &address)?;
+        store.confirm_article_rule(&RulePreview {
+            target: target.clone(),
+            feed: feed.id,
+            previous: String::new(),
+            selector: "#article".into(),
+            document: ExtractedDocument {
+                final_url: address,
+                body: "Previous successful article".into(),
+            },
+        })?;
+        let result = source::article::fetch_once(
+            &directory.path().join("library.sqlite3"),
+            target.article,
+        );
+        assert_eq!(result.is_ok(), accepted, "{result:?}");
+        let cache = store.cached_document(target.article)?.context("Cache")?;
+        if accepted {
+            assert!(cache.body.contains("Durable writes"));
+        } else {
+            assert_eq!(cache.body, "Previous successful article");
+            assert_eq!(cache.revision, 1);
+        }
+        request.recv_timeout(Duration::from_secs(5))?;
+    }
+    Ok(())
+}

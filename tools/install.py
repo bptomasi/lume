@@ -10,6 +10,7 @@ skip all library discovery, migration and configuration writes.
 import argparse
 from contextlib import closing
 import os
+import shlex
 from pathlib import Path
 import shutil
 import sqlite3
@@ -95,7 +96,9 @@ def install_notices(project, prefix):
     destination = prefix / "share/lume/licenses"
     destination.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(project / "LICENSE", destination / "LICENSE")
-    for scope in ("full-article", "images", "configuration"):
+    for name in ("THIRD_PARTY_LICENSES.txt", "inventory.json"):
+        shutil.copyfile(project / "assets/licenses" / name, destination / name)
+    for scope in ("full-article", "images", "configuration", "sources"):
         shutil.copytree(
             project / "assets/licenses" / scope,
             destination / scope,
@@ -133,6 +136,10 @@ def install(
     print(f"{'Upgraded' if upgrade else 'Installed'} executable: {executable}")
     if not upgrade:
         print(f"Library: {target}")
+    if data_dir != home / ".local/lume":
+        print("Use this library explicitly (the executable keeps portable defaults):")
+        print(f"  {shlex.quote(str(executable))} --data-dir {shlex.quote(str(data_dir))}")
+        print(f"  export LUME_DATA_DIR={shlex.quote(str(data_dir))}")
     if migrated:
         print("Copied the legacy library; its original remains unchanged.")
     return migrated

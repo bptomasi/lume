@@ -18,7 +18,7 @@ pub(crate) use worker::{Completion, Worker};
 
 use ratatui::buffer::Buffer;
 
-/// Maximum compressed bytes for one raster image, including cached files.
+/// Maximum decoded HTTP body bytes for one image, including cached files.
 pub const MAX_BYTES: usize = 8 * 1024 * 1024;
 
 /// Session presentation for prepared inline images and the image inspector.

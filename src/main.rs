@@ -15,7 +15,7 @@ use cli::{Command, execute};
 
 #[derive(Parser)]
 #[command(
-    version,
+    version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("LUME_BUILD_REVISION"), ")"),
     about = "A quiet place for curious minds. Independent RSS/Atom reading."
 )]
 struct Cli {
@@ -40,6 +40,21 @@ struct Cli {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    if let Some(Command::Restore { snapshot, output }) = &cli.command {
+        Store::restore_snapshot(snapshot, output)?;
+        println!(
+            "Restored. Open with --data-dir {} --config {}",
+            output.display(),
+            output.join("config.toml").display()
+        );
+        return Ok(());
+    }
+    if let Some(Command::Backup { output }) = &cli.command {
+        let (_, store) = open_library(&cli)?;
+        store.backup_to(output)?;
+        println!("Snapshot saved: {}", output.display());
+        return Ok(());
+    }
     let config_path = if cli.demo {
         None
     } else {

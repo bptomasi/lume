@@ -188,3 +188,41 @@ network boundaries. Owned Foot and Alacritty windows complement buffer tests;
 protocol acknowledgement is not physical key-to-photon measurement.
 See [development](development.md), [performance](performance.md),
 [configuration](configuration.md) and [dependency policy](dependency-security.md).
+
+## Interactive work and durability
+
+The terminal paints the lighthouse before constructing article projections.
+Interactive construction restores metadata/preferences; separate latest-result
+workers count destinations and load the saved page/document. Migration and
+initial configuration adoption precede the interactive runtime; those phases
+remain explicit startup work. Navigation requests carry captured identities,
+library revisions and optional reader-location/synthesis arrivals. An obsolete
+completion cannot install source text or run the arrival action against a newer
+selection. `ReaderIdentity` combines displayed article/source/revision; storage
+reading snapshots carry their article identity and installation verifies it.
+Rendered parser mappings form the prepared reader projection consumed by UI.
+
+One bounded ordered personal writer owns notes, read/favorite/queue flags,
+trash, tags, folders, memberships and undo. Admission happens before optimistic
+flag presentation. Captured flags overlay older database pages until their
+acknowledgements; failures request an authoritative reconciliation. Folder
+creation/membership commits atomically with one inverse history entry. The
+folder selector stages names until Enter instead of inventing SQLite IDs or
+writing from cursor input. A disconnected writer acknowledges each outstanding
+ticket as uncertain failure; it cannot leave an endless pending indicator.
+
+Appearance/progress use a separate ordered session writer because they do not
+share personal undo. External configuration publication uses a nonblocking
+barrier plus a local-edit guard before replacing cached appearance. Drafts,
+ranking edits, session saves and configuration publication have independently
+attempted shutdown boundaries, including drawing/input/setup errors. Errors are
+aggregated, terminal restoration still runs, and a failed unrelated edit cannot
+suppress dirty-note recovery. Shutdown may wait for admitted durable work;
+ordinary input never waits for the configuration barrier.
+
+Dense note markers build one source interval index per projection, preserving
+original display order even for reordered/overlapping mappings. Exact saved
+anchors are checked first; repeated unresolved quotations share one relocation
+result during annotation reconstruction. Rendering never writes note state.
+These indexes retain domain-specific ambiguity rules; no universal task
+executor, parser or cache framework is introduced.

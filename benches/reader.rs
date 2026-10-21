@@ -9,12 +9,16 @@ use ratatui::{Terminal, backend::TestBackend};
 
 #[path = "workloads/notebook.rs"]
 mod annotation_notebook;
+#[path = "workloads/annotation_projection.rs"]
+mod annotation_projection;
 #[path = "workloads/catalog.rs"]
 mod catalog;
 #[path = "workloads/code_viewport.rs"]
 mod code_viewport;
 #[path = "workloads/configuration.rs"]
 mod configuration;
+#[path = "workloads/dense_annotations.rs"]
+mod dense_annotations;
 #[path = "workloads/expansion.rs"]
 mod expansion;
 #[path = "workloads/feed_content.rs"]
@@ -37,6 +41,8 @@ mod panes;
 mod reading_tools;
 #[path = "workloads/recommendations.rs"]
 mod recommendations;
+#[path = "workloads/recovery_navigation.rs"]
+mod recovery_navigation;
 #[path = "workloads/rich_text.rs"]
 mod rich_text;
 #[path = "workloads/smoothness.rs"]
@@ -89,6 +95,9 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    recovery_navigation::run(iterations, stress)?;
+    annotation_projection::run(iterations, stress)?;
+    dense_annotations::run(iterations, stress)?;
     rich_text::run(iterations, stress)?;
     configuration::run(iterations, stress)?;
     tables::run(iterations, stress)?;
@@ -107,6 +116,9 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--annotation-projection-only", annotation_projection::run),
+    ("--recovery-navigation-only", recovery_navigation::run),
+    ("--dense-annotations-only", dense_annotations::run),
     ("--rich-text-only", rich_text::run),
     ("--configuration-only", configuration::run),
     ("--welcome-only", welcome::run),

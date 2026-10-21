@@ -20,6 +20,7 @@ import sys
 import tempfile
 import time
 
+from visual_dependencies import pillow
 from foot_terminal import relay
 from qualify_alacritty import wait_for, write_json
 
@@ -115,7 +116,7 @@ def reader_frame(directory, geometry):
 
 
 def verify_pixels(directory, initial, cell_height):
-    from PIL import Image
+    Image = pillow()
 
     results = []
     decoded = []
@@ -338,6 +339,7 @@ def newer_plain_frame(directory, after):
 
 
 def launch(binary, directory):
+    pillow()
     for name in ("foot", "convert"):
         if shutil.which(name) is None:
             raise RuntimeError(f"Required qualification tool is missing: {name}")
@@ -384,14 +386,20 @@ def main():
     directory.mkdir(parents=True, exist_ok=True)
     binary = arguments.binary.resolve(strict=True)
     if arguments.terminal_child:
-        return relay(binary, directory)
+        return relay(binary, directory, startup_markers={
+            "welcome_output_ms": b"Press any key to begin",
+            "library_output_ms": b"Inbox",
+            "reader_output_ms": b"Request ownership",
+        })
     if any(directory.iterdir()):
         raise RuntimeError("Use an empty artifact directory for isolation")
     report = launch(binary, directory)
     report.update(
         passed=True, binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
         foot_version=subprocess.check_output(["foot", "--version"], text=True).strip(),
+        lume_version=subprocess.check_output([str(binary), "--version"], text=True).strip(),
     )
+    report["startup_output_milestones"] = json.loads((directory / "startup.json").read_text())
     write_json(directory / "result.json", report)
     print(f"PASS: Foot native Sixel images; evidence: {directory / 'result.json'}")
     return 0

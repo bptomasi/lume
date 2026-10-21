@@ -117,11 +117,7 @@ pub(super) fn fetch_with_selector(
         "Original is not an HTML article; open it in a browser"
     );
     let address = response.get_uri().to_string();
-    let bytes = response
-        .body_mut()
-        .with_config()
-        .limit(MAX_PAGE_BYTES as u64)
-        .read_to_vec()?;
+    let bytes = crate::http_body::read(response.body_mut(), MAX_PAGE_BYTES)?;
     let html = std::str::from_utf8(&bytes)
         .context("Article encoding is not UTF-8; open it in a browser")?;
     extract_with_selector(html, &address, selector)

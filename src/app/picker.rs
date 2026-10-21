@@ -77,6 +77,8 @@ pub enum PickerKind {
         article: i64,
         /// Pending memberships, committed together.
         checked: BTreeSet<i64>,
+        /// New folder names staged locally until confirmation.
+        names: BTreeSet<String>,
     },
     /// Choose a content link.
     Links,
@@ -110,6 +112,8 @@ pub enum ChoiceAction {
     OpenUrl(String),
     /// Toggle captured list membership.
     Membership(i64),
+    /// A staged folder name with no fabricated database identity.
+    NamedMembership(String),
     /// Save exactly one previewed source rule and its captured article cache.
     SaveRule(Box<crate::model::RulePreview>),
     /// Jump to a captured article/source/revision passage.
@@ -267,19 +271,16 @@ impl App {
         let Mode::Picker(picker) = &mut self.mode else {
             return Ok(Action::None);
         };
-        let PickerKind::Lists { checked, .. } = &mut picker.kind else {
+        let PickerKind::Lists { names, .. } = &mut picker.kind else {
             return Ok(Action::None);
         };
-        let name = picker.query.trim();
-        let id = self.store.create_collection(name)?;
-        checked.insert(id);
-        if !picker.candidates.iter().any(|choice| {
-            matches!(choice.action, ChoiceAction::Membership(existing) if existing == id)
-        }) {
+        let name =
+            crate::store::validate_collection_name(&picker.query)?.to_owned();
+        if names.insert(name.clone()) {
             picker.candidates.push(Choice {
-                title: name.to_owned(),
-                detail: "New list · Enter saves selection".into(),
-                action: ChoiceAction::Membership(id),
+                title: name.clone(),
+                detail: "New folder · Enter commits · Esc cancels".into(),
+                action: ChoiceAction::NamedMembership(name),
             });
         }
         picker.query.clear();
@@ -291,16 +292,10 @@ impl App {
         let Mode::Picker(picker) = &self.mode else {
             return Ok(Action::None);
         };
-        if let PickerKind::Lists { article, checked } = &picker.kind {
-            let article = *article;
-            let mut checked = checked.clone();
-            if picker.choices.is_empty() && !picker.query.trim().is_empty() {
-                checked.insert(self.store.create_collection(&picker.query)?);
-            }
-            self.store.set_memberships(article, &checked)?;
+        if let Some(edit) = membership_edit(picker)? {
+            self.submit_library_edit(edit)?;
             self.mode = Mode::Normal;
-            self.reload()?;
-            self.status = "List memberships saved · u undo".into();
+            self.status = "List memberships admitted · u undo".into();
             return Ok(Action::None);
         }
         let Some(action) = picker
@@ -341,7 +336,7 @@ impl App {
                 return Ok(Action::Refresh);
             }
             ChoiceAction::OpenUrl(url) => return Ok(Action::Open(url)),
-            ChoiceAction::Membership(_) => {}
+            ChoiceAction::Membership(_) | ChoiceAction::NamedMembership(_) => {}
             ChoiceAction::Study(action) => self.study_choice(action)?,
             ChoiceAction::SaveRule(preview) => {
                 self.store.confirm_article_rule(&preview)?;
@@ -372,15 +367,48 @@ impl App {
     }
 }
 
+fn membership_edit(
+    picker: &Picker,
+) -> Result<Option<super::personal_tasks::LibraryEdit>> {
+    let PickerKind::Lists {
+        article,
+        checked,
+        names,
+    } = &picker.kind
+    else {
+        return Ok(None);
+    };
+    let mut names = names.clone();
+    if picker.choices.is_empty() && !picker.query.trim().is_empty() {
+        names.insert(
+            crate::store::validate_collection_name(&picker.query)?.into(),
+        );
+    }
+    Ok(Some(super::personal_tasks::LibraryEdit::Memberships {
+        article: *article,
+        folders: checked.clone(),
+        names,
+    }))
+}
+
 fn toggle_checked(picker: &mut Picker) {
-    if let PickerKind::Lists { checked, .. } = &mut picker.kind
-        && let Some(Choice {
-            action: ChoiceAction::Membership(id),
-            ..
-        }) = picker.choices.get(picker.selected)
-        && !checked.remove(id)
+    let PickerKind::Lists { checked, names, .. } = &mut picker.kind else {
+        return;
+    };
+    match picker
+        .choices
+        .get(picker.selected)
+        .map(|choice| &choice.action)
     {
-        checked.insert(*id);
+        Some(ChoiceAction::Membership(id)) => {
+            if !checked.remove(id) {
+                checked.insert(*id);
+            }
+        }
+        Some(ChoiceAction::NamedMembership(name)) if !names.remove(name) => {
+            names.insert(name.clone());
+        }
+        _ => {}
     }
 }
 

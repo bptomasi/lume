@@ -4,10 +4,21 @@ use anyhow::Result;
 
 use super::{Action, App, Mode};
 
+#[derive(Default)]
+pub(super) struct ConfigurationState {
+    document: Option<crate::config::Update>,
+    deferred: Option<Deferred>,
+}
+
+struct Deferred {
+    update: crate::config::Update,
+    barrier: Option<std::sync::mpsc::Receiver<()>>,
+}
+
 impl App {
     /// Cache a successfully reconciled document; drawing never reads its file.
     pub fn configure_document(&mut self, update: crate::config::Update) {
-        self.configuration_document = Some(update);
+        self.configuration.document = Some(update);
     }
 
     /// Whether external definitions can be installed without interrupting edits.
@@ -22,12 +33,62 @@ impl App {
     /// Apply external preferences only if no newer appearance edit intervened.
     ///
     /// # Errors
-    /// Returns explicit session-flush, layout-save or metadata reload failures.
+    /// Returns barrier-admission, layout-save or metadata reload failures.
     pub fn configuration_updated(
         &mut self,
         update: crate::config::Update,
     ) -> Result<()> {
-        let previous = self.configuration_document.as_ref();
+        if self.session_pending() || !self.configuration_idle() {
+            self.configuration.deferred = Some(Deferred {
+                update,
+                barrier: None,
+            });
+            return Ok(());
+        }
+        self.install_configuration(update)
+    }
+
+    pub(super) fn finish_configuration_preferences(&mut self) -> Result<()> {
+        // Called only after the session barrier at shutdown. Local-edit guards
+        // still apply, but an open note must not suppress external preferences.
+        if let Some(deferred) = self.configuration.deferred.take() {
+            self.install_configuration(deferred.update)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn poll_configuration(&mut self) -> Result<bool> {
+        if !self.configuration_idle() {
+            return Ok(false);
+        }
+        let Some(deferred) = &mut self.configuration.deferred else {
+            return Ok(false);
+        };
+        if let Some(writer) = &self.session_writer {
+            if deferred.barrier.is_none() {
+                deferred.barrier = writer.barrier()?;
+            }
+            let Some(barrier) = &deferred.barrier else {
+                return Ok(false);
+            };
+            match barrier.try_recv() {
+                Ok(()) => {}
+                Err(std::sync::mpsc::TryRecvError::Empty) => return Ok(false),
+                Err(error) => return Err(error.into()),
+            }
+            anyhow::ensure!(!writer.failed(), "Session writes failed");
+        }
+        if let Some(deferred) = self.configuration.deferred.take() {
+            self.install_configuration(deferred.update)?;
+        }
+        Ok(true)
+    }
+
+    fn install_configuration(
+        &mut self,
+        update: crate::config::Update,
+    ) -> Result<()> {
+        let previous = self.configuration.document.as_ref();
         let current = crate::config::Ui::capture(&self.workspace);
         let appearance = current != update.ui
             && previous.is_none_or(|previous| previous.ui == current);
@@ -39,9 +100,9 @@ impl App {
             previous.catalog_fingerprint != update.catalog_fingerprint
         });
         if appearance || profiles {
-            self.flush_session()?;
             if appearance {
                 update.ui.apply(&mut self.workspace);
+                self.apply_image_preferences();
             }
             if profiles {
                 self.layouts.profiles = update.workspaces.clone();
@@ -62,7 +123,7 @@ impl App {
     ) -> Result<Option<Action>> {
         match verb {
             "config" => {
-                let Some(config) = &self.configuration_document else {
+                let Some(config) = &self.configuration.document else {
                     anyhow::bail!(
                         "No configuration file in this session; demo mode is isolated"
                     );

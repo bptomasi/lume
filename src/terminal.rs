@@ -40,41 +40,103 @@ pub(super) fn run(
             "Open Lume in an interactive terminal; use --help for CLI commands"
         );
     }
-    let mut app = App::new(store, demo)?;
+    let mut terminal = TerminalSession::start()?;
+    let workspace = store.workspace()?;
+    terminal
+        .terminal
+        .draw(|frame| ui::draw_welcome(frame, &workspace.theme))?;
+    let mut app = App::open_interactive(store, demo)?;
     if let Some(session) = &configuration {
         app.configure_document(session.initial().clone());
     }
-    app.enable_background_navigation(&path)?;
-    images::start(&mut app, &path, offline || demo);
-    let mut background = Background::start(
-        path,
-        !demo && !offline,
-        configuration
-            .as_ref()
-            .map(lume::config::Session::start)
-            .transpose()?,
-    )?;
-    if !offline && !app.library.feeds.is_empty() {
-        background.refresh(&mut app);
-    }
-    let mut guard = TerminalGuard {
-        keyboard: false,
-        mouse: input::MouseCapture::default(),
+    run_session(&mut app, path, demo, offline, configuration, &mut terminal)
+}
+
+fn run_session(
+    app: &mut App,
+    path: PathBuf,
+    demo: bool,
+    offline: bool,
+    configuration: Option<lume::config::Session>,
+    terminal: &mut TerminalSession,
+) -> Result<()> {
+    let mut background = None;
+    let result = (|| {
+        app.enable_background_navigation(&path)?;
+        app.load_workspace();
+        images::start(app, &path, offline || demo);
+        let worker = Background::start(
+            path,
+            !demo && !offline,
+            configuration
+                .as_ref()
+                .map(lume::config::Session::start)
+                .transpose()?,
+        )?;
+        let worker = background.insert(worker);
+        if !offline && !app.library.feeds.is_empty() {
+            worker.refresh(app);
+        }
+        run_terminal(app, worker, terminal)
+    })();
+    finalize_runtime(app, result, background.as_mut(), configuration.as_ref())
+}
+
+fn finalize_runtime(
+    app: &mut App,
+    result: Result<()>,
+    background: Option<&mut Background>,
+    configuration: Option<&lume::config::Session>,
+) -> Result<()> {
+    let saved = app.end_session();
+    let published = match background {
+        Some(background) => background.finish_configuration(),
+        None => configuration.map_or(Ok(()), lume::config::Session::flush),
     };
-    let mut terminal =
-        ratatui::try_init().context("Could not initialize terminal")?;
+    finish_session([result, saved, published])
+}
+
+fn finish_session(results: [Result<()>; 3]) -> Result<()> {
+    let failures = results
+        .into_iter()
+        .filter_map(Result::err)
+        .map(|error| format!("{error:#}"))
+        .collect::<Vec<_>>();
+    anyhow::ensure!(failures.is_empty(), "{}", failures.join("; "));
+    Ok(())
+}
+
+struct TerminalSession {
+    terminal: ratatui::DefaultTerminal,
+    guard: TerminalGuard,
+}
+
+impl TerminalSession {
+    fn start() -> Result<Self> {
+        let guard = TerminalGuard {
+            keyboard: false,
+            mouse: input::MouseCapture::default(),
+        };
+        let terminal =
+            ratatui::try_init().context("Could not initialize terminal")?;
+        Ok(Self { terminal, guard })
+    }
+}
+
+fn run_terminal(
+    app: &mut App,
+    background: &mut Background,
+    session: &mut TerminalSession,
+) -> Result<()> {
     if matches!(
         crossterm::terminal::supports_keyboard_enhancement(),
         Ok(true)
     ) {
         input::enable_keyboard()?;
-        guard.keyboard = true;
+        session.guard.keyboard = true;
     }
     execute!(io::stdout(), EnableBracketedPaste, EnableFocusChange)?;
-    let result =
-        event_loop(&mut terminal, &mut app, &mut background, &mut guard);
-    let published = background.finish_configuration();
-    result.and(published)
+    event_loop(&mut session.terminal, app, background, &mut session.guard)
 }
 
 fn event_loop(
@@ -114,7 +176,7 @@ fn event_loop(
             InputOutcome::Idle => {}
         }
     }
-    app.end_session()
+    Ok(())
 }
 
 enum InputOutcome {
@@ -344,4 +406,49 @@ fn edit_external(
         Err(error) => app.status = format!("{error:#}"),
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod durability_tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn drawing_and_input_failures_still_drain_personal_writes_and_recovery()
+    -> Result<()> {
+        for failure in ["injected draw failure", "injected input failure"] {
+            let directory = tempfile::tempdir()?;
+            let path = directory.path().join("library.sqlite3");
+            let mut store = Store::open(&path)?;
+            lume::demo::seed(&mut store)?;
+            let mut app = App::new(store, false)?;
+            let article = app.current().context("Demo article")?;
+            let id = article.id;
+            let favorite = !article.starred;
+            app.enable_background_navigation(&path)?;
+            app.key(KeyEvent::new(KeyCode::Char('f'), KeyModifiers::NONE))?;
+            app.focus = lume::app::Focus::Reader;
+            app.key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE))?;
+            app.paste("Survive terminal I/O failure")?;
+
+            let result = finalize_runtime(
+                &mut app,
+                Err(anyhow::anyhow!(failure)),
+                None,
+                None,
+            );
+
+            assert!(
+                result
+                    .err()
+                    .context("Expected runtime failure")?
+                    .to_string()
+                    .contains(failure)
+            );
+            let store = Store::open(&path)?;
+            assert_eq!(store.article(id)?.starred, favorite);
+            assert_eq!(store.note_draft_count()?, 1);
+        }
+        Ok(())
+    }
 }

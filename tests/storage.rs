@@ -151,3 +151,46 @@ fn new_libraries_use_private_permissions() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn foreign_databases_are_rejected_without_changing_their_bytes() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    for (version, application) in [(0, 0), (1, 0), (0, 42)] {
+        let path = directory
+            .path()
+            .join(format!("foreign-{version}-{application}.db"));
+        let database = rusqlite::Connection::open(&path)?;
+        database.execute_batch("CREATE TABLE unrelated (value TEXT);")?;
+        database.pragma_update(None, "user_version", version)?;
+        database.pragma_update(None, "application_id", application)?;
+        drop(database);
+        let before = std::fs::read(&path)?;
+
+        assert!(Store::open(&path).is_err());
+
+        assert_eq!(std::fs::read(&path)?, before);
+        assert!(!path.with_extension("db-wal").exists());
+        assert!(!path.with_extension("db-shm").exists());
+    }
+    Ok(())
+}
+
+#[test]
+fn legacy_libraries_gain_an_identifier_without_losing_articles() -> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let before = store.library()?.articles;
+    drop(store);
+    let path = directory.path().join("library.sqlite3");
+    let database = rusqlite::Connection::open(&path)?;
+    database.pragma_update(None, "application_id", 0)?;
+    drop(database);
+
+    let store = Store::open(&path)?;
+
+    assert_eq!(store.library()?.articles[0].id, before[0].id);
+    let database = rusqlite::Connection::open(&path)?;
+    let application: i64 =
+        database.query_row("PRAGMA application_id", [], |row| row.get(0))?;
+    assert_eq!(application, 0x4c55_4d45);
+    Ok(())
+}

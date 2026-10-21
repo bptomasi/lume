@@ -23,16 +23,14 @@ pub(super) struct NoteMarks {
 impl App {
     pub(super) fn rebuild_note_marks(&mut self, rendered: &Rendered) {
         self.note_marks = NoteMarks::default();
+        let source = reader::SourceIndex::new(&rendered.mappings);
         for entry in &self.annotations {
             let AnnotationPosition::Located { anchor, .. } = entry.position
             else {
                 continue;
             };
             let note = &self.comments[entry.comment_index];
-            let ranges = reader::to_display(
-                &rendered.mappings,
-                anchor..anchor + note.quote.len(),
-            );
+            let ranges = source.to_display(anchor..anchor + note.quote.len());
             if let Some(first) = ranges.first() {
                 let row = rendered
                     .text_ranges

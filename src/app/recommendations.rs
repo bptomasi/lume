@@ -27,6 +27,24 @@ pub(super) enum Edit {
     Feedback(i64, Option<RecommendationFeedback>),
 }
 
+impl Edit {
+    fn validate(&self) -> Result<()> {
+        let mut profile = RecommendationProfile::default();
+        match self {
+            Self::Interest(interest) => {
+                profile.interests.push(interest.clone())
+            }
+            Self::Exclude(query) => profile.exclude = query.clone(),
+            Self::Minutes(minutes) => profile.minutes = *minutes,
+            Self::Source(id, weight) => {
+                profile.sources.insert(*id, *weight);
+            }
+            _ => return Ok(()),
+        }
+        crate::recommendation::validate_profile(&profile)
+    }
+}
+
 pub(super) struct Recommendations {
     worker: worker::Worker,
     next_check: Instant,
@@ -156,6 +174,7 @@ impl App {
     }
 
     fn edit_recommendations(&mut self, edit: Edit) -> Result<()> {
+        edit.validate()?;
         let query = self.recommendation_query();
         if let Some(state) = &mut self.recommendations {
             state.worker.submit(Some(edit), query)?;

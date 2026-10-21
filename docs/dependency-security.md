@@ -22,9 +22,8 @@ distributing. This exception does not extend to unrelated copyleft additions.
 
 Applicable notices are retained under `assets/licenses/full-article`,
 `assets/licenses/images`, `assets/licenses/configuration` and `assets/syntax`.
-Each notice inventory identifies its scope; none is a claim of a completed
-whole-project legal or advisory audit. Release preparation includes a current
-advisory and license inventory review. No external security audit is claimed.
+Integration inventories retain their original scope; the complete locked
+graph inventory and current advisory gate are described below. No external security audit is claimed.
 
 Our Rust code forbids unsafe. Native and transitive dependencies still require
 review. Types and a third-party library do not supply missing domain authority,
@@ -36,7 +35,7 @@ local files, a shell command or executable configuration.
 | Capability | Selection | Responsibility and limits |
 | --- | --- | --- |
 | Terminal | Ratatui 0.29.0, Crossterm 0.28.1, tui-textarea 0.7.0 | Qualified compatible pair/editor. Library-owned event parsing, cached buffer rendering and bounded drafts; no custom terminal parser. |
-| Feed and transport | feed-rs 3.0.0, ureq 3.4.2, Rustls 0.23.45, native-certs 0.8.4 | Multi-format decoding, bounded requests, redirects and verified OS trust. Offline policy and resource limits remain in Lume. |
+| Feed and transport | feed-rs 3.0.0, ureq 3.4.2, Rustls 0.23.46, native-certs 0.8.4 | Multi-format decoding, bounded requests, redirects and verified OS trust. Offline policy and resource limits remain in Lume. |
 | SQLite | rusqlite 0.32.1 with bundled SQLite, Refinery 0.8.16 | Real transactions, WAL/FTS5 and immutable checksum-verified migrations; no external database. |
 | Extraction | dom_smoothie 0.18.2, dom_query 0.28.0 | Readability and CSS parsing, with explicit ambiguous/short/obstructed extraction handling. Qualified MPL scope applies. |
 | Rich text | html5gum 0.8.3, pulldown-cmark 0.13.0, Syntect 5.3.0, textwrap 0.16.4 | Bounded HTML normalization, Markdown structure and source offsets, reviewed text grammars and Unicode wrapping. |
@@ -135,3 +134,62 @@ Sources: [toml_edit API](https://docs.rs/toml_edit/0.25.15+spec-1.1.0/toml_edit/
 [Foot](https://codeberg.org/dnkl/foot),
 [Syntect](https://github.com/trishume/syntect),
 [Pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark).
+
+## Distribution inventory and advisory gate
+
+`about.toml` qualifies cargo-about **0.9.2** (MIT OR Apache-2.0), maintained by
+Embark's multi-contributor tooling project, for SPDX resolution and collection
+of actual license texts. It is development tooling, not a runtime dependency.
+`make licenses` refreshes the complete active runtime/build graph under
+`assets/licenses`, records feature-inactive lock entries separately and retains
+exact MPL crate archives verified against Cargo.lock checksums. The installer
+and release package include this evidence and the separate grammar notices.
+`make check-licenses` verifies the committed inventory without network access.
+Do not replace this tool with a hand-written SPDX expression parser.
+
+`make check-security` uses RustSec's **cargo-audit 0.22.2**, with its current
+advisory database, and records database revision, UTC date and lock fingerprint.
+It fails on every reported vulnerability and every new or changed informational
+warning. `tools/advisory-reviews.toml` contains expiring, checksum-specific
+reviews; obsolete exceptions also fail. RustSec and cargo-about are established,
+independently maintained tools with public issue/security histories and pinned
+APIs. Install/update them deliberately; ordinary checks never bootstrap tools.
+
+The 2026-10-21 qualification updates Rustls to **0.23.46** and WebPKI to
+**0.103.16**, addressing RUSTSEC-2026-0346 through 0349 and 0382. Features remain
+restricted to ring/std/TLS1.2 without Brotli or custom session stores. These
+are compatible patch releases with the same license and transport API;
+real plain/gzip HTTP failure and cache tests qualify integration. No vulnerability
+allow-list is used. Informational reviews currently cover:
+
+| Dependency | Reachability and disposition |
+| --- | --- |
+| lru 0.12.5 via Ratatui 0.29 | Ratatui's layout cache calls get_or_insert/resize, not the affected iter_mut/pop APIs; Rect/Layout keys have no panicking Drop. Preserve this call-site evidence when upgrading the terminal stack. |
+| bincode 1.3.3 via Syntect | Unmaintained; only trusted build-generated syntax objects are decoded. Publisher bytes cannot choose serialized syntax input. |
+| yaml-rust 0.4.5 via Syntect | Unmaintained; reviewed bundled grammars are compiled at build time. Publisher content cannot load YAML grammars. |
+| paste 1.0.15 via Ratatui | Unmaintained compile-time macro dependency. Track replacement with the compatible terminal/editor stack. |
+
+This disposition does not make an affected library sound for arbitrary use.
+A feature, consumer, version or checksum change requires renewed review.
+Sources: [RustSec](https://github.com/rustsec/rustsec),
+[cargo-about](https://embarkstudios.github.io/cargo-about/),
+[Rustls patch release](https://github.com/rustls/rustls/releases/tag/v/0.23.46),
+[WebPKI fix](https://github.com/rustls/webpki/pull/546),
+[Ratatui layout cache](https://github.com/ratatui/ratatui/blob/v0.29.0/src/layout/layout.rs).
+
+Article and image downloads use the same decoded HTTP byte reader as feeds;
+limits remain 2 MiB for pages and 8 MiB for images. SVG additionally caps its
+XML input at 512 KiB. Gzip never raises those limits. Failures cannot publish
+partial cache entries or replace the last good extracted document.
+
+The SQLite online backup API is enabled on the existing pinned rusqlite
+**0.32.1** dependency. This adds no library to the runtime graph. SQLite owns
+snapshot consistency; Lume owns deadline, private permissions, identity checks,
+non-overwrite publication and isolated restore validation. See
+[SQLite's backup contract](https://sqlite.org/backup.html).
+
+Pillow **13.0.0** is pinned in `tools/requirements-visual.txt` for optional visual
+qualification only. The mature multi-maintainer Pillow project supplies pixel
+inspection, under its permissive HPND-derived terms. It processes controlled
+qualification fixtures and captured cells, not runtime publisher images.
+It is installed in a development virtualenv and is not bundled in Lume.

@@ -291,11 +291,25 @@ impl App {
             .is_none_or(|article| article.id != target.article)
             || self.view == super::View::Annotated
         {
+            if self.navigation_worker.is_some() {
+                self.workspace.content_source = target.source;
+                self.jump_article(target.article)?;
+                return self.on_navigation_arrival(
+                    super::navigation_worker::Arrival::Reader(target),
+                );
+            }
             self.jump_article(target.article)?;
         }
         self.save_reading_position()?;
         self.workspace.content_source = target.source;
         self.load_current()?;
+        self.apply_reader_location(target)
+    }
+
+    pub(super) fn apply_reader_location(
+        &mut self,
+        target: ReaderLocation,
+    ) -> Result<()> {
         ensure!(
             self.content_source == target.source,
             "Requested source is unavailable; original quote remains saved"

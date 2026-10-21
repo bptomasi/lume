@@ -32,29 +32,65 @@ impl Store {
     /// # Errors
     /// Returns invalid name or SQLite errors.
     pub fn create_collection(&self, name: &str) -> Result<i64> {
-        let name = super::annotations::collection_name(name)?;
+        self.save_collection(name, None)
+    }
+
+    /// Create a folder and optionally add one article in the same undo action.
+    ///
+    /// # Errors
+    /// Returns invalid names, missing articles or SQLite transaction failures.
+    pub fn save_collection(
+        &self,
+        name: &str,
+        article: Option<i64>,
+    ) -> Result<i64> {
         let transaction = self.write_transaction()?;
-        let existing = transaction
-            .query_row(
-                "SELECT id FROM collections WHERE name = ?1",
-                [name],
-                |row| row.get::<_, i64>(0),
-            )
-            .optional()?;
-        if let Some(id) = existing {
+        let (id, mut undo) = collection(&transaction, name)?;
+        if let Some(article) = article {
+            undo.push(membership_snapshot(&transaction, article)?);
             transaction.execute(
-                "UPDATE collections SET enabled = 1 WHERE id = ?1",
-                [id],
+                include_str!("sql/insert_list_member.sql"),
+                (id, article),
             )?;
-            transaction.commit()?;
-            return Ok(id);
         }
-        transaction
-            .execute("INSERT INTO collections (name) VALUES (?1)", [name])?;
-        let id = transaction.last_insert_rowid();
-        history::record(&transaction, &Undo::DeleteCollection(id))?;
+        if !undo.is_empty() {
+            history::record(&transaction, &Undo::Batch(undo))?;
+        }
         transaction.commit()?;
         Ok(id)
+    }
+
+    /// Replace captured memberships and create named folders as one transaction.
+    ///
+    /// # Errors
+    /// Returns invalid names/owners or SQLite errors without partial changes.
+    pub fn set_named_memberships(
+        &self,
+        article: i64,
+        folders: &BTreeSet<i64>,
+        names: &BTreeSet<String>,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            folders.len() + names.len() <= 1000,
+            "At most 1,000 folders"
+        );
+        let transaction = self.write_transaction()?;
+        let mut lists = folders.clone();
+        let mut undo = Vec::new();
+        for name in names {
+            let (id, created) = collection(&transaction, name)?;
+            lists.insert(id);
+            undo.extend(created);
+        }
+        undo.push(membership_snapshot(&transaction, article)?);
+        replace_memberships(
+            &transaction,
+            article,
+            &lists.into_iter().collect::<Vec<_>>(),
+        )?;
+        history::record(&transaction, &Undo::Batch(undo))?;
+        transaction.commit()?;
+        Ok(())
     }
 
     /// Rename a list, preserving membership and recording its previous state.
@@ -146,13 +182,45 @@ fn record_memberships(
     transaction: &Transaction<'_>,
     article: i64,
 ) -> Result<()> {
+    history::record(transaction, &membership_snapshot(transaction, article)?)
+}
+
+fn membership_snapshot(
+    transaction: &Transaction<'_>,
+    article: i64,
+) -> Result<Undo> {
     let lists = transaction
         .prepare_cached(
             "SELECT collection_id FROM members WHERE article_id = ?1",
         )?
         .query_map([article], |row| row.get(0))?
         .collect::<rusqlite::Result<_>>()?;
-    history::record(transaction, &Undo::Memberships { article, lists })
+    Ok(Undo::Memberships { article, lists })
+}
+
+fn collection(
+    transaction: &Transaction<'_>,
+    name: &str,
+) -> Result<(i64, Vec<Undo>)> {
+    let name = super::annotations::collection_name(name)?;
+    let existing = transaction
+        .query_row(
+            "SELECT id FROM collections WHERE name = ?1",
+            [name],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?;
+    if let Some(id) = existing {
+        transaction.execute(
+            "UPDATE collections SET enabled = 1 WHERE id = ?1",
+            [id],
+        )?;
+        return Ok((id, Vec::new()));
+    }
+    transaction
+        .execute("INSERT INTO collections (name) VALUES (?1)", [name])?;
+    let id = transaction.last_insert_rowid();
+    Ok((id, vec![Undo::DeleteCollection(id)]))
 }
 
 pub(super) fn replace_memberships(

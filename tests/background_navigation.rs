@@ -134,6 +134,7 @@ fn explicit_source_jumps_cancel_stale_reads_and_keep_source_bound_tools()
     )?;
     app.set_view(View::Starred)?;
     app.jump_article(article.id)?;
+    settle(&mut app)?;
     command(&mut app, "content feed")?;
     assert_eq!(app.content_source, lume::model::ContentSource::Feed);
     command(&mut app, "content full")?;

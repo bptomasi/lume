@@ -72,3 +72,34 @@ class TerminalLatencyTests(unittest.TestCase):
         self.request()
         with self.assertRaisesRegex(RuntimeError, "sequential"):
             self.request()
+
+
+class StartupTests(unittest.TestCase):
+    def test_split_markers_report_milliseconds_once_and_bound_retained_bytes(self):
+        from tools.terminal_latency import Startup
+        with tempfile.TemporaryDirectory() as temporary:
+            values = iter([1_000_000, 3_000_000])
+            startup = Startup(Path(temporary), {"welcome": b"ready"}, clock=lambda: next(values))
+            startup.output(b"x" * 10000 + b"rea")
+            startup.output(b"dy")
+            startup.output(b"ready again")
+            self.assertEqual(startup.observed, {"welcome": 2.0})
+            self.assertLessEqual(len(startup.tail), 5)
+
+
+class GeometryTests(unittest.TestCase):
+    def test_initial_geometry_waits_for_pixels_instead_of_accepting_80_by_24(self):
+        import struct
+        import sys
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        dependencies = {"qualify_alacritty": module("qualify_alacritty")}
+        with patch.dict(sys.modules, dependencies):
+            relay = module("foot_terminal")
+        provisional = struct.pack("HHHH", 24, 80, 0, 0)
+        ready = struct.pack("HHHH", 40, 120, 1200, 800)
+        with patch.object(relay.fcntl, "ioctl", side_effect=[provisional, ready]):
+            with patch.object(relay.sys, "stdin", SimpleNamespace(fileno=lambda: 0)):
+                with patch.object(relay.time, "sleep") as pause:
+                    self.assertEqual(relay.initial_geometry(), ready)
+                    pause.assert_called_once_with(0.01)

@@ -8,11 +8,13 @@ use anyhow::{Result, ensure};
 use refinery::{Migration, Runner};
 use rusqlite::{Connection, OptionalExtension, Transaction};
 
+pub(super) const LATEST_SCHEMA_VERSION: i64 = 12;
+
 pub(super) fn run(connection: &mut Connection) -> Result<()> {
     let version: i64 =
         connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
     ensure!(
-        version <= 11,
+        version <= LATEST_SCHEMA_VERSION,
         "Unsupported library schema {version}; use a newer Lume"
     );
     if version == 0 {
@@ -133,6 +135,12 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "V11__persist_declarative_configuration",
         include_str!(
             "sql/migrations/V11__persist_declarative_configuration.sql"
+        ),
+    ),
+    (
+        "V12__watch_source_and_image_preferences",
+        include_str!(
+            "sql/migrations/V12__watch_source_and_image_preferences.sql"
         ),
     ),
 ];

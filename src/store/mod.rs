@@ -6,6 +6,7 @@
 //! ingest cannot make a later 304 conceal missing content. No pruning runs.
 
 mod annotations;
+mod backup;
 mod collections;
 mod comments;
 mod configuration;
@@ -14,6 +15,7 @@ mod documents;
 mod export;
 mod extraction;
 mod history;
+mod identity;
 mod ingest;
 mod layouts;
 mod migrations;
@@ -107,11 +109,13 @@ impl Store {
         prepare_path(path)?;
         let mut connection = Connection::open(path)
             .context("Could not open the local library")?;
+        identity::verify(&connection)?;
         connection.busy_timeout(Duration::from_millis(500))?;
         connection.pragma_update(None, "foreign_keys", true)?;
         connection.pragma_update(None, "journal_mode", "WAL")?;
         migrations::run(&mut connection)?;
         migrations::backfill_reading_metadata(&mut connection)?;
+        identity::claim(&connection)?;
         Ok(Self { connection })
     }
 

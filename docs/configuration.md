@@ -46,6 +46,7 @@ id = "journal"
 url = "https://journal.example/feed"
 enabled = true
 selector = ""
+fetch_policy = "missing"
 priority = 0
 
 [[folders]]
@@ -223,3 +224,24 @@ limitations, including dotted-key order and final newlines. Lume serializes
 its own writers with advisory locks and checks for external edits before atomic
 replacement; external editors need not honor those locks, so a final OS-level
 comparison/rename race remains possible.
+
+## Extraction and images
+
+`feeds.fetch_policy` accepts `missing` (default: fetch reference-only entries),
+`always` (fetch uncached full articles on opening) or `manual` (explicit fetch
+only). `:fetch-policy` changes the same declarative definition. Existing TOML
+without the field retains the default. Failed extraction retains the last good
+cache; changing policy never deletes articles or notes.
+
+```toml
+[ui.images]
+enabled = false
+protocol = "auto"
+```
+
+Image preferences persist across sessions. `:images on/off` changes `enabled`;
+`:image-protocol auto|blocks|sixel|iterm2` changes the protocol preference.
+`auto` conservatively detects the current terminal, independently per session.
+Loading off prevents new automatic image work; already cached previews may
+remain visible, and explicitly opening an image is a user action. Offline mode
+separately prevents network access. See the [support matrix](development.md#terminal-support).

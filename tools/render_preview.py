@@ -4,7 +4,10 @@ import argparse
 import json
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from visual_dependencies import pillow
+
+Image = pillow()
+from PIL import ImageDraw, ImageFont
 
 
 def render(source: Path, destination: Path) -> None:

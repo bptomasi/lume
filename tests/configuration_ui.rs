@@ -112,3 +112,86 @@ fn key(app: &mut App, code: KeyCode) -> Result<()> {
     app.key(KeyEvent::new(code, KeyModifiers::NONE))?;
     Ok(())
 }
+
+#[test]
+fn image_preferences_survive_publication_and_reopening() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let database = directory.path().join("library.sqlite3");
+    let store = Store::open(&database)?;
+    let path = directory.path().join("config.toml");
+    let session = Session::open(&store, &path)?;
+    let mut app = App::new(store, false)?;
+    app.configure_document(session.initial().clone());
+    command(&mut app, "images off")?;
+    command(&mut app, "image-protocol sixel")?;
+    app.end_session()?;
+    session.flush()?;
+
+    let config = config::read_document(&path)?;
+    assert!(!config.ui.images.enabled);
+    assert_eq!(
+        config.ui.images.protocol,
+        lume::model::ImagePreference::Sixel
+    );
+    let reopened = App::new(Store::open(&database)?, false)?;
+    assert!(!reopened.images.enabled);
+    assert_eq!(reopened.workspace.images, config.ui.images);
+    Ok(())
+}
+
+#[test]
+fn source_fetch_policy_round_trips_declaratively() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let database = directory.path().join("library.sqlite3");
+    let store = Store::open(&database)?;
+    let feed = store.subscribe("https://journal.example/feed")?;
+    let path = directory.path().join("config.toml");
+    let session = Session::open(&store, &path)?;
+    store.set_fetch_policy(feed, lume::model::FetchPolicy::Manual)?;
+    session.flush()?;
+    assert_eq!(
+        config::read_document(&path)?.feeds[0].fetch_policy,
+        lume::model::FetchPolicy::Manual
+    );
+    let text = fs::read_to_string(&path)?.replace("manual", "always");
+    fs::write(&path, text)?;
+    Session::open(&store, &path)?;
+    assert_eq!(store.fetch_policy(feed)?, lume::model::FetchPolicy::Always);
+    Ok(())
+}
+
+#[test]
+fn external_preferences_wait_for_a_polled_barrier_without_blocking_input()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let database = directory.path().join("library.sqlite3");
+    let store = Store::open(&database)?;
+    let session = Session::open(&store, &directory.path().join("config.toml"))?;
+    let mut update = session.initial().clone();
+    update.ui.theme = "nord".into();
+    let mut app = App::new(store, false)?;
+    app.configure_document(session.initial().clone());
+    app.enable_background_navigation(&database)?;
+    let blocker = rusqlite::Connection::open(&database)?;
+    blocker.execute_batch("BEGIN IMMEDIATE")?;
+    app.save_session()?;
+
+    let started = std::time::Instant::now();
+    app.configuration_updated(update)?;
+
+    assert!(started.elapsed() < std::time::Duration::from_millis(250));
+    assert_eq!(app.workspace.theme, "lume");
+    blocker.execute_batch("ROLLBACK")?;
+    let deadline =
+        std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while app.workspace.theme != "nord" {
+        anyhow::ensure!(
+            std::time::Instant::now() < deadline,
+            "Configuration barrier timed out"
+        );
+        app.poll_navigation()?;
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    app.end_session()?;
+    Ok(())
+}

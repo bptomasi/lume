@@ -45,20 +45,11 @@ fn choices(frame: &mut Frame<'_>, picker: &Picker, area: Rect) {
         .skip(first)
         .take(capacity)
         .map(|(index, choice)| {
-            let marker = match (&picker.kind, &choice.action) {
-                (
-                    PickerKind::Lists { checked, .. },
-                    ChoiceAction::Membership(id),
-                ) => {
-                    if checked.contains(id) {
-                        " ☑ "
-                    } else {
-                        " ☐ "
-                    }
-                }
-                _ if index == picker.selected => " › ",
-                _ => "   ",
-            };
+            let marker = choice_marker(
+                &picker.kind,
+                &choice.action,
+                index == picker.selected,
+            );
             let style = if index == picker.selected {
                 Style::new().fg(AMBER).bg(RAISED)
             } else {
@@ -68,6 +59,34 @@ fn choices(frame: &mut Frame<'_>, picker: &Picker, area: Rect) {
         })
         .collect::<Vec<_>>();
     frame.render_widget(Paragraph::new(lines), area);
+}
+
+fn choice_marker(
+    kind: &PickerKind,
+    action: &ChoiceAction,
+    selected: bool,
+) -> &'static str {
+    match (kind, action) {
+        (PickerKind::Lists { checked, .. }, ChoiceAction::Membership(id)) => {
+            if checked.contains(id) {
+                " ☑ "
+            } else {
+                " ☐ "
+            }
+        }
+        (
+            PickerKind::Lists { names, .. },
+            ChoiceAction::NamedMembership(name),
+        ) => {
+            if names.contains(name) {
+                " ☑ "
+            } else {
+                " ☐ "
+            }
+        }
+        _ if selected => " › ",
+        _ => "   ",
+    }
 }
 
 pub(super) fn smart(frame: &mut Frame<'_>, form: &SmartForm) {

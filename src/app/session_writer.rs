@@ -172,6 +172,17 @@ impl SessionWriter {
         self.failures.load(Ordering::Acquire) != 0
     }
 
+    pub(super) fn barrier(&self) -> Result<Option<mpsc::Receiver<()>>> {
+        let (done, completion) = mpsc::sync_channel(1);
+        match self.requests.try_send(Write::Flush(done)) {
+            Ok(()) => Ok(Some(completion)),
+            Err(mpsc::TrySendError::Full(_)) => Ok(None),
+            Err(mpsc::TrySendError::Disconnected(_)) => {
+                Err(anyhow!("Session writer stopped"))
+            }
+        }
+    }
+
     pub(super) fn flush(&self) -> Result<()> {
         let deadline = Instant::now() + Duration::from_secs(5);
         let (done, completion) = mpsc::sync_channel(1);
