@@ -1,0 +1,119 @@
+{
+  "measured_at": "2026-10-21T12:52:36.935872+00:00",
+  "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "release",
+  "binary_sha256": "2899ea29474bbaacdd35363f3945c2858f8f55082c55a9e5cd2c1173d94e0b34",
+  "scope": "Owned full-content RSS archives. Each timed iteration parses and normalizes the entire document, then independently checks source title, every article identity, title and complete body. Setup is outside the timer; process resources include setup. Three processes per workload, 40 iterations each. No speedup comparison or terminal latency claim.",
+  "command": "cargo bench --locked --bench reader -- --archive-feeds-only [--stress]",
+  "runs": [
+    {
+      "stress": false,
+      "trial": 1,
+      "entries": 200,
+      "bytes": 5253056,
+      "operation": "archive RSS decode + normalization",
+      "iterations": 40,
+      "total_ms": 2938.938,
+      "mean_ms": 73.473,
+      "resources": {
+        "wall_seconds": 2.94,
+        "peak_rss_kib": 29148,
+        "user_seconds": 2.92,
+        "system_seconds": 0.02,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": false,
+      "trial": 2,
+      "entries": 200,
+      "bytes": 5253056,
+      "operation": "archive RSS decode + normalization",
+      "iterations": 40,
+      "total_ms": 2853.412,
+      "mean_ms": 71.335,
+      "resources": {
+        "wall_seconds": 2.86,
+        "peak_rss_kib": 27076,
+        "user_seconds": 2.84,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": false,
+      "trial": 3,
+      "entries": 200,
+      "bytes": 5253056,
+      "operation": "archive RSS decode + normalization",
+      "iterations": 40,
+      "total_ms": 3033.045,
+      "mean_ms": 75.826,
+      "resources": {
+        "wall_seconds": 3.04,
+        "peak_rss_kib": 27868,
+        "user_seconds": 3.02,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": true,
+      "trial": 1,
+      "entries": 2000,
+      "bytes": 13365856,
+      "operation": "archive RSS decode + normalization",
+      "iterations": 40,
+      "total_ms": 7675.018,
+      "mean_ms": 191.875,
+      "resources": {
+        "wall_seconds": 7.68,
+        "peak_rss_kib": 50012,
+        "user_seconds": 7.64,
+        "system_seconds": 0.03,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": true,
+      "trial": 2,
+      "entries": 2000,
+      "bytes": 13365856,
+      "operation": "archive RSS decode + normalization",
+      "iterations": 40,
+      "total_ms": 7967.955,
+      "mean_ms": 199.199,
+      "resources": {
+        "wall_seconds": 7.98,
+        "peak_rss_kib": 50092,
+        "user_seconds": 7.95,
+        "system_seconds": 0.02,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": true,
+      "trial": 3,
+      "entries": 2000,
+      "bytes": 13365856,
+      "operation": "archive RSS decode + normalization",
+      "iterations": 40,
+      "total_ms": 7681.429,
+      "mean_ms": 192.036,
+      "resources": {
+        "wall_seconds": 7.69,
+        "peak_rss_kib": 50528,
+        "user_seconds": 7.63,
+        "system_seconds": 0.03,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    }
+  ]
+}

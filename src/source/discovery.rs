@@ -63,11 +63,7 @@ pub fn discover(address: &str) -> Result<Vec<Candidate>> {
         response.status()
     );
     let final_url = response.get_uri().to_string();
-    let bytes = response
-        .body_mut()
-        .with_config()
-        .limit(4 * 1024 * 1024)
-        .read_to_vec()?;
+    let bytes = super::download::read_feed(response.body_mut())?;
     if let Ok(feed) = super::parse(&bytes, &final_url) {
         return Ok(vec![Candidate {
             title: feed.title,

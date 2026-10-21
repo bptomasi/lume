@@ -40,6 +40,7 @@ current hardware or a substitute for measuring later changes.
 | Notebook search/context | [Representative and stress workloads](performance/notebook.json) |
 | Native image interaction | [Preparation/scroll evidence](performance/images.json), [real Foot](performance/images-foot.json) |
 | Declarative configuration | [Publication and verified rereads](performance/configuration.json), [real Foot interaction](performance/configuration-terminal.json) |
+| Full-history feeds | [Large archive decode and content checks](performance/archive-feeds.json) |
 | Native welcome frame | [Representative/stress frames and interaction qualification](performance/welcome.json) |
 
 Configuration measurements cover actual source/folder edits, stable portable
@@ -49,6 +50,15 @@ and 275.152 ms at 5,000 sources on the recorded Core Ultra 7 environment.
 Publication runs on its own lane; these are not frame latency measurements or
 comparisons against an earlier implementation. The source workloads and resource runner remain executable even
 when a previous raw report is no longer retained.
+
+The archive workload uses full-content RSS documents of 5,253,056 bytes with
+200 entries and 13,365,856 bytes with 2,000 entries. Three release processes per
+scenario, each with 40 iterations, measured median iteration means of 73.473 ms
+and 192.036 ms respectively. Every article's identity, title and complete body
+is checked. These describe bounded background parsing, not UI latency or a
+speedup over the former 4 MiB rejection. Repeat with
+`cargo bench --locked --bench reader -- --archive-feeds-only`, adding `--stress`
+for the larger input; resource measurements include setup.
 
 ## Boundaries
 

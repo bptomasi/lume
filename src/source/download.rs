@@ -1,6 +1,8 @@
 //! HTTP downloads produce owned results; only the collector commits SQLite.
 
-use anyhow::{Result, bail};
+use std::io::Read;
+
+use anyhow::{Context, Result, bail};
 
 use crate::model::Feed;
 
@@ -29,11 +31,7 @@ pub(super) fn fetch(client: &ureq::Agent, feed: &Feed) -> Download {
         }
         updated.etag = header(&response, "etag");
         updated.modified = header(&response, "last-modified");
-        let bytes = response
-            .body_mut()
-            .with_config()
-            .limit(4 * 1024 * 1024)
-            .read_to_vec()?;
+        let bytes = read_feed(response.body_mut())?;
         super::parse(&bytes, &feed.url).map(Some)
     });
     Download {
@@ -41,6 +39,18 @@ pub(super) fn fetch(client: &ureq::Agent, feed: &Feed) -> Download {
         result,
         retry_at,
     }
+}
+
+pub(super) fn read_feed(body: &mut ureq::Body) -> Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    // ureq's configured limit wraps the wire stream before gzip decoding.
+    // Bound its decoded reader instead, including the one-byte overflow probe.
+    body.as_reader()
+        .take((super::MAX_FEED_BYTES + 1) as u64)
+        .read_to_end(&mut bytes)
+        .context("Could not read feed response")?;
+    super::validate_feed_size(bytes.len())?;
+    Ok(bytes)
 }
 
 fn request(

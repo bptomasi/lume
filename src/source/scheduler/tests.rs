@@ -16,6 +16,33 @@ fn library(urls: &[&str]) -> Result<(tempfile::TempDir, Store)> {
 }
 
 #[test]
+fn a_missing_publisher_title_preserves_the_existing_subscription_label()
+-> Result<()> {
+    let (_directory, mut store) = library(&["https://journal.example/feed"])?;
+    let feed = store.feeds()?.remove(0);
+    store.ingest(&feed, "Personal journal label", &[])?;
+    let feed = store.feeds()?.remove(0);
+    let fixture = include_str!("../../../tests/fixtures/rss.xml")
+        .replace("<title>Systems Journal</title>", "");
+    let parsed = crate::source::parse(fixture.as_bytes(), &feed.url)?;
+    assert_eq!(parsed.title, feed.url);
+
+    let failed = commit(
+        &mut store,
+        Download {
+            feed,
+            result: Ok(Some(parsed)),
+            retry_at: 0,
+        },
+    )?;
+
+    assert!(!failed);
+    assert_eq!(store.feeds()?[0].title, "Personal journal label");
+    assert_eq!(store.library()?.articles.len(), 1);
+    Ok(())
+}
+
+#[test]
 fn four_domains_overlap_but_never_exceed_four_active_downloads() -> Result<()> {
     let (_directory, mut store) = library(&[
         "https://a.example/feed",

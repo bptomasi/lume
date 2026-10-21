@@ -155,7 +155,15 @@ fn commit(store: &mut Store, downloaded: Download) -> Result<bool> {
     store.record_domain_retry(&domain(&feed.url), downloaded.retry_at, now)?;
     let result = downloaded.result.and_then(|parsed| {
         if let Some(parsed) = parsed {
-            store.ingest(&feed, &parsed.title, &parsed.articles)?;
+            // Missing publisher titles fall back to the URL during parsing.
+            // Retain an existing human label instead of replacing it with that
+            // fallback when a formerly failing subscription becomes readable.
+            let title = if parsed.title == feed.url {
+                &feed.title
+            } else {
+                &parsed.title
+            };
+            store.ingest(&feed, title, &parsed.articles)?;
         }
         Ok(())
     });

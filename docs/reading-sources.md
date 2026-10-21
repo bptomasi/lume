@@ -36,6 +36,26 @@ publication behavior can change; source health displays failures and retry state
 The network qualification suite uses owned fixtures rather than promising the
 availability of every third-party publication.
 
+## Inspecting subscriptions
+
+```sh
+lume feeds                 # Alphabetical title order
+lume feeds --sort id       # Permanent local subscription IDs
+lume feeds --errors        # Only sources with a recorded collection error
+```
+
+The `ID` column identifies a subscription in this library; it is not a row
+number or a relevance score. Sorting never renumbers subscriptions. Portable
+TOML definitions use their own stable string IDs.
+
+Feed collection and direct discovery accept up to 16 MiB of decompressed
+RSS, Atom or JSON Feed data, including full-history publications. Downloads stop
+after one extra decoded byte; gzip does not bypass that bound. The 2,000-entry
+limit still applies, and HTML discovery pages retain their separate 4 MiB limit.
+Oversized or failed downloads preserve cached articles and HTTP validators.
+`Last error` describes the last attempt; a successful collection clears it.
+Run `lume sync` or refresh inside Lume after a source's retry deadline passes.
+
 ## Other subjects
 
 Add any supported RSS, Atom or JSON Feed URL, import OPML from another reader,

@@ -115,6 +115,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--expansion-only", expansion::run),
     ("--full-article-only", full_article::run),
     ("--feed-content-only", feed_content::run),
+    ("--archive-feeds-only", feed_content::archives),
     ("--highlighting-only", highlighting::run),
     ("--reading-tools-only", reading_tools::run),
     ("--catalog-only", catalog::run),

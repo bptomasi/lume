@@ -42,7 +42,49 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
         }
         Ok(())
     })?;
-    notices(iterations, stress)
+    notices(iterations, stress)?;
+    archives(iterations, stress)
+}
+
+pub(super) fn archives(iterations: usize, stress: bool) -> Result<()> {
+    let entries = if stress { 2000 } else { 200 };
+    let repetitions = if stress { 384 } else { 1536 };
+    let payload = "Archive payload. ".repeat(repetitions);
+    let mut fixture = String::from(
+        "<rss version=\"2.0\"><channel><title>Archive Journal</title>\n",
+    );
+    for index in 0..entries {
+        fixture.push_str(&format!(
+            r#"<item>
+    <guid isPermaLink="false">archive-{index}</guid>
+    <title>Archive article {index}</title>
+    <description><![CDATA[<p>{payload}</p>]]></description>
+</item>
+"#
+        ));
+    }
+    fixture.push_str("</channel></rss>\n");
+    println!(
+        "archive feed input · entries={entries} · bytes={}",
+        fixture.len()
+    );
+    super::measure("archive RSS decode + normalization", iterations, || {
+        let parsed = source::parse(
+            black_box(fixture.as_bytes()),
+            "https://journal.example/feed",
+        )?;
+        ensure!(parsed.title == "Archive Journal", "Source title changed");
+        ensure!(parsed.articles.len() == entries, "Archive entries lost");
+        for (index, article) in parsed.articles.iter().enumerate() {
+            ensure!(
+                article.external_id == format!("archive-{index}")
+                    && article.title == format!("Archive article {index}")
+                    && article.body == payload.trim(),
+                "Archive identity or content changed"
+            );
+        }
+        Ok(())
+    })
 }
 
 fn fixture(copies: usize) -> Result<String> {

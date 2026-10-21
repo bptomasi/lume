@@ -244,6 +244,88 @@ fn http_failure_preserves_cached_articles_and_records_the_error() -> Result<()>
 
 #[test]
 #[ignore = "requires real loopback HTTP; required by make check-release"]
+fn collector_accepts_the_inclusive_decoded_limit_with_or_without_gzip()
+-> Result<()> {
+    // Owned RSS plus trailing XML whitespace. The gzip fixture decodes to
+    // exactly 16 MiB; its compressed size is only about 17 KiB.
+    let mut plain = include_bytes!("fixtures/rss.xml").to_vec();
+    plain.resize(source::MAX_FEED_BYTES, b' ');
+    let gzip = include_bytes!("fixtures/feed-at-limit.xml.gz");
+    for (body, encoding) in [
+        (plain.as_slice(), ""),
+        (gzip.as_slice(), "Content-Encoding: gzip\r\n"),
+    ] {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("library.sqlite3");
+        let store = Store::open(&path)?;
+        let headers = format!("{encoding}ETag: \"accepted\"\r\n");
+        let (address, request) = server(200, body, &headers)?;
+        store.subscribe(&address)?;
+
+        assert_eq!(source::collect_once(&path)?, (1, 0));
+
+        request.recv_timeout(Duration::from_secs(5))?;
+        assert_eq!(store.feeds()?[0].etag, "\"accepted\"");
+        assert!(store.feeds()?[0].error.is_empty());
+        let article = store.library()?.articles.remove(0);
+        assert_eq!(article.title, "Cache & consequence");
+        assert!(
+            store
+                .body(article.id)?
+                .contains("Keep **one** copy & measure.")
+        );
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn decoded_overflow_preserves_cached_content_and_validators() -> Result<()> {
+    // The other owned gzip fixture adds exactly one whitespace byte.
+    let mut plain = include_bytes!("fixtures/rss.xml").to_vec();
+    plain.resize(source::MAX_FEED_BYTES + 1, b' ');
+    let gzip = include_bytes!("fixtures/feed-over-limit.xml.gz");
+    for (body, encoding) in [
+        (plain.as_slice(), ""),
+        (gzip.as_slice(), "Content-Encoding: gzip\r\n"),
+    ] {
+        let (directory, store, _feed) = common::seeded_store()?;
+        let path = directory.path().join("library.sqlite3");
+        let article = store.library()?.articles.remove(0);
+        let before = store.body(article.id)?;
+        let (address, _request) =
+            server(200, body, &format!("{encoding}ETag: \"rejected\"\r\n"))?;
+        replace_address(&path, &address)?;
+
+        assert_eq!(source::collect_once(&path)?, (1, 1));
+
+        let feed = store.feeds()?.remove(0);
+        assert_eq!(feed.error, "Feed exceeds 16 MiB");
+        assert!(feed.etag.is_empty());
+        assert_eq!(store.body(article.id)?, before);
+        assert_eq!(store.source_health()?[0].failures, 1);
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn discovery_accepts_a_full_history_feed_larger_than_four_mib() -> Result<()> {
+    let mut body = include_bytes!("fixtures/rss.xml").to_vec();
+    body.resize(5 * 1024 * 1024, b' ');
+    let (address, request) = server(200, &body, "")?;
+
+    let candidates = source::discovery::discover(&address)?;
+
+    request.recv_timeout(Duration::from_secs(5))?;
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0].title, "Systems Journal");
+    assert_eq!(candidates[0].url, address);
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
 fn discovery_follows_redirect_and_returns_advertised_choices() -> Result<()> {
     let html = br#"<html><head>
         <link rel="alternate" type="application/rss+xml" href="/rss">

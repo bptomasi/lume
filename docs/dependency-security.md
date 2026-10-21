@@ -46,6 +46,14 @@ local files, a shell command or executable configuration.
 | Source offsets | unicode-segmentation 1.13.3, unicode-width 0.2.0 | Grapheme/cell semantics and visible-row projection; no custom Unicode parser. |
 | File/CLI data | tempfile 3.27.0, shlex 2.0.1, SHA-2 0.11.1, Clap/Serde/Chrono/url | Private atomic exports, argument parsing without shell evaluation, cache/fingerprint identifiers and typed validated data. |
 
+Feed collection limits decompressed input to 16 MiB and 2,000 entries, with
+four download lanes and a bounded result channel. The decoded ureq reader is
+wrapped in standard `Read::take` with a one-byte overflow probe before parsing;
+ureq's configured body limit alone precedes gzip decoding in this pinned
+version. Invalid downloads never advance stored HTTP validators. Plain and
+gzip fixtures qualify the inclusive boundary and rejection above it. Parser
+allocations can exceed input bytes; these limits are not a memory sandbox.
+
 Ratatui/Crossterm are maintained as a compatibility unit. Upgrade the terminal
 and editor stack together and requalify actual input/cleanup. Qualified versions
 are not assertions that every dependency is the newest available release.

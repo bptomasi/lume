@@ -1,8 +1,9 @@
 //! Independent feed collection using ureq and feed-rs.
 //!
-//! HTTP, parsing and ingestion run on one worker. The UI submits at most one
-//! refresh at a time; progress crosses a bounded channel. Each feed commits
-//! independently, so an unavailable publisher does not discard other results.
+//! HTTP and parsing run on bounded lanes; one collector owns SQLite writes.
+//! The UI submits at most one refresh at a time and receives bounded progress.
+//! Each feed commits independently, so an unavailable publisher does not
+//! discard other results.
 
 pub mod article;
 mod body;
@@ -21,6 +22,12 @@ use url::Url;
 use crate::{content, model::IncomingArticle};
 
 pub use worker::{Progress, Worker};
+
+/// Maximum decompressed RSS, Atom or JSON Feed document size: 16 MiB.
+///
+/// Full-history feeds can exceed 4 MiB. Collection and direct parsing share
+/// this bound; the collector stops reading after one extra byte.
+pub const MAX_FEED_BYTES: usize = 16 * 1024 * 1024;
 
 /// Group exact article URLs after removing fragments and known tracking keys.
 ///
@@ -100,9 +107,9 @@ pub fn link_url(address: &str) -> Result<Url> {
 /// Decode RSS, Atom or JSON Feed with publisher-specific details kept here.
 ///
 /// # Errors
-/// Rejects malformed feeds, bodies over 4 MiB and feeds over 2,000 entries.
+/// Rejects malformed feeds, bodies over 16 MiB and feeds over 2,000 entries.
 pub fn parse(bytes: &[u8], address: &str) -> Result<ParsedFeed> {
-    ensure!(bytes.len() <= 4 * 1024 * 1024, "Feed exceeds 4 MiB");
+    validate_feed_size(bytes.len())?;
     let feed = parser::Builder::new()
         .base_uri(Some(address))
         .id_generator(fallback_id)
@@ -122,6 +129,11 @@ pub fn parse(bytes: &[u8], address: &str) -> Result<ParsedFeed> {
     );
     let articles = feed.entries.into_iter().map(normalize).collect();
     Ok(ParsedFeed { title, articles })
+}
+
+pub(super) fn validate_feed_size(bytes: usize) -> Result<()> {
+    ensure!(bytes <= MAX_FEED_BYTES, "Feed exceeds 16 MiB");
+    Ok(())
 }
 
 fn fallback_id(

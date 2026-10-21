@@ -57,12 +57,43 @@ fn json_plain_text_keeps_angle_brackets() -> Result<()> {
 fn invalid_and_oversized_feeds_are_explicit_errors() {
     assert!(source::parse(b"not a feed", "https://example.org").is_err());
     assert!(
-        source::parse(&vec![b'x'; 4 * 1024 * 1024 + 1], "https://example.org")
-            .is_err()
+        source::parse(
+            &vec![b'x'; source::MAX_FEED_BYTES + 1],
+            "https://example.org"
+        )
+        .is_err()
     );
     assert!(source::feed_url("file:///etc/passwd").is_err());
     assert!(source::feed_url("https://user:secret@example.org/feed").is_err());
     assert!(source::feed_url("/feed.xml").is_err());
+}
+
+#[test]
+fn full_history_feeds_accept_more_than_four_mib_and_the_exact_limit()
+-> Result<()> {
+    for size in [5 * 1024 * 1024, source::MAX_FEED_BYTES] {
+        let mut bytes = include_bytes!("fixtures/rss.xml").to_vec();
+        bytes.resize(size, b' ');
+
+        let feed = source::parse(&bytes, "https://journal.example/feed")?;
+
+        assert_eq!(feed.title, "Systems Journal");
+        assert_eq!(feed.articles.len(), 1);
+        assert_eq!(feed.articles[0].external_id, "article-42");
+        assert!(
+            feed.articles[0]
+                .body
+                .contains("Keep **one** copy & measure.")
+        );
+    }
+    let error = source::parse(
+        &vec![b' '; source::MAX_FEED_BYTES + 1],
+        "https://journal.example/feed",
+    )
+    .err()
+    .ok_or_else(|| anyhow::anyhow!("Oversized feed was accepted"))?;
+    assert_eq!(error.to_string(), "Feed exceeds 16 MiB");
+    Ok(())
 }
 
 #[test]

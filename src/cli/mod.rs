@@ -1,5 +1,7 @@
 //! Noninteractive commands use the same persistence and exchange contracts.
 
+mod feeds;
+
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
@@ -33,8 +35,15 @@ pub(super) enum Command {
         #[command(subcommand)]
         command: Option<crate::configuration::ConfigCommand>,
     },
-    /// List subscriptions and their last collection error.
-    Feeds,
+    /// List subscriptions by title, with permanent IDs and collection errors.
+    Feeds {
+        /// Display order; IDs remain stable regardless of the chosen order.
+        #[arg(long, value_enum, default_value_t = feeds::Sort::Title)]
+        sort: feeds::Sort,
+        /// Show only subscriptions with a recorded collection error.
+        #[arg(long)]
+        errors: bool,
+    },
     /// Collect every active subscription.
     Sync,
     /// Retrieve and cache an article's full text from its original URL.
@@ -103,7 +112,7 @@ pub(super) fn execute(
             real_library(demo)?;
             install_reading(&store)?;
         }
-        Command::Feeds => print_feeds(&store)?,
+        Command::Feeds { sort, errors } => feeds::print(&store, sort, errors)?,
         Command::Sync => {
             real_library(demo)?;
             network_enabled(offline)?;
@@ -180,16 +189,6 @@ fn undo_change(store: &Store) -> Result<()> {
         "Nothing to undo."
     };
     println!("{message}");
-    Ok(())
-}
-
-fn print_feeds(store: &Store) -> Result<()> {
-    for feed in store.feeds()? {
-        println!("{}\t{}\t{}", feed.id, feed.title, feed.url);
-        if !feed.error.is_empty() {
-            println!("  Last error: {}", feed.error);
-        }
-    }
     Ok(())
 }
 
