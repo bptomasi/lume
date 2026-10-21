@@ -50,8 +50,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
     if let Some(Command::Backup { output }) = &cli.command {
-        let (_, store) = open_library(&cli)?;
-        store.backup_to(output)?;
+        Store::snapshot_existing(&library_path(&cli)?, output)?;
         println!("Snapshot saved: {}", output.display());
         return Ok(());
     }
@@ -72,16 +71,19 @@ fn main() -> Result<()> {
 }
 
 fn open_library(cli: &Cli) -> Result<(PathBuf, Store)> {
-    let path = if let Some(path) = &cli.database {
-        path.clone()
-    } else {
-        data_dir::database_path(cli.data_dir.clone(), cli.demo)?
-    };
+    let path = library_path(cli)?;
     let mut store = Store::open(&path)?;
     if cli.demo {
         demo::seed(&mut store)?;
     }
     Ok((path, store))
+}
+
+fn library_path(cli: &Cli) -> Result<PathBuf> {
+    if let Some(path) = &cli.database {
+        return Ok(path.clone());
+    }
+    Ok(data_dir::database_path(cli.data_dir.clone(), cli.demo)?)
 }
 
 fn run(

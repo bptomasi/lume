@@ -46,7 +46,10 @@ an explicit snapshot:
 lume backup /safe/location/lume-before-upgrade.sqlite3
 ```
 
-The SQLite snapshot includes committed WAL state, articles, annotations, tags,
+The backup CLI opens its source read-only and preserves its schema version,
+including when an older library is being protected before an upgrade. It does
+not reconcile TOML or migrate the source first. The SQLite snapshot includes
+committed WAL state, articles, annotations, tags,
 reading state, undo, drafts, layouts and declarative definitions from one
 consistent database view. Unsaved editor text requires a draft checkpoint or
 saving first. Image cache files are disposable and omitted. External TOML edits
@@ -82,3 +85,9 @@ that snapshot into a new location with a compatible binary, verify articles
 and notes, then launch it with explicit data/config paths. A newer snapshot
 cannot be made compatible simply by using an older binary; retain both
 libraries until recovery is verified.
+
+Choose the restoring executable deliberately: `restore` upgrades its staged
+copy to that executable's schema. If the previous executable predates this
+command, copy the already closed snapshot file into a new location and retain
+its matching pre-upgrade configuration. Do not open that rollback copy with
+the newer executable first.

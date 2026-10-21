@@ -93,3 +93,43 @@ fn backup_cli_remains_available_when_external_configuration_is_invalid()
     );
     Ok(())
 }
+
+#[test]
+fn backup_cli_preserves_legacy_schema_and_original_file_bytes() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let source = directory.path().join("legacy.sqlite3");
+    let database = rusqlite::Connection::open(&source)?;
+    database
+        .execute_batch(include_str!("../src/store/sql/create_schema.sql"))?;
+    database.execute_batch(include_str!(
+        "../src/store/sql/test_setup_install_library.sql"
+    ))?;
+    drop(database);
+    let before = std::fs::read(&source)?;
+    let snapshot = directory.path().join("before-upgrade.sqlite3");
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_lume"))
+        .arg("--database")
+        .arg(&source)
+        .arg("backup")
+        .arg(&snapshot)
+        .output()?;
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(std::fs::read(&source)?, before);
+    let copied = rusqlite::Connection::open_with_flags(
+        &snapshot,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )?;
+    let version: i64 =
+        copied.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    assert_eq!(version, 1);
+    let note: String =
+        copied.query_row("SELECT body FROM comments", [], |row| row.get(0))?;
+    assert_eq!(note, "A personal annotation that must survive migration.");
+    Ok(())
+}

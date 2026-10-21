@@ -24,22 +24,27 @@ impl Store {
     /// # Errors
     /// Returns filesystem, busy timeout or SQLite backup failures.
     pub fn backup_to(&self, output: &Path) -> Result<()> {
-        let parent = output
-            .parent()
-            .filter(|path| !path.as_os_str().is_empty())
-            .unwrap_or(Path::new("."));
-        let temporary = tempfile::NamedTempFile::new_in(parent)?;
-        self.read_snapshot(|store| {
-            let mut destination = Connection::open(temporary.path())?;
-            copy(&store.connection, &mut destination)?;
-            destination.pragma_update(None, "journal_mode", "DELETE")?;
-            Ok(())
-        })?;
-        temporary.as_file().sync_all()?;
-        temporary.persist_noclobber(output).context(
-            "Backup destination already exists or cannot be written",
+        self.read_snapshot(|store| publish_snapshot(&store.connection, output))
+    }
+
+    /// Snapshot an existing library read-only, preserving even its old schema.
+    /// Neither configuration reconciliation nor migration runs on the source.
+    ///
+    /// # Errors
+    /// Rejects missing, foreign, unversioned or unsupported source databases.
+    pub fn snapshot_existing(source: &Path, output: &Path) -> Result<()> {
+        let connection = Connection::open_with_flags(
+            source,
+            OpenFlags::SQLITE_OPEN_READ_ONLY,
         )?;
-        std::fs::File::open(parent)?.sync_all()?;
+        let transaction = connection.unchecked_transaction()?;
+        identity::verify(&transaction)?;
+        let version: i64 =
+            transaction
+                .query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        ensure!(version > 0, "Source does not contain a Lume library");
+        publish_snapshot(&transaction, output)?;
+        transaction.commit()?;
         Ok(())
     }
 
@@ -75,6 +80,24 @@ impl Store {
         std::fs::File::open(parent)?.sync_all()?;
         Ok(())
     }
+}
+
+fn publish_snapshot(source: &Connection, output: &Path) -> Result<()> {
+    let parent = output
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let temporary = tempfile::NamedTempFile::new_in(parent)?;
+    let mut destination = Connection::open(temporary.path())?;
+    copy(source, &mut destination)?;
+    destination.pragma_update(None, "journal_mode", "DELETE")?;
+    drop(destination);
+    temporary.as_file().sync_all()?;
+    temporary
+        .persist_noclobber(output)
+        .context("Backup destination already exists or cannot be written")?;
+    std::fs::File::open(parent)?.sync_all()?;
+    Ok(())
 }
 
 fn copy(source: &Connection, destination: &mut Connection) -> Result<()> {
