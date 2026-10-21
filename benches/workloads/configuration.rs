@@ -21,7 +21,8 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
             scenario.edit_and_verify(sequence)
         },
     )?;
-    scenario.verify_pending_checks(iterations)
+    scenario.verify_pending_checks(iterations)?;
+    scenario.verify_formatting(iterations)
 }
 
 struct Scenario {
@@ -84,6 +85,30 @@ impl Scenario {
                     "Published edit remained pending"
                 );
             }
+            Ok(())
+        })
+    }
+
+    fn verify_formatting(&self, iterations: usize) -> Result<()> {
+        let path = self.session.path();
+        let original = config::read_document(path)?;
+        let compact = format!(
+            "# Keep this user comment\n{}",
+            toml_edit::ser::to_document(&original)?
+        );
+        super::measure("compact rewrite + format + reread", iterations, || {
+            std::fs::write(path, &compact)?;
+            config::format_file(path)?;
+            let text = std::fs::read_to_string(path)?;
+            ensure!(config::decode(&text)? == original, "Definitions changed");
+            ensure!(
+                text.contains("# Keep this user comment")
+                    && text.matches("[[feeds]]").count()
+                        == original.feeds.len()
+                    && text.matches("[[smart_lists]]").count()
+                        == original.smart_lists.len(),
+                "Comments or record layout lost"
+            );
             Ok(())
         })
     }

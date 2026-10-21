@@ -1,0 +1,128 @@
+{
+  "measured_at": "2026-10-21T03:26:57.695175+00:00",
+  "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "binary_sha256": "cf3b40526937a6c31eadf64c0e9fea6383692fdbc534572c57ad058a0cfce8d4",
+  "scope": "Each iteration renames a folder, toggles a source and durably publishes TOML, then checks reread identities, state, queries and retained comments. Revision checks use the exact operational SQL and row mapping, verify pending/published state, then time 200 checks per iteration. Formatting rewrites compact TOML, formats it atomically and verifies reread definitions, retained comments and expanded record headers. Setup excluded from operation timers; process resources include setup. No earlier equivalent baseline or speedup comparison is claimed.",
+  "median_mean_ms": {
+    "250": 12.517,
+    "5000": 213.455
+  },
+  "runs": [
+    {
+      "feeds": 250,
+      "smart_lists": 32,
+      "trial": 1,
+      "operation": "declarative publication + reread (250 feeds)",
+      "iterations": 40,
+      "total_ms": 550.326,
+      "mean_ms": 13.758,
+      "revision_checks_ms": 0.0019,
+      "format_and_reread_ms": 7.064,
+      "resources": {
+        "wall_seconds": 0.9,
+        "peak_rss_kib": 17148,
+        "user_seconds": 0.86,
+        "system_seconds": 0.03,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 250,
+      "smart_lists": 32,
+      "trial": 2,
+      "operation": "declarative publication + reread (250 feeds)",
+      "iterations": 40,
+      "total_ms": 500.684,
+      "mean_ms": 12.517,
+      "revision_checks_ms": 0.0015249999999999999,
+      "format_and_reread_ms": 6.961,
+      "resources": {
+        "wall_seconds": 0.84,
+        "peak_rss_kib": 17808,
+        "user_seconds": 0.78,
+        "system_seconds": 0.05,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 250,
+      "smart_lists": 32,
+      "trial": 3,
+      "operation": "declarative publication + reread (250 feeds)",
+      "iterations": 40,
+      "total_ms": 470.057,
+      "mean_ms": 11.751,
+      "revision_checks_ms": 0.001505,
+      "format_and_reread_ms": 7.087,
+      "resources": {
+        "wall_seconds": 0.81,
+        "peak_rss_kib": 18120,
+        "user_seconds": 0.77,
+        "system_seconds": 0.03,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 5000,
+      "smart_lists": 256,
+      "trial": 1,
+      "operation": "declarative publication + reread (5000 feeds)",
+      "iterations": 40,
+      "total_ms": 8538.202,
+      "mean_ms": 213.455,
+      "revision_checks_ms": 0.0015249999999999999,
+      "format_and_reread_ms": 167.715,
+      "resources": {
+        "wall_seconds": 15.8,
+        "peak_rss_kib": 86228,
+        "user_seconds": 15.42,
+        "system_seconds": 0.29,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 5000,
+      "smart_lists": 256,
+      "trial": 2,
+      "operation": "declarative publication + reread (5000 feeds)",
+      "iterations": 40,
+      "total_ms": 8007.398,
+      "mean_ms": 200.185,
+      "revision_checks_ms": 0.00155,
+      "format_and_reread_ms": 168.33,
+      "resources": {
+        "wall_seconds": 15.24,
+        "peak_rss_kib": 88716,
+        "user_seconds": 14.84,
+        "system_seconds": 0.35,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 5000,
+      "smart_lists": 256,
+      "trial": 3,
+      "operation": "declarative publication + reread (5000 feeds)",
+      "iterations": 40,
+      "total_ms": 8765.842,
+      "mean_ms": 219.146,
+      "revision_checks_ms": 0.002065,
+      "format_and_reread_ms": 171.394,
+      "resources": {
+        "wall_seconds": 16.21,
+        "peak_rss_kib": 83096,
+        "user_seconds": 15.82,
+        "system_seconds": 0.33,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    }
+  ]
+}

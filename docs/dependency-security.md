@@ -95,6 +95,10 @@ revision, not a claim of a distributed filesystem/database transaction.
 Three-way conflicts stop publication and preserve both file and pending data.
 Documented formatting limitations include dotted-key ordering and final
 newlines. Behavioral round-trip and recovery tests qualify our supported form.
+The same parsed tree owns layout changes; no separate TOML parser or formatter
+dependency is added. Public table conversion is used only for inline containers
+without comments, since it clears child decoration. Explicit formatting checks
+typed equivalence, comment retention and idempotence with native tests.
 
 Sources: [toml_edit API](https://docs.rs/toml_edit/0.25.15+spec-1.1.0/toml_edit/),
 [toml-rs source and licenses](https://github.com/toml-rs/toml),

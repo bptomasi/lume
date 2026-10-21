@@ -20,7 +20,19 @@ pub(crate) fn prepare_directory(path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn lock(path: &Path) -> Result<File> {
+pub(crate) struct PublicationLock(File);
+
+impl Drop for PublicationLock {
+    fn drop(&mut self) {
+        // A concurrent child spawn can briefly inherit this file description
+        // until exec. Explicitly unlock so closing our handle cannot leave the
+        // inherited description holding a completed publication's lock.
+        // Cleanup cannot return an error; closing remains the fallback.
+        let _ = self.0.unlock();
+    }
+}
+
+pub(crate) fn lock(path: &Path) -> Result<PublicationLock> {
     let lock = path.with_file_name(format!(
         "{}.lock",
         path.file_name()
@@ -38,7 +50,7 @@ pub(crate) fn lock(path: &Path) -> Result<File> {
     file.try_lock().context(
         "Configuration is being updated by another Lume process; retry",
     )?;
-    Ok(file)
+    Ok(PublicationLock(file))
 }
 
 pub(crate) fn read(path: &Path) -> Result<Option<String>> {
@@ -90,7 +102,7 @@ pub(crate) fn publish(
 
 #[cfg(test)]
 mod tests {
-    use super::{publish, read};
+    use super::{lock, publish, read};
     use anyhow::Result;
 
     #[test]
@@ -109,6 +121,23 @@ mod tests {
         );
         assert_eq!(std::fs::read_to_string(&path)?, external);
         assert_eq!(std::fs::read_dir(directory.path())?.count(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn publication_unlocks_even_while_a_spawn_inherits_the_description()
+    -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("config.toml");
+        let guard = lock(&path)?;
+        let inherited = guard.0.try_clone()?;
+        assert!(lock(&path).is_err(), "Active writer lost exclusion");
+
+        drop(guard);
+
+        let next = lock(&path)?;
+        drop(inherited);
+        drop(next);
         Ok(())
     }
 }

@@ -19,7 +19,7 @@ def measure(binary, stress, trial, resources):
         arguments.append("--stress")
     result = run_workload(binary, arguments, resources)
     timings = TIMING.findall(result.stdout)
-    if len(timings) != 2:
+    if len(timings) != 3:
         raise RuntimeError(f"Configuration workload did not report: {result.stdout}")
     operation, iterations, total, mean = timings[0]
     idle = timings[1]
@@ -32,6 +32,7 @@ def measure(binary, stress, trial, resources):
         "total_ms": float(total),
         "mean_ms": float(mean),
         "revision_checks_ms": float(idle[3]) / 200,
+        "format_and_reread_ms": float(timings[2][3]),
         "resources": json.loads(resources.read_text()),
     }
 
@@ -75,6 +76,8 @@ def main():
             "TOML, then checks reread identities, state, queries and retained comments. "
             "Revision checks use the exact operational SQL and row mapping, "
             "verify pending/published state, then time 200 checks per iteration. "
+            "Formatting rewrites compact TOML, formats it atomically and verifies "
+            "reread definitions, retained comments and expanded record headers. "
             "Setup excluded from operation timers; process resources include setup. "
             "No earlier equivalent baseline or speedup comparison is claimed."
         ),

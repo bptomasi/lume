@@ -157,17 +157,30 @@ an empty profile.
 lume config path
 lume config check
 lume config check another-reader.toml
+lume config format
+lume config format another-reader.toml
 lume config show
 lume config export
 lume config export reader-backup.toml
 lume config reload
 ```
 
-`path` and `check` do not create or migrate a library. Export creates a private
-file and refuses to overwrite an existing destination. Inside the TUI, `:config`
-shows the cached, validated document; `:config-reload` requests reconciliation.
+`path`, `check` and `format` do not create or migrate a library. Export creates
+a private file and refuses to overwrite an existing destination. Inside the TUI,
+`:config` shows the cached, validated document; `:config-reload` requests
+reconciliation.
 The background worker also observes ordinary file changes. Installation never
 installs a reading preset or clears personal data.
+
+Generated definitions use table blocks such as `[[feeds]]`, `[[smart_lists]]`
+and `[[recommendations.interests]]`. Long scalar arrays use one item per line.
+`lume config format` applies this layout to an existing file, preserving values,
+comments and quoted literals. It validates before and after formatting, retains
+permissions and symlinks, and replaces the file atomically. Repeating it leaves
+the same bytes. Inline containers with internal comments retain their existing
+layout to avoid discarding those comments; long URLs and query strings remain
+intact. Ordinary in-app edits preserve existing layout and comments instead of
+reformatting the entire file.
 
 CLI definition edits finish publication before a successful command exit.
 Interactive edits are journaled durably in SQLite and published on a bounded

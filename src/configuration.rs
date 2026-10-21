@@ -20,6 +20,11 @@ pub(crate) enum ConfigCommand {
         /// Document to check; defaults to the effective configuration file.
         file: Option<PathBuf>,
     },
+    /// Format an existing TOML file without opening or modifying the library.
+    Format {
+        /// Document to format; defaults to the effective configuration file.
+        file: Option<PathBuf>,
+    },
     /// Print the active document after finishing pending definition edits.
     Show,
     /// Export complete portable definitions, excluding personal reading data.
@@ -104,6 +109,11 @@ pub(crate) fn inspect(
             let path = file.as_deref().unwrap_or(path);
             config::read_document(path)?;
             println!("Configuration valid: {}", path.display());
+        }
+        Some(ConfigCommand::Format { file }) => {
+            let path = file.as_deref().unwrap_or(path);
+            config::format_file(path)?;
+            println!("Configuration formatted: {}", path.display());
         }
         _ => return Ok(false),
     }

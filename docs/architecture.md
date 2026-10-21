@@ -65,11 +65,21 @@ matching portable keys from that file before the merge, avoiding duplicate
 identities after a crash. Explicit recovery backs up both competing inputs
 before choosing file or library authority.
 
-Lume's writers share an advisory file lock. Publication compares current bytes
+Lume's writers share an advisory file lock. Its guard explicitly unlocks before
+closing, so a child spawn's briefly inherited file description cannot retain a
+completed writer's lock until exec. Publication compares current bytes
 before replacement to detect an external editor's intervening save. An editor
 need not honor advisory locks, so the final comparison/rename window cannot
 provide a universal external-writer transaction guarantee. Temporary files are
 private by default; existing configuration permissions and symlinks are retained.
+
+`config::formatting` applies layout to the existing `toml_edit` tree: generated
+records become table arrays and long scalar arrays become multiline values.
+Explicit formatting validates typed equivalence before atomic publication and
+does not open SQLite. Commented inline containers retain their layout because
+the library's table conversion clears child decoration. Definition publication
+patches either representation by portable identity, preserving comments when a
+source is changed or disabled. Formatting runs outside the input/render lane.
 
 ## Responsive interactive work
 

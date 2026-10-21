@@ -86,6 +86,16 @@ snapshot migration at 1,000/10,000 articles. Upgrades verify that library and
 configuration bytes remain unchanged. These new installer workloads have no
 speedup baseline.
 
+The [table-layout measurements](performance/configuration-format.json) record
+current publication-plus-reread medians of 12.517 ms at 250 sources and
+213.455 ms at 5,000 sources. Rewriting compact input, formatting atomically and
+verifying a reread takes 7.064 ms and 168.330 ms respectively. Idle revision
+checks take 1.525 and 1.550 microseconds. Each scenario uses three release
+processes with 40 iterations; process RSS, including setup and all workloads,
+ranges from 17,148–18,120 KiB and 83,096–88,716 KiB. These characterize the new
+document representation, including its publication cost; they do not establish
+a speedup. Explicit formatting and publication remain outside input/render work.
+
 Real Foot qualification of the reviewed application used 50,002 articles,
 16 sources and 64 smart lists, with 100 correlated samples per scenario. The
 input-to-terminal-acknowledgement p99 was 5.464 ms during collection, 6.141 ms

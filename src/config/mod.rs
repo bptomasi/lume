@@ -7,6 +7,7 @@
 //! filesystem publication and SQLite commit is recovered by the next merge.
 
 pub(crate) mod document;
+mod formatting;
 pub(crate) mod merge;
 pub(crate) mod publication;
 mod schema;
@@ -142,7 +143,7 @@ pub fn decode(text: &str) -> Result<Configuration> {
 /// Returns validation or TOML serialization errors.
 pub fn encode(config: &Configuration) -> Result<String> {
     config.validate()?;
-    Ok(toml_edit::ser::to_string_pretty(config)?)
+    Ok(formatting::generated(config)?.to_string())
 }
 
 /// Read and validate one bounded UTF-8 document without opening a library.
@@ -166,4 +167,17 @@ pub fn export(config: &Configuration, path: &Path) -> Result<()> {
         writer.write_all(text.as_bytes())?;
         Ok(())
     })
+}
+
+/// Format an existing TOML file atomically without opening a library.
+///
+/// # Errors
+/// Rejects invalid data, inaccessible files, concurrent edits or changed values.
+pub fn format_file(path: &Path) -> Result<()> {
+    let path = absolute_path(path)?;
+    let _lock = publication::lock(&path)?;
+    let original = publication::read(&path)?
+        .context("Configuration file does not exist")?;
+    let formatted = formatting::format(&original)?;
+    publication::publish(&path, Some(&original), &formatted)
 }
