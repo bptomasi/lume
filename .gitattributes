@@ -1,0 +1,2 @@
+# Retain generated upstream license texts byte-for-byte, including CRLF/spaces.
+assets/licenses/THIRD_PARTY_LICENSES.txt -text -whitespace
