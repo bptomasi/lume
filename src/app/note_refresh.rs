@@ -25,7 +25,9 @@ impl App {
         let count = comments.len();
         self.update_note_counts(article, count);
         self.invalidate_reading_refresh();
-        if self.current().is_none_or(|item| item.id != article) {
+        if self.current().is_none_or(|item| item.id != article)
+            || self.reading_article != Some(article)
+        {
             return;
         }
         let snapshot = self.capture_reader();
@@ -65,3 +67,6 @@ impl App {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

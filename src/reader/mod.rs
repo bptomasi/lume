@@ -9,6 +9,7 @@ pub mod cursor;
 pub mod images;
 pub mod index;
 mod layout_worker;
+mod links;
 mod live;
 pub mod motion;
 mod projection;
@@ -16,6 +17,7 @@ mod syntax;
 pub mod table_view;
 mod tables;
 pub(crate) mod viewport;
+mod wrapping;
 
 pub use live::LiveRenderer;
 pub use projection::{SourceMapping, style_range, to_display, to_source};
@@ -68,7 +70,7 @@ struct Builder<'a> {
     code: Option<String>,
     paragraph: bool,
     quote: usize,
-    active_link: Option<(usize, usize)>,
+    links: links::Links,
     image: Option<images::PendingImage>,
     table: Option<tables::Pending>,
     table_bytes: usize,
@@ -98,7 +100,7 @@ pub(super) fn render_with(
         code: None,
         paragraph: false,
         quote: 0,
-        active_link: None,
+        links: links::Links::default(),
         image: None,
         table: None,
         table_bytes: 0,
@@ -110,6 +112,7 @@ pub(super) fn render_with(
         builder.event(event, range);
     }
     builder.flush();
+    builder.rendered.links = builder.links.finish();
     builder.rendered
 }
 
@@ -137,22 +140,27 @@ impl Builder<'_> {
                 ));
             }
             Event::SoftBreak => self.append(" ".into(), range),
-            Event::HardBreak => self.flush(),
-            Event::Rule => {
+            Event::HardBreak => {
+                self.links.text(" ");
                 self.flush();
-                self.generated(
-                    Line::styled(
-                        "─".repeat(self.width.min(40)),
-                        Style::new().fg(AMBER),
-                    ),
-                    range,
-                );
             }
+            Event::Rule => self.horizontal_rule(range),
             Event::TaskListMarker(done) => {
                 self.append(if done { "☑ " } else { "☐ " }.into(), range);
             }
             _ => {}
         }
+    }
+
+    fn horizontal_rule(&mut self, range: Range<usize>) {
+        self.flush();
+        self.generated(
+            Line::styled(
+                "─".repeat(self.width.min(40)),
+                Style::new().fg(AMBER),
+            ),
+            range,
+        );
     }
 
     fn append_code(&mut self, text: &str, range: Range<usize>) {
@@ -216,36 +224,8 @@ impl Builder<'_> {
 
     fn begin_link(&mut self, address: &str) {
         self.quote_prefix();
-        if let Ok(url) = crate::source::link_url(address) {
-            let url = url.to_string();
-            let index = self
-                .rendered
-                .links
-                .iter()
-                .position(|(_, old)| *old == url)
-                .unwrap_or(self.rendered.links.len());
-            if index == self.rendered.links.len() {
-                self.rendered.links.push((url.clone(), url));
-            }
-            self.active_link = Some((index, self.text_length));
-        }
+        self.links.begin(address);
         self.styles.push(Style::new().fg(BLUE).underlined());
-    }
-
-    fn finish_link(&mut self) {
-        let Some((index, start)) = self.active_link.take() else {
-            return;
-        };
-        let text = self
-            .spans
-            .iter()
-            .map(|span| span.content.as_ref())
-            .collect::<String>();
-        if let Some(title) = text.get(start..)
-            && !title.is_empty()
-        {
-            self.rendered.links[index].0 = crate::content::label(title, 500);
-        }
     }
 
     fn block_style(&mut self, tag: Tag<'_>) {
@@ -282,7 +262,7 @@ impl Builder<'_> {
                 }
             }
             TagEnd::Link => {
-                self.finish_link();
+                self.links.end();
                 self.styles.pop();
             }
             TagEnd::Strong | TagEnd::Emphasis => {
@@ -335,6 +315,7 @@ impl Builder<'_> {
     }
 
     fn map_text(&mut self, text: &str, source: Range<usize>) {
+        self.links.text(text);
         let start = self.text_length;
         self.text_length += text.len();
         self.mappings
@@ -357,16 +338,15 @@ impl Builder<'_> {
         self.rendered.text.push_str(&text);
         self.rendered.text.push('\n');
         let mut consumed = 0;
+        let mut paragraph = wrapping::Paragraph::new(&spans, &mappings);
         for wrapped in textwrap::wrap(&text, self.width) {
             let offset = text[consumed..].find(wrapped.as_ref()).unwrap_or(0);
             let start = consumed + offset;
             let end = start + wrapped.len();
-            let styled = slice_spans(&spans, start..end);
-            let source = projection::to_source(&mappings, start..end)
-                .unwrap_or(self.start..self.end);
+            let (line, source) = paragraph.row(start..end);
             self.push(
-                Line::from(styled),
-                source,
+                line,
+                source.unwrap_or(self.start..self.end),
                 code,
                 base + start..base + end,
             );
@@ -415,27 +395,6 @@ fn code_paragraph(spans: &mut [Span<'static>]) -> bool {
         }
     }
     code
-}
-
-fn slice_spans(
-    spans: &[Span<'static>],
-    range: Range<usize>,
-) -> Vec<Span<'static>> {
-    let mut offset = 0;
-    let mut output = Vec::new();
-    for span in spans {
-        let end = offset + span.content.len();
-        let start_byte = range.start.max(offset);
-        let end_byte = range.end.min(end);
-        if start_byte < end_byte {
-            output.push(Span::styled(
-                span.content[start_byte - offset..end_byte - offset].to_owned(),
-                span.style,
-            ));
-        }
-        offset = end;
-    }
-    output
 }
 
 /// Read reference-feed links without executing syntax grammars.

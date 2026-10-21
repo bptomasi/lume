@@ -51,6 +51,7 @@ impl Builder<'_> {
         };
         let alt = crate::content::label(&image.alt, 300);
         let title = if alt.is_empty() { "Image" } else { &alt };
+        self.links.text(title);
         let caption = self.rendered.lines.len();
         self.generated(Line::raw(format!("▧ {title}")), image.source.clone());
         let start = self.rendered.lines.len();

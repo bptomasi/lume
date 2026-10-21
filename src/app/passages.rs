@@ -64,15 +64,9 @@ impl App {
             .reader_ranges
             .partition_point(|range| range.start <= offset)
             .saturating_sub(1);
-        self.reader_cursor =
-            if self.reader_ranges.get(index).is_some_and(|range| {
-                range.contains(&offset)
-                    || range.is_empty() && range.start == offset
-            }) {
-                index
-            } else {
-                self.reader_ranges.len().saturating_sub(1)
-            };
+        // Soft wrapping omits separator whitespace. Clamp such offsets to the
+        // preceding visible row instead of treating the gap as end-of-document.
+        self.reader_cursor = index;
         self.reader_column = self
             .reader_ranges
             .get(self.reader_cursor)

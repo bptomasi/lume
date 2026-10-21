@@ -1,0 +1,560 @@
+{
+  "measured_at": "2026-10-21T19:00:49.007546+00:00",
+  "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "release",
+  "baseline_source": "102c4e7 plus the identical rich-text correctness workload",
+  "baseline_binary_sha256": "173dc8ae4506988e7061981d5b16bfea64fa8fd8816fd397f220715b6bd53aa0",
+  "revised_binary_sha256": "c5469836d6cee2d3a02fb47dee73f1f63282369fbabbd2d53c5c26dd2b040007",
+  "scope": [
+    "Dense paragraphs contain 200 or 2000 unique HTTP links, inline code, emphasis, entities and CJK text; three release processes per revision, 40 iterations each.",
+    "Every layout iteration checks all link labels and URLs in order, complete width-independent readable text and the final source anchor. Setup is outside timers; process wall time, memory and I/O include setup.",
+    "Cached full-frame checks use long code rows with Unicode, combining marks and tabs: 4096 or 65536 repeats plus TAIL. Five alternating before/revised processes per scenario, each with 1000 iterations. Every iteration checks visible TAIL and unchanged source.",
+    "The speculative Cow projection change was removed after mixed/slower frame results. The retained viewport projection implementation is unchanged; no frame speedup or physical presentation latency claim."
+  ],
+  "commands": [
+    "cargo bench --locked --bench reader -- --rich-text-only [--stress]",
+    "cargo bench --locked --bench reader -- --code-viewport-only [--stress]"
+  ],
+  "scenarios": [
+    {
+      "workload": "dense paragraph layout + source checks",
+      "links": 200,
+      "source_bytes": 14985,
+      "before": {
+        "median_mean_ms": 2.261,
+        "runs": [
+          {
+            "trial": 1,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 84.598,
+            "mean_ms": 2.115,
+            "resources": {
+              "wall_seconds": 0.08,
+              "peak_rss_kib": 7740,
+              "user_seconds": 0.07,
+              "system_seconds": 0.01,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 2,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 91.15,
+            "mean_ms": 2.279,
+            "resources": {
+              "wall_seconds": 0.09,
+              "peak_rss_kib": 8304,
+              "user_seconds": 0.08,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 3,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 90.426,
+            "mean_ms": 2.261,
+            "resources": {
+              "wall_seconds": 0.09,
+              "peak_rss_kib": 8744,
+              "user_seconds": 0.08,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          }
+        ]
+      },
+      "revised": {
+        "median_mean_ms": 0.938,
+        "runs": [
+          {
+            "trial": 1,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 32.546,
+            "mean_ms": 0.814,
+            "resources": {
+              "wall_seconds": 0.03,
+              "peak_rss_kib": 7952,
+              "user_seconds": 0.03,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 2,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 38.413,
+            "mean_ms": 0.96,
+            "resources": {
+              "wall_seconds": 0.04,
+              "peak_rss_kib": 8316,
+              "user_seconds": 0.03,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 3,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 37.514,
+            "mean_ms": 0.938,
+            "resources": {
+              "wall_seconds": 0.04,
+              "peak_rss_kib": 8388,
+              "user_seconds": 0.04,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          }
+        ]
+      },
+      "reduction_percent": 58.51
+    },
+    {
+      "workload": "dense paragraph layout + source checks",
+      "links": 2000,
+      "source_bytes": 153785,
+      "before": {
+        "median_mean_ms": 100.435,
+        "runs": [
+          {
+            "trial": 1,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 4017.393,
+            "mean_ms": 100.435,
+            "resources": {
+              "wall_seconds": 4.02,
+              "peak_rss_kib": 12992,
+              "user_seconds": 4.01,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 2,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 3977.577,
+            "mean_ms": 99.439,
+            "resources": {
+              "wall_seconds": 3.98,
+              "peak_rss_kib": 13636,
+              "user_seconds": 3.96,
+              "system_seconds": 0.01,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 3,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 4093.607,
+            "mean_ms": 102.34,
+            "resources": {
+              "wall_seconds": 4.09,
+              "peak_rss_kib": 13876,
+              "user_seconds": 4.08,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          }
+        ]
+      },
+      "revised": {
+        "median_mean_ms": 7.505,
+        "runs": [
+          {
+            "trial": 1,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 300.202,
+            "mean_ms": 7.505,
+            "resources": {
+              "wall_seconds": 0.3,
+              "peak_rss_kib": 14008,
+              "user_seconds": 0.29,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 2,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 298.52,
+            "mean_ms": 7.463,
+            "resources": {
+              "wall_seconds": 0.3,
+              "peak_rss_kib": 13872,
+              "user_seconds": 0.29,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 3,
+            "operation": "dense paragraph layout + source checks",
+            "iterations": 40,
+            "total_ms": 327.768,
+            "mean_ms": 8.194,
+            "resources": {
+              "wall_seconds": 0.33,
+              "peak_rss_kib": 13532,
+              "user_seconds": 0.32,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          }
+        ]
+      },
+      "reduction_percent": 92.53
+    },
+    {
+      "workload": "deep code motion + selected full frame",
+      "stress": false,
+      "before": {
+        "median_mean_ms": 0.253,
+        "runs": [
+          {
+            "trial": 1,
+            "iterations": 1000,
+            "total_ms": 272.113,
+            "mean_ms": 0.272,
+            "resources": {
+              "wall_seconds": 0.3,
+              "peak_rss_kib": 15136,
+              "user_seconds": 0.29,
+              "system_seconds": 0.01,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 2,
+            "iterations": 1000,
+            "total_ms": 268.389,
+            "mean_ms": 0.268,
+            "resources": {
+              "wall_seconds": 0.3,
+              "peak_rss_kib": 14996,
+              "user_seconds": 0.29,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 3,
+            "iterations": 1000,
+            "total_ms": 252.688,
+            "mean_ms": 0.253,
+            "resources": {
+              "wall_seconds": 0.28,
+              "peak_rss_kib": 14932,
+              "user_seconds": 0.27,
+              "system_seconds": 0.01,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 4,
+            "iterations": 1000,
+            "total_ms": 220.209,
+            "mean_ms": 0.22,
+            "resources": {
+              "wall_seconds": 0.24,
+              "peak_rss_kib": 14916,
+              "user_seconds": 0.23,
+              "system_seconds": 0.01,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 5,
+            "iterations": 1000,
+            "total_ms": 213.929,
+            "mean_ms": 0.214,
+            "resources": {
+              "wall_seconds": 0.23,
+              "peak_rss_kib": 15140,
+              "user_seconds": 0.23,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          }
+        ]
+      },
+      "revised": {
+        "median_mean_ms": 0.249,
+        "runs": [
+          {
+            "trial": 1,
+            "iterations": 1000,
+            "total_ms": 249.455,
+            "mean_ms": 0.249,
+            "resources": {
+              "wall_seconds": 0.27,
+              "peak_rss_kib": 14964,
+              "user_seconds": 0.26,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 2,
+            "iterations": 1000,
+            "total_ms": 268.675,
+            "mean_ms": 0.269,
+            "resources": {
+              "wall_seconds": 0.3,
+              "peak_rss_kib": 14740,
+              "user_seconds": 0.29,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 3,
+            "iterations": 1000,
+            "total_ms": 249.899,
+            "mean_ms": 0.25,
+            "resources": {
+              "wall_seconds": 0.28,
+              "peak_rss_kib": 14736,
+              "user_seconds": 0.27,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 4,
+            "iterations": 1000,
+            "total_ms": 222.293,
+            "mean_ms": 0.222,
+            "resources": {
+              "wall_seconds": 0.24,
+              "peak_rss_kib": 14548,
+              "user_seconds": 0.23,
+              "system_seconds": 0.01,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 5,
+            "iterations": 1000,
+            "total_ms": 246.12,
+            "mean_ms": 0.246,
+            "resources": {
+              "wall_seconds": 0.27,
+              "peak_rss_kib": 14680,
+              "user_seconds": 0.26,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "workload": "deep code motion + selected full frame",
+      "stress": true,
+      "before": {
+        "median_mean_ms": 0.238,
+        "runs": [
+          {
+            "trial": 1,
+            "iterations": 1000,
+            "total_ms": 236.664,
+            "mean_ms": 0.237,
+            "resources": {
+              "wall_seconds": 0.33,
+              "peak_rss_kib": 27240,
+              "user_seconds": 0.31,
+              "system_seconds": 0.02,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 2,
+            "iterations": 1000,
+            "total_ms": 248.28,
+            "mean_ms": 0.248,
+            "resources": {
+              "wall_seconds": 0.34,
+              "peak_rss_kib": 27376,
+              "user_seconds": 0.32,
+              "system_seconds": 0.01,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 3,
+            "iterations": 1000,
+            "total_ms": 234.56,
+            "mean_ms": 0.235,
+            "resources": {
+              "wall_seconds": 0.33,
+              "peak_rss_kib": 27212,
+              "user_seconds": 0.29,
+              "system_seconds": 0.03,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 4,
+            "iterations": 1000,
+            "total_ms": 239.687,
+            "mean_ms": 0.24,
+            "resources": {
+              "wall_seconds": 0.33,
+              "peak_rss_kib": 27816,
+              "user_seconds": 0.32,
+              "system_seconds": 0.01,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 5,
+            "iterations": 1000,
+            "total_ms": 238.464,
+            "mean_ms": 0.238,
+            "resources": {
+              "wall_seconds": 0.33,
+              "peak_rss_kib": 27836,
+              "user_seconds": 0.3,
+              "system_seconds": 0.03,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          }
+        ]
+      },
+      "revised": {
+        "median_mean_ms": 0.255,
+        "runs": [
+          {
+            "trial": 1,
+            "iterations": 1000,
+            "total_ms": 254.898,
+            "mean_ms": 0.255,
+            "resources": {
+              "wall_seconds": 0.35,
+              "peak_rss_kib": 27256,
+              "user_seconds": 0.32,
+              "system_seconds": 0.03,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 2,
+            "iterations": 1000,
+            "total_ms": 254.825,
+            "mean_ms": 0.255,
+            "resources": {
+              "wall_seconds": 0.35,
+              "peak_rss_kib": 27848,
+              "user_seconds": 0.33,
+              "system_seconds": 0.01,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 3,
+            "iterations": 1000,
+            "total_ms": 256.542,
+            "mean_ms": 0.257,
+            "resources": {
+              "wall_seconds": 0.35,
+              "peak_rss_kib": 27812,
+              "user_seconds": 0.34,
+              "system_seconds": 0.01,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 4,
+            "iterations": 1000,
+            "total_ms": 252.582,
+            "mean_ms": 0.253,
+            "resources": {
+              "wall_seconds": 0.34,
+              "peak_rss_kib": 27676,
+              "user_seconds": 0.33,
+              "system_seconds": 0.0,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          },
+          {
+            "trial": 5,
+            "iterations": 1000,
+            "total_ms": 244.437,
+            "mean_ms": 0.244,
+            "resources": {
+              "wall_seconds": 0.34,
+              "peak_rss_kib": 27468,
+              "user_seconds": 0.32,
+              "system_seconds": 0.01,
+              "input_blocks": 0,
+              "output_blocks": 0
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "qualification": {
+    "check_release": "passed with Rust 1.99.1",
+    "rust_tests_passed": 588,
+    "python_tests_passed": 21,
+    "http_tests_passed": 15,
+    "visual_snapshots": "unchanged; all comparisons passed without regeneration",
+    "foot": {
+      "passed": true,
+      "binary_sha256": "ebd7fc567a135099d4a813108fe8070c6ce15134d7894ab4ad290101c621591c",
+      "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+      "publisher_content_preserved": true,
+      "cleanup": {
+        "returncode": 0,
+        "termios_restored": true
+      }
+    },
+    "foot_scope": "Owned native Wayland window: welcome, decoded Sixel strips, scroll, v/V and mouse selection, reader aliases, fit/zoom and restored termios. No physical latency measurement."
+  }
+}

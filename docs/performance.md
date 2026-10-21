@@ -22,7 +22,8 @@ make bench-recommendations
 
 The native benchmark also accepts focused flags, including
 `--configuration-only`, `--welcome-only`, `--code-viewport-only`, `--images-only`,
-`--tables-only` and `--recommendations-only`. Add `--stress` for larger workloads.
+`--tables-only`, `--rich-text-only` and `--recommendations-only`. Add `--stress`
+for larger workloads.
 Setup precedes operation timers; resource reports identify process-wide
 memory/I/O scope.
 Routine reports go to ignored `.local/benchmarks/`. Promote reviewed evidence
@@ -43,6 +44,7 @@ current hardware or a substitute for measuring later changes.
 | Declarative configuration | [Publication and verified rereads](performance/configuration.json), [real Foot interaction](performance/configuration-terminal.json) |
 | Full-history feeds | [Large archive decode and content checks](performance/archive-feeds.json) |
 | Reader tables and code backgrounds | [Unicode layout, cached frames and inspection](performance/tables.json) |
+| Dense article preparation | [Repeated reader comparison](performance/reader-review.json) |
 | Native welcome frame | [Representative/stress frames and interaction qualification](performance/welcome.json) |
 
 Configuration measurements cover actual source/folder edits, stable portable
@@ -73,6 +75,21 @@ ranges from 20,976–21,492 KiB and 42,892–44,216 KiB respectively. These meas
 the implemented behavior without a speedup baseline. Repeat with
 `cargo bench --locked --bench reader -- --tables-only`, adding `--stress` for
 the larger input.
+
+The [reader review](performance/reader-review.json) compares the same checked
+workloads against `102c4e7`, using the pinned toolchain and machine. With 200
+links, median paragraph preparation fell from 2.261 to 0.938 ms; at 2,000 links,
+from 100.435 to 7.505 ms (92.53% less). Each scenario uses three release
+processes and 40 iterations, checking complete readable text, all link labels
+and destinations, and the final source anchor. Source sizes are 14,985 and
+153,785 bytes. These measure layout preparation, not whole-application latency.
+
+Five alternating processes per revision also checked 1,000 cached code frames
+each. Median iteration means were 0.253/0.249 ms for the smaller row and
+0.238/0.255 ms for the larger row, before/after respectively. Results are mixed;
+no frame speedup is established. The proposed projection allocation change was
+removed, and the retained viewport projection code is unchanged. Resource
+records include process-wide setup, memory and I/O.
 
 ## Boundaries
 

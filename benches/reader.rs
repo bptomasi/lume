@@ -37,6 +37,8 @@ mod panes;
 mod reading_tools;
 #[path = "workloads/recommendations.rs"]
 mod recommendations;
+#[path = "workloads/rich_text.rs"]
+mod rich_text;
 #[path = "workloads/smoothness.rs"]
 mod smoothness;
 #[path = "workloads/tables.rs"]
@@ -87,6 +89,7 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    rich_text::run(iterations, stress)?;
     configuration::run(iterations, stress)?;
     tables::run(iterations, stress)?;
     welcome::run(iterations, stress)?;
@@ -104,6 +107,7 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--rich-text-only", rich_text::run),
     ("--configuration-only", configuration::run),
     ("--welcome-only", welcome::run),
     ("--interaction-only", interaction::run),

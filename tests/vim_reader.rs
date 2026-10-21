@@ -122,6 +122,22 @@ fn horizontal_motions_cross_soft_wraps_and_yank_the_intervening_space()
 }
 
 #[test]
+fn word_objects_at_hidden_wrap_spaces_stay_on_the_word_instead_of_jumping()
+-> Result<()> {
+    let body = "one two three four five six seven";
+    let (_directory, mut app) = reading_body(body)?;
+    app.resize_reader(3, 3);
+    assert_eq!(&app.reader_lines[..2], ["one", "two"]);
+
+    keys(&mut app, "gg0vaw")?;
+
+    assert_eq!((app.reader_cursor, app.reader_column), (0, 2));
+    assert_eq!(keys(&mut app, "y")?, Action::Copy("one".into()));
+    assert_eq!(app.body, body);
+    Ok(())
+}
+
+#[test]
 fn counted_horizontal_motions_preserve_graphemes_and_visit_empty_rows()
 -> Result<()> {
     let (_directory, mut app) = reading("e\u{301}👩‍💻\n\n界x")?;

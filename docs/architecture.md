@@ -83,6 +83,12 @@ source is changed or disabled. Formatting runs outside the input/render lane.
 
 ## Responsive interactive work
 
+Within a paragraph, `reader::wrapping` consumes ordered display/source spans
+as wrapped rows advance. It retires completed prefixes instead of rescanning
+all formatting for every row. `reader::links` separately collects bounded labels
+from parser events, including hard breaks and image alternatives. Destination
+lookup preserves first-seen order without copying the preceding paragraph.
+
 The reader enables pulldown-cmark's table events and captures styled cells with
 their original byte mappings. `reader::tables` owns Unicode column widths,
 alignment and rounded borders; Ratatui still owns terminal rendering. Prepared
@@ -116,6 +122,12 @@ or acknowledged before their completions reach the UI. Progress and layout write
 have their own ordered admission and explicit flush boundary. Where a workflow
 reads mutable state before writing, an IMMEDIATE transaction acquires write
 authority first, avoiding WAL read-to-write snapshot upgrade failures.
+
+Note completions update catalog counts independently of the reader. Replacing
+visible annotations also requires the selected and displayed article identities
+to match the completion; retained content from another article is left intact
+until navigation delivers its matching snapshot. Cursor offsets falling within
+whitespace omitted by wrapping clamp to the preceding visible row.
 
 The configuration lane owns file observation, parsing and publication. It polls
 only the owner/revision fields and file metadata while idle; the publication
