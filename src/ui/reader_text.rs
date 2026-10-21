@@ -12,6 +12,26 @@ use crate::{
 
 use super::theme::{AMBER, BG, RAISED, TEXT};
 
+pub(super) fn backgrounds(
+    frame: &mut ratatui::Frame<'_>,
+    app: &App,
+    area: ratatui::layout::Rect,
+) {
+    for row in 0..usize::from(area.height) {
+        if code_background(app, app.scroll + row) {
+            frame.buffer_mut().set_style(
+                ratatui::layout::Rect::new(
+                    area.x,
+                    area.y + row as u16,
+                    area.width,
+                    1,
+                ),
+                Style::new().bg(RAISED),
+            );
+        }
+    }
+}
+
 pub(super) fn row(
     app: &App,
     index: usize,
@@ -26,7 +46,7 @@ pub(super) fn row(
     }
     let mut line = cached.clone();
     paint_search(app, index, &mut line);
-    let code = app.code_lines.get(index) == Some(&true);
+    let code = code_background(app, index);
     if code {
         line = line.style(Style::new().bg(RAISED));
     }
@@ -72,43 +92,71 @@ fn indexed_row(
     width: usize,
     columns: &crate::reader::viewport::RowIndex,
 ) -> Line<'static> {
-    let code = app.code_lines.get(row) == Some(&true);
+    let unwrapped = app.code_lines.get(row) == Some(&true);
+    let code = code_background(app, row);
     let text = app.reader_lines.get(row).map_or("", String::as_str);
     let base = app.reader_ranges.get(row).map_or(0, |range| range.start);
     let cursor = (app.focus == Focus::Reader
         && matches!(app.mode, Mode::Normal)
         && row == app.reader_cursor)
-        .then_some(app.reader_column);
+        .then_some(base + app.reader_column);
     let mut line = columns.project(
         cached,
         text,
-        if code { app.horizontal } else { 0 },
+        if unwrapped { app.horizontal } else { 0 },
         width,
-        |bytes, mut style| {
-            let absolute = base + bytes.start..base + bytes.end;
-            let hits = &app.reader_tools.hits;
-            let first = hits.partition_point(|hit| hit.end <= absolute.start);
-            if hits.get(first).is_some_and(|hit| hit.start < absolute.end) {
-                style = style.fg(AMBER).add_modifier(Modifier::UNDERLINED);
-            }
-            if selected.is_some_and(|selection| {
-                selection.start < absolute.end && selection.end > absolute.start
-            }) {
-                style = style.bg(AMBER).fg(BG);
-            }
-            if cursor.is_some_and(|cursor| bytes.contains(&cursor)) {
-                style = style.patch(cursor_style());
-            }
-            style
+        |bytes, style| {
+            overlays(
+                app,
+                base + bytes.start..base + bytes.end,
+                selected,
+                cursor,
+                style,
+            )
         },
     );
     if code {
         line = line.style(Style::new().bg(RAISED));
     }
-    if text.is_empty() && cursor.is_some() && (!code || app.horizontal == 0) {
+    if text.is_empty()
+        && cursor.is_some()
+        && (!unwrapped || app.horizontal == 0)
+    {
         line.spans.push(Span::styled(" ", cursor_style()));
     }
     line
+}
+
+fn overlays(
+    app: &App,
+    bytes: std::ops::Range<usize>,
+    selected: Option<&std::ops::Range<usize>>,
+    cursor: Option<usize>,
+    mut style: Style,
+) -> Style {
+    let hits = &app.reader_tools.hits;
+    let first = hits.partition_point(|hit| hit.end <= bytes.start);
+    if hits.get(first).is_some_and(|hit| hit.start < bytes.end) {
+        style = style.fg(AMBER).add_modifier(Modifier::UNDERLINED);
+    }
+    if selected
+        .is_some_and(|range| range.start < bytes.end && range.end > bytes.start)
+    {
+        style = style.bg(AMBER).fg(BG);
+    }
+    if cursor.is_some_and(|cursor| bytes.contains(&cursor)) {
+        style = style.patch(cursor_style());
+    }
+    style
+}
+
+pub(super) fn code_background(app: &App, row: usize) -> bool {
+    let table = app.table_rows.partition_point(|range| range.end <= row);
+    app.code_lines.get(row) == Some(&true)
+        && !app
+            .table_rows
+            .get(table)
+            .is_some_and(|range| range.contains(&row))
 }
 
 fn cursor_style() -> Style {

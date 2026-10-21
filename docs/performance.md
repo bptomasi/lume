@@ -21,9 +21,10 @@ make bench-recommendations
 ```
 
 The native benchmark also accepts focused flags, including
-`--configuration-only`, `--welcome-only`, `--code-viewport-only`, `--images-only`
-and `--recommendations-only`. Add `--stress` for larger workloads. Setup precedes
-operation timers; resource reports identify process-wide memory/I/O scope.
+`--configuration-only`, `--welcome-only`, `--code-viewport-only`, `--images-only`,
+`--tables-only` and `--recommendations-only`. Add `--stress` for larger workloads.
+Setup precedes operation timers; resource reports identify process-wide
+memory/I/O scope.
 Routine reports go to ignored `.local/benchmarks/`. Promote reviewed evidence
 here only when useful for a release or a specific comparison.
 
@@ -41,6 +42,7 @@ current hardware or a substitute for measuring later changes.
 | Native image interaction | [Preparation/scroll evidence](performance/images.json), [real Foot](performance/images-foot.json) |
 | Declarative configuration | [Publication and verified rereads](performance/configuration.json), [real Foot interaction](performance/configuration-terminal.json) |
 | Full-history feeds | [Large archive decode and content checks](performance/archive-feeds.json) |
+| Reader tables and code backgrounds | [Unicode layout, cached frames and inspection](performance/tables.json) |
 | Native welcome frame | [Representative/stress frames and interaction qualification](performance/welcome.json) |
 
 Configuration measurements cover actual source/folder edits, stable portable
@@ -59,6 +61,18 @@ is checked. These describe bounded background parsing, not UI latency or a
 speedup over the former 4 MiB rejection. Repeat with
 `cargo bench --locked --bench reader -- --archive-feeds-only`, adding `--stress`
 for the larger input; resource measurements include setup.
+
+The table workload checks Unicode alignment and exact source correspondence at
+64 rows/four columns and 1,000 rows/12 columns. Three release processes per
+scenario measured median iteration means of 0.375/10.826 ms for preparation,
+0.511/0.753 ms for cursor movement plus a selected cached frame, and
+0.021/0.738 ms for opening and closing the cached inspector. Each process runs
+40 layout/inspector iterations and 1,000 frames, including a fenced code block
+with short and blank rows. Process RSS, including grammar and fixture setup,
+ranges from 20,976–21,492 KiB and 42,892–44,216 KiB respectively. These measure
+the implemented behavior without a speedup baseline. Repeat with
+`cargo bench --locked --bench reader -- --tables-only`, adding `--stress` for
+the larger input.
 
 ## Boundaries
 

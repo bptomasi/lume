@@ -1,0 +1,222 @@
+{
+  "measured_at": "2026-10-21T15:19:23.954907+00:00",
+  "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "release",
+  "binary_sha256": "8b1dc1d7541ff92dbac5355a28c1a4aaad247710126879ea2ed1d08a6ff99d03",
+  "scope": "Source-aware Unicode Markdown grids with a fenced Rust block. Three processes per workload. Setup, grammar warmup, SQLite fixtures and cached frame preparation precede their timers. Layout checks row count, every grid width and exact last-row source correspondence; frames check the final visible column and unchanged source; inspector checks content and cursor preservation. Process memory, wall time and I/O include all setup and workloads. No speedup comparison or physical terminal latency claim.",
+  "command": "cargo bench --locked --bench reader -- --tables-only [--stress]",
+  "runs": [
+    {
+      "stress": false,
+      "trial": 1,
+      "rows": 64,
+      "columns": 4,
+      "bytes": 4166,
+      "operations": [
+        {
+          "operation": "table layout + source correspondence",
+          "iterations": 40,
+          "total_ms": 16.862,
+          "mean_ms": 0.422
+        },
+        {
+          "operation": "table motion + selected cached frame",
+          "iterations": 1000,
+          "total_ms": 520.029,
+          "mean_ms": 0.52
+        },
+        {
+          "operation": "cached table inspector + close",
+          "iterations": 40,
+          "total_ms": 0.866,
+          "mean_ms": 0.022
+        }
+      ],
+      "resources": {
+        "wall_seconds": 0.6,
+        "peak_rss_kib": 20976,
+        "user_seconds": 0.58,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": false,
+      "trial": 2,
+      "rows": 64,
+      "columns": 4,
+      "bytes": 4166,
+      "operations": [
+        {
+          "operation": "table layout + source correspondence",
+          "iterations": 40,
+          "total_ms": 14.988,
+          "mean_ms": 0.375
+        },
+        {
+          "operation": "table motion + selected cached frame",
+          "iterations": 1000,
+          "total_ms": 511.489,
+          "mean_ms": 0.511
+        },
+        {
+          "operation": "cached table inspector + close",
+          "iterations": 40,
+          "total_ms": 0.829,
+          "mean_ms": 0.021
+        }
+      ],
+      "resources": {
+        "wall_seconds": 0.58,
+        "peak_rss_kib": 21492,
+        "user_seconds": 0.57,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": false,
+      "trial": 3,
+      "rows": 64,
+      "columns": 4,
+      "bytes": 4166,
+      "operations": [
+        {
+          "operation": "table layout + source correspondence",
+          "iterations": 40,
+          "total_ms": 12.018,
+          "mean_ms": 0.3
+        },
+        {
+          "operation": "table motion + selected cached frame",
+          "iterations": 1000,
+          "total_ms": 507.662,
+          "mean_ms": 0.508
+        },
+        {
+          "operation": "cached table inspector + close",
+          "iterations": 40,
+          "total_ms": 0.803,
+          "mean_ms": 0.02
+        }
+      ],
+      "resources": {
+        "wall_seconds": 0.57,
+        "peak_rss_kib": 21228,
+        "user_seconds": 0.56,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": true,
+      "trial": 1,
+      "rows": 1000,
+      "columns": 12,
+      "bytes": 212028,
+      "operations": [
+        {
+          "operation": "table layout + source correspondence",
+          "iterations": 40,
+          "total_ms": 433.05,
+          "mean_ms": 10.826
+        },
+        {
+          "operation": "table motion + selected cached frame",
+          "iterations": 1000,
+          "total_ms": 718.993,
+          "mean_ms": 0.719
+        },
+        {
+          "operation": "cached table inspector + close",
+          "iterations": 40,
+          "total_ms": 29.505,
+          "mean_ms": 0.738
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.32,
+        "peak_rss_kib": 44052,
+        "user_seconds": 1.28,
+        "system_seconds": 0.03,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": true,
+      "trial": 2,
+      "rows": 1000,
+      "columns": 12,
+      "bytes": 212028,
+      "operations": [
+        {
+          "operation": "table layout + source correspondence",
+          "iterations": 40,
+          "total_ms": 484.261,
+          "mean_ms": 12.107
+        },
+        {
+          "operation": "table motion + selected cached frame",
+          "iterations": 1000,
+          "total_ms": 789.035,
+          "mean_ms": 0.789
+        },
+        {
+          "operation": "cached table inspector + close",
+          "iterations": 40,
+          "total_ms": 28.586,
+          "mean_ms": 0.715
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.45,
+        "peak_rss_kib": 44216,
+        "user_seconds": 1.34,
+        "system_seconds": 0.1,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": true,
+      "trial": 3,
+      "rows": 1000,
+      "columns": 12,
+      "bytes": 212028,
+      "operations": [
+        {
+          "operation": "table layout + source correspondence",
+          "iterations": 40,
+          "total_ms": 430.45,
+          "mean_ms": 10.761
+        },
+        {
+          "operation": "table motion + selected cached frame",
+          "iterations": 1000,
+          "total_ms": 753.04,
+          "mean_ms": 0.753
+        },
+        {
+          "operation": "cached table inspector + close",
+          "iterations": 40,
+          "total_ms": 30.065,
+          "mean_ms": 0.752
+        }
+      ],
+      "resources": {
+        "wall_seconds": 1.38,
+        "peak_rss_kib": 42892,
+        "user_seconds": 1.32,
+        "system_seconds": 0.04,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    }
+  ]
+}

@@ -83,7 +83,9 @@ fn document_view(frame: &mut Frame<'_>, document: &crate::app::DocumentView) {
         .iter()
         .skip(document.row)
         .take(inner.height as usize)
-        .map(|line| Line::raw(clip_columns(line, document.column)))
+        .map(|line| {
+            Line::raw(clip_columns(line, document.column, inner.width.into()))
+        })
         .collect::<Vec<_>>();
     frame.render_widget(
         Paragraph::new(lines).style(Style::new().fg(TEXT)),
@@ -91,16 +93,22 @@ fn document_view(frame: &mut Frame<'_>, document: &crate::app::DocumentView) {
     );
 }
 
-fn clip_columns(text: &str, skip: usize) -> String {
+fn clip_columns(text: &str, skip: usize, width: usize) -> String {
     use unicode_segmentation::UnicodeSegmentation;
     let mut column = 0;
     let mut output = String::new();
+    let limit = skip.saturating_add(width);
     for grapheme in text.graphemes(true) {
+        if column >= limit {
+            break;
+        }
         let end = column + crate::reader::cursor::width(grapheme, column);
-        if column >= skip {
-            output.push_str(grapheme);
-        } else if end > skip {
-            output.push_str(&" ".repeat(end - skip));
+        if end > skip {
+            if column < skip || end > limit || grapheme == "\t" {
+                output.push_str(&" ".repeat(end.min(limit) - column.max(skip)));
+            } else {
+                output.push_str(grapheme);
+            }
         }
         column = end;
     }
@@ -289,4 +297,15 @@ pub(super) fn centered(area: Rect, width: u16, height: u16) -> Rect {
         width,
         height,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn document_clipping_bounds_work_and_keeps_partial_wide_cells_aligned() {
+        assert_eq!(super::clip_columns("A界B", 2, 2), " B");
+        assert_eq!(super::clip_columns("A界B", 0, 2), "A ");
+        assert_eq!(super::clip_columns("\txy", 1, 4), "   x");
+        assert_eq!(super::clip_columns(&"a".repeat(100_000), 0, 8), "aaaaaaaa");
+    }
 }

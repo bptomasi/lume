@@ -29,10 +29,14 @@ FROM journal;
 "#;
 
 fn reading() -> Result<(tempfile::TempDir, App)> {
+    reading_body(BODY)
+}
+
+fn reading_body(body: &str) -> Result<(tempfile::TempDir, App)> {
     let (directory, mut store, feed) = common::seeded_store()?;
     let mut parsed =
         source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
-    parsed.articles[0].body = BODY.into();
+    parsed.articles[0].body = body.into();
     store.ingest(&feed, &parsed.title, &parsed.articles)?;
     let mut app = App::new(store, false)?;
     app.focus = Focus::Reader;
@@ -126,7 +130,9 @@ fn html_tables_keep_cells_links_and_a_safe_wide_view() -> Result<()> {
     assert!(markdown.contains("https://journal.example/reference"));
     let view = lume::reader::table_view::render(&markdown);
     assert!(view.contains("a|b") && view.contains("Reference"));
-    assert!(view.lines().all(|line| line.starts_with('│')));
+    assert!(view.starts_with('╭'));
+    assert!(view.lines().any(|line| line.starts_with('├')));
+    assert!(view.trim_end().ends_with('╯'));
     Ok(())
 }
 
@@ -147,6 +153,63 @@ fn wide_table_view_scrolls_without_mutating_article_or_search() -> Result<()> {
         command(&mut app, "copy-code")?,
         Action::Copy("SELECT id\nFROM journal;\n".into())
     );
+    Ok(())
+}
+
+#[test]
+fn inspector_keeps_tables_that_exceed_grid_limits_alongside_cached_grids()
+-> Result<()> {
+    let body =
+        format!("{BODY}\n| Wide |\n| --- |\n| {} END |\n", "x".repeat(4100));
+    let (_directory, mut app) = reading_body(&body)?;
+    assert_eq!(app.table_rows.len(), 1);
+    assert_eq!(app.reader_tools.index.tables.len(), 2);
+
+    command(&mut app, "tables")?;
+
+    let Mode::Document(document) = &app.mode else {
+        anyhow::bail!("Table viewport did not open");
+    };
+    assert!(document.lines.iter().any(|line| line.contains("epoch")));
+    assert!(document.lines.iter().any(|line| line.contains("END")));
+    assert_eq!(app.body, body);
+    Ok(())
+}
+
+#[test]
+fn table_selection_yank_highlight_and_reflow_keep_the_exact_cell() -> Result<()>
+{
+    let (_directory, mut app) = reading()?;
+    command(&mut app, "find epoch")?;
+    let start = app.cursor_offset();
+    key(&mut app, KeyCode::Char('v'))?;
+    for _ in 0..4 {
+        key(&mut app, KeyCode::Char('l'))?;
+    }
+
+    assert_eq!(
+        key(&mut app, KeyCode::Char('y'))?,
+        Action::Copy("epoch".into())
+    );
+    key(&mut app, KeyCode::Esc)?;
+    command(&mut app, "find epoch")?;
+    key(&mut app, KeyCode::Char('v'))?;
+    for _ in 0..4 {
+        key(&mut app, KeyCode::Char('l'))?;
+    }
+    key(&mut app, KeyCode::Char('s'))?;
+    app.resize_reader(8, 10);
+
+    assert_eq!(
+        app.comments.last().context("Missing highlight")?.quote,
+        "epoch"
+    );
+    assert_eq!(app.reader_tools.hits[0].start, start);
+    assert!(!app.table_rows.is_empty());
+    command(&mut app, "find epoch")?;
+    key(&mut app, KeyCode::Char('$'))?;
+    assert!(app.horizontal > 0, "Wide rows must pan with the cursor");
+    assert_eq!(app.body, BODY);
     Ok(())
 }
 

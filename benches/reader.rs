@@ -39,6 +39,8 @@ mod reading_tools;
 mod recommendations;
 #[path = "workloads/smoothness.rs"]
 mod smoothness;
+#[path = "workloads/tables.rs"]
+mod tables;
 #[path = "workloads/welcome.rs"]
 mod welcome;
 #[path = "workloads/workspace_reflow.rs"]
@@ -86,6 +88,7 @@ fn main() -> Result<()> {
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
     configuration::run(iterations, stress)?;
+    tables::run(iterations, stress)?;
     welcome::run(iterations, stress)?;
     code_viewport::run(iterations, stress)?;
     interaction::run(iterations, stress)?;
@@ -116,6 +119,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--full-article-only", full_article::run),
     ("--feed-content-only", feed_content::run),
     ("--archive-feeds-only", feed_content::archives),
+    ("--tables-only", tables::run),
     ("--highlighting-only", highlighting::run),
     ("--reading-tools-only", reading_tools::run),
     ("--catalog-only", catalog::run),

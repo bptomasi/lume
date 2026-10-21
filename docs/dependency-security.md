@@ -77,6 +77,13 @@ use explicit interests and observed publisher evidence; they do not establish
 quality, factual correctness or personal relevance. Private annotation text is not
 publisher evidence.
 
+Table layout reuses pulldown-cmark's GFM table events, Ratatui `Line`/`Span`
+styles and unicode-width measurements. A widget-only table would lose the
+reader's byte correspondence for selection and annotations, so prepared rows
+retain those mappings instead. No Markdown/HTML parser, ANSI formatter or new
+dependency is introduced. Column, row, width and padding budgets are enforced
+before publishing a grid; bounded inspection falls back to original Markdown.
+
 ## Declarative configuration
 
 Select `toml_edit` **0.25.15+spec-1.1.0**, pinned exactly, with only `parse`,

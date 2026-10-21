@@ -83,6 +83,22 @@ source is changed or disabled. Formatting runs outside the input/render lane.
 
 ## Responsive interactive work
 
+The reader enables pulldown-cmark's table events and captures styled cells with
+their original byte mappings. `reader::tables` owns Unicode column widths,
+alignment and rounded borders; Ratatui still owns terminal rendering. Prepared
+grid rows share the indexed horizontal viewport used by code, with separate
+row ranges retaining the ordinary panel background. The inspector reuses cached
+rows when available. Selection and annotation project cell text back to source;
+decorative borders and padding have no quotation mapping.
+
+Padded grid output has a shared 1 MiB budget per article, at most 64 columns,
+2,000 rows including the header, and 4,096 terminal cells per row. Exceeding a
+limit displays an explicit notice and the original Markdown, preserving later
+article content. The inspector has its own total 1 MiB preview bound. Code
+backgrounds are painted across visible rows before token and selection styles;
+this never pads the stored or copied code text. Table preparation stays on the
+existing layout worker, and drawing only projects cached visible cells.
+
 The terminal initializes an application from reconciled state, then presents the
 native-cell lighthouse. The first actual key press is consumed. Focus, modifier,
 release and resize events cannot accidentally activate a library operation;

@@ -14,6 +14,7 @@ pub mod motion;
 mod projection;
 mod syntax;
 pub mod table_view;
+mod tables;
 pub(crate) mod viewport;
 
 pub use live::LiveRenderer;
@@ -21,7 +22,7 @@ pub use projection::{SourceMapping, style_range, to_display, to_source};
 
 use std::ops::Range;
 
-use pulldown_cmark::{CodeBlockKind, Event, Parser, Tag, TagEnd};
+use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 use ratatui::{
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
@@ -29,7 +30,7 @@ use ratatui::{
 
 const TEXT: Color = Color::Rgb(224, 219, 208);
 const AMBER: Color = Color::Rgb(225, 179, 109);
-const BLUE: Color = Color::Rgb(145, 180, 203);
+const BLUE: Color = Color::Rgb(145, 180, 218);
 
 /// Immutable, width-specific presentation consumed without parsing during draw.
 #[derive(Clone, Default)]
@@ -40,6 +41,8 @@ pub struct Rendered {
     pub ranges: Vec<Range<usize>>,
     /// Rows that preserve source columns and allow horizontal scrolling.
     pub code: Vec<bool>,
+    /// Display row ranges of terminal tables, sharing horizontal code navigation.
+    pub table_rows: Vec<Range<usize>>,
     /// Readable text before soft wrapping; copied selections use these bytes.
     pub text: String,
     /// Byte ranges in readable text for each display row.
@@ -63,9 +66,12 @@ struct Builder<'a> {
     width: usize,
     styles: Vec<Style>,
     code: Option<String>,
+    paragraph: bool,
     quote: usize,
     active_link: Option<(usize, usize)>,
     image: Option<images::PendingImage>,
+    table: Option<tables::Pending>,
+    table_bytes: usize,
     highlight: &'a mut dyn FnMut(&str, &str) -> Vec<Line<'static>>,
 }
 
@@ -90,12 +96,17 @@ pub(super) fn render_with(
         width: width.max(1),
         styles: vec![Style::new().fg(TEXT)],
         code: None,
+        paragraph: false,
         quote: 0,
         active_link: None,
         image: None,
+        table: None,
+        table_bytes: 0,
         highlight,
     };
-    for (event, range) in Parser::new(body).into_offset_iter() {
+    for (event, range) in
+        Parser::new_ext(body, Options::ENABLE_TABLES).into_offset_iter()
+    {
         builder.event(event, range);
     }
     builder.flush();
@@ -104,7 +115,7 @@ pub(super) fn render_with(
 
 impl Builder<'_> {
     fn event(&mut self, event: Event<'_>, range: Range<usize>) {
-        if self.image_event(&event) {
+        if self.table_event(&event, &range) || self.image_event(&event) {
             return;
         }
         match event {
@@ -175,6 +186,7 @@ impl Builder<'_> {
         match tag {
             Tag::Paragraph | Tag::Heading { .. } | Tag::CodeBlock(_) => {
                 self.flush();
+                self.paragraph = matches!(&tag, Tag::Paragraph);
                 self.start = range.start;
                 self.end = range.end;
                 self.block_style(tag);
@@ -260,6 +272,7 @@ impl Builder<'_> {
         match tag {
             TagEnd::Paragraph | TagEnd::Heading(_) | TagEnd::CodeBlock => {
                 self.flush();
+                self.paragraph = false;
                 self.generated(Line::raw(""), self.end..self.end);
                 if matches!(tag, TagEnd::Heading(_)) {
                     self.styles.pop();
@@ -300,7 +313,7 @@ impl Builder<'_> {
     }
 
     fn quote_prefix(&mut self) {
-        if self.spans.is_empty() && self.quote > 0 {
+        if self.spans.is_empty() && self.quote > 0 && self.table.is_none() {
             self.spans.push(Span::styled("│ ", Style::new().fg(AMBER)));
             self.text_length += "│ ".len();
         }
@@ -332,7 +345,8 @@ impl Builder<'_> {
         if self.spans.is_empty() {
             return;
         }
-        let spans = std::mem::take(&mut self.spans);
+        let mut spans = std::mem::take(&mut self.spans);
+        let code = self.paragraph && code_paragraph(&mut spans);
         let mappings = std::mem::take(&mut self.mappings);
         self.text_length = 0;
         let text = spans
@@ -353,7 +367,7 @@ impl Builder<'_> {
             self.push(
                 Line::from(styled),
                 source,
-                false,
+                code,
                 base + start..base + end,
             );
             consumed = end;
@@ -387,6 +401,20 @@ impl Builder<'_> {
         self.rendered.code.push(code);
         self.rendered.text_ranges.push(text);
     }
+}
+
+fn code_paragraph(spans: &mut [Span<'static>]) -> bool {
+    let background = Some(Color::Rgb(34, 32, 30));
+    let code = spans.iter().any(|span| span.style.bg == background)
+        && spans.iter().all(|span| {
+            span.style.bg == background || span.content.trim().is_empty()
+        });
+    if code {
+        for span in spans {
+            span.style.bg = None;
+        }
+    }
+    code
 }
 
 fn slice_spans(

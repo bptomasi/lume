@@ -101,8 +101,8 @@
   Ctrl-f / b      Full page down / up
   Ctrl-e / y      Scroll viewport down / up by a row
   zt / zz / zb    Put cursor row at top / center / bottom
-  zh / zl         Scroll code horizontally by one cell
-  zH / zL         Scroll code by half the reader width
+  zh / zl         Scroll code/tables horizontally by one cell
+  zH / zL         Scroll code/tables by half the reader width
   5j / 3W / 2e    Counts apply to motions; Esc cancels a prefix/count
   /               Find literal text inside the article
   n / N           Next / previous reader search match

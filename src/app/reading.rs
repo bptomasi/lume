@@ -337,6 +337,7 @@ impl App {
         self.reader_styled = rendered.lines;
         self.line_ranges = rendered.ranges;
         self.code_lines = rendered.code;
+        self.table_rows = rendered.table_rows;
         self.reader_text = rendered.text;
         self.reader_ranges = rendered.text_ranges;
         self.reader_mappings = rendered.mappings;

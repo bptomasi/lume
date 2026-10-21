@@ -375,12 +375,27 @@ impl App {
     fn show_tables(&mut self) -> Result<()> {
         let tables = &self.reader_tools.index.tables;
         ensure!(!tables.is_empty(), "No Markdown tables in this article");
-        let text = tables
-            .iter()
-            .filter_map(|range| self.body.get(range.clone()))
-            .map(crate::reader::table_view::render)
-            .collect::<Vec<_>>()
-            .join("\n\n");
+        let text =
+            if self.table_rows.len() == tables.len() && !self.reader_stale() {
+                crate::reader::table_view::from_lines(
+                    self.table_rows
+                        .iter()
+                        .flat_map(|range| {
+                            self.reader_lines
+                                .get(range.clone())
+                                .into_iter()
+                                .flatten()
+                        })
+                        .map(String::as_str),
+                )
+            } else {
+                let source = tables
+                    .iter()
+                    .filter_map(|range| self.body.get(range.clone()))
+                    .collect::<Vec<_>>()
+                    .join("\n\n");
+                crate::reader::table_view::render(&source)
+            };
         self.show_document(
             "Tables · j/k vertical · h/l horizontal · Esc close",
             &text,

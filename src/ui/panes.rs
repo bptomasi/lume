@@ -288,6 +288,7 @@ fn reader_body(frame: &mut Frame<'_>, app: &App, column: Rect, inner: Rect) {
         );
         return;
     }
+    super::reader_text::backgrounds(frame, app, column);
     let selected = app.selected_range();
     let lines = app
         .reader_styled

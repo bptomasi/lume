@@ -28,6 +28,19 @@ focused target; article deletion goes to recoverable Trash, while note deletion
 retains the note undo contract. Check `?` for counted motions, jump history,
 find commands, editor search, tags, study cards and command variants.
 
+## Tables and code
+
+Markdown and normalized HTML tables render directly in the article with rounded
+borders and left, center or right column alignment. `zh` / `zl` pan code and
+tables by one terminal cell; `zH` / `zL` pan by half the reader width. Ordinary
+cursor motions keep the selected cell visible. `:tables` opens a separate
+inspector with `h/l` horizontal and `j/k` vertical navigation; `Esc` returns to
+the same article position. Table text supports the usual search, selection,
+yank and annotation keys.
+
+Code blocks use a continuous background across the reading column, including
+blank and short rows. Code fragments inside prose retain compact styling.
+
 ## Arrange your workspace
 
 Press `Ctrl-w` to see the next available layout keys in the application.

@@ -360,10 +360,12 @@ pub struct App {
     pub reader_styled: Vec<ratatui::text::Line<'static>>,
     /// HTTP(S) references extracted from the current content.
     pub links: Vec<(String, String)>,
-    /// Horizontal code-block scroll in terminal columns.
+    /// Horizontal code/table scroll in terminal columns.
     pub horizontal: usize,
-    /// Display rows whose source is a code block.
+    /// Display rows that preserve columns, including code blocks and tables.
     pub code_lines: Vec<bool>,
+    /// Display row ranges of tables, which keep the ordinary panel background.
+    pub table_rows: Vec<std::ops::Range<usize>>,
     /// Scrollable help position.
     pub help_scroll: usize,
     /// Captured article identities for a reversible bulk operation.
@@ -490,6 +492,7 @@ impl App {
             links: Vec::new(),
             horizontal: 0,
             code_lines: Vec::new(),
+            table_rows: Vec::new(),
             help_scroll: 0,
             marked: std::collections::BTreeSet::new(),
             screen: ratatui::layout::Rect::default(),

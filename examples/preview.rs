@@ -103,7 +103,8 @@ fn demo_app(mode: &str) -> Result<(tempfile::TempDir, App)> {
     }
     let keys = match mode {
         "zen" => " z",
-        "fullscreen" | "code" | "partial" | "full-article" | "fetching" => "Z",
+        "fullscreen" | "code" | "partial" | "full-article" | "fetching"
+        | "reader-tables" => "Z",
         "selection" => "Zjjjjjjv$sjj0llllvlllll",
         "cursor" => "Zjjj0lllll",
         "palette" => " p",
@@ -153,8 +154,8 @@ fn seed_preview(store: &mut Store, mode: &str) -> Result<()> {
     ) {
         seed_annotations(store)?;
     }
-    if matches!(mode, "code" | "selection") {
-        seed_code(store)?;
+    if matches!(mode, "code" | "selection" | "reader-tables") {
+        seed_code(store, mode)?;
     }
     if matches!(
         mode,
@@ -253,19 +254,29 @@ fn seed_full_article(store: &Store) -> Result<()> {
     Ok(())
 }
 
-fn seed_code(store: &mut Store) -> Result<()> {
+fn seed_code(store: &mut Store, mode: &str) -> Result<()> {
     let feed = store.feeds()?.remove(0);
+    let (title, body) = match mode {
+        "reader-tables" => (
+            "Tables and code, without distractions",
+            include_str!("fixtures/reader-tables.md"),
+        ),
+        _ => (
+            "One reader, many languages",
+            include_str!("fixtures/code-tour.md"),
+        ),
+    };
     store.ingest(
         &feed,
         "Lume language tour",
         &[lume::model::IncomingArticle {
             body_origin: lume::model::FeedOrigin::Feed,
             external_id: "code-tour".into(),
-            title: "One reader, many languages".into(),
+            title: title.into(),
             url: "https://preview.example/code".into(),
             author: "Lume".into(),
             published: 1_800_000_000,
-            body: include_str!("fixtures/code-tour.md").into(),
+            body: body.into(),
         }],
     )?;
     Ok(())
