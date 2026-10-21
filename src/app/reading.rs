@@ -643,7 +643,7 @@ impl App {
     /// Returns storage failures; the terminal runner still restores its state.
     pub fn save_session(&mut self) -> Result<()> {
         let position = self.save_reading_position();
-        self.workspace.article = self.current().map(|article| article.id);
+        self.workspace.article = self.session_article();
         self.workspace.view = self.view.clone();
         self.workspace.page_offset = self.page_offset;
         let preferences = self.persist_preferences();

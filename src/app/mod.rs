@@ -491,7 +491,7 @@ impl App {
             immediate_layout: false,
             pending_reflow: false,
             progress_memory: std::cell::RefCell::default(),
-            navigation_loading: false,
+            navigation_loading: !eager,
             vim: vim::Vim::default(),
             reader_ranges: Vec::new(),
             reader_mappings: Vec::new(),

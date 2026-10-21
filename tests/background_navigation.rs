@@ -580,3 +580,27 @@ fn unread_smart_reader() -> Result<(tempfile::TempDir, App, Store, View)> {
     settle(&mut app)?;
     Ok((directory, app, observer, view))
 }
+
+#[test]
+fn closing_before_startup_or_jump_delivery_retains_the_captured_article()
+-> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let path = directory.path().join("library.sqlite3");
+    let article = store.library()?.articles[0].id;
+    let mut workspace = store.workspace()?;
+    workspace.article = Some(article);
+    store.save_workspace(&workspace)?;
+    let mut app = App::open_interactive(store, false)?;
+    assert!(app.current().is_none());
+
+    app.end_session()?;
+
+    assert_eq!(Store::open(&path)?.workspace()?.article, Some(article));
+    app.enable_background_navigation(&path)?;
+    app.jump_article(article)?;
+    app.save_session()?;
+    app.flush_session()?;
+    assert_eq!(Store::open(&path)?.workspace()?.article, Some(article));
+    app.end_session()?;
+    Ok(())
+}

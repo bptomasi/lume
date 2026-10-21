@@ -251,6 +251,28 @@ impl App {
             })
     }
 
+    pub(super) fn session_article(&self) -> Option<i64> {
+        if !self.navigation_loading {
+            return self.current().map(|article| article.id);
+        }
+        match self
+            .navigation_worker
+            .as_ref()
+            .and_then(|worker| worker.request.as_ref())
+        {
+            Some(Request::Jump { article, .. }) => Some(*article),
+            Some(Request::Article { id, .. }) => Some(*id),
+            Some(Request::Refresh {
+                article: Some(article),
+                ..
+            }) => Some(*article),
+            _ => self
+                .current()
+                .map(|article| article.id)
+                .or(self.workspace.article),
+        }
+    }
+
     /// Whether the session worker still has unconfirmed durable writes.
     pub fn session_pending(&self) -> bool {
         self.session_writer
