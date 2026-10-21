@@ -4,7 +4,7 @@ use anyhow::Result;
 use rusqlite::OptionalExtension;
 
 impl Store {
-    /// Read saved preferences or the explicit bundled computing interests.
+    /// Read saved preferences or a neutral profile with no implicit interests.
     ///
     /// # Errors
     /// Returns invalid persisted settings or SQLite errors.
@@ -29,7 +29,16 @@ impl Store {
         profile: &RecommendationProfile,
     ) -> Result<()> {
         crate::recommendation::validate_profile(profile)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
+        self.replace_recommendation_profile(profile)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub(crate) fn replace_recommendation_profile(
+        &self,
+        profile: &RecommendationProfile,
+    ) -> Result<()> {
         self.connection.execute(
             include_str!("../sql/recommendations/insert_profile.sql"),
             [serde_json::to_string(profile)?],
@@ -41,7 +50,6 @@ impl Store {
             include_str!("../sql/recommendations/insert_all_dirty.sql"),
             [1],
         )?;
-        transaction.commit()?;
         Ok(())
     }
 }

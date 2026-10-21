@@ -31,7 +31,21 @@ def render(source: Path, destination: Path) -> None:
             (left, top, left + cell_width - 1, top + cell_height - 1),
             fill=background,
         )
-        draw.text((left, top), symbol, font=font, fill=foreground)
+        # Terminal block cells fill their pixel regions without font bearings.
+        # Drawing them as font glyphs introduces seams absent from the buffer.
+        if symbol == "▀":
+            draw.rectangle(
+                (left, top, left + cell_width - 1, top + cell_height // 2 - 1),
+                fill=foreground,
+            )
+        elif symbol == "▄":
+            draw.rectangle(
+                (left, top + cell_height // 2,
+                 left + cell_width - 1, top + cell_height - 1),
+                fill=foreground,
+            )
+        else:
+            draw.text((left, top), symbol, font=font, fill=foreground)
     destination.parent.mkdir(parents=True, exist_ok=True)
     image.save(destination)
 

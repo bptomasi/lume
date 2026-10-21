@@ -12,7 +12,7 @@ MIGRATE_FROM ?=
 .PHONY: check check-release check-http check-alacritty fmt lint test bench build demo
 .PHONY: install test-tools bench-tools bench-notes bench-recommendations
 .PHONY: bench-images bench-interaction bench-code check-image-display check-foot
-.PHONY: check-latency
+.PHONY: check-latency bench-configuration
 
 # Serialize composition even when a caller uses make -j.
 .NOTPARALLEL:
@@ -27,7 +27,7 @@ check:
 		tools/bench_support.py tools/bench_recommendations.py tools/bench_images.py \
 		tools/qualify_foot.py tools/foot_terminal.py tools/bench_interaction.py \
 		tools/terminal_latency.py tools/latency_fixture.py tools/qualify_latency.py \
-		tools/bench_code.py
+		tools/bench_code.py tools/bench_configuration.py
 
 fmt:
 	$(CARGO) fmt --all -- --check
@@ -74,6 +74,9 @@ bench:
 	$(MAKE) bench-tools
 
 # Repeated resource measurements; ordinary checks exercise the Rust workloads.
+bench-configuration:
+	python3 tools/bench_configuration.py
+
 bench-notes:
 	python3 tools/bench_notes.py
 
@@ -84,10 +87,10 @@ bench-images:
 	python3 tools/bench_images.py
 
 bench-code:
-	python3 tools/bench_code.py --output docs/code-viewport-benchmarks.json
+	python3 tools/bench_code.py --output .local/benchmarks/code-viewport.json
 
 bench-interaction:
-	python3 tools/bench_interaction.py --output docs/interaction-benchmarks.json
+	python3 tools/bench_interaction.py --output .local/benchmarks/interaction.json
 
 bench-tools:
 	python3 tools/bench_install.py

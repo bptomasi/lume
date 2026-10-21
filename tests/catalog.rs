@@ -185,6 +185,8 @@ fn starter_cli_installs_into_the_requested_database_and_rejects_demo()
     let directory = tempfile::tempdir()?;
     let path = directory.path().join("reading.sqlite3");
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_lume"))
+        .env_remove("LUME_CONFIG")
+        .env_remove("LUME_DATA_DIR")
         .arg("--database")
         .arg(&path)
         .arg("starter")
@@ -197,6 +199,7 @@ fn starter_cli_installs_into_the_requested_database_and_rejects_demo()
     assert_eq!(Store::open(&path)?.feeds()?.len(), 98);
 
     let rejected = std::process::Command::new(env!("CARGO_BIN_EXE_lume"))
+        .env_remove("LUME_CONFIG")
         .env("LUME_DATA_DIR", directory.path())
         .args(["--demo", "starter"])
         .output()?;

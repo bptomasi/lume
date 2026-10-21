@@ -3,6 +3,7 @@
 mod background;
 mod images;
 mod input;
+mod welcome;
 
 use background::Background;
 
@@ -32,6 +33,7 @@ pub(super) fn run(
     path: PathBuf,
     demo: bool,
     offline: bool,
+    configuration: Option<lume::config::Session>,
 ) -> Result<()> {
     if !io::stdout().is_terminal() || !io::stdin().is_terminal() {
         bail!(
@@ -39,9 +41,19 @@ pub(super) fn run(
         );
     }
     let mut app = App::new(store, demo)?;
+    if let Some(session) = &configuration {
+        app.configure_document(session.initial().clone());
+    }
     app.enable_background_navigation(&path)?;
     images::start(&mut app, &path, offline || demo);
-    let mut background = Background::start(path, !demo && !offline)?;
+    let mut background = Background::start(
+        path,
+        !demo && !offline,
+        configuration
+            .as_ref()
+            .map(lume::config::Session::start)
+            .transpose()?,
+    )?;
     if !offline && !app.library.feeds.is_empty() {
         background.refresh(&mut app);
     }
@@ -59,7 +71,10 @@ pub(super) fn run(
         guard.keyboard = true;
     }
     execute!(io::stdout(), EnableBracketedPaste, EnableFocusChange)?;
-    event_loop(&mut terminal, &mut app, &mut background, &mut guard)
+    let result =
+        event_loop(&mut terminal, &mut app, &mut background, &mut guard);
+    let published = background.finish_configuration();
+    result.and(published)
 }
 
 fn event_loop(
@@ -69,8 +84,11 @@ fn event_loop(
     guard: &mut TerminalGuard,
 ) -> Result<()> {
     let mut dirty = true;
+    let mut welcome = true;
     loop {
-        dirty |= sync_mouse(guard, app);
+        if !welcome {
+            dirty |= sync_mouse(guard, app);
+        }
         dirty |= background.tick(app)?;
         dirty |= poll_reading_workers(app);
         match app.poll_note_workspace() {
@@ -84,21 +102,47 @@ fn event_loop(
         }
         dirty |= app.tick_pane_motion(Instant::now());
         if dirty {
-            draw_workspace(terminal, app)?;
+            draw_workspace(terminal, app, welcome)?;
             dirty = false;
         }
         if !event::poll(poll_interval(app))? {
             continue;
         }
-        let mut batch = input::read_batch()?;
-        let actionable = batch.needs_redraw();
-        let hover = app.hovered_note();
-        if dispatch_batch(&mut batch, terminal, app, background, guard)? {
-            break;
+        match dispatch_input(terminal, app, background, guard, &mut welcome)? {
+            InputOutcome::Quit => break,
+            InputOutcome::Redraw => dirty = true,
+            InputOutcome::Idle => {}
         }
-        dirty |= actionable || hover != app.hovered_note();
     }
     app.end_session()
+}
+
+enum InputOutcome {
+    Idle,
+    Redraw,
+    Quit,
+}
+
+fn dispatch_input(
+    terminal: &mut ratatui::DefaultTerminal,
+    app: &mut App,
+    background: &Background,
+    guard: &mut TerminalGuard,
+    welcome: &mut bool,
+) -> Result<InputOutcome> {
+    if *welcome {
+        return Ok(welcome::handle(welcome, event::read()?));
+    }
+    let mut batch = input::read_batch()?;
+    let actionable = batch.needs_redraw();
+    let hover = app.hovered_note();
+    if dispatch_batch(&mut batch, terminal, app, background, guard)? {
+        return Ok(InputOutcome::Quit);
+    }
+    if actionable || hover != app.hovered_note() {
+        return Ok(InputOutcome::Redraw);
+    }
+    Ok(InputOutcome::Idle)
 }
 
 fn poll_reading_workers(app: &mut App) -> bool {
@@ -143,7 +187,14 @@ fn poll_interval(app: &App) -> Duration {
 fn draw_workspace(
     terminal: &mut ratatui::DefaultTerminal,
     app: &mut App,
+    welcome: bool,
 ) -> Result<()> {
+    if welcome {
+        io::stdout().sync_update(|_| {
+            terminal.draw(|frame| ui::draw_welcome(frame, &app.workspace.theme))
+        })??;
+        return Ok(());
+    }
     let area = terminal.size()?;
     let full = ratatui::layout::Rect::new(0, 0, area.width, area.height);
     let pixels = images::pixels();
@@ -178,6 +229,7 @@ fn dispatch_batch(
         match action {
             Action::Quit => return Ok(true),
             Action::Refresh => background.refresh(app),
+            Action::ReloadConfiguration => background.reload_configuration(app),
             Action::Open(url) => launch_browser(app, &url),
             Action::Discover(url) => background.discover(app, url),
             Action::FetchArticle(target) => background.fetch(app, target),

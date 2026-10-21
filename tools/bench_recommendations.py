@@ -47,7 +47,7 @@ def measure(binary, stress, trial, resources):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path,
-                        default=Path("docs/recommendation-benchmarks.json"))
+                        default=Path(".local/benchmarks/recommendations.json"))
     baseline_options = parser.add_mutually_exclusive_group()
     baseline_options.add_argument("--baseline-binary", type=Path)
     baseline_options.add_argument("--baseline-report", type=Path)

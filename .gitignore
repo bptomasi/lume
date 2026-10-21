@@ -6,6 +6,10 @@
 /.aws/
 /.codex/
 /.agents/
+/config.toml
+/lume.toml
+*.toml.lock
+.lume-config-recovery-*
 .env
 .env.*
 !.env.example

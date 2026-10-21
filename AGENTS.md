@@ -1,7 +1,9 @@
 # Lume development contract
 
-Read `/home/bpt/.codex/RTK.md` when available. This repository implements an
-independent RSS/Atom/JSON Feed terminal reader named Lume.
+This repository implements Lume, an independent, general-purpose
+RSS/Atom/JSON Feed terminal reader. New libraries have no subscriptions or
+implicit recommendation interests. Configuration is declarative TOML;
+articles and personal reading data remain in SQLite.
 
 - Write readable English code from the first edit. Prefer 80 columns, explicit
   fields/branches and cohesive functions around 30–40 lines. Format each slice.

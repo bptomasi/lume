@@ -43,6 +43,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
 
 fn seed(path: &std::path::Path, count: usize) -> Result<(Store, Feed)> {
     let mut store = Store::open(path)?;
+    store.save_recommendation_profile(&lume::catalog::engineering_profile()?)?;
     let mut first = None;
     for source in 0..10 {
         let id =

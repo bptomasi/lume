@@ -282,6 +282,7 @@ def qualify(directory, process):
     )
     time.sleep(0.25)
     geometry = json.loads((directory / "terminal.json").read_text())
+    welcome = enter_library(directory, process)
     command(directory, "fullscreen")
     initial = wait_for(
         "fullscreen native rows", lambda: reader_frame(directory, geometry), process,
@@ -304,9 +305,29 @@ def qualify(directory, process):
     cleanup = json.loads((directory / "exit.json").read_text())
     if cleanup != {"returncode": 0, "termios_restored": True}:
         raise RuntimeError(f"Foot terminal cleanup failed: {cleanup}")
-    return {"geometry": geometry, "decoded_strips": pixels,
+    return {"geometry": geometry, "welcome": welcome, "decoded_strips": pixels,
             "scroll_rows": samples, "selection": selections, "reader_aliases": aliases,
             "inspector": inspector, "cleanup": cleanup}
+
+
+def enter_library(directory, process):
+    output = directory / "terminal-output.bin"
+    wait_for(
+        "native welcome screen",
+        lambda: output.exists() and b"Press any key to begin" in output.read_bytes(),
+        process,
+    )
+    initial = output.read_bytes()
+    if "▀".encode() not in initial or b"Inbox" in initial:
+        raise RuntimeError("Welcome must show native art before the library")
+    # Even q must be consumed as the entry key rather than quitting the library.
+    before = len(initial)
+    send(directory, b"q")
+    wait_for(
+        "library after entry key",
+        lambda: b"Inbox" in output.read_bytes()[before:], process,
+    )
+    return {"native_pixel_art": True, "entry_key_consumed": True}
 
 
 def newer_plain_frame(directory, after):
@@ -330,7 +351,8 @@ def launch(binary, directory):
         "[security]\nosc52=disabled\n"
     )
     environment = os.environ.copy()
-    environment.update(LUME_DATA_DIR=str(directory / "data/lume"))
+    environment.update(LUME_DATA_DIR=str(directory / "data/lume"),
+                           LUME_CONFIG=str(directory / "config.toml"))
     with (directory / "foot.log").open("w") as log:
         process = subprocess.Popen([
             "foot", "--config", str(configuration), "--title",

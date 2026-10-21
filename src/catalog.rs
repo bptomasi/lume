@@ -81,6 +81,9 @@ pub fn infrastructure_feeds() -> Result<Vec<Candidate>> {
 /// historical label renames commit as a batch before new searches commit
 /// individually. Retry preserves search identities, criteria and article state.
 pub fn install(store: &Store) -> Result<InstallReport> {
+    if store.recommendation_profile()?.interests.is_empty() {
+        store.save_recommendation_profile(&engineering_profile()?)?;
+    }
     let feeds = feeds()?;
     let searches: Vec<SavedSearch> =
         serde_json::from_str(include_str!("../assets/reading/searches.json"))?;
@@ -97,6 +100,19 @@ pub fn install(store: &Store) -> Result<InstallReport> {
         added_feeds,
         total_feeds: feeds.len(),
         added_searches,
+    })
+}
+
+/// Explicit engineering preset interests; never a new library's defaults.
+///
+/// # Errors
+/// Returns invalid bundled profile data.
+pub fn engineering_profile() -> Result<crate::model::RecommendationProfile> {
+    Ok(crate::model::RecommendationProfile {
+        interests: serde_json::from_str(include_str!(
+            "../assets/reading/interests.json"
+        ))?,
+        ..Default::default()
     })
 }
 

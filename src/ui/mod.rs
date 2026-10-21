@@ -22,8 +22,10 @@ mod popup;
 mod reader_text;
 mod selectors;
 mod theme;
+mod welcome;
 
 pub(crate) use theme::image_background;
+pub use welcome::draw as draw_welcome;
 
 use ratatui::Frame;
 

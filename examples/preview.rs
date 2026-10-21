@@ -166,6 +166,9 @@ fn seed_preview(store: &mut Store, mode: &str) -> Result<()> {
         seed_full_article(store)?;
     }
     if matches!(mode, "recommendations" | "recommend-why") {
+        store.save_recommendation_profile(
+            &lume::catalog::engineering_profile()?,
+        )?;
         loop {
             if !store.refresh_recommendations()?.remaining {
                 break;

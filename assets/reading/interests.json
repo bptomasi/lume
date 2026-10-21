@@ -1,0 +1,47 @@
+[
+  {
+    "name": "Kubernetes internals",
+    "weight": 8,
+    "query": "kubernetes OR kubelet OR etcd OR \"kube proxy\" OR \"container runtime\""
+  },
+  {
+    "name": "Networking and dataplanes",
+    "weight": 9,
+    "query": "networking OR cilium OR CNI OR BGP OR conntrack OR \"connection tracking\" OR \"network policy\" OR dataplane OR XDP"
+  },
+  {
+    "name": "Kernel and systems",
+    "weight": 8,
+    "query": "kernel OR syscall OR eBPF OR \"memory management\" OR scheduling OR \"systems programming\""
+  },
+  {
+    "name": "Distributed systems",
+    "weight": 9,
+    "query": "\"distributed systems\" OR consensus OR raft OR replication OR consistency OR \"fault tolerance\""
+  },
+  {
+    "name": "Architecture",
+    "weight": 8,
+    "query": "architecture OR microservices OR \"system design\" OR \"event driven\""
+  },
+  {
+    "name": "Data and databases",
+    "weight": 8,
+    "query": "database OR databases OR postgres OR PostgreSQL OR Kafka OR CDC OR \"data pipeline\" OR transaction OR indexing"
+  },
+  {
+    "name": "Security and identity",
+    "weight": 8,
+    "query": "security OR vulnerability OR exploit OR authentication OR authorization OR OAuth OR OpenID OR OIDC OR cryptography"
+  },
+  {
+    "name": "Platform and reliability",
+    "weight": 7,
+    "query": "SRE OR DevOps OR \"platform engineering\" OR observability OR postmortem OR Terraform OR GitOps OR \"incident analysis\""
+  },
+  {
+    "name": "AI and models",
+    "weight": 6,
+    "query": "transformer OR transformers OR LLM OR LLMs OR inference OR \"language model\" OR \"machine learning\" OR \"model training\""
+  }
+]

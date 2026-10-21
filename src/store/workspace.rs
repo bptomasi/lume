@@ -110,7 +110,8 @@ impl Store {
         self.connection.execute(
             r#"
             INSERT INTO smart_lists (name, definition) VALUES (?1, ?2)
-            ON CONFLICT (name) DO UPDATE SET definition = excluded.definition
+            ON CONFLICT (name) DO UPDATE
+            SET definition = excluded.definition, enabled = 1
             "#,
             (name, serde_json::to_string(filter)?),
         )?;
@@ -123,7 +124,11 @@ impl Store {
     /// Returns SQLite or invalid stored JSON errors.
     pub fn smart_lists(&self) -> Result<Vec<SmartList>> {
         let mut statement = self.connection.prepare(
-            "SELECT id, name, definition FROM smart_lists ORDER BY name COLLATE NOCASE",
+            r#"
+            SELECT id, name, definition FROM smart_lists
+            WHERE enabled = 1
+            ORDER BY name COLLATE NOCASE
+            "#,
         )?;
         let rows = statement.query_map([], |row| {
             Ok((
@@ -160,7 +165,7 @@ impl Store {
     /// every earlier rename rolls back when any item fails.
     pub fn rename_smart_lists(&self, names: &[SmartListRename]) -> Result<()> {
         ensure!(names.len() <= 128, "Rename batch exceeds 128 lists");
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         for change in names {
             let name = super::annotations::collection_name(&change.name)?;
             let changed = transaction.execute(

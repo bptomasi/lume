@@ -1,0 +1,121 @@
+{
+  "measured_at": "2026-10-21T00:37:35.297044+00:00",
+  "binary_sha256": "0405067fb7d0a6b1cec1c5ddd11a9096204782d96f99857c66e0b4e2ce0a202a",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+  "commands": [
+    "python3 tools/qualify_foot.py --binary PATH --artifacts EMPTY_DIRECTORY",
+    "python3 tools/qualify_latency.py --binary PATH --artifacts EMPTY_DIRECTORY --stress"
+  ],
+  "image_qualification": {
+    "passed": true,
+    "welcome": {
+      "native_pixel_art": true,
+      "entry_key_consumed": true
+    },
+    "decoded_strips": 12,
+    "bidirectional_scroll_frames": 16,
+    "reader_aliases": {
+      "keys": "ggIVvAy",
+      "yank": "Request ownership",
+      "host_clipboard": "disabled"
+    },
+    "publisher_content_preserved": true,
+    "cleanup": {
+      "returncode": 0,
+      "termios_restored": true
+    }
+  },
+  "latency_qualification": {
+    "passed": true,
+    "corpus": {
+      "articles": 50002,
+      "feeds": 16,
+      "smart_lists": 64
+    },
+    "scope": "Private input injection to a matching frame and Foot DSR 5 acknowledgement; excludes compositor/physical presentation.",
+    "summary": {
+      "scroll-during-collection": {
+        "samples": 100,
+        "metrics": {
+          "input_to_frame_ms": {
+            "p50": 5.337997,
+            "p95": 8.566585,
+            "p99": 9.420545,
+            "max": 11.374911
+          },
+          "input_to_terminal_ack_ms": {
+            "p50": 8.047617,
+            "p95": 9.728292,
+            "p99": 11.691576,
+            "max": 12.029606
+          },
+          "relay_admission_ms": {
+            "p50": 0.24582,
+            "p95": 0.36814,
+            "p99": 0.414267,
+            "max": 0.46365
+          }
+        },
+        "output_bytes": 4937400
+      },
+      "cached-image-scroll": {
+        "samples": 100,
+        "metrics": {
+          "input_to_frame_ms": {
+            "p50": 5.848393,
+            "p95": 9.042654,
+            "p99": 9.794226,
+            "max": 10.143636
+          },
+          "input_to_terminal_ack_ms": {
+            "p50": 8.350314,
+            "p95": 10.416083,
+            "p99": 11.657915,
+            "max": 11.970111
+          },
+          "relay_admission_ms": {
+            "p50": 0.289461,
+            "p95": 0.375367,
+            "p99": 0.434093,
+            "max": 0.517722
+          }
+        },
+        "output_bytes": 4937500
+      },
+      "article-switch": {
+        "samples": 100,
+        "metrics": {
+          "input_to_frame_ms": {
+            "p50": 21.331561,
+            "p95": 22.45808,
+            "p99": 22.880916,
+            "max": 23.027787
+          },
+          "input_to_terminal_ack_ms": {
+            "p50": 22.067856,
+            "p95": 23.255446,
+            "p99": 23.878131,
+            "max": 24.511231
+          },
+          "relay_admission_ms": {
+            "p50": 0.282454,
+            "p95": 0.390611,
+            "p99": 0.420642,
+            "max": 0.471389
+          }
+        },
+        "output_bytes": 6418802
+      }
+    },
+    "cleanup": {
+      "returncode": 0,
+      "termios_restored": true
+    }
+  },
+  "limits": [
+    "Summary of owned real-terminal runs; raw captures are not repository assets.",
+    "No baseline comparison or speedup is claimed.",
+    "Alacritty was not rerun for this revision: xdotool is unavailable."
+  ]
+}

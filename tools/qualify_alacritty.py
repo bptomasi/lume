@@ -234,6 +234,7 @@ def configure_terminal(directory, required=("alacritty", "xdotool", "xclip", "xw
     environment.update(
         WINIT_UNIX_BACKEND="x11", XDG_DATA_HOME=str(directory / "data"),
         LUME_DATA_DIR=str(directory / "data/lume"),
+        LUME_CONFIG=str(directory / "config.toml"),
     )
     return config, environment
 
@@ -262,6 +263,7 @@ def launch(binary, directory):
             )
             window = windows.splitlines()[-1]
             session = Session(directory, process, window)
+            session.keys("Return")
             qualify(session)
             process.wait(timeout=10)
             result = json.loads((directory / "exit.json").read_text())

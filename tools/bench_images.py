@@ -41,7 +41,7 @@ def measure(binary, stress, index, directory):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path,
-                        default=Path("docs/foot-image-benchmarks.json"))
+                        default=Path(".local/benchmarks/images.json"))
     arguments = parser.parse_args()
     binary = benchmark_binary()
     report = {
@@ -56,7 +56,7 @@ def main():
             "Setup and fallback font initialization are outside operation timers.",
             "Process resources include fixture generation and setup.",
             "Frames use TestBackend; physical terminal latency is not measured.",
-            "Historical inline-only measurements remain in image-benchmarks.json.",
+            "Retained reports describe their measured revision only.",
             "Native encoders are measured; physical emulator/display time is not.",
             "Inspector zoom and pan use original bytes or re-rendered SVG paths.",
             "Bidirectional scrolling checks 24 clips without new image work.",

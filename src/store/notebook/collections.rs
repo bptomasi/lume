@@ -31,12 +31,12 @@ impl Store {
     pub fn save_note_collection(&self, name: &str, query: &str) -> Result<()> {
         let name = super::super::annotations::collection_name(name)?;
         crate::search::notes::validate(query)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let count: usize = transaction.query_row(
             r#"
             SELECT count(*)
             FROM note_collections
-            WHERE name <> ?1 COLLATE NOCASE
+            WHERE enabled = 1 AND name <> ?1 COLLATE NOCASE
             "#,
             [name],
             |row| row.get(0),
@@ -86,7 +86,7 @@ impl Store {
         if query.trim().is_empty() {
             return Ok(());
         }
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         transaction.execute(
             include_str!("../sql/notebook/insert_search_history.sql"),
             [query],

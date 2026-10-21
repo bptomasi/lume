@@ -186,6 +186,12 @@ class InstallationTests(unittest.TestCase):
             (installer.PROJECT / "assets/licenses/images/THIRD_PARTY_LICENSES.txt")
             .read_bytes(),
         )
+        for name in ("NOTICES.md", "THIRD_PARTY_LICENSES.txt"):
+            self.assertEqual(
+                (licenses / "configuration" / name).read_bytes(),
+                (installer.PROJECT / "assets/licenses/configuration" / name)
+                .read_bytes(),
+            )
         self.assertTrue((licenses / "syntax/PROVENANCE.md").is_file())
         with closing(sqlite3.connect(self.target)) as library:
             library.execute("UPDATE comments SET body = 'Personal edit'")

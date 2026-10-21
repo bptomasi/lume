@@ -125,3 +125,66 @@ fn recommendations_adopt_v9_without_changing_articles_or_private_state()
     assert_eq!(reopened.body(1)?, "Original body");
     Ok(())
 }
+
+#[test]
+fn declarative_upgrade_preserves_legacy_interests_and_private_data()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("declarative-upgrade.sqlite3");
+    v10_library(&path)?;
+
+    for _ in 0..2 {
+        let store = Store::open(&path)?;
+        let profile = store.recommendation_profile()?;
+        assert_eq!(profile.interests.len(), 9);
+        let kubernetes = profile
+            .interests
+            .iter()
+            .find(|interest| interest.name == "Kubernetes internals")
+            .ok_or_else(|| anyhow::anyhow!("Legacy interest was lost"))?;
+        assert_eq!(kubernetes.weight, 8);
+        assert_eq!(store.comments(1)?[0].body, "Keep this private note");
+        assert!(store.article_memberships(1)?.contains(&1));
+        let config = directory.path().join("config.toml");
+        crate::config::Session::open(&store, &config)?;
+        let exported = crate::config::read_document(&config)?;
+        let mut expected = profile.interests;
+        expected.sort_by(|left, right| left.name.cmp(&right.name));
+        assert_eq!(exported.recommendations.interests, expected);
+    }
+    Ok(())
+}
+
+#[test]
+fn declarative_upgrade_never_replaces_an_explicit_legacy_profile() -> Result<()>
+{
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("explicit-profile.sqlite3");
+    v10_library(&path)?;
+    let empty = crate::model::RecommendationProfile::default();
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "INSERT INTO settings (key, value) VALUES ('recommendation_profile', ?1)",
+        [serde_json::to_string(&empty)?],
+    )?;
+    drop(connection);
+
+    let store = Store::open(&path)?;
+    assert_eq!(store.recommendation_profile()?, empty);
+    assert_eq!(store.body(1)?, "Original body");
+    Ok(())
+}
+
+fn v10_library(path: &std::path::Path) -> Result<()> {
+    v7_library(path)?;
+    let mut connection = Connection::open(path)?;
+    let migrations = MIGRATIONS
+        .iter()
+        .take(10)
+        .map(|(name, sql)| Migration::unapplied(name, sql))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Runner::new(&migrations)
+        .set_grouped(true)
+        .run(&mut connection)?;
+    Ok(())
+}

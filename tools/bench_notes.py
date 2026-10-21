@@ -66,7 +66,7 @@ def measure(binary, workload, stress, trial, resources):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=Path("docs/notebook-benchmarks.json"))
+    parser.add_argument("--output", type=Path, default=Path(".local/benchmarks/notebook.json"))
     arguments = parser.parse_args()
     binary = benchmark_binary()
     results = []
@@ -97,7 +97,7 @@ def main():
             "correctness. Context/frame percentiles use TestBackend, not an "
             "actual terminal emulator; polling uses yield_now."
         ),
-        "baseline": "notebook-performance-before.json (notes suite only)",
+        "baseline": None,
         "results": results,
     }
     arguments.output.parent.mkdir(parents=True, exist_ok=True)

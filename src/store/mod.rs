@@ -8,6 +8,7 @@
 mod annotations;
 mod collections;
 mod comments;
+mod configuration;
 mod deletion;
 mod documents;
 mod export;
@@ -39,6 +40,18 @@ pub struct Store {
 }
 
 impl Store {
+    pub(crate) fn write_transaction(
+        &self,
+    ) -> rusqlite::Result<rusqlite::Transaction<'_>> {
+        // Acquire write authority before reading the state that will be changed.
+        // A deferred read-to-write upgrade can otherwise fail immediately with
+        // SQLITE_BUSY_SNAPSHOT while configuration publication commits in WAL.
+        rusqlite::Transaction::new_unchecked(
+            &self.connection,
+            rusqlite::TransactionBehavior::Immediate,
+        )
+    }
+
     pub(crate) fn read_snapshot<T>(
         &self,
         read: impl FnOnce(&Self) -> Result<T>,
@@ -68,7 +81,7 @@ impl Store {
         let collections = self
             .connection
             .prepare(
-                "SELECT id, name FROM collections ORDER BY name COLLATE NOCASE",
+                "SELECT id, name FROM collections WHERE enabled = 1 ORDER BY name COLLATE NOCASE",
             )?
             .query_map([], |row| {
                 Ok(Collection {
@@ -150,7 +163,7 @@ impl Store {
 
     fn collections(&self) -> Result<Vec<Collection>> {
         let mut statement = self.connection.prepare(
-            "SELECT id, name FROM collections ORDER BY name COLLATE NOCASE",
+            "SELECT id, name FROM collections WHERE enabled = 1 ORDER BY name COLLATE NOCASE",
         )?;
         let rows = statement.query_map([], |row| {
             Ok(Collection {

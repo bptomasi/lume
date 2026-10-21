@@ -318,7 +318,7 @@
   :recommend-settings minutes 20   Limit estimated reading time (off clears)
   :recommend-settings read on/off  Include/exclude articles marked read
   :recommend-settings source ID -10..10   Prefer/deprioritize a subscription
-  :recommend-settings reset     Restore bundled computing interests/settings
+  :recommend-settings reset     Clear interests and restore neutral settings
   :recommend-feedback useful    Approve this article and its matching interests
   :recommend-feedback not-interested   Hide it; reduce matching affinities
   :recommend-feedback too-basic / too-advanced   Hide it without rejecting topic
@@ -340,3 +340,12 @@
   Initial classification can take time for large libraries. Navigation never
   runs recommendation analysis. :recommend-why identifies feed/summary/full
   evidence; the recommender never downloads articles or sends personal data.
+
+DECLARATIVE CONFIGURATION
+  :config         Inspect the cached TOML document and its effective path
+  :config-reload  Reconcile external edits and pending interface changes
+                  Commands update the same file on a background lane.
+                  Configuration excludes articles, notes and reading history.
+  lume config path / check / show / export FILE
+                  Inspect or back up portable definitions from the CLI.
+                  New libraries are empty; presets are optional.

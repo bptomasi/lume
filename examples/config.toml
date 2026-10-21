@@ -1,0 +1,37 @@
+# Optional example. Nothing here is installed automatically.
+schema_version = 1
+
+[[feeds]]
+id = "journal"
+url = "https://journal.example/feed"
+
+[[folders]]
+id = "weekend"
+name = "Read this weekend"
+
+[[smart_lists]]
+id = "science"
+name = "Science"
+query = 'astronomy OR "climate change"'
+unread = true
+feeds = ["journal"]
+
+[[note_collections]]
+id = "questions"
+name = "Open questions"
+query = "type:question status:open"
+
+[ui]
+theme = "lume"
+mouse = true
+
+[ui.keybindings]
+"ctrl-t" = "toc"
+
+[recommendations]
+minutes = 20
+
+[[recommendations.interests]]
+name = "Astronomy"
+weight = 8
+query = 'astronomy OR telescope OR "space exploration"'

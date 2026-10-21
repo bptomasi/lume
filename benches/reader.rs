@@ -13,6 +13,8 @@ mod annotation_notebook;
 mod catalog;
 #[path = "workloads/code_viewport.rs"]
 mod code_viewport;
+#[path = "workloads/configuration.rs"]
+mod configuration;
 #[path = "workloads/expansion.rs"]
 mod expansion;
 #[path = "workloads/feed_content.rs"]
@@ -37,6 +39,8 @@ mod reading_tools;
 mod recommendations;
 #[path = "workloads/smoothness.rs"]
 mod smoothness;
+#[path = "workloads/welcome.rs"]
+mod welcome;
 #[path = "workloads/workspace_reflow.rs"]
 mod workspace_reflow;
 #[path = "workloads/workspaces.rs"]
@@ -81,6 +85,8 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    configuration::run(iterations, stress)?;
+    welcome::run(iterations, stress)?;
     code_viewport::run(iterations, stress)?;
     interaction::run(iterations, stress)?;
     reading_selection(iterations)?;
@@ -95,6 +101,8 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--configuration-only", configuration::run),
+    ("--welcome-only", welcome::run),
     ("--interaction-only", interaction::run),
     ("--code-viewport-only", code_viewport::run),
     ("--images-only", images::run),

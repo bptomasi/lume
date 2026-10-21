@@ -94,16 +94,12 @@ def install_notices(project, prefix):
     destination = prefix / "share/lume/licenses"
     destination.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(project / "LICENSE", destination / "LICENSE")
-    shutil.copytree(
-        project / "assets/licenses/full-article",
-        destination / "full-article",
-        dirs_exist_ok=True,
-    )
-    shutil.copytree(
-        project / "assets/licenses/images",
-        destination / "images",
-        dirs_exist_ok=True,
-    )
+    for scope in ("full-article", "images", "configuration"):
+        shutil.copytree(
+            project / "assets/licenses" / scope,
+            destination / scope,
+            dirs_exist_ok=True,
+        )
     syntax = destination / "syntax"
     syntax.mkdir(exist_ok=True)
     for source in (project / "assets/syntax").iterdir():

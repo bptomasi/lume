@@ -660,6 +660,18 @@ const COMMANDS: &[CommandSpec] = &[
         aliases: &[],
     },
     CommandSpec {
+        name: "config",
+        usage: "config",
+        description: "Inspect the current declarative TOML configuration",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "config-reload",
+        usage: "config-reload",
+        description: "Reconcile file and pending definition edits",
+        aliases: &[],
+    },
+    CommandSpec {
         name: "settings",
         usage: "settings",
         description: "Preview themes and panel sizes; Enter saves, Esc discards",

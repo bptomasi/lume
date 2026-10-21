@@ -33,7 +33,7 @@ impl Store {
     /// Returns invalid name or SQLite errors.
     pub fn create_collection(&self, name: &str) -> Result<i64> {
         let name = super::annotations::collection_name(name)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let existing = transaction
             .query_row(
                 "SELECT id FROM collections WHERE name = ?1",
@@ -42,6 +42,11 @@ impl Store {
             )
             .optional()?;
         if let Some(id) = existing {
+            transaction.execute(
+                "UPDATE collections SET enabled = 1 WHERE id = ?1",
+                [id],
+            )?;
+            transaction.commit()?;
             return Ok(id);
         }
         transaction
@@ -58,7 +63,7 @@ impl Store {
     /// Returns invalid/duplicate name, missing list or SQLite errors.
     pub fn rename_collection(&self, id: i64, name: &str) -> Result<()> {
         let name = super::annotations::collection_name(name)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         history::record(
             &transaction,
             &Undo::Collection(snapshot(&transaction, id)?),
@@ -76,7 +81,7 @@ impl Store {
     /// # Errors
     /// Returns missing list or SQLite errors.
     pub fn delete_collection(&self, id: i64) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         history::record(
             &transaction,
             &Undo::Collection(snapshot(&transaction, id)?),
@@ -95,7 +100,7 @@ impl Store {
         article: i64,
         lists: &BTreeSet<i64>,
     ) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         record_memberships(&transaction, article)?;
         replace_memberships(
             &transaction,
@@ -111,7 +116,7 @@ impl Store {
     /// # Errors
     /// Returns missing identities or SQLite errors.
     pub fn add_member(&self, collection: i64, article: i64) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         record_memberships(&transaction, article)?;
         transaction.execute(
             include_str!("sql/insert_list_member.sql"),
@@ -126,7 +131,7 @@ impl Store {
     /// # Errors
     /// Returns SQLite errors.
     pub fn remove_member(&self, collection: i64, article: i64) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         record_memberships(&transaction, article)?;
         transaction.execute(
             "DELETE FROM members WHERE collection_id = ?1 AND article_id = ?2",

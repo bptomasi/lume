@@ -20,7 +20,19 @@ pub(super) enum Command {
         url: String,
     },
     /// Install curated computing feeds and missing topic searches, without HTTP.
+    #[command(hide = true)]
     Starter,
+    /// Install an optional bundled reading preset, preserving personal data.
+    Preset {
+        /// Available preset name.
+        #[arg(value_parser = ["engineering"])]
+        name: String,
+    },
+    /// Inspect, validate, export or recover declarative configuration.
+    Config {
+        #[command(subcommand)]
+        command: Option<crate::configuration::ConfigCommand>,
+    },
     /// List subscriptions and their last collection error.
     Feeds,
     /// Collect every active subscription.
@@ -87,7 +99,7 @@ pub(super) fn execute(
             let id = store.subscribe(&url)?;
             println!("Subscription {id} saved. Run lume sync or press r.");
         }
-        Command::Starter => {
+        Command::Starter | Command::Preset { .. } => {
             real_library(demo)?;
             install_reading(&store)?;
         }

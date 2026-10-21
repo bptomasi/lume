@@ -16,6 +16,8 @@ fn offline_cli_rejects_all_network_commands_before_attempting_io() -> Result<()>
         vec!["discover", "https://journal.example/"],
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_lume"))
+            .env_remove("LUME_CONFIG")
+            .env_remove("LUME_DATA_DIR")
             .arg("--database")
             .arg(&path)
             .arg("--offline")
@@ -36,6 +38,8 @@ fn add_and_list_normalize_subscriptions_without_network_access() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let path = directory.path().join("library.sqlite3");
     let added = Command::new(env!("CARGO_BIN_EXE_lume"))
+        .env_remove("LUME_CONFIG")
+        .env_remove("LUME_DATA_DIR")
         .arg("--database")
         .arg(&path)
         .args(["add", "https://journal.example/feed#fragment"])
@@ -46,6 +50,8 @@ fn add_and_list_normalize_subscriptions_without_network_access() -> Result<()> {
         String::from_utf8_lossy(&added.stderr)
     );
     let listed = Command::new(env!("CARGO_BIN_EXE_lume"))
+        .env_remove("LUME_CONFIG")
+        .env_remove("LUME_DATA_DIR")
         .arg("--database")
         .arg(&path)
         .arg("feeds")
@@ -64,6 +70,8 @@ fn demo_cannot_use_a_custom_real_database() -> Result<()> {
     let path = directory.path().join("existing.sqlite3");
     std::fs::write(&path, b"existing user data")?;
     let rejected = Command::new(env!("CARGO_BIN_EXE_lume"))
+        .env_remove("LUME_CONFIG")
+        .env_remove("LUME_DATA_DIR")
         .args(["--demo", "--database"])
         .arg(&path)
         .output()?;
@@ -77,6 +85,8 @@ fn cli_rejects_credentials_without_echoing_the_secret() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let path = directory.path().join("library.sqlite3");
     let rejected = Command::new(env!("CARGO_BIN_EXE_lume"))
+        .env_remove("LUME_CONFIG")
+        .env_remove("LUME_DATA_DIR")
         .arg("--database")
         .arg(&path)
         .args(["add", "https://user:supersecret@journal.example/feed"])
@@ -91,6 +101,8 @@ fn cli_rejects_credentials_without_echoing_the_secret() -> Result<()> {
 fn non_interactive_tui_fails_with_an_actionable_message() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let result = Command::new(env!("CARGO_BIN_EXE_lume"))
+        .env_remove("LUME_CONFIG")
+        .env_remove("LUME_DATA_DIR")
         .arg("--database")
         .arg(directory.path().join("library.sqlite3"))
         .arg("--offline")
@@ -146,6 +158,8 @@ fn run(
     arguments: &[&str],
 ) -> Result<std::process::Output> {
     let output = Command::new(env!("CARGO_BIN_EXE_lume"))
+        .env_remove("LUME_CONFIG")
+        .env_remove("LUME_DATA_DIR")
         .arg("--database")
         .arg(path)
         .args(arguments)

@@ -53,6 +53,9 @@ impl App {
         argument: &str,
     ) -> Result<Option<Action>> {
         match verb {
+            "config" | "config-reload" => {
+                return self.configuration_command(verb);
+            }
             "settings" => {
                 self.mode = Mode::Settings(Box::new(SettingsDraft {
                     before: self.workspace.clone(),
@@ -84,27 +87,11 @@ impl App {
             )
         })?;
         ensure!(
-            valid_key_name(key),
-            "Use a character, arrow, f1–f12 or named key with optional ctrl-/alt- prefixes"
-        );
-        ensure!(
             self.workspace.keybindings.contains_key(key)
                 || self.workspace.keybindings.len() < 128,
             "At most 128 custom key bindings"
         );
-        ensure!(
-            key != "ctrl-c" && !key.is_empty() && key.len() <= 32,
-            "Ctrl-c is reserved for exit; key names use at most 32 bytes"
-        );
-        ensure!(
-            command.len() <= 4096 && !command.chars().any(char::is_control),
-            "Invalid bound command"
-        );
-        let verb = command.split_whitespace().next().unwrap_or("");
-        ensure!(
-            super::completion::resolve(verb).is_some(),
-            "Bind an available : command"
-        );
+        validate_binding(key, command)?;
         self.workspace
             .keybindings
             .insert(key.into(), command.into());
@@ -223,4 +210,25 @@ fn valid_key_name(name: &str) -> bool {
         return (1..=12).contains(&number);
     }
     base.chars().count() == 1 && !base.chars().any(char::is_control)
+}
+
+pub(crate) fn validate_binding(key: &str, command: &str) -> Result<()> {
+    ensure!(
+        valid_key_name(key),
+        "Use a character, arrow, f1–f12 or named key with optional ctrl-/alt- prefixes"
+    );
+    ensure!(
+        key != "ctrl-c" && !key.is_empty() && key.len() <= 32,
+        "Ctrl-c is reserved for exit; key names use at most 32 bytes"
+    );
+    ensure!(
+        command.len() <= 4096 && !command.chars().any(char::is_control),
+        "Invalid bound command"
+    );
+    let verb = command.split_whitespace().next().unwrap_or("");
+    ensure!(
+        super::completion::resolve(verb).is_some(),
+        "Bind an available : command"
+    );
+    Ok(())
 }

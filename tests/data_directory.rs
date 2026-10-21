@@ -8,6 +8,8 @@ fn cli(home: &Path, working: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_lume"));
     command
         .env("HOME", home)
+        .env_remove("LUME_CONFIG")
+        .env_remove("XDG_CONFIG_HOME")
         .env_remove("LUME_DATA_DIR")
         .current_dir(working);
     command
@@ -50,6 +52,7 @@ fn environment_selects_a_directory_without_requiring_home() -> Result<()> {
     let temporary = tempfile::tempdir()?;
     let directory = temporary.path().join("custom library");
     let output = Command::new(env!("CARGO_BIN_EXE_lume"))
+        .env_remove("LUME_CONFIG")
         .env_remove("HOME")
         .env("LUME_DATA_DIR", &directory)
         .args(["add", "https://journal.example/rss"])
@@ -72,6 +75,7 @@ fn directory_flag_overrides_environment_and_keeps_demo_separate() -> Result<()>
     for demo in [false, true] {
         let mut command = Command::new(env!("CARGO_BIN_EXE_lume"));
         command
+            .env_remove("LUME_CONFIG")
             .env("LUME_DATA_DIR", &ignored)
             .arg("--data-dir")
             .arg(&chosen);
@@ -98,6 +102,7 @@ fn explicit_database_wins_over_environment_and_conflicts_with_directory_flag()
     let ignored = temporary.path().join("ignored");
     let database = temporary.path().join("chosen.sqlite3");
     let output = Command::new(env!("CARGO_BIN_EXE_lume"))
+        .env_remove("LUME_CONFIG")
         .env("LUME_DATA_DIR", &ignored)
         .arg("--database")
         .arg(&database)
@@ -108,6 +113,8 @@ fn explicit_database_wins_over_environment_and_conflicts_with_directory_flag()
     assert!(!ignored.exists());
 
     let rejected = Command::new(env!("CARGO_BIN_EXE_lume"))
+        .env_remove("LUME_CONFIG")
+        .env_remove("LUME_DATA_DIR")
         .arg("--database")
         .arg(&database)
         .arg("--data-dir")

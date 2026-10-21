@@ -12,7 +12,7 @@ pub(super) fn run(connection: &mut Connection) -> Result<()> {
     let version: i64 =
         connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
     ensure!(
-        version <= 10,
+        version <= 11,
         "Unsupported library schema {version}; use a newer Lume"
     );
     if version == 0 {
@@ -128,6 +128,12 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "V10__recommend_local_articles",
         include_str!("sql/migrations/V10__recommend_local_articles.sql"),
+    ),
+    (
+        "V11__persist_declarative_configuration",
+        include_str!(
+            "sql/migrations/V11__persist_declarative_configuration.sql"
+        ),
     ),
 ];
 

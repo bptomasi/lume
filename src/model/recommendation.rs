@@ -16,7 +16,7 @@ pub struct Interest {
 }
 
 /// Portable local preferences, independent of a model or hosted account.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct RecommendationProfile {
     /// At most 24 interests; an empty profile deliberately recommends nothing.

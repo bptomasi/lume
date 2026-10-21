@@ -6,6 +6,7 @@
 pub mod app;
 pub mod catalog;
 pub mod clipboard;
+pub mod config;
 pub mod content;
 pub mod demo;
 pub mod exchange;

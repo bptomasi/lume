@@ -1,0 +1,6 @@
+# My reader
+schema_version = 1
+
+[ui]
+# Keep this comment
+theme = 'nord' # chosen palette

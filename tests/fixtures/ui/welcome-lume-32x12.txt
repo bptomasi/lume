@@ -1,0 +1,24 @@
+                                
+                                
+                                
+             l u m e            
+                                
+                                
+     Press any key to begin     
+                                
+                                
+                                
+                                
+                                
+0:0..32 Style::new().fg(Color::Reset).bg(Color::Rgb(23, 23, 26))
+1:0..32 Style::new().fg(Color::Reset).bg(Color::Rgb(23, 23, 26))
+2:0..32 Style::new().fg(Color::Reset).bg(Color::Rgb(23, 23, 26))
+3:0..32 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26)).bold()
+4:0..32 Style::new().fg(Color::Reset).bg(Color::Rgb(23, 23, 26))
+5:0..32 Style::new().fg(Color::Reset).bg(Color::Rgb(23, 23, 26))
+6:0..32 Style::new().fg(Color::Rgb(121, 120, 117)).bg(Color::Rgb(23, 23, 26))
+7:0..32 Style::new().fg(Color::Reset).bg(Color::Rgb(23, 23, 26))
+8:0..32 Style::new().fg(Color::Reset).bg(Color::Rgb(23, 23, 26))
+9:0..32 Style::new().fg(Color::Reset).bg(Color::Rgb(23, 23, 26))
+10:0..32 Style::new().fg(Color::Reset).bg(Color::Rgb(23, 23, 26))
+11:0..32 Style::new().fg(Color::Reset).bg(Color::Rgb(23, 23, 26))

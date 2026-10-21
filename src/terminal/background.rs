@@ -10,14 +10,24 @@ use lume::{
 };
 
 pub(super) struct Background {
+    configuration: Option<lume::config::Worker>,
+    pending_configuration: Option<lume::config::Update>,
+    configuration_error: Option<String>,
     feeds: Option<Worker>,
     articles: Option<article::Worker>,
     pending_feed: Option<Progress>,
 }
 
 impl Background {
-    pub(super) fn start(path: PathBuf, enabled: bool) -> Result<Self> {
+    pub(super) fn start(
+        path: PathBuf,
+        enabled: bool,
+        configuration: Option<lume::config::Worker>,
+    ) -> Result<Self> {
         Ok(Self {
+            configuration,
+            pending_configuration: None,
+            configuration_error: None,
             feeds: enabled.then(|| Worker::start(path.clone())).transpose()?,
             articles: enabled
                 .then(|| article::Worker::start(path))
@@ -76,6 +86,7 @@ impl Background {
 
     pub(super) fn tick(&mut self, app: &mut App) -> Result<bool> {
         let mut dirty = self.receive_feed(app)?;
+        dirty |= self.receive_configuration(app);
         if let Some(completion) =
             self.articles.as_ref().and_then(article::Worker::poll)
         {
@@ -99,6 +110,58 @@ impl Background {
             dirty = true;
         }
         Ok(dirty)
+    }
+
+    fn receive_configuration(&mut self, app: &mut App) -> bool {
+        let mut dirty = false;
+        while let Some(result) = self
+            .configuration
+            .as_ref()
+            .and_then(lume::config::Worker::poll)
+        {
+            dirty = true;
+            match result {
+                Ok(update) => {
+                    self.pending_configuration = Some(update);
+                    self.configuration_error = None;
+                }
+                Err(error) => {
+                    self.configuration_error = Some(format!("{error:#}"))
+                }
+            }
+        }
+        if app.configuration_idle()
+            && let Some(update) = self.pending_configuration.take()
+        {
+            dirty = true;
+            if let Err(error) = app.configuration_updated(update) {
+                self.configuration_error = Some(format!("{error:#}"));
+            }
+        }
+        // An older deferred success must not hide a subsequent save failure.
+        if dirty && let Some(error) = &self.configuration_error {
+            app.status = error.clone();
+        }
+        dirty
+    }
+
+    pub(super) fn reload_configuration(&self, app: &mut App) {
+        let result = self
+            .configuration
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Demo configuration is isolated"))
+            .and_then(lume::config::Worker::reload);
+        app.status = match result {
+            Ok(()) => "Configuration reload requested".into(),
+            Err(error) => error.to_string(),
+        };
+    }
+
+    pub(super) fn finish_configuration(&mut self) -> Result<()> {
+        if let Some(worker) = self.configuration.take() {
+            worker.finish()?;
+        }
+        Ok(())
     }
 
     pub(super) fn preview_rule(
@@ -157,4 +220,32 @@ fn unavailable(app: &mut App) {
         "Network disabled by --offline · cached articles remain available"
             .into()
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use lume::{app::App, config::Session, store::Store};
+
+    use super::Background;
+
+    #[test]
+    fn deferred_success_cannot_hide_a_later_configuration_failure() -> Result<()>
+    {
+        let directory = tempfile::tempdir()?;
+        let database = directory.path().join("library.sqlite3");
+        let store = Store::open(&database)?;
+        let session =
+            Session::open(&store, &directory.path().join("config.toml"))?;
+        let mut app = App::new(store, false)?;
+        app.configure_document(session.initial().clone());
+        let mut background = Background::start(database, false, None)?;
+        background.pending_configuration = Some(session.initial().clone());
+        background.configuration_error = Some("Configuration conflict".into());
+
+        assert!(background.receive_configuration(&mut app));
+        assert_eq!(app.status, "Configuration conflict");
+        assert!(!background.receive_configuration(&mut app));
+        Ok(())
+    }
 }

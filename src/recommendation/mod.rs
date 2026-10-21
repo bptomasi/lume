@@ -4,7 +4,6 @@
 //! transparent scoring and bounded diversity. Reading is never positive feedback.
 //! Scores order candidates; they cannot establish factual or technical quality.
 
-mod defaults;
 mod ranking;
 mod validation;
 

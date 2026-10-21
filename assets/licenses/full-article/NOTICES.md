@@ -4,7 +4,7 @@ This bundle covers the 33 dependency additions for full article extraction,
 including the published `tendril` decoder dependency restored in the lockfile.
 Lume's own code remains MIT. Existing dependencies retain their own licenses.
 
-The user approved the MPL-2.0 transitives for this integration on 2026-10-17.
+This extraction integration includes the following MPL-2.0 transitives.
 MPL-covered packages are `selectors`, `cssparser`, `cssparser-macros` and
 `dtoa-short`. Their original source headers remain in the unmodified upstream
 sources. Ship this notice bundle with redistributed binaries, retain source

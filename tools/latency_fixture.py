@@ -75,8 +75,10 @@ def body(name):
 def seed(binary, directory, publisher, stress):
     library = directory / "data/lume"
     library.mkdir(parents=True)
-    subprocess.run([str(binary), "--data-dir", str(library), "feeds"],
-                   check=True, capture_output=True, timeout=30)
+    subprocess.run([
+        str(binary), "--data-dir", str(library),
+        "--config", str(directory / "config.toml"), "feeds",
+    ], check=True, capture_output=True, timeout=30)
     count = 50_000 if stress else 10_000
     with sqlite3.connect(library / "library.sqlite3") as connection:
         connection.executemany(

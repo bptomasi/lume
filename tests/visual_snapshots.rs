@@ -16,6 +16,25 @@ use lume::{app::App, model::Pane, ui};
 use ratatui::{Terminal, backend::TestBackend, buffer::Buffer, layout::Rect};
 
 #[test]
+fn welcome_scenes_match_reviewed_pixels_and_captions() -> Result<()> {
+    for theme in ["lume", "nord", "gruvbox"] {
+        for (width, height) in [(120, 40), (80, 24), (32, 12)] {
+            let mut terminal = Terminal::new(TestBackend::new(width, height))?;
+            terminal.draw(|frame| ui::draw_welcome(frame, theme))?;
+            let actual = snapshot(terminal.backend().buffer())?;
+            let name = format!("welcome-{theme}-{width}x{height}.txt");
+            let path = Path::new("tests/fixtures/ui").join(name);
+            if std::env::var_os("UPDATE_LUME_VISUALS").is_some() {
+                std::fs::write(&path, &actual)?;
+            }
+            let expected = std::fs::read_to_string(&path)?;
+            assert_eq!(actual, expected, "Changed welcome: {}", path.display());
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn layouts_guide_selection_and_drag_match_reviewed_cells() -> Result<()> {
     for theme in ["lume", "nord", "gruvbox"] {
         for (width, height) in [(144, 44), (80, 28), (40, 18)] {

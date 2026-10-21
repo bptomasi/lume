@@ -1,0 +1,116 @@
+{
+  "measured_at": "2026-10-21T00:35:32.573028+00:00",
+  "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "binary_sha256": "58d8739ef763218966f81f88b0122feca1e5b2dfce39679945efb53bf8510286",
+  "scope": "Each iteration renames a folder, toggles a source and durably publishes TOML, then checks reread identities, state, queries and retained comments. Setup excluded from operation timers; process resources include setup. No earlier equivalent baseline or speedup comparison is claimed.",
+  "median_mean_ms": {
+    "250": 14.66,
+    "5000": 275.152
+  },
+  "runs": [
+    {
+      "feeds": 250,
+      "smart_lists": 32,
+      "trial": 1,
+      "operation": "declarative publication + reread (250 feeds)",
+      "iterations": 40,
+      "total_ms": 586.413,
+      "mean_ms": 14.66,
+      "resources": {
+        "wall_seconds": 0.63,
+        "peak_rss_kib": 17584,
+        "user_seconds": 0.62,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 250,
+      "smart_lists": 32,
+      "trial": 2,
+      "operation": "declarative publication + reread (250 feeds)",
+      "iterations": 40,
+      "total_ms": 580.803,
+      "mean_ms": 14.52,
+      "resources": {
+        "wall_seconds": 0.62,
+        "peak_rss_kib": 18036,
+        "user_seconds": 0.6,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 250,
+      "smart_lists": 32,
+      "trial": 3,
+      "operation": "declarative publication + reread (250 feeds)",
+      "iterations": 40,
+      "total_ms": 605.984,
+      "mean_ms": 15.15,
+      "resources": {
+        "wall_seconds": 0.64,
+        "peak_rss_kib": 17616,
+        "user_seconds": 0.64,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 5000,
+      "smart_lists": 256,
+      "trial": 1,
+      "operation": "declarative publication + reread (5000 feeds)",
+      "iterations": 40,
+      "total_ms": 11006.096,
+      "mean_ms": 275.152,
+      "resources": {
+        "wall_seconds": 11.31,
+        "peak_rss_kib": 89552,
+        "user_seconds": 11.0,
+        "system_seconds": 0.24,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 5000,
+      "smart_lists": 256,
+      "trial": 2,
+      "operation": "declarative publication + reread (5000 feeds)",
+      "iterations": 40,
+      "total_ms": 11634.515,
+      "mean_ms": 290.863,
+      "resources": {
+        "wall_seconds": 11.94,
+        "peak_rss_kib": 88776,
+        "user_seconds": 11.66,
+        "system_seconds": 0.22,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 5000,
+      "smart_lists": 256,
+      "trial": 3,
+      "operation": "declarative publication + reread (5000 feeds)",
+      "iterations": 40,
+      "total_ms": 10738.285,
+      "mean_ms": 268.457,
+      "resources": {
+        "wall_seconds": 11.04,
+        "peak_rss_kib": 89860,
+        "user_seconds": 10.8,
+        "system_seconds": 0.22,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    }
+  ]
+}

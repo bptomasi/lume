@@ -24,7 +24,7 @@ import time
 from foot_terminal import relay
 from latency_fixture import Publisher, body, seed
 from qualify_alacritty import wait_for, write_json
-from qualify_foot import command, frame, send
+from qualify_foot import command, enter_library, frame, send
 
 
 def percentile(values, quantile):
@@ -169,6 +169,7 @@ def process_resources(pid):
 
 def exercise(directory, process, publisher, count):
     wait_for("Foot startup", lambda: (directory / "terminal.json").exists(), process)
+    enter_library(directory, process)
     wait_for("active collector", publisher.started.is_set, process)
     command(directory, "fullscreen")
     wait_for(
@@ -220,7 +221,8 @@ def launch(binary, directory, count, stress):
             "initial-window-size-chars=120x40\npad=0x0\n"
             "[security]\nosc52=disabled\n"
         )
-        environment = dict(os.environ, LUME_DATA_DIR=str(directory / "data/lume"))
+        environment = dict(os.environ, LUME_DATA_DIR=str(directory / "data/lume"),
+                           LUME_CONFIG=str(directory / "config.toml"))
         with (directory / "foot.log").open("w") as log:
             process = subprocess.Popen([
                 "foot", "--config", str(config), "--title",

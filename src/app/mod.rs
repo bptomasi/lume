@@ -8,6 +8,7 @@ mod annotations;
 mod catalog_worker;
 mod commands;
 mod completion;
+mod configuration;
 mod deletion;
 mod document_view;
 mod documents;
@@ -46,6 +47,7 @@ mod recommendations;
 mod recovery;
 mod session_writer;
 mod settings;
+pub(crate) use settings::validate_binding;
 mod study;
 mod vim;
 mod workspace;
@@ -204,6 +206,8 @@ pub enum Action {
     Quit,
     /// Ask the worker to collect subscriptions.
     Refresh,
+    /// Reconcile declarative definitions away from keyboard and drawing paths.
+    ReloadConfiguration,
     /// Open a validated article URL in the system browser.
     Open(String),
     /// Fetch discovery choices away from the input loop.
@@ -220,6 +224,7 @@ pub enum Action {
 
 /// State owned by the UI thread. Drawing reads this without performing I/O.
 pub struct App {
+    configuration_document: Option<crate::config::Update>,
     /// Independent annotation workspace, suspended while a draft is open.
     pub notebook: Option<Box<Notebook>>,
     notebook_return: Option<Box<Notebook>>,
@@ -390,6 +395,7 @@ impl App {
         };
         let layouts = store.layouts(&workspace)?;
         let mut app = Self {
+            configuration_document: None,
             notebook: None,
             notebook_return: None,
             store,

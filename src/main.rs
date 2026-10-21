@@ -1,6 +1,7 @@
 //! CLI composition and terminal lifecycle.
 
 mod cli;
+mod configuration;
 mod data_dir;
 mod terminal;
 
@@ -30,23 +31,73 @@ struct Cli {
     /// Override LUME_DATA_DIR and the default ~/.local/lume directory.
     #[arg(long, conflicts_with = "database")]
     data_dir: Option<PathBuf>,
+    /// Override LUME_CONFIG and the XDG TOML configuration path.
+    #[arg(long, conflicts_with = "demo")]
+    config: Option<PathBuf>,
     #[command(subcommand)]
     command: Option<Command>,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let path = if let Some(path) = cli.database {
-        path
+    let config_path = if cli.demo {
+        None
     } else {
-        data_dir::database_path(cli.data_dir, cli.demo)?
+        Some(configuration::path(&cli)?)
+    };
+    if configuration::inspect(
+        cli.command.as_ref(),
+        config_path.as_deref(),
+        cli.demo,
+    )? {
+        return Ok(());
+    }
+    let (path, store) = open_library(&cli)?;
+    run(cli, path, store, config_path)
+}
+
+fn open_library(cli: &Cli) -> Result<(PathBuf, Store)> {
+    let path = if let Some(path) = &cli.database {
+        path.clone()
+    } else {
+        data_dir::database_path(cli.data_dir.clone(), cli.demo)?
     };
     let mut store = Store::open(&path)?;
     if cli.demo {
         demo::seed(&mut store)?;
     }
-    if let Some(command) = cli.command {
-        return execute(command, store, path, cli.demo, cli.offline);
+    Ok((path, store))
+}
+
+fn run(
+    cli: Cli,
+    path: PathBuf,
+    store: Store,
+    config_path: Option<PathBuf>,
+) -> Result<()> {
+    if let Some(Command::Config {
+        command: Some(command),
+    }) = cli.command
+    {
+        return configuration::execute(
+            command,
+            &store,
+            config_path.as_deref().ok_or_else(|| {
+                anyhow::anyhow!("Configuration commands require a real library")
+            })?,
+        );
     }
-    terminal::run(store, path, cli.demo, cli.offline)
+    let session = config_path
+        .as_deref()
+        .map(|path| lume::config::Session::open(&store, path))
+        .transpose()?;
+    if let Some(command) = cli.command {
+        let result = execute(command, store, path, cli.demo, cli.offline);
+        let publish = session
+            .as_ref()
+            .map(lume::config::Session::flush)
+            .transpose();
+        return result.and(publish.map(|_| ()));
+    }
+    terminal::run(store, path, cli.demo, cli.offline, session)
 }

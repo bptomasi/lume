@@ -1,0 +1,141 @@
+{
+  "measured_at": "2026-10-20T12:05:20.998164+00:00",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel Core Ultra 7 155H",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "Cargo bench, exact pinned toolchain, no source substitutions",
+  "scope": "Native TestBackend whole-frame rendering and correctness checks for captions, background and block pixels. Terminal allocation precedes the frame timer; process resources include setup. Excludes terminal transport and compositor display. No animation timer. This is a new capability without a baseline; no speedup is claimed.",
+  "benchmark_sha256": "9917fc8a3544419b6ef2479b41f191895a9c0355ef1a191a8a2ed479693b0cea",
+  "runs": [
+    {
+      "stress": false,
+      "run": 0,
+      "terminal_cells": [
+        120,
+        40
+      ],
+      "iterations": 1000,
+      "mean_ms": 0.154297,
+      "resources": {
+        "wall_seconds": 0.15,
+        "peak_rss_kib": 6300,
+        "user_seconds": 0.15,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "native welcome frame (120x40): 1000 iterations, 154.297 ms total, 0.154 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "run": 1,
+      "terminal_cells": [
+        120,
+        40
+      ],
+      "iterations": 1000,
+      "mean_ms": 0.166018,
+      "resources": {
+        "wall_seconds": 0.16,
+        "peak_rss_kib": 6420,
+        "user_seconds": 0.16,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "native welcome frame (120x40): 1000 iterations, 166.018 ms total, 0.166 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "run": 2,
+      "terminal_cells": [
+        120,
+        40
+      ],
+      "iterations": 1000,
+      "mean_ms": 0.162,
+      "resources": {
+        "wall_seconds": 0.16,
+        "peak_rss_kib": 6456,
+        "user_seconds": 0.16,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "native welcome frame (120x40): 1000 iterations, 162.000 ms total, 0.162 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 0,
+      "terminal_cells": [
+        300,
+        100
+      ],
+      "iterations": 1000,
+      "mean_ms": 0.9298139999999999,
+      "resources": {
+        "wall_seconds": 0.93,
+        "peak_rss_kib": 9184,
+        "user_seconds": 0.93,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "native welcome frame (300x100): 1000 iterations, 929.814 ms total, 0.930 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 1,
+      "terminal_cells": [
+        300,
+        100
+      ],
+      "iterations": 1000,
+      "mean_ms": 0.8645660000000001,
+      "resources": {
+        "wall_seconds": 0.87,
+        "peak_rss_kib": 9520,
+        "user_seconds": 0.86,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "native welcome frame (300x100): 1000 iterations, 864.566 ms total, 0.865 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "run": 2,
+      "terminal_cells": [
+        300,
+        100
+      ],
+      "iterations": 1000,
+      "mean_ms": 0.898083,
+      "resources": {
+        "wall_seconds": 0.9,
+        "peak_rss_kib": 9416,
+        "user_seconds": 0.89,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "stdout": "native welcome frame (300x100): 1000 iterations, 898.083 ms total, 0.898 ms/iteration\n"
+    }
+  ],
+  "interactive_qualification": {
+    "release_sha256": "48cf22f81d98e881bb1048073a3dd5d2621320a3076656d5994325331ede2869",
+    "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+    "welcome": {
+      "native_pixel_art": true,
+      "entry_key_consumed": true
+    },
+    "cleanup": {
+      "returncode": 0,
+      "termios_restored": true
+    },
+    "publisher_content_preserved": true,
+    "large_library_navigation_passed": true,
+    "samples_per_navigation_workload": 100,
+    "scope": "Isolated real Foot window, native Wayland, temporary 10000-article library and owned loopback publisher. No user data or terminal configuration changed. Native cell art precedes the library; q is consumed as the entry key. Independent image clipping, selection, zoom, scrolling and terminal restoration checks also pass."
+  }
+}
