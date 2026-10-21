@@ -64,3 +64,32 @@ checks cleanup and never changes terminal preferences or the host clipboard.
 Desktop-dependent checks remain separate from ordinary local verification and
 must be reported as unavailable if their environment cannot be provided.
 See [development](development.md).
+
+## Configuration and installer review
+
+The [repeated before/after workloads](performance/review.json) compare the same
+pinned toolchain and machine, with exact result, identity and comment checks.
+At 5,000 subscriptions, median publication-plus-reread time fell from 269.069
+ms to 187.792 ms (30% less). The actual revision-query SQL and row mapping fell
+from 163.680 microseconds to 1.535 microseconds per check. At 250 subscriptions,
+publication fell from 14.712 ms to 11.088 ms; revision checks fell from 9.400 to
+1.705 microseconds. These are scoped operations, not whole-application speedups.
+
+The revision query excludes the serialized snapshot and reuses its statement.
+Single-writer merges avoid an intermediate JSON tree, projection reuses validated
+definitions, and document patching reuses the validated input. Configuration
+publication remains outside the input/render lane. Process RSS includes fixtures;
+benchmarks are not physical key-to-photon measurements.
+
+The same report qualifies exact-byte executable upgrades at 16/64 MiB and SQLite
+snapshot migration at 1,000/10,000 articles. Upgrades verify that library and
+configuration bytes remain unchanged. These new installer workloads have no
+speedup baseline.
+
+Real Foot qualification of the reviewed application used 50,002 articles,
+16 sources and 64 smart lists, with 100 correlated samples per scenario. The
+input-to-terminal-acknowledgement p99 was 5.464 ms during collection, 6.141 ms
+with cached images and 22.174 ms for article switching. This excludes physical
+presentation; it is not a before/after terminal speedup comparison. Native image
+scroll, selection, welcome entry and terminal cleanup also passed. Alacritty was
+not rerun for this revision because xdotool was unavailable.

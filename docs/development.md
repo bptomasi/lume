@@ -5,6 +5,29 @@ version. Install the normal C build tools required by bundled SQLite. Local
 tool checks require Python 3. Product runtime requires no Python interpreter,
 source checkout, containers or external database.
 
+## Build and installation commands
+
+`make` and `make help` list commands without building or modifying data.
+`make paths` shows effective build/install locations. `make build` produces
+the locked release executable; `make run` opens the local application and
+`make demo` opens the isolated demonstration library.
+
+`make install` installs the executable and dependency notices. It preserves an
+existing destination library and can import a legacy SQLite snapshot when no
+library exists. If several legacy libraries exist, select one explicitly with
+`MIGRATE_FROM=/absolute/path`. Relative `XDG_DATA_HOME` values are ignored.
+
+`make upgrade` requires an installed executable, rebuilds the current checkout
+and replaces only the executable and notices. It does not pull Git, collect
+sources, open/migrate a library or write configuration. Schema upgrades occur
+when Lume next opens the library. Upgrade rejects `MIGRATE_FROM`.
+
+Use `PREFIX`, `DATA_DIR`/`LUME_DATA_DIR`, `CARGO_TARGET_DIR`, `BINARY`, `CARGO`
+and `PYTHON` for explicit locations/tools. Desktop qualification targets use
+the same computed `BINARY`, including builds outside the checkout.
+`make clean` removes Cargo build output; it does not remove a library.
+`make format` applies Rust formatting; `make fmt` only verifies it.
+
 ## Quality gates
 
 ```sh

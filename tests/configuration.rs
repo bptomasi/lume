@@ -476,3 +476,94 @@ fn unsupported_shortcuts_are_rejected_at_the_configuration_boundary()
     assert!(config::decode("[ui.keybindings]\n'ctrl-t' = 'toc'\n").is_ok());
     Ok(())
 }
+
+#[test]
+fn inline_preferences_keep_untouched_literals_and_comments() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let store = Store::open(&directory.path().join("library.sqlite3"))?;
+    let path = directory.path().join("config.toml");
+    fs::write(
+        &path,
+        "ui = { theme = 'nord', mouse = false } # Keep this preference\n",
+    )?;
+    let session = Session::open(&store, &path)?;
+    let mut workspace = store.workspace()?;
+    workspace.theme = "gruvbox".into();
+    store.save_workspace(&workspace)?;
+
+    session.flush()?;
+
+    let text = fs::read_to_string(&path)?;
+    assert!(text.contains("ui = {"));
+    assert!(text.contains("mouse = false"));
+    assert!(text.contains("# Keep this preference"));
+    assert_eq!(config::decode(&text)?.ui.theme, "gruvbox");
+    Ok(())
+}
+
+#[test]
+fn worker_detects_file_edits_between_initial_adoption_and_start() -> Result<()>
+{
+    let directory = tempfile::tempdir()?;
+    let store = Store::open(&directory.path().join("library.sqlite3"))?;
+    let path = directory.path().join("config.toml");
+    let session = Session::open(&store, &path)?;
+    fs::write(&path, "[ui]\ntheme = 'nord'\n")?;
+
+    let worker = session.start()?;
+    let update = next_update(&worker)?;
+
+    assert_eq!(update.ui.theme, "nord");
+    assert_eq!(store.workspace()?.theme, "nord");
+    worker.finish()?;
+    Ok(())
+}
+
+fn next_update(worker: &config::Worker) -> Result<config::Update> {
+    let deadline =
+        std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        if let Some(update) = worker.poll() {
+            return update;
+        }
+        anyhow::ensure!(
+            std::time::Instant::now() < deadline,
+            "Configuration notification timed out"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
+#[test]
+fn worker_reports_a_configuration_removed_before_start() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let store = Store::open(&directory.path().join("library.sqlite3"))?;
+    let path = directory.path().join("config.toml");
+    let session = Session::open(&store, &path)?;
+    fs::remove_file(&path)?;
+    let worker = session.start()?;
+
+    let error = next_update(&worker)
+        .err()
+        .ok_or_else(|| anyhow::anyhow!("Missing file was silently accepted"))?;
+
+    assert!(format!("{error:#}").contains("disappeared"));
+    fs::write(&path, "schema_version = 1\n")?;
+    worker.finish()?;
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn a_dangling_configuration_symlink_is_never_replaced() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let store = Store::open(&directory.path().join("library.sqlite3"))?;
+    let path = directory.path().join("config.toml");
+    let target = directory.path().join("missing.toml");
+    std::os::unix::fs::symlink(&target, &path)?;
+
+    assert!(Session::open(&store, &path).is_err());
+    assert_eq!(fs::read_link(&path)?, target);
+    assert!(!target.exists());
+    Ok(())
+}

@@ -18,6 +18,9 @@ make install
 lume
 ```
 
+Run `make` for available commands. `make upgrade` rebuilds this checkout and
+updates an existing installation, preserving configuration and reading data.
+
 The binary is installed in `~/.local/bin`; add it to `PATH` if needed.
 Libraries live in `~/.local/lume`, independently of the working directory.
 Override this with `LUME_DATA_DIR`, `--data-dir` or `--database`.
@@ -62,7 +65,7 @@ make check
 make check-release
 ```
 
-See [contributing](CONTRIBUTING.md), [development and terminal support](docs/development.md),
+See [development and terminal support](docs/development.md),
 [architecture](docs/architecture.md) and [performance](docs/performance.md).
 
 MIT licensed. Retain the [third-party notices](docs/dependency-security.md)

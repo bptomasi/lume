@@ -38,7 +38,7 @@ impl Store {
         };
         let mut backups = Vec::new();
         for (label, text) in [
-            ("file", file.unwrap_or_default()),
+            ("file", file.clone().unwrap_or_default()),
             ("library", config::encode(&local)?),
         ] {
             let mut backup = tempfile::Builder::new()
@@ -51,8 +51,7 @@ impl Store {
         }
         self.apply_configuration(&chosen, &local)?;
         let text = config::encode(&chosen)?;
-        let previous = config::publication::read(path)?;
-        config::publication::publish(path, previous.as_deref(), &text)?;
+        config::publication::publish(path, file.as_deref(), &text)?;
         self.connection.execute(
             include_str!("sql/configuration/update_publication.sql"),
             (path.to_str(), serde_json::to_string(&chosen)?),
@@ -62,13 +61,18 @@ impl Store {
     }
 
     pub(crate) fn configuration_pending(&self, path: &Path) -> Result<bool> {
-        let state = self.configuration_state()?;
+        let (owner, pending): (String, bool) = self
+            .connection
+            .prepare_cached(include_str!(
+                "sql/configuration/select_pending.sql"
+            ))?
+            .query_row([], |row| Ok((row.get(0)?, row.get(1)?)))?;
         ensure!(
-            Some(state.path.as_str()) == path.to_str(),
+            Some(owner.as_str()) == path.to_str(),
             "Library configuration path changed; reopen Lume using {}",
-            state.path
+            owner
         );
-        Ok(state.pending)
+        Ok(pending)
     }
 
     pub(crate) fn reconcile_configuration(
@@ -93,14 +97,8 @@ impl Store {
         let current = self.capture_configuration()?;
         let merged = reconcile(base.as_ref(), &current, file.as_ref())?;
         self.apply_configuration(&merged, &current)?;
-        let published = match &text {
-            Some(text) if file.as_ref() == Some(&merged) => text.clone(),
-            Some(text) => config::document::patch(text, &merged)?,
-            None => config::document::patch(
-                "# Lume configuration. Personal reading data stays in SQLite.\nschema_version = 1\n",
-                &merged,
-            )?,
-        };
+        let published =
+            config::document::render(text.as_deref(), file.as_ref(), &merged)?;
         config::publication::publish(path, text.as_deref(), &published)?;
         self.connection.execute(
             include_str!("sql/configuration/update_publication.sql"),

@@ -242,6 +242,61 @@ class InstallationTests(unittest.TestCase):
         self.assertTrue(self.target.parent.is_dir())
         self.assertFalse((home / ".local/lume").exists())
 
+    def test_upgrade_replaces_only_executable_and_notices(self):
+        binary = self.root / "new release"
+        binary.write_bytes(b"New executable")
+        prefix = self.root / "prefix"
+        installed = prefix / "bin/lume"
+        installed.parent.mkdir(parents=True)
+        installed.write_bytes(b"Previous executable")
+        config = self.root / "config.toml"
+        config.write_text("# Keep local configuration\n")
+        missing_data = self.root / "custom runtime data"
+
+        with redirect_stdout(io.StringIO()), patch.object(
+            installer, "legacy_library", side_effect=AssertionError("Migration attempted"),
+        ):
+            installer.install(binary, prefix, missing_data, installer.PROJECT,
+                              self.root, {}, upgrade=True)
+
+        self.assertEqual(installed.read_bytes(), b"New executable")
+        self.assertFalse(missing_data.exists())
+        self.assertEqual(config.read_text(), "# Keep local configuration\n")
+        self.assertTrue((prefix / "share/lume/licenses/configuration/NOTICES.md").is_file())
+
+    def test_upgrade_without_existing_installation_does_not_write_anything(self):
+        binary = self.root / "release"
+        binary.write_bytes(b"New executable")
+        prefix = self.root / "missing prefix"
+        with self.assertRaisesRegex(ValueError, "make install first"):
+            installer.install(binary, prefix, self.target.parent,
+                              installer.PROJECT, self.root, {}, upgrade=True)
+        self.assertFalse(prefix.exists())
+        self.assertFalse(self.target.parent.exists())
+
+    def test_relative_xdg_directory_does_not_select_a_cwd_library(self):
+        from contextlib import chdir
+        relative = Path("relative/lume/library.sqlite3")
+        with closing(seed_library(self.root / relative)):
+            pass
+        with chdir(self.root):
+            source = installer.legacy_library(
+                self.root / "project", self.root / "home",
+                {"XDG_DATA_HOME": "relative"},
+            )
+        self.assertIsNone(source)
+
+    def test_upgrade_and_migration_options_are_mutually_exclusive(self):
+        output = subprocess.run([
+            sys.executable, str(installer.PROJECT / "tools/install.py"),
+            "--binary", str(self.source), "--prefix", str(self.root),
+            "--data-dir", str(self.target.parent), "--upgrade",
+            "--migrate-from", str(self.source),
+        ], capture_output=True, text=True, timeout=5)
+        self.assertNotEqual(output.returncode, 0)
+        self.assertIn("not allowed", output.stderr)
+        self.assertEqual(list(self.root.iterdir()), [])
+
     def test_empty_path_is_rejected_before_writing(self):
         output = subprocess.run(
             [sys.executable, str(installer.PROJECT / "tools/install.py"),

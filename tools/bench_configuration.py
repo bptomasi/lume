@@ -1,4 +1,4 @@
-"""Measure checked TOML publication with representative and stress libraries."""
+"""Measure checked TOML publication and idle revision queries at scale."""
 
 import argparse
 from datetime import datetime, timezone
@@ -19,9 +19,10 @@ def measure(binary, stress, trial, resources):
         arguments.append("--stress")
     result = run_workload(binary, arguments, resources)
     timings = TIMING.findall(result.stdout)
-    if len(timings) != 1:
+    if len(timings) != 2:
         raise RuntimeError(f"Configuration workload did not report: {result.stdout}")
     operation, iterations, total, mean = timings[0]
+    idle = timings[1]
     return {
         "feeds": 5000 if stress else 250,
         "smart_lists": 256 if stress else 32,
@@ -30,16 +31,33 @@ def measure(binary, stress, trial, resources):
         "iterations": int(iterations),
         "total_ms": float(total),
         "mean_ms": float(mean),
+        "revision_checks_ms": float(idle[3]) / 200,
         "resources": json.loads(resources.read_text()),
     }
+
+
+def compare(baseline, current):
+    comparisons = []
+    for feeds in (250, 5000):
+        for metric in ("mean_ms", "revision_checks_ms"):
+            before = statistics.median(run[metric] for run in baseline
+                                       if run["feeds"] == feeds)
+            after = statistics.median(run[metric] for run in current
+                                      if run["feeds"] == feeds)
+            comparisons.append({"feeds": feeds, "metric": metric,
+                                "baseline_ms": before, "current_ms": after,
+                                "ratio": before / after})
+    return comparisons
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path,
                         default=Path(".local/benchmarks/configuration.json"))
+    parser.add_argument("--binary", type=Path)
+    parser.add_argument("--baseline", type=Path)
     arguments = parser.parse_args()
-    binary = benchmark_binary()
+    binary = arguments.binary or benchmark_binary()
     with tempfile.TemporaryDirectory(prefix="lume-config-bench-") as name:
         resources = Path(name) / "resources.json"
         runs = [measure(binary, stress, trial, resources)
@@ -55,6 +73,8 @@ def main():
         "scope": (
             "Each iteration renames a folder, toggles a source and durably publishes "
             "TOML, then checks reread identities, state, queries and retained comments. "
+            "Revision checks use the exact operational SQL and row mapping, "
+            "verify pending/published state, then time 200 checks per iteration. "
             "Setup excluded from operation timers; process resources include setup. "
             "No earlier equivalent baseline or speedup comparison is claimed."
         ),
@@ -65,6 +85,18 @@ def main():
         },
         "runs": runs,
     }
+    if arguments.baseline:
+        baseline = json.loads(arguments.baseline.read_text())
+        if (baseline["environment"], baseline["cpu"], baseline["rust"]) != (
+            report["environment"], report["cpu"], report["rust"],
+        ):
+            raise ValueError("Baseline environment/toolchain does not match")
+        report["baseline"] = baseline
+        report["comparison"] = compare(baseline["runs"], runs)
+        report["scope"] = report["scope"].replace(
+            "No earlier equivalent baseline or speedup comparison is claimed.",
+            "Compared against the same checked workloads before the review edits.",
+        )
     arguments.output.parent.mkdir(parents=True, exist_ok=True)
     arguments.output.write_text(json.dumps(report, indent=2) + "\n")
     print(arguments.output)

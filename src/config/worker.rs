@@ -1,6 +1,12 @@
 //! A dedicated, bounded lane keeps filesystem and definition scans out of input.
 
-use std::{path::PathBuf, sync::mpsc, thread, time::Duration};
+use std::{
+    cell::Cell,
+    path::PathBuf,
+    sync::{Arc, OnceLock, mpsc},
+    thread,
+    time::Duration,
+};
 
 use anyhow::Result;
 
@@ -29,6 +35,8 @@ pub struct Worker {
     events: mpsc::Receiver<Result<Update>>,
     stop: mpsc::SyncSender<Request>,
     thread: Option<thread::JoinHandle<Result<()>>>,
+    failure: Arc<OnceLock<String>>,
+    disconnected: Cell<bool>,
 }
 
 enum Request {
@@ -40,27 +48,45 @@ impl Worker {
     pub(super) fn start(path: PathBuf, database: PathBuf) -> Result<Self> {
         let (send, events) = mpsc::sync_channel(2);
         let (stop, receive) = mpsc::sync_channel(1);
-        let thread = thread::Builder::new()
-            .name("lume-configuration".into())
-            .spawn(move || {
+        let failure = Arc::new(OnceLock::new());
+        let reported = Arc::clone(&failure);
+        let task = move || {
             let result = run(path, database, send.clone(), receive);
             if let Err(error) = &result {
-                let _ = send.try_send(Err(anyhow::anyhow!(
-                    "Configuration worker stopped: {error:#}"
-                )));
+                let _ = reported.set(format!("{error:#}"));
             }
+            drop(send);
             result
-        })?;
+        };
+        let thread = thread::Builder::new()
+            .name("lume-configuration".into())
+            .spawn(task)?;
         Ok(Self {
             events,
             stop,
             thread: Some(thread),
+            failure,
+            disconnected: Cell::new(false),
         })
     }
 
     /// Take a completed notification without blocking navigation.
     pub fn poll(&self) -> Option<Result<Update>> {
-        self.events.try_recv().ok()
+        match self.events.try_recv() {
+            Ok(update) => Some(update),
+            Err(mpsc::TryRecvError::Disconnected)
+                if !self.disconnected.replace(true) =>
+            {
+                let message = self
+                    .failure
+                    .get()
+                    .map_or("connection closed unexpectedly", String::as_str);
+                Some(Err(anyhow::anyhow!(
+                    "Configuration worker stopped: {message}"
+                )))
+            }
+            _ => None,
+        }
     }
 
     /// Request immediate reconciliation; the bounded queue rejects overload.
@@ -119,5 +145,57 @@ impl Drop for Worker {
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Update, Worker};
+    use anyhow::{Context, Result};
+    use std::{
+        cell::Cell,
+        sync::{Arc, OnceLock, mpsc},
+    };
+
+    #[test]
+    fn fatal_failure_survives_full_notifications_and_is_reported_once()
+    -> Result<()> {
+        let (send, events) = mpsc::sync_channel(2);
+        for name in ["First", "Second"] {
+            send.send(Ok(Update {
+                ui: Default::default(),
+                workspaces: Default::default(),
+                catalog_fingerprint: [0; 32],
+                document: name.into(),
+                path: "config.toml".into(),
+            }))?;
+        }
+        let failure =
+            Arc::new(OnceLock::from("Storage became unavailable".to_owned()));
+        drop(send);
+        let (stop, _requests) = mpsc::sync_channel(1);
+        let worker = Worker {
+            events,
+            stop,
+            thread: None,
+            failure,
+            disconnected: Cell::new(false),
+        };
+        assert_eq!(
+            worker.poll().context("First update missing")??.document,
+            "First"
+        );
+        assert_eq!(
+            worker.poll().context("Second update missing")??.document,
+            "Second"
+        );
+        let error = worker
+            .poll()
+            .context("Failure was lost")?
+            .err()
+            .context("Worker failure was reported as success")?;
+        assert!(error.to_string().contains("Storage became unavailable"));
+        assert!(worker.poll().is_none());
+        Ok(())
     }
 }

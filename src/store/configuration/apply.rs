@@ -16,7 +16,11 @@ impl Store {
         config: &Configuration,
         previous: &Configuration,
     ) -> Result<()> {
-        config.validate()?;
+        // Capture, decode and structural merge validate their complete inputs.
+        // Applying a projection must not repeat URL/query parsing per record.
+        if config == previous {
+            return Ok(());
+        }
         for feed in
             changed_definitions(&previous.feeds, &config.feeds, |item| &item.id)
         {

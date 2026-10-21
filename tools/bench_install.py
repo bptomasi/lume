@@ -1,12 +1,16 @@
-"""Measure committed SQLite migration with representative and stress data.
+"""Measure committed migration and executable upgrades with checked workloads.
 
 Setup and verification are excluded from each wall-time sample. Peak RSS is
 the process high-water mark, including fixture setup, not a backup allocation
-delta. Results qualify the installer only, not application navigation.
+delta. Upgrade fixtures represent 16/64 MiB executables and verify exact
+binary, library and configuration bytes. Results qualify the installer only,
+not application navigation.
 """
 
-from contextlib import closing
+from contextlib import closing, redirect_stdout
 import json
+import hashlib
+import io
 from pathlib import Path
 import platform
 import resource
@@ -89,6 +93,40 @@ def measure(root, name, count, body_bytes):
     }
 
 
+def measure_upgrade(root, binary_bytes):
+    directory = root / f"upgrade-{binary_bytes}"
+    directory.mkdir()
+    binary = directory / "release"
+    binary.write_bytes(b"Lume executable fixture\n".ljust(binary_bytes, b"x"))
+    expected = hashlib.sha256(binary.read_bytes()).digest()
+    prefix = directory / "prefix"
+    installed = prefix / "bin/lume"
+    installed.parent.mkdir(parents=True)
+    installed.write_bytes(b"Previous executable")
+    data = directory / "data"
+    data.mkdir()
+    library = data / "library.sqlite3"
+    library.write_bytes(b"Owned data: never open during executable upgrade")
+    config = data / "config.toml"
+    config.write_bytes(b"# Retain exact preference bytes\n")
+    durations = []
+    for _ in range(3):
+        with redirect_stdout(io.StringIO()):
+            started = time.perf_counter()
+            installer.install(binary, prefix, data, installer.PROJECT,
+                              directory, {}, upgrade=True)
+            durations.append(round((time.perf_counter() - started) * 1000, 3))
+        if hashlib.sha256(installed.read_bytes()).digest() != expected:
+            raise AssertionError("Installed binary differs from release")
+        if library.read_bytes() != b"Owned data: never open during executable upgrade":
+            raise AssertionError("Upgrade modified library bytes")
+        if config.read_bytes() != b"# Retain exact preference bytes\n":
+            raise AssertionError("Upgrade modified configuration")
+    return {"workload": "executable-upgrade", "binary_bytes": binary_bytes,
+            "wall_ms": durations,
+            "process_peak_rss_kib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}
+
+
 def main():
     if sys.platform != "linux":
         raise SystemExit("This RSS benchmark reports Linux KiB units")
@@ -105,6 +143,8 @@ def main():
         ]
         for workload in workloads:
             print(json.dumps(measure(root, *workload)))
+        for size in (16 * 1024 * 1024, 64 * 1024 * 1024):
+            print(json.dumps(measure_upgrade(root, size)))
 
 
 if __name__ == "__main__":

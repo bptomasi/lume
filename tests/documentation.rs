@@ -8,10 +8,9 @@ use pulldown_cmark::{Event, Parser, Tag};
 #[test]
 fn public_guides_link_to_existing_local_documents_and_assets() -> Result<()> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let mut paths =
-        ["README.md", "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md"]
-            .map(|name| root.join(name))
-            .to_vec();
+    let mut paths = ["README.md", "AGENTS.md"]
+        .map(|name| root.join(name))
+        .to_vec();
     for file in fs::read_dir(root.join("docs"))? {
         let path = file?.path();
         if path.extension().is_some_and(|extension| extension == "md") {

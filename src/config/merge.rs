@@ -12,6 +12,14 @@ pub(crate) fn configuration(
     local: &Configuration,
     file: &Configuration,
 ) -> Result<Configuration> {
+    // All inputs were validated at capture/decode. The common single-writer
+    // case needs no intermediate JSON tree or second semantic validation.
+    if local == base || local == file {
+        return Ok(file.clone());
+    }
+    if file == base {
+        return Ok(local.clone());
+    }
     let merged = merge(
         Some(&serde_json::to_value(base)?),
         Some(&serde_json::to_value(local)?),

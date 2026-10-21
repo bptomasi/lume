@@ -20,7 +20,8 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
             sequence += 1;
             scenario.edit_and_verify(sequence)
         },
-    )
+    )?;
+    scenario.verify_pending_checks(iterations)
 }
 
 struct Scenario {
@@ -63,6 +64,27 @@ impl Scenario {
             folder,
             key,
             original,
+        })
+    }
+
+    fn verify_pending_checks(&self, iterations: usize) -> Result<()> {
+        let connection = rusqlite::Connection::open(
+            self.session.path().with_file_name("library.sqlite3"),
+        )?;
+        self.store.create_collection("Pending checkpoint")?;
+        ensure!(
+            pending(&connection, self.session.path())?,
+            "Pending edit lost"
+        );
+        self.session.flush()?;
+        super::measure("200 configuration revision checks", iterations, || {
+            for _ in 0..200 {
+                ensure!(
+                    !pending(&connection, self.session.path())?,
+                    "Published edit remained pending"
+                );
+            }
+            Ok(())
         })
     }
 
@@ -131,4 +153,20 @@ fn seed(store: &Store, count: usize, lists: usize) -> Result<()> {
         )?;
     }
     Ok(())
+}
+
+fn pending(
+    connection: &rusqlite::Connection,
+    path: &std::path::Path,
+) -> Result<bool> {
+    let (owner, pending): (String, bool) = connection
+        .prepare_cached(include_str!(
+            "../../src/store/sql/configuration/select_pending.sql"
+        ))?
+        .query_row([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+    ensure!(
+        Some(owner.as_str()) == path.to_str(),
+        "Configuration owner changed"
+    );
+    Ok(pending)
 }

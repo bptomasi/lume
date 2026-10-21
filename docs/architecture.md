@@ -92,8 +92,13 @@ reads mutable state before writing, an IMMEDIATE transaction acquires write
 authority first, avoiding WAL read-to-write snapshot upgrade failures.
 
 The configuration lane owns file observation, parsing and publication. It polls
-only the revision and file metadata while idle; it does not reread TOML on each
-key or frame. Complete bounded notifications allow safe coalescing. Definitions
+only the owner/revision fields and file metadata while idle; the publication
+snapshot is excluded from this hot query. It does not reread TOML on each
+key or frame. Startup always validates the current file. Successful observations
+retain the input timestamp so an edit made during reconciliation is retried.
+Single-writer merges reuse validated definitions without building a JSON tree;
+only concurrent structural merges need that representation. Complete bounded
+notifications allow safe coalescing. Definitions
 wait for ordinary reading mode without selections or active gestures. UI
 installation compares the last presented appearance against current edits so
 an old completion cannot overwrite newer in-memory choices. Catalog fingerprints

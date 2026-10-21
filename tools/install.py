@@ -3,7 +3,8 @@
 The installer copies a committed snapshot, including WAL content, and keeps
 the source. An existing destination always wins. A same-directory hard link
 publishes the completed snapshot without overwriting a concurrently created
-library. Runtime reads only the configured data directory.
+library. Runtime reads only the configured data directory. Executable upgrades
+skip all library discovery, migration and configuration writes.
 """
 
 import argparse
@@ -30,7 +31,7 @@ def legacy_library(project, home, environment, requested=None):
         home / ".local/share/lume/library.sqlite3",
     ]
     configured = environment.get("XDG_DATA_HOME")
-    if configured:
+    if configured and Path(configured).is_absolute():
         candidates.append(Path(configured) / "lume/library.sqlite3")
     found = sorted({path.resolve() for path in candidates if path.is_file()})
     if len(found) > 1:
@@ -109,20 +110,29 @@ def install_notices(project, prefix):
 
 def install(
     binary, prefix, data_dir, project, home, environment, requested=None,
+    *, upgrade=False,
 ):
     if not binary.is_file():
         raise ValueError(f"Build the release binary first: {binary}")
+    executable = prefix / "bin/lume"
+    if upgrade and not executable.is_file():
+        raise ValueError(
+            f"No installed executable at {executable}; run make install first"
+        )
+    if upgrade and requested is not None:
+        raise ValueError("Upgrade cannot migrate a library; use make install")
     target = data_dir / "library.sqlite3"
     migrated = False
-    if not target.exists() and not target.is_symlink():
-        source = legacy_library(project, home, environment, requested)
-        migrated = migrate_library(source, target)
-    data_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if not upgrade:
+        if not target.exists() and not target.is_symlink():
+            source = legacy_library(project, home, environment, requested)
+            migrated = migrate_library(source, target)
+        data_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     install_notices(project, prefix)
-    executable = prefix / "bin/lume"
     install_binary(binary, executable)
-    print(f"Installed executable: {executable}")
-    print(f"Library: {target}")
+    print(f"{'Upgraded' if upgrade else 'Installed'} executable: {executable}")
+    if not upgrade:
+        print(f"Library: {target}")
     if migrated:
         print("Copied the legacy library; its original remains unchanged.")
     return migrated
@@ -139,7 +149,9 @@ def main():
     parser.add_argument("--binary", required=True, type=path_argument)
     parser.add_argument("--prefix", required=True, type=path_argument)
     parser.add_argument("--data-dir", required=True, type=path_argument)
-    parser.add_argument("--migrate-from", type=path_argument)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--migrate-from", type=path_argument)
+    mode.add_argument("--upgrade", action="store_true")
     arguments = parser.parse_args()
     try:
         install(
@@ -150,6 +162,7 @@ def main():
             Path.home(),
             os.environ,
             arguments.migrate_from,
+            upgrade=arguments.upgrade,
         )
     except (OSError, ValueError, sqlite3.Error) as error:
         print(f"Installation failed: {error}", file=sys.stderr)

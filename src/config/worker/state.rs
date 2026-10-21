@@ -22,7 +22,8 @@ pub(super) struct Watch {
 impl Watch {
     pub(super) fn open(path: PathBuf, database: &Path) -> Result<Self> {
         Ok(Self {
-            observed: stamp(&path),
+            // The file may have changed since Session::open validated it.
+            observed: None,
             path,
             store: Store::open(database)?,
         })
@@ -30,12 +31,19 @@ impl Watch {
 
     pub(super) fn tick(&mut self, forced: bool) -> Result<Option<Notice>> {
         let pending = self.store.configuration_pending(&self.path)?;
-        if !forced && !pending && self.observed == stamp(&self.path) {
+        let observed = stamp(&self.path);
+        if !forced
+            && !pending
+            && observed.is_some()
+            && self.observed == observed
+        {
             return Ok(None);
         }
         let result = self.store.reconcile_configuration(&self.path);
         if result.is_ok() {
-            self.observed = stamp(&self.path);
+            // Record the input observation, never a later unvalidated edit.
+            // Our own atomic publication may cause one follow-up check.
+            self.observed = observed;
         }
         Ok(Some(result))
     }

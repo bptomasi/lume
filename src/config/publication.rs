@@ -87,3 +87,28 @@ pub(crate) fn publish(
     File::open(parent)?.sync_all()?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{publish, read};
+    use anyhow::Result;
+
+    #[test]
+    fn intervening_editor_save_is_retained_instead_of_overwritten() -> Result<()>
+    {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("config.toml");
+        std::fs::write(&path, "# Initial\n")?;
+        let previous = read(&path)?;
+        let external = "# Saved by another editor\n";
+        std::fs::write(&path, external)?;
+
+        assert!(
+            publish(&path, previous.as_deref(), "# Pending Lume edit\n")
+                .is_err()
+        );
+        assert_eq!(std::fs::read_to_string(&path)?, external);
+        assert_eq!(std::fs::read_dir(directory.path())?.count(), 1);
+        Ok(())
+    }
+}

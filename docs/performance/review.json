@@ -1,0 +1,433 @@
+{
+  "measured_at": "2026-10-21T01:23:44.943458+00:00",
+  "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "binary_sha256": "eed04cea42799a057e1c0fee08b21dfc9fabc227339c7e3232f54f9c45b2f45e",
+  "scope": "Each iteration renames a folder, toggles a source and durably publishes TOML, then checks reread identities, state, queries and retained comments. Revision checks use the exact operational SQL and row mapping, verify pending/published state, then time 200 checks per iteration. Setup excluded from operation timers; process resources include setup. Compared against the same checked workloads before the review edits.",
+  "median_mean_ms": {
+    "250": 11.088,
+    "5000": 187.792
+  },
+  "runs": [
+    {
+      "feeds": 250,
+      "smart_lists": 32,
+      "trial": 1,
+      "operation": "declarative publication + reread (250 feeds)",
+      "iterations": 40,
+      "total_ms": 480.301,
+      "mean_ms": 12.008,
+      "revision_checks_ms": 0.0017050000000000001,
+      "resources": {
+        "wall_seconds": 0.54,
+        "peak_rss_kib": 17212,
+        "user_seconds": 0.51,
+        "system_seconds": 0.03,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 250,
+      "smart_lists": 32,
+      "trial": 2,
+      "operation": "declarative publication + reread (250 feeds)",
+      "iterations": 40,
+      "total_ms": 421.65,
+      "mean_ms": 10.541,
+      "revision_checks_ms": 0.001885,
+      "resources": {
+        "wall_seconds": 0.48,
+        "peak_rss_kib": 17540,
+        "user_seconds": 0.46,
+        "system_seconds": 0.02,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 250,
+      "smart_lists": 32,
+      "trial": 3,
+      "operation": "declarative publication + reread (250 feeds)",
+      "iterations": 40,
+      "total_ms": 443.525,
+      "mean_ms": 11.088,
+      "revision_checks_ms": 0.00151,
+      "resources": {
+        "wall_seconds": 0.5,
+        "peak_rss_kib": 17364,
+        "user_seconds": 0.46,
+        "system_seconds": 0.03,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 5000,
+      "smart_lists": 256,
+      "trial": 1,
+      "operation": "declarative publication + reread (5000 feeds)",
+      "iterations": 40,
+      "total_ms": 7406.892,
+      "mean_ms": 185.172,
+      "revision_checks_ms": 0.00153,
+      "resources": {
+        "wall_seconds": 7.83,
+        "peak_rss_kib": 88800,
+        "user_seconds": 7.39,
+        "system_seconds": 0.44,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 5000,
+      "smart_lists": 256,
+      "trial": 2,
+      "operation": "declarative publication + reread (5000 feeds)",
+      "iterations": 40,
+      "total_ms": 7511.667,
+      "mean_ms": 187.792,
+      "revision_checks_ms": 0.001535,
+      "resources": {
+        "wall_seconds": 7.95,
+        "peak_rss_kib": 88940,
+        "user_seconds": 7.65,
+        "system_seconds": 0.29,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "feeds": 5000,
+      "smart_lists": 256,
+      "trial": 3,
+      "operation": "declarative publication + reread (5000 feeds)",
+      "iterations": 40,
+      "total_ms": 7628.461,
+      "mean_ms": 190.712,
+      "revision_checks_ms": 0.00227,
+      "resources": {
+        "wall_seconds": 8.12,
+        "peak_rss_kib": 88620,
+        "user_seconds": 7.62,
+        "system_seconds": 0.47,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    }
+  ],
+  "baseline": {
+    "measured_at": "2026-10-21T01:11:01.733363+00:00",
+    "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+    "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+    "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "binary_sha256": "ff12727b638cfd1ecb4997607e39db07b8df3a68ab5091d3d54ce29ce348233d",
+    "scope": "Each iteration renames a folder, toggles a source and durably publishes TOML, then checks reread identities, state, queries and retained comments. Setup excluded from operation timers; process resources include setup. No earlier equivalent baseline or speedup comparison is claimed.",
+    "median_mean_ms": {
+      "250": 14.712,
+      "5000": 269.069
+    },
+    "runs": [
+      {
+        "feeds": 250,
+        "smart_lists": 32,
+        "trial": 1,
+        "operation": "declarative publication + reread (250 feeds)",
+        "iterations": 40,
+        "total_ms": 588.484,
+        "mean_ms": 14.712,
+        "revision_checks_ms": 0.009399999999999999,
+        "resources": {
+          "wall_seconds": 0.72,
+          "peak_rss_kib": 17332,
+          "user_seconds": 0.69,
+          "system_seconds": 0.02,
+          "input_blocks": 0,
+          "output_blocks": 0
+        }
+      },
+      {
+        "feeds": 250,
+        "smart_lists": 32,
+        "trial": 2,
+        "operation": "declarative publication + reread (250 feeds)",
+        "iterations": 40,
+        "total_ms": 679.274,
+        "mean_ms": 16.982,
+        "revision_checks_ms": 0.009465,
+        "resources": {
+          "wall_seconds": 0.8,
+          "peak_rss_kib": 17552,
+          "user_seconds": 0.75,
+          "system_seconds": 0.04,
+          "input_blocks": 0,
+          "output_blocks": 0
+        }
+      },
+      {
+        "feeds": 250,
+        "smart_lists": 32,
+        "trial": 3,
+        "operation": "declarative publication + reread (250 feeds)",
+        "iterations": 40,
+        "total_ms": 575.769,
+        "mean_ms": 14.394,
+        "revision_checks_ms": 0.009315,
+        "resources": {
+          "wall_seconds": 0.69,
+          "peak_rss_kib": 17836,
+          "user_seconds": 0.67,
+          "system_seconds": 0.02,
+          "input_blocks": 0,
+          "output_blocks": 0
+        }
+      },
+      {
+        "feeds": 5000,
+        "smart_lists": 256,
+        "trial": 1,
+        "operation": "declarative publication + reread (5000 feeds)",
+        "iterations": 40,
+        "total_ms": 10762.744,
+        "mean_ms": 269.069,
+        "revision_checks_ms": 0.164115,
+        "resources": {
+          "wall_seconds": 12.6,
+          "peak_rss_kib": 90076,
+          "user_seconds": 11.66,
+          "system_seconds": 0.88,
+          "input_blocks": 0,
+          "output_blocks": 0
+        }
+      },
+      {
+        "feeds": 5000,
+        "smart_lists": 256,
+        "trial": 2,
+        "operation": "declarative publication + reread (5000 feeds)",
+        "iterations": 40,
+        "total_ms": 10722.66,
+        "mean_ms": 268.066,
+        "revision_checks_ms": 0.16368,
+        "resources": {
+          "wall_seconds": 12.54,
+          "peak_rss_kib": 88984,
+          "user_seconds": 11.57,
+          "system_seconds": 0.94,
+          "input_blocks": 0,
+          "output_blocks": 0
+        }
+      },
+      {
+        "feeds": 5000,
+        "smart_lists": 256,
+        "trial": 3,
+        "operation": "declarative publication + reread (5000 feeds)",
+        "iterations": 40,
+        "total_ms": 10988.582,
+        "mean_ms": 274.715,
+        "revision_checks_ms": 0.102825,
+        "resources": {
+          "wall_seconds": 12.32,
+          "peak_rss_kib": 89776,
+          "user_seconds": 12.07,
+          "system_seconds": 0.17,
+          "input_blocks": 0,
+          "output_blocks": 0
+        }
+      }
+    ]
+  },
+  "comparison": [
+    {
+      "feeds": 250,
+      "metric": "mean_ms",
+      "baseline_ms": 14.712,
+      "current_ms": 11.088,
+      "ratio": 1.326839826839827
+    },
+    {
+      "feeds": 250,
+      "metric": "revision_checks_ms",
+      "baseline_ms": 0.009399999999999999,
+      "current_ms": 0.0017050000000000001,
+      "ratio": 5.513196480938415
+    },
+    {
+      "feeds": 5000,
+      "metric": "mean_ms",
+      "baseline_ms": 269.069,
+      "current_ms": 187.792,
+      "ratio": 1.4328033143051888
+    },
+    {
+      "feeds": 5000,
+      "metric": "revision_checks_ms",
+      "baseline_ms": 0.16368,
+      "current_ms": 0.001535,
+      "ratio": 106.63192182410424
+    }
+  ],
+  "installation": [
+    {
+      "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+      "python": "3.13.5",
+      "sqlite": "3.46.1"
+    },
+    {
+      "workload": "representative",
+      "articles": 1000,
+      "body_bytes_each": 2048,
+      "database_bytes": 4182016,
+      "wall_ms": [
+        8.195,
+        6.161,
+        5.18
+      ],
+      "process_peak_rss_kib": 24044
+    },
+    {
+      "workload": "stress",
+      "articles": 10000,
+      "body_bytes_each": 4096,
+      "database_bytes": 46534656,
+      "wall_ms": [
+        45.202,
+        45.278,
+        63.923
+      ],
+      "process_peak_rss_kib": 24044
+    },
+    {
+      "workload": "executable-upgrade",
+      "binary_bytes": 16777216,
+      "wall_ms": [
+        13.821,
+        13.287,
+        12.673
+      ],
+      "process_peak_rss_kib": 36440
+    },
+    {
+      "workload": "executable-upgrade",
+      "binary_bytes": 67108864,
+      "wall_ms": [
+        38.594,
+        43.138,
+        41.756
+      ],
+      "process_peak_rss_kib": 101888
+    }
+  ],
+  "installation_scope": "Three runs per workload; setup/verification excluded from wall samples; RSS includes fixture setup. No installer speedup baseline.",
+  "terminal": {
+    "application_sha256": "d30c79cad9a4d395f31ed1e54b88ed8e50123828ce5b7e767b3dc08b2308aa27",
+    "measured_at": "2026-10-21T01:25:55.863665+00:00",
+    "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+    "images": {
+      "passed": true,
+      "welcome": {
+        "native_pixel_art": true,
+        "entry_key_consumed": true
+      },
+      "decoded_strip_count": 12,
+      "bidirectional_scroll_frames": 16,
+      "content_preserved": true,
+      "cleanup": {
+        "returncode": 0,
+        "termios_restored": true
+      }
+    },
+    "latency": {
+      "passed": true,
+      "corpus": {
+        "articles": 50002,
+        "feeds": 16,
+        "smart_lists": 64
+      },
+      "scope": "Private input injection to a matching frame and Foot DSR 5 acknowledgement; excludes compositor/physical presentation.",
+      "summary": {
+        "scroll-during-collection": {
+          "samples": 100,
+          "metrics": {
+            "input_to_frame_ms": {
+              "p50": 1.715313,
+              "p95": 3.113223,
+              "p99": 3.482054,
+              "max": 4.231461
+            },
+            "input_to_terminal_ack_ms": {
+              "p50": 4.202083,
+              "p95": 5.236152,
+              "p99": 5.463569,
+              "max": 5.852148
+            },
+            "relay_admission_ms": {
+              "p50": 0.257899,
+              "p95": 0.360498,
+              "p99": 0.432078,
+              "max": 0.483049
+            }
+          },
+          "output_bytes": 1961300
+        },
+        "cached-image-scroll": {
+          "samples": 100,
+          "metrics": {
+            "input_to_frame_ms": {
+              "p50": 1.754826,
+              "p95": 3.829393,
+              "p99": 4.302969,
+              "max": 5.100723
+            },
+            "input_to_terminal_ack_ms": {
+              "p50": 4.234285,
+              "p95": 5.467043,
+              "p99": 6.140767,
+              "max": 6.204876
+            },
+            "relay_admission_ms": {
+              "p50": 0.265471,
+              "p95": 0.355626,
+              "p99": 0.448995,
+              "max": 0.449779
+            }
+          },
+          "output_bytes": 1961400
+        },
+        "article-switch": {
+          "samples": 100,
+          "metrics": {
+            "input_to_frame_ms": {
+              "p50": 19.785713,
+              "p95": 21.060475,
+              "p99": 21.517539,
+              "max": 21.975013
+            },
+            "input_to_terminal_ack_ms": {
+              "p50": 20.496099,
+              "p95": 21.839533,
+              "p99": 22.174192,
+              "max": 22.518329
+            },
+            "relay_admission_ms": {
+              "p50": 0.25877,
+              "p95": 0.355192,
+              "p99": 0.409498,
+              "max": 0.427449
+            }
+          },
+          "output_bytes": 3547006
+        }
+      },
+      "cleanup": {
+        "returncode": 0,
+        "termios_restored": true
+      }
+    },
+    "alacritty": "Not rerun: xdotool is unavailable."
+  }
+}

@@ -60,8 +60,10 @@ fn absolute_path(path: &Path) -> Result<PathBuf> {
         .parent()
         .context("Configuration requires a parent directory")?;
     publication::prepare_directory(parent)?;
-    if path.exists() {
-        return Ok(path.canonicalize()?);
+    if path.symlink_metadata().is_ok() {
+        return path
+            .canonicalize()
+            .context("Configuration path or symlink target is inaccessible");
     }
     Ok(parent.canonicalize()?.join(
         path.file_name()
