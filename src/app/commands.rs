@@ -14,6 +14,10 @@ impl App {
             | InputKind::NoteCollection
             | InputKind::NoteSearch => return Ok(Action::None),
             InputKind::Search => return Ok(Action::None),
+            InputKind::LibrarySearch => {
+                self.commit_library_search()?;
+                return Ok(Action::None);
+            }
             InputKind::ReaderSearch => {
                 self.search_reader(&input.text)?;
                 return Ok(Action::None);

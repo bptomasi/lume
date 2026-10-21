@@ -3,7 +3,7 @@
 ╭ 01  Librar[≡]─[−]╮╭ 03  Reader[≡]─[−]╮
 │                  ││ Cache &          │
 │  LIBRARY         ││ consequence      │
-│▎╭ Layout · Ctrl-w · Reader ────────╮ │
+│▎╭─ Layout · Ctrl-w · Reader ───────╮ │
 │ │ h/j/k/l Focus · w Cycle          │ │
 │ │ H/J/K/L Move pane                │ │
 │ │ s Split below · v Split right    │ │

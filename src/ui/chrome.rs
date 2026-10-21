@@ -248,7 +248,7 @@ fn status_line(app: &App) -> Line<'static> {
         Mode::Image(_) => (" IMAGE ", AMBER),
     };
     let activity = if app.session_failed() {
-        "  SAVE ERROR"
+        "  SAVE ERROR · :save-status"
     } else if app.session_pending() {
         "  saving…"
     } else if app.refreshing {

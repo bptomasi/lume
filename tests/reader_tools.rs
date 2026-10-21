@@ -289,3 +289,95 @@ fn refresh_retains_article_and_note_identity_beyond_the_loaded_page()
     assert_eq!(app.body, BODY);
     Ok(())
 }
+
+#[test]
+fn enter_follows_local_links_and_history_survives_reflow() -> Result<()> {
+    let body = "[jump here](#recovery)\n\n# Overview\n\nA paragraph.\n\n\
+        ## Recovery\n\nRecovered text.";
+    let (_directory, mut app) = reading_body(body)?;
+    let before = app.cursor_offset();
+
+    assert_eq!(key(&mut app, KeyCode::Enter)?, Action::None);
+
+    assert_eq!(app.reader_lines[app.reader_cursor], "Recovery");
+    app.resize_reader(12, 5);
+    app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
+    assert_eq!(app.cursor_offset(), before);
+    assert_eq!(app.cursor_link(), Some("#recovery"));
+    app.key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::CONTROL))?;
+    assert_eq!(app.reader_lines[app.reader_cursor], "Recovery");
+    Ok(())
+}
+
+#[test]
+fn enter_opens_the_exact_external_occurrence_in_a_wrapped_label() -> Result<()>
+{
+    let body = "Prefix [same long label](https://example.org/first) \
+        and [same long label](https://example.org/second).";
+    let (_directory, mut app) = reading_body(body)?;
+    app.resize_reader(14, 5);
+    command(&mut app, "find label")?;
+
+    assert_eq!(
+        key(&mut app, KeyCode::Enter)?,
+        Action::Open("https://example.org/first".into())
+    );
+
+    command(&mut app, "find-next")?;
+    assert_eq!(
+        key(&mut app, KeyCode::Enter)?,
+        Action::Open("https://example.org/second".into())
+    );
+    Ok(())
+}
+
+#[test]
+fn same_page_urls_jump_and_missing_sections_do_not_open_an_unrelated_page()
+-> Result<()> {
+    let body = "[go](https://journal.example/cache#target)\n\n\
+        ## Target\n\nTarget text.";
+    let (_directory, mut app) = reading_body(body)?;
+
+    assert_eq!(key(&mut app, KeyCode::Enter)?, Action::None);
+    assert_eq!(app.reader_lines[app.reader_cursor], "Target");
+
+    let (_directory, mut app) = reading_body("[go](#absent)\n\nText.")?;
+    let before = app.cursor_offset();
+    let error = key(&mut app, KeyCode::Enter)
+        .err()
+        .context("Missing section succeeded")?;
+    assert!(error.to_string().contains("absent from the cached article"));
+    assert_eq!(app.cursor_offset(), before);
+    Ok(())
+}
+
+#[test]
+fn html_anchor_links_jump_to_the_publishers_exact_id() -> Result<()> {
+    let body = lume::content::article_markdown(
+        "<p><a href='#custom-id'>go</a></p>\
+        <h2 id='custom-id'>Different title</h2><p>Section text.</p>",
+        true,
+        "https://journal.example/cache",
+    );
+    let (_directory, mut app) = reading_body(&body)?;
+
+    key(&mut app, KeyCode::Enter)?;
+
+    assert_eq!(app.reader_lines[app.reader_cursor], "Different title");
+    assert!(!app.reader_text.contains("<a"));
+    Ok(())
+}
+
+#[test]
+fn unsafe_links_and_plain_text_never_emit_browser_actions() -> Result<()> {
+    for body in [
+        "[blocked](javascript:alert)",
+        "[blocked](file:///etc/passwd)",
+        "Plain text.",
+    ] {
+        let (_directory, mut app) = reading_body(body)?;
+        assert_eq!(app.cursor_link(), None);
+        assert_eq!(key(&mut app, KeyCode::Enter)?, Action::None);
+    }
+    Ok(())
+}

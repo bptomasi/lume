@@ -29,6 +29,7 @@ impl App {
             .position(|item| item.view.same_destination(&self.view))
             .unwrap_or(1);
         self.view = self.navigation[self.nav_selected].view.clone();
+        self.refresh_library_search();
     }
 
     pub(crate) fn filter(&mut self) -> Result<()> {
@@ -132,13 +133,10 @@ impl App {
     ) -> Result<()> {
         match self.focus {
             Focus::Library => {
-                let next = shifted(
-                    self.nav_selected,
-                    self.navigation.len(),
-                    forward,
-                    distance,
-                );
-                if next != self.nav_selected {
+                let previous = self.nav_selected;
+                if let Some(next) = self.move_library_match(forward, distance)
+                    && next != previous
+                {
                     self.set_view(self.navigation[next].view.clone())?;
                 }
             }

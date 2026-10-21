@@ -161,6 +161,36 @@ fn source_fetch_policy_round_trips_declaratively() -> Result<()> {
 }
 
 #[test]
+fn justification_alone_publishes_and_external_edits_survive_restart()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let database = directory.path().join("library.sqlite3");
+    let store = Store::open(&database)?;
+    let path = directory.path().join("config.toml");
+    let session = Session::open(&store, &path)?;
+    let mut app = App::new(store, false)?;
+    app.configure_document(session.initial().clone());
+    app.save_session()?;
+    session.flush()?;
+
+    command(&mut app, "justify on")?;
+    session.flush()?;
+    assert!(config::read_document(&path)?.ui.justify);
+    let reopened = App::new(Store::open(&database)?, false)?;
+    assert!(reopened.workspace.justify);
+
+    command(&mut app, "justify off")?;
+    session.flush()?;
+    assert!(!config::read_document(&path)?.ui.justify);
+    fs::write(&path, "[ui]\njustify = true\n")?;
+    let external = Session::open(&Store::open(&database)?, &path)?;
+    app.configuration_updated(external.initial().clone())?;
+    assert!(app.workspace.justify);
+    assert!(App::new(Store::open(&database)?, false)?.workspace.justify);
+    Ok(())
+}
+
+#[test]
 fn external_preferences_wait_for_a_polled_barrier_without_blocking_input()
 -> Result<()> {
     let directory = tempfile::tempdir()?;

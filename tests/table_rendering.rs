@@ -142,3 +142,41 @@ fn padding_is_bounded_across_all_tables_in_an_article() {
     assert!(rendered.text.contains("After everything."));
     assert!(rendered.text.len() < 1024 * 1024);
 }
+
+#[test]
+fn fully_bold_publisher_cells_become_the_header_without_a_blank_row() {
+    let html = "<table><tbody><tr>\
+        <td><strong>Same model</strong></td>\
+        <td><strong>Shell + kubectl</strong></td>\
+        <td><strong>Read-only context</strong></td></tr>\
+        <tr><td>Correct</td><td>45</td><td>46</td></tr>\
+        </tbody></table>";
+
+    let source = content::article_markdown(html, true, "https://example.org");
+    let rendered = reader::render(&source, 80);
+
+    assert_eq!(rendered.table_rows.len(), 1);
+    assert_eq!(rendered.table_rows[0], 0..5);
+    assert!(rendered.lines[1].to_string().contains("Shell + kubectl"));
+    assert!(rendered.lines[3].to_string().contains("Correct"));
+    assert!(rendered.lines[1].spans.iter().any(|span| {
+        span.content == "Read-only context"
+            && span.style.add_modifier.contains(Modifier::BOLD)
+    }));
+}
+
+#[test]
+fn plain_or_partially_bold_first_rows_remain_data() {
+    for first in [
+        "<td>Value</td><td>42</td>",
+        "<td><strong>Value</strong></td><td>42</td>",
+        "<td><strong>Value</strong> suffix</td><td><b>42</b></td>",
+    ] {
+        let html = format!("<table><tr>{first}</tr></table>");
+        let source = content::article_markdown(&html, true, "");
+        let rendered = reader::render(&source, 80);
+
+        assert!(!rendered.lines[1].to_string().contains("Value"));
+        assert!(rendered.lines[3].to_string().contains("Value"));
+    }
+}

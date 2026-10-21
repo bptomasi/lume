@@ -8,7 +8,7 @@ use ratatui::layout::Position;
 
 use crate::ui;
 
-use super::super::{Action, App, Mode, PickerKind};
+use super::super::{Action, App, InputKind, Mode, PickerKind};
 
 impl App {
     pub(super) fn modal_pointer(
@@ -21,11 +21,84 @@ impl App {
                 self.scroll_modal(event, 1)?;
             }
             MouseEventKind::Down(MouseButton::Left) => {
+                if let Some(action) = self.click_search_result(event)? {
+                    return Ok(action);
+                }
                 return self.click_picker(event);
             }
             _ => {}
         }
         Ok(Action::None)
+    }
+
+    fn search_pane(&self) -> Option<crate::model::Pane> {
+        let Mode::Input(input) = &self.mode else {
+            return None;
+        };
+        match input.kind {
+            InputKind::LibrarySearch => Some(crate::model::Pane::Library),
+            InputKind::Search => Some(crate::model::Pane::Articles),
+            _ => None,
+        }
+    }
+
+    fn click_search_result(
+        &mut self,
+        event: MouseEvent,
+    ) -> Result<Option<Action>> {
+        let Some(pane) = self.search_pane() else {
+            return Ok(None);
+        };
+        let Some(area) =
+            ui::workspace_areas(self.screen, self.focus, &self.workspace)
+                .get(pane)
+        else {
+            return Ok(None);
+        };
+        if !area.contains(Position::new(event.column, event.row)) {
+            return Ok(None);
+        }
+        if pane == crate::model::Pane::Library {
+            let Some(selected) = ui::navigation_at(self, area, event.row)
+            else {
+                return Ok(None);
+            };
+            self.nav_selected = selected;
+        } else {
+            let Some(selected) = ui::article_at(self, area, event.row) else {
+                return Ok(None);
+            };
+            self.selected = selected;
+            self.load_current_deferred()?;
+        }
+        self.submit_input().map(Some)
+    }
+
+    fn scroll_pane_search(
+        &mut self,
+        event: MouseEvent,
+        amount: usize,
+    ) -> Result<()> {
+        let Some(pane) = self.search_pane() else {
+            return Ok(());
+        };
+        let area =
+            ui::workspace_areas(self.screen, self.focus, &self.workspace)
+                .get(pane);
+        if area.is_some_and(|area| {
+            area.contains(Position::new(event.column, event.row))
+        }) {
+            let forward = event.kind == MouseEventKind::ScrollDown;
+            if pane == crate::model::Pane::Library {
+                if let Some(selected) = self.move_library_match(forward, amount)
+                {
+                    self.nav_selected = selected;
+                }
+            } else {
+                self.move_selection(forward, amount)?;
+            }
+        }
+        Ok(())
     }
 
     fn click_picker(&mut self, event: MouseEvent) -> Result<Action> {
@@ -91,7 +164,7 @@ impl App {
                     amount,
                 )
             }
-            _ => {}
+            _ => self.scroll_pane_search(event, amount)?,
         }
         Ok(())
     }

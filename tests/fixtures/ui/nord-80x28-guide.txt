@@ -13,7 +13,7 @@
 │  Continue r    0 ││ 57% · v select · y copy · s highlight · Tab panels · Z fu│
 │  Since last    0 │╰──────────────────────────────────────────────────────────╯
 │  Grouped ar    1 │╭ Annotations · 0 ──────────────────────────────────[≡]─[−]╮
-│  For y╭ Layout · Ctrl-w · Reader ──────────────────────────────────────────╮ │
+│  For y╭─ Layout · Ctrl-w · Reader ─────────────────────────────────────────╮ │
 │       │ h j k l   Focus a pane       H J K L   Move a pane                 │ │
 │  FEEDS│ s         Split below        v         Split right                 │ │
 │  Syste│ + / -     Resize split       c         Collapse                    │ │

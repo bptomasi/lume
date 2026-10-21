@@ -75,6 +75,7 @@ impl App {
     }
 
     pub(super) fn ensure_cursor_visible(&mut self) {
+        self.select_horizontal_block();
         if self.reader_cursor < self.scroll {
             self.scroll = self.reader_cursor;
         }

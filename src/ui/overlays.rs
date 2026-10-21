@@ -5,7 +5,7 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::Line,
-    widgets::{Clear, List, ListState, Paragraph},
+    widgets::{List, ListState, Paragraph},
 };
 
 use crate::app::{App, EditMode, HELP, Input, InputKind, Mode};
@@ -73,6 +73,7 @@ fn visual_preferences(
         format!("Show annotations: {}", app.workspace.show_annotations),
         format!("Mouse reporting: {}", app.workspace.mouse),
         format!("Fullscreen: {} cols", app.workspace.fullscreen_width),
+        format!("Justify prose: {}", app.workspace.justify),
     ]
 }
 
@@ -143,6 +144,9 @@ fn help(frame: &mut Frame<'_>, app: &App) {
 }
 
 fn editor(frame: &mut Frame<'_>, app: &App, input: &Input) {
+    if matches!(input.kind, InputKind::Search | InputKind::LibrarySearch) {
+        return;
+    }
     if matches!(input.kind, InputKind::Command) {
         super::command_line::draw(frame, app, input);
         return;
@@ -235,6 +239,7 @@ fn editor_title(kind: &InputKind) -> &'static str {
             "Search notes · tags, type, status, source · Tab completes"
         }
         InputKind::Search => "Search · titles, bodies and annotations",
+        InputKind::LibrarySearch => "Search library destinations",
         InputKind::ReaderSearch => {
             "Find in article · exact text · Enter searches"
         }
@@ -280,12 +285,7 @@ const LEADER: &str = "
 ";
 
 pub(super) fn modal(frame: &mut Frame<'_>, title: &str, popup: Popup) -> Rect {
-    let rect = popup.area(frame.area());
-    frame.render_widget(Clear, rect);
-    let block = panel(format!(" {title} "), true);
-    let inner = block.inner(rect);
-    frame.render_widget(block, rect);
-    inner
+    super::popup::draw_frame(frame, title, popup.area(frame.area()))
 }
 
 pub(super) fn centered(area: Rect, width: u16, height: u16) -> Rect {

@@ -102,6 +102,9 @@ impl App {
             self.note_marks.delete = None;
             return self.control_key(key.code);
         }
+        if let Some(action) = self.reader_link_key(key)? {
+            return Ok(action);
+        }
         if self.note_key(key)? {
             return Ok(Action::None);
         }
@@ -149,7 +152,7 @@ impl App {
             KeyCode::Char('?') => self.mode = Mode::Help,
             KeyCode::Char(' ') => self.mode = Mode::Leader,
             KeyCode::Char('/') => {
-                self.begin_context_search();
+                self.begin_context_search()?;
             }
             KeyCode::Char(':') => {
                 self.begin_input(InputKind::Command, String::new())
@@ -168,12 +171,18 @@ impl App {
         Ok(Action::None)
     }
 
-    fn begin_context_search(&mut self) {
+    fn begin_context_search(&mut self) -> Result<()> {
         if self.focus == Focus::Reader {
             self.begin_reader_search();
+        } else if self.focus == Focus::Library {
+            self.begin_library_search();
         } else {
+            if self.focus != Focus::Articles {
+                self.focus_pane(Focus::Articles)?;
+            }
             self.begin_input(InputKind::Search, self.search.clone());
         }
+        Ok(())
     }
 
     fn bound_key(&mut self, key: KeyEvent) -> Result<Option<Action>> {
@@ -281,7 +290,21 @@ impl App {
     }
 
     fn escape_reader(&mut self) -> Result<()> {
+        let reader_search =
+            self.focus == Focus::Reader && !self.reader_tools.needle.is_empty();
+        if reader_search {
+            self.reader_tools.needle.clear();
+            self.reader_tools.hits.clear();
+            self.status = "Reader search cleared".into();
+        }
         if self.selection.take().is_some() {
+            return Ok(());
+        }
+        if reader_search {
+            return Ok(());
+        }
+        if self.focus == Focus::Library && !self.library_query().is_empty() {
+            self.clear_library_search();
             return Ok(());
         }
         if self.workspace.fullscreen {
@@ -292,6 +315,16 @@ impl App {
     }
 
     fn clear_search(&mut self) -> Result<()> {
+        if self.focus == Focus::Reader {
+            if self.workspace.zen || !self.workspace.show_articles {
+                self.focus_pane(Focus::Articles)?;
+            } else {
+                self.focus = Focus::Articles;
+            }
+        }
+        if self.search.is_empty() {
+            return Ok(());
+        }
         self.retained_article = None;
         self.search.clear();
         self.page_offset = 0;

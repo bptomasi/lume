@@ -212,11 +212,12 @@ impl App {
     fn show_highlights(&mut self, query: &str) -> Result<()> {
         let location = self.reader_location()?;
         let mut choices = Vec::new();
+        let query = query.to_lowercase();
         for comment in &self.comments {
             if comment.quote.is_empty()
                 || !format!("{} {}", comment.quote, comment.body)
                     .to_lowercase()
-                    .contains(&query.to_lowercase())
+                    .contains(&query)
             {
                 continue;
             }
@@ -286,6 +287,15 @@ impl App {
         &mut self,
         target: ReaderLocation,
     ) -> Result<()> {
+        if self
+            .current()
+            .is_some_and(|article| article.id == target.article)
+            && self.content_source == target.source
+            && self.content_revision == target.revision
+            && self.view != super::View::Annotated
+        {
+            return self.apply_reader_location(target);
+        }
         if self
             .current()
             .is_none_or(|article| article.id != target.article)

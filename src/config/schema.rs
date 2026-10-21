@@ -137,6 +137,8 @@ pub struct Ui {
     pub mouse: bool,
     /// Image downloads and protocol override.
     pub images: crate::model::ImageSettings,
+    /// Visually justify eligible prose without altering readable text.
+    pub justify: bool,
     /// Normal-mode key names mapped to ex commands.
     pub keybindings: BTreeMap<String, String>,
     /// Pane arrangement and prose widths, without article identities.
@@ -155,6 +157,7 @@ impl Ui {
             theme: workspace.theme.clone(),
             mouse: workspace.mouse,
             images: workspace.images.clone(),
+            justify: workspace.justify,
             keybindings: workspace.keybindings.clone(),
             layout: PanelLayout::capture(workspace),
         }
@@ -166,6 +169,7 @@ impl Ui {
         workspace.theme = self.theme.clone();
         workspace.mouse = self.mouse;
         workspace.images = self.images.clone();
+        workspace.justify = self.justify;
         workspace.keybindings = self.keybindings.clone();
     }
 }

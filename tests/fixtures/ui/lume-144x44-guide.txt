@@ -29,7 +29,7 @@
 │                                  ││  n adds a passage note                                                                                   │
 │                                  ││                                                                                                          │
 │                                  ││  :note adds a general note                                                                               │
-│                                  ││                                   ╭ Layout · Ctrl-w · Reader ──────────────────────────────────────────╮ │
+│                                  ││                                   ╭─ Layout · Ctrl-w · Reader ─────────────────────────────────────────╮ │
 │                                  ││                                   │ h j k l   Focus a pane       H J K L   Move a pane                 │ │
 │                                  ││                                   │ s         Split below        v         Split right                 │ │
 │                                  ││                                   │ + / -     Resize split       c         Collapse                    │ │

@@ -107,6 +107,10 @@ impl App {
         &mut self,
         text: &str,
     ) -> Result<Option<Action>> {
+        if text.trim() == "save-status" {
+            self.show_save_status();
+            return Ok(Some(Action::None));
+        }
         let Some(command) = parse(text)? else {
             return Ok(None);
         };
@@ -115,6 +119,7 @@ impl App {
     }
 
     fn write_session(&mut self, quit: bool) -> Result<Action> {
+        self.flush_session()?;
         self.save_session()?;
         self.flush_session()?;
         self.status = "Session saved".into();
@@ -122,5 +127,34 @@ impl App {
             return Ok(Action::Quit);
         }
         Ok(Action::None)
+    }
+
+    fn show_save_status(&mut self) {
+        while let Some(error) = self
+            .session_writer
+            .as_ref()
+            .and_then(|writer| writer.poll_error())
+        {
+            self.session_problem = Some(error);
+        }
+        let state = if self.session_failed() {
+            "Failed writes remain outstanding"
+        } else if self.session_pending() {
+            "Writes are pending"
+        } else {
+            "No outstanding session save failures"
+        };
+        let error = self
+            .session_problem
+            .as_deref()
+            .unwrap_or("None recorded in this session");
+        let text = format!(
+            "# Session saving\n\n{state}\n\nLast error:\n{error}\n\n\
+            This writer saves reading positions and workspace/layout history.\n\
+            Notes use a separate durable writer.\n\n\
+            :w retries outstanding session saves and waits for confirmation.\n\
+            Successful writes to unrelated items do not clear a failed save."
+        );
+        self.show_document("Save diagnostics · Esc closes", &text, None);
     }
 }

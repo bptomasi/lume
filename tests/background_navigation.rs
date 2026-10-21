@@ -604,3 +604,83 @@ fn closing_before_startup_or_jump_delivery_retains_the_captured_article()
     app.end_session()?;
     Ok(())
 }
+
+#[test]
+fn failed_session_writes_can_be_inspected_and_retried_without_restarting()
+-> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let path = directory.path().join("library.sqlite3");
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(&path)?;
+    let injector = rusqlite::Connection::open(&path)?;
+    injector.execute_batch(include_str!(
+        "../src/store/sql/test_create_reject_layout_history.sql"
+    ))?;
+    command(&mut app, "workspace load Study")?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !app.session_failed() {
+        anyhow::ensure!(
+            Instant::now() < deadline,
+            "Write failure not reported"
+        );
+        std::thread::yield_now();
+    }
+
+    command(&mut app, "save-status")?;
+    let lume::app::Mode::Document(document) = &app.mode else {
+        anyhow::bail!("Save diagnostics did not open");
+    };
+    assert!(
+        document
+            .lines
+            .join("\n")
+            .contains("Injected layout journal failure")
+    );
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
+    injector.execute_batch(include_str!(
+        "../src/store/sql/test_drop_layout_rejection.sql"
+    ))?;
+    command(&mut app, "w")?;
+
+    assert!(!app.session_failed());
+    assert!(!app.session_pending());
+    let saved = Store::open(&path)?.workspace()?;
+    assert_eq!(saved.show_annotations, app.workspace.show_annotations);
+    assert_eq!(saved.layout, app.workspace.layout);
+    app.end_session()?;
+    Ok(())
+}
+
+#[test]
+fn temporary_sqlite_write_contention_recovers_without_a_save_error()
+-> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let path = directory.path().join("library.sqlite3");
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(&path)?;
+    settle(&mut app)?;
+    app.flush_session()?;
+    let blocker = rusqlite::Connection::open(&path)?;
+    blocker.execute_batch(include_str!(
+        "../src/store/sql/test_lock_session_writes.sql"
+    ))?;
+    let release = std::thread::spawn(move || {
+        // Exceed the connection's 500 ms busy wait to exercise a worker retry.
+        std::thread::sleep(Duration::from_millis(750));
+        blocker.execute_batch(include_str!(
+            "../src/store/sql/test_unlock_session_writes.sql"
+        ))
+    });
+
+    command(&mut app, "workspace load Study")?;
+    app.flush_session()?;
+    release
+        .join()
+        .map_err(|_| anyhow::anyhow!("Lock owner thread failed"))??;
+
+    assert!(!app.session_failed());
+    assert!(!app.session_pending());
+    assert!(Store::open(&path)?.workspace()?.show_annotations);
+    app.end_session()?;
+    Ok(())
+}

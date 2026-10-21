@@ -88,6 +88,9 @@ impl App {
         if key.code == KeyCode::Esc {
             return self.cancel_input();
         }
+        if self.pane_search_key(key)? {
+            return Ok(Action::None);
+        }
         if self.completion_key(key) {
             self.update_search()?;
             return Ok(Action::None);
@@ -138,6 +141,13 @@ impl App {
 
     fn update_search(&mut self) -> Result<()> {
         if let Mode::Input(input) = &self.mode
+            && matches!(input.kind, InputKind::LibrarySearch)
+        {
+            let query = input.text.clone();
+            self.update_library_search(&query);
+            return Ok(());
+        }
+        if let Mode::Input(input) = &self.mode
             && matches!(input.kind, InputKind::NoteSearch)
         {
             let query = input.text.clone();
@@ -158,6 +168,14 @@ impl App {
     }
 
     fn cancel_input(&mut self) -> Result<Action> {
+        if let Mode::Input(input) = &self.mode {
+            if matches!(input.kind, InputKind::LibrarySearch) {
+                self.cancel_library_search();
+            } else if matches!(input.kind, InputKind::ReaderSearch) {
+                self.reader_tools.needle.clear();
+                self.reader_tools.hits.clear();
+            }
+        }
         if let Mode::Input(input) = &self.mode
             && matches!(input.kind, InputKind::NoteSearch)
         {

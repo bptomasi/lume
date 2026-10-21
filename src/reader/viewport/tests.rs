@@ -56,3 +56,21 @@ fn deep_projection_preserves_styles_decorations_and_partial_wide_cells() {
         0
     );
 }
+
+#[test]
+fn justification_expands_visual_gaps_without_changing_unicode_byte_identity() {
+    let text = "A café 界 end";
+    let line = ratatui::text::Line::raw(text);
+    let index = super::RowIndex::justified(text, &line, 17);
+
+    let projected = index.project(&line, text, 0, 17, |_, style| style);
+
+    assert_eq!(projected.to_string(), "A   café  界  end");
+    assert_eq!(projected.width(), 17);
+    assert_eq!(index.column(text, 2), 4);
+    for column in 1..4 {
+        assert_eq!(index.byte_at(text, column), 1);
+    }
+    assert_eq!(index.byte_at(text, 4), 2);
+    assert_eq!(text, "A café 界 end");
+}

@@ -39,6 +39,9 @@
   Esc             Leave fullscreen or cancel visual selection
   :width 82       Prose width, 40–140 columns
   :fullscreen-width 80    Centered fullscreen text, 40–140 columns
+  :justify on|off  Visually justify prose; copied text stays unchanged
+                  Code, tables, headings and final paragraph rows stay aligned
+  :save-status    Inspect session write failures; :w retries outstanding saves
   :sidebar-width 23       Library width, 16–48 columns
   :articles-width 36      Headlines width, 24–80 columns
   Small terminals show the focused panel. Tab reveals another panel.
@@ -48,6 +51,10 @@
   :mouse on|off|status     Capture preference / observed terminal events
   Click           Focus a panel, open an article or jump to a note
   Click image     Open enlarged image; +/- zoom, 0 fit, Esc return
+  Enter on link   Open HTTP(S) links in the system browser; local anchors
+                  jump to a section. Ctrl-o goes back; Ctrl-i goes forward.
+                  Place the reader cursor with a click or Vim motions first.
+                  :edit-note edits a note overlapping a link.
   Hover ● / text  Preview a passage note; click its marker or popup to edit
                   Mouse motion reporting is required for hover previews.
                   Enter / :edit-note works from the keyboard.
@@ -173,6 +180,12 @@
   Use :edit-note and :favorite for those application actions here.
 
   ── LISTS, SEARCH AND ORGANIZATION ───────────────────────────────────
+  / in Library    Live name filter for sources, smart lists and folders
+  / in Articles   Live article search within the current destination
+                  Both fields open at the top of their own panel.
+                  ↑↓ or Ctrl-j/k selects; Enter applies; Esc cancels editing.
+                  After applying: / edits the filter; Esc clears it.
+  Esc in Reader   Clear local search first; next Esc leaves fullscreen/Reader
   :folder NAME    Create a folder; :folders browses personal folders
   :save NAME      Save article into a folder, creating it if needed
   :organize       Multi-folder picker: Space toggles, Enter commits

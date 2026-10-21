@@ -147,3 +147,20 @@ not rerun for this revision because xdotool was unavailable.
 
 See the [durability and navigation qualification](performance/audit-remediation.md)
 for dense annotations, startup phases and validated snapshot measurements.
+
+The [reader presentation measurements](performance/reader-presentation.json)
+qualify cached justification, Vim selection and exact copying at 200 and 1,200
+paragraphs. Across three release processes, the median checked cycle took
+0.250 ms and 0.259 ms respectively. Each process performed 800 cycles; source
+layout and justification indexes preceded operation timers. Peak process RSS,
+including setup, ranged from 16,512 to 20,872 KiB. These are TestBackend work
+measurements, without a baseline speedup or physical terminal latency claim.
+
+The [inline sidebar search measurements](performance/pane-search.json) cover
+200 and 5,000 sources. A cycle types ten query characters, selects the exact
+next matching destination, renders a cached frame and cancels the filter.
+Across three release processes of 800 cycles each, median cycle times were
+0.287 ms and 0.796 ms respectively. Setup and normalized-name indexing precede
+the operation timer. Peak process RSS, including setup, ranged from 14,412 to
+17,084 KiB. This characterizes the new feature; it is neither a before/after
+speedup comparison nor physical terminal latency.

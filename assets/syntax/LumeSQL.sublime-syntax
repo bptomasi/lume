@@ -1,0 +1,11 @@
+%YAML 1.2
+---
+name: Lume SQL
+file_extensions:
+  - lume-sql
+scope: source.lume-sql
+contexts:
+  main:
+    - match: '(?i)\b(call|attach|detach|connect|disconnect|install|load|pragma|describe|explain)\b'
+      scope: keyword.other.sql
+    - include: scope:source.sql

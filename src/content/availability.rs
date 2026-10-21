@@ -30,6 +30,8 @@ pub fn body_kind(body: &str) -> BodyKind {
     let mut references = false;
     for event in Parser::new(body) {
         match event {
+            Event::Html(ref text) | Event::InlineHtml(ref text)
+                if super::anchors::invisible(text) => {}
             Event::Start(Tag::Link { .. } | Tag::Image { .. }) => {
                 references = true;
                 depth += 1;

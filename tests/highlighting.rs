@@ -173,3 +173,57 @@ fn unknown_missing_and_oversized_languages_keep_readable_code() {
             .all(|span| span.style.fg.is_none())
     );
 }
+
+#[test]
+fn publisher_wrapper_languages_are_inherited_without_leaking_to_later_blocks()
+-> Result<()> {
+    let html = "<div class='language-sql highlighter-rouge'>\
+        <div class='highlight'><pre class='highlight'><code>SELECT 'hello';</code></pre></div>\
+        </div><pre><code>Unlabelled text</code></pre>";
+    let source = content::article_text(html, true);
+    assert!(source.starts_with("~~~~sql\n"));
+    assert!(source.contains("~~~~\nUnlabelled text\n~~~~"));
+    let rendered = reader::render(&source, 80);
+    assert_eq!(
+        token_color(&rendered.lines, "SELECT")?,
+        Color::Rgb(216, 164, 116)
+    );
+    assert_eq!(
+        token_color(&rendered.lines, "hello")?,
+        Color::Rgb(166, 191, 145)
+    );
+    Ok(())
+}
+
+#[test]
+fn strong_unlabelled_sql_and_shell_evidence_selects_reviewed_grammars()
+-> Result<()> {
+    let sql = "CALL serve(token = 'hello');\nCREATE TABLE events (name VARCHAR);\nINSERT INTO events VALUES ('hello');";
+    let rendered = reader::render(&format!("```sql\n{sql}\n```"), 80);
+    assert_eq!(
+        token_color(&rendered.lines, "CALL")?,
+        Color::Rgb(216, 164, 116)
+    );
+    let shell = "kubectl create serviceaccount fixture\nexport TOKEN='hello'\nkubectl auth can-i get secrets";
+    for (source, token, language) in
+        [(sql, "hello", "sql"), (shell, "hello", "bash")]
+    {
+        let guessed = reader::render(&format!("```\n{source}\n```"), 80);
+        let explicit =
+            reader::render(&format!("```{language}\n{source}\n```"), 80);
+        assert_eq!(guessed.lines, explicit.lines);
+        assert_eq!(
+            token_color(&guessed.lines, token)?,
+            Color::Rgb(166, 191, 145)
+        );
+    }
+    let explicit_plain = reader::render(&format!("```text\n{sql}\n```"), 80);
+    assert!(
+        explicit_plain
+            .lines
+            .iter()
+            .flat_map(|line| &line.spans)
+            .all(|span| span.style.fg != Some(Color::Rgb(166, 191, 145)))
+    );
+    Ok(())
+}

@@ -67,3 +67,29 @@ fn unsupported_destinations_never_enter_or_relabel_the_reference_list() {
     assert!(rendered.text.contains("blocked"));
     assert!(rendered.text.contains("local"));
 }
+
+#[test]
+fn explicit_html_ids_and_duplicate_heading_slugs_remain_invisible_and_navigable()
+ {
+    let html = "<p><a href='#a%2Bb%26c'>Jump</a></p>\
+        <h2 id='a+b&amp;c'>Some heading</h2><p>Target text.</p>\
+        <h2>Repeat</h2><p>First.</p><h2>Repeat</h2><p>Second.</p>";
+    let markdown = lume::content::article_markdown(html, true, "");
+
+    let index = reader::index::DocumentIndex::parse(&markdown);
+    let rendered = reader::render(&markdown, 20);
+
+    assert!(index.navigation.anchor("a%2Bb%26c").is_some());
+    assert!(index.navigation.anchor("some-heading").is_some());
+    assert!(index.navigation.anchor("repeat-1").is_some());
+    assert!(!rendered.text.contains("<a"));
+    assert!(!rendered.text.contains("</a>"));
+    assert_eq!(rendered.links.len(), 0);
+    assert_eq!(
+        index
+            .navigation
+            .link_at(1)
+            .map(|link| link.destination.as_str()),
+        Some("#a%2Bb%26c")
+    );
+}

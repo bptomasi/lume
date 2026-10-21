@@ -26,6 +26,8 @@ pub(super) struct Progress {
     pub(super) anchor: usize,
 }
 
+const WRITE_QUEUE: usize = 64;
+
 type PositionKey = (i64, &'static str, i64);
 
 impl Progress {
@@ -83,10 +85,34 @@ impl ProgressMemory {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum SaveKey {
+    Progress(PositionKey),
+    Layout,
+}
+
 enum Write {
     Progress(Progress),
     Layout(Box<(Workspace, LayoutHistory)>),
     Flush(mpsc::SyncSender<()>),
+}
+
+impl Write {
+    fn save(&self, store: &Store) -> Result<()> {
+        match self {
+            Self::Progress(progress) => progress.save(store),
+            Self::Layout(state) => store.save_layouts(&state.0, &state.1),
+            Self::Flush(_) => Ok(()),
+        }
+    }
+
+    fn key(&self) -> Option<SaveKey> {
+        match self {
+            Self::Progress(progress) => Some(SaveKey::Progress(progress.key())),
+            Self::Layout(_) => Some(SaveKey::Layout),
+            Self::Flush(_) => None,
+        }
+    }
 }
 
 pub(super) struct SessionWriter {
@@ -99,33 +125,15 @@ pub(super) struct SessionWriter {
 impl SessionWriter {
     pub(super) fn start(path: &Path) -> Result<Self> {
         let store = Store::open(path)?;
-        let (requests, receiver) = mpsc::sync_channel(64);
-        let (errors, outcomes) = mpsc::sync_channel(64);
+        let (requests, receiver) = mpsc::sync_channel(WRITE_QUEUE);
+        let (errors, outcomes) = mpsc::sync_channel(WRITE_QUEUE);
         let pending = Arc::new(AtomicUsize::new(0));
         let active = pending.clone();
         let failures = Arc::new(AtomicUsize::new(0));
         let failed = failures.clone();
         std::thread::Builder::new()
             .name("lume-session".into())
-            .spawn(move || {
-                while let Ok(write) = receiver.recv() {
-                    let result = match write {
-                        Write::Progress(progress) => progress.save(&store),
-                        Write::Layout(state) => {
-                            store.save_layouts(&state.0, &state.1)
-                        }
-                        Write::Flush(done) => {
-                            let _ = done.send(());
-                            continue;
-                        }
-                    };
-                    if let Err(error) = result {
-                        failed.fetch_add(1, Ordering::AcqRel);
-                        let _ = errors.try_send(format!("{error:#}"));
-                    }
-                    active.fetch_sub(1, Ordering::AcqRel);
-                }
-            })?;
+            .spawn(move || run(store, receiver, errors, active, failed))?;
         Ok(Self {
             requests,
             errors: outcomes,
@@ -135,6 +143,10 @@ impl SessionWriter {
     }
 
     fn submit(&self, write: Write) -> Result<()> {
+        anyhow::ensure!(
+            self.failures.load(Ordering::Acquire) < WRITE_QUEUE,
+            "Session recovery backlog is full · :w retries outstanding saves"
+        );
         self.pending.fetch_add(1, Ordering::AcqRel);
         if let Err(error) = self.requests.try_send(write) {
             self.pending.fetch_sub(1, Ordering::AcqRel);
@@ -210,6 +222,90 @@ impl SessionWriter {
             self.failures.load(Ordering::Acquire)
         );
         Ok(())
+    }
+}
+
+fn run(
+    store: Store,
+    receiver: mpsc::Receiver<Write>,
+    errors: mpsc::SyncSender<String>,
+    active: Arc<AtomicUsize>,
+    failed: Arc<AtomicUsize>,
+) {
+    // Admission stops at WRITE_QUEUE unresolved keys. Only the
+    // already queued writes can add more: at most twice that bound.
+    let mut unresolved = BTreeMap::new();
+    while let Ok(write) = receiver.recv() {
+        if let Write::Flush(done) = write {
+            let keys = unresolved.keys().copied().collect::<Vec<_>>();
+            for key in keys {
+                if let Some(write) = unresolved.remove(&key) {
+                    save_pending(
+                        &store,
+                        write,
+                        &mut unresolved,
+                        &errors,
+                        &failed,
+                    );
+                }
+            }
+            let _ = done.send(());
+            continue;
+        }
+        save_pending(&store, write, &mut unresolved, &errors, &failed);
+        active.fetch_sub(1, Ordering::AcqRel);
+    }
+}
+
+fn save_pending(
+    store: &Store,
+    write: Write,
+    unresolved: &mut BTreeMap<SaveKey, Write>,
+    errors: &mpsc::SyncSender<String>,
+    failed: &AtomicUsize,
+) {
+    let Some(key) = write.key() else {
+        return;
+    };
+    match save_with_retry(store, &write) {
+        Ok(()) => {
+            unresolved.remove(&key);
+            failed.store(unresolved.len(), Ordering::Release);
+        }
+        Err(error) => {
+            let operation = match key {
+                SaveKey::Progress(_) => "reading position",
+                SaveKey::Layout => "workspace and layout history",
+            };
+            unresolved.insert(key, write);
+            failed.store(unresolved.len(), Ordering::Release);
+            let _ = errors
+                .try_send(format!("Could not save {operation}: {error:#}"));
+        }
+    }
+}
+
+// Only idempotent progress/layout saves are retried, never private mutations.
+fn save_with_retry(store: &Store, write: &Write) -> Result<()> {
+    let mut attempt = 0;
+    loop {
+        let result = write.save(store);
+        let transient = result.as_ref().err().is_some_and(|error| {
+            matches!(
+                error
+                    .downcast_ref::<rusqlite::Error>()
+                    .and_then(rusqlite::Error::sqlite_error_code),
+                Some(
+                    rusqlite::ErrorCode::DatabaseBusy
+                        | rusqlite::ErrorCode::DatabaseLocked
+                )
+            )
+        });
+        if !transient || attempt == 2 {
+            return result;
+        }
+        std::thread::sleep(Duration::from_millis(25 << attempt));
+        attempt += 1;
     }
 }
 

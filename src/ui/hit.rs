@@ -6,7 +6,11 @@ use crate::app::App;
 
 /// Navigation identity under a screen row, excluding group labels and borders.
 pub fn navigation_at(app: &App, area: Rect, row: u16) -> Option<usize> {
-    let inner = area.inner(ratatui::layout::Margin::new(1, 1));
+    let inner = super::pane_search::content(
+        app,
+        crate::model::Pane::Library,
+        area.inner(ratatui::layout::Margin::new(1, 1)),
+    );
     if row < inner.y || row >= inner.bottom() {
         return None;
     }
@@ -25,7 +29,11 @@ pub(super) fn article_window(app: &App, height: u16) -> (usize, usize, u16) {
 
 /// Article-page position under a row; unused trailing space selects nothing.
 pub fn article_at(app: &App, area: Rect, row: u16) -> Option<usize> {
-    let inner = area.inner(ratatui::layout::Margin::new(1, 1));
+    let inner = super::pane_search::content(
+        app,
+        crate::model::Pane::Articles,
+        area.inner(ratatui::layout::Margin::new(1, 1)),
+    );
     if row < inner.y || row >= inner.bottom() {
         return None;
     }

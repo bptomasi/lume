@@ -31,6 +31,7 @@ pub(super) struct ReaderSnapshot {
     linewise: bool,
     scroll: usize,
     horizontal: usize,
+    horizontal_state: super::horizontal::Horizontal,
     pending_anchor: Option<usize>,
 }
 
@@ -55,6 +56,7 @@ impl App {
                         | "layout-redo"
                         | "reading-width"
                         | "fullscreen-width"
+                        | "justify"
                         | "quit"
                         | "q"
                         | "refresh"
@@ -176,6 +178,7 @@ impl App {
             linewise: self.linewise,
             scroll: self.scroll,
             horizontal: self.horizontal,
+            horizontal_state: self.horizontal_state.clone(),
             pending_anchor: self.pending_anchor,
         }
     }
@@ -207,6 +210,7 @@ impl App {
         self.pending_anchor = snapshot.pending_anchor;
         self.scroll = snapshot.scroll;
         self.horizontal = snapshot.horizontal;
+        self.horizontal_state = snapshot.horizontal_state;
         self.place_cursor(snapshot.cursor);
         self.ensure_cursor_visible();
     }
@@ -277,6 +281,7 @@ impl App {
         self.reader_goal = None;
         self.selection = None;
         self.horizontal = 0;
+        self.horizontal_state = super::horizontal::Horizontal::default();
         self.wrap_reader();
         self.restore_anchor(anchor);
         self.clamp_scroll();
@@ -291,7 +296,19 @@ impl App {
             if self.content_source == crate::model::ContentSource::Full {
                 crate::source::article::rules::warnings(&self.body).join(" · ")
             } else {
-                String::new()
+                self.document
+                    .as_ref()
+                    .filter(|document| {
+                        self.current()
+                            .is_some_and(|article| article.url == document.url)
+                    })
+                    .and_then(|document| {
+                        crate::source::article::rules::rejection(&document.body)
+                    })
+                    .map(|reason| {
+                        format!("{reason} · showing feed · o opens original")
+                    })
+                    .unwrap_or_default()
             };
         self.reading_minutes = if self.body_kind == BodyKind::Text {
             self.body.split_whitespace().count().div_ceil(220)
@@ -363,6 +380,8 @@ impl App {
         self.reader_styled = rendered.lines;
         self.line_ranges = rendered.ranges;
         self.code_lines = rendered.code;
+        self.horizontal_groups = rendered.horizontal_groups;
+        self.prose_lines = rendered.justifiable;
         self.table_rows = rendered.table_rows;
         self.reader_text = rendered.text;
         self.reader_ranges = rendered.text_ranges;
@@ -378,7 +397,7 @@ impl App {
         self.restore_reflow_position(&previous, previous_article_end, cursor);
     }
 
-    fn cache_reader_rows(&mut self) {
+    pub(super) fn cache_reader_rows(&mut self) {
         self.reader_lines =
             self.reader_styled.iter().map(ToString::to_string).collect();
         self.reader_columns = self
@@ -386,7 +405,17 @@ impl App {
             .iter()
             .zip(&self.reader_styled)
             .zip(&self.code_lines)
-            .map(|((text, line), code)| {
+            .enumerate()
+            .map(|(row, ((text, line), code))| {
+                if self.workspace.justify
+                    && self.prose_lines.get(row) == Some(&true)
+                {
+                    return Some(crate::reader::viewport::RowIndex::justified(
+                        text,
+                        line,
+                        self.reader_width,
+                    ));
+                }
                 (*code || text.contains('\t'))
                     .then(|| crate::reader::viewport::RowIndex::new(text, line))
             })

@@ -193,3 +193,15 @@ qualification only. The mature multi-maintainer Pillow project supplies pixel
 inspection, under its permissive HPND-derived terms. It processes controlled
 qualification fixtures and captured cells, not runtime publisher images.
 It is installed in a development virtualenv and is not bundled in Lume.
+
+Prose justification reuses textwrap's prepared line breaks and the qualified
+Unicode cell/grapheme contracts. Textwrap supplies no justified alignment API;
+Lume's presentation policy expands existing word gaps in eligible cached rows.
+The expansion maps back to original readable bytes, including mouse hits and
+selection. It introduces no parser, dependency or text rewrite.
+
+Unlabelled code hints inspect at most 16 KiB and 128 lines for strong SQL or
+shell evidence. Explicit languages, including plain text, take precedence.
+Syntect owns all grammar matching; `LumeSQL.sublime-syntax` is an MIT overlay
+including the unchanged reviewed SQL definition. Publisher wrapper hints are
+bounded to 128 tracked container levels and cannot select external grammars.

@@ -10,9 +10,9 @@ pub(super) struct CodeBlock {
 }
 
 impl CodeBlock {
-    pub fn new(tag: &StartTag<()>) -> Self {
+    pub fn new(tag: &StartTag<()>, inherited: Option<&str>) -> Self {
         Self {
-            language: language(tag),
+            language: language(tag).or_else(|| inherited.map(str::to_owned)),
             text: String::new(),
         }
     }
@@ -41,7 +41,7 @@ impl CodeBlock {
     }
 }
 
-fn language(tag: &StartTag<()>) -> Option<String> {
+pub(super) fn language(tag: &StartTag<()>) -> Option<String> {
     for key in [b"data-language".as_slice(), b"data-lang", b"lang"] {
         if let Some(value) = attr(tag, key)
             && valid_token(&value)

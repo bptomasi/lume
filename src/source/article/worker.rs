@@ -176,8 +176,10 @@ fn collect(
     if stopped.load(Ordering::Relaxed) {
         return Ok(());
     }
+    let result =
+        result.and_then(|document| store.cache_document(target, &document));
     let cached = match result {
-        Ok(document) => store.cache_document(target, &document)?,
+        Ok(cached) => cached,
         Err(error) => {
             store.document_failure(target, &format!("{error:#}"))?;
             return Err(error);

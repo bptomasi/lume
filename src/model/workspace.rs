@@ -153,6 +153,8 @@ pub struct Workspace {
     pub mouse: bool,
     /// Portable image loading and protocol preferences.
     pub images: ImageSettings,
+    /// Expand prose word gaps visually, preserving copied text and quotations.
+    pub justify: bool,
     /// Maximum prose width in terminal columns.
     pub reading_width: u16,
     /// Centered prose width in fullscreen, independent of the panel layout.
@@ -200,6 +202,7 @@ impl Default for Workspace {
             notebook_layout: None,
             mouse: true,
             images: ImageSettings::default(),
+            justify: false,
             reading_width: 82,
             fullscreen_width: 80,
             library_width: 23,

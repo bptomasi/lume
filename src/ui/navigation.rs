@@ -23,6 +23,10 @@ enum Row {
 }
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App, area: Rect) {
+    if app.navigation_indices().next().is_none() {
+        frame.render_widget(Paragraph::new("No matching destinations"), area);
+        return;
+    }
     let first = first(app, area.height);
     let lines = rows(app)
         .skip(first)
@@ -57,20 +61,18 @@ fn first(app: &App, height: u16) -> usize {
 
 fn rows(app: &App) -> impl Iterator<Item = Row> + '_ {
     let mut group = "";
-    app.navigation
-        .iter()
-        .enumerate()
-        .flat_map(move |(index, item)| {
-            let changed_group = item.group != group;
-            group = item.group;
-            [
-                changed_group.then_some(Row::Blank),
-                changed_group.then_some(Row::Heading(group)),
-                Some(Row::Item(index)),
-            ]
-            .into_iter()
-            .flatten()
-        })
+    app.navigation_indices().flat_map(move |index| {
+        let item = &app.navigation[index];
+        let changed_group = item.group != group;
+        group = item.group;
+        [
+            changed_group.then_some(Row::Blank),
+            changed_group.then_some(Row::Heading(group)),
+            Some(Row::Item(index)),
+        ]
+        .into_iter()
+        .flatten()
+    })
 }
 
 fn item_line(app: &App, index: usize, width: u16) -> Line<'static> {

@@ -5,12 +5,12 @@ use ratatui::{
     layout::{Position, Rect},
     style::{Modifier, Style},
     text::Line,
-    widgets::{Clear, Paragraph, Wrap},
+    widgets::{Paragraph, Wrap},
 };
 
 use crate::app::{App, Mode};
 
-use super::theme::{AMBER, BLUE, PANEL, TEXT, panel};
+use super::theme::{AMBER, BLUE, TEXT};
 
 /// Popup rectangle shared by drawing and hit testing, clamped to the terminal.
 pub fn note_preview_area(screen: Rect, anchor: Position) -> Rect {
@@ -49,7 +49,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     if !matches!(app.mode, Mode::Normal) || app.layout_prefix_pending() {
         return;
     }
-    let Some((id, _)) = app.hovered_note() else {
+    let Some((id, anchor)) = app.hovered_note() else {
         return;
     };
     let Some((index, note)) = app
@@ -60,18 +60,14 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     else {
         return;
     };
-    let Some(area) = area(app, frame.area()) else {
-        return;
-    };
-    let block = panel(
-        format!(" Note {} · {} ", index + 1, note.source.as_str()),
-        true,
+    let area = note_preview_area(frame.area(), anchor);
+    let inner = super::popup::draw_frame(
+        frame,
+        &format!("Note {} · {}", index + 1, note.source.as_str()),
+        area,
     );
-    let inner = block.inner(area);
-    frame.render_widget(Clear, area);
-    frame.render_widget(block.style(Style::new().bg(PANEL)), area);
-    let text = preview_lines(note, inner.width);
     let height = inner.height.saturating_sub(1);
+    let text = preview_lines(note, inner.width, height);
     frame.render_widget(
         Paragraph::new(text)
             .style(Style::new().fg(TEXT))
@@ -88,6 +84,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
 fn preview_lines(
     note: &crate::model::Comment,
     width: u16,
+    height: u16,
 ) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
     if !note.quote.is_empty() {
@@ -107,9 +104,11 @@ fn preview_lines(
     } else {
         &note.body
     };
+    let end = body.floor_char_boundary(body.len().min(4096));
     lines.extend(
-        crate::content::clean(body)
+        crate::content::clean(&body[..end])
             .lines()
+            .take(usize::from(height).saturating_sub(lines.len()))
             .map(|line| Line::raw(line.to_owned())),
     );
     lines

@@ -103,7 +103,11 @@ fn indexed_row(
     let mut line = columns.project(
         cached,
         text,
-        if unwrapped { app.horizontal } else { 0 },
+        if unwrapped {
+            app.horizontal_for_row(row)
+        } else {
+            0
+        },
         width,
         |bytes, style| {
             overlays(
@@ -120,7 +124,7 @@ fn indexed_row(
     }
     if text.is_empty()
         && cursor.is_some()
-        && (!unwrapped || app.horizontal == 0)
+        && (!unwrapped || app.horizontal_for_row(row) == 0)
     {
         line.spans.push(Span::styled(" ", cursor_style()));
     }

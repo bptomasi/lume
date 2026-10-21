@@ -172,6 +172,7 @@ pub(super) fn validate_document(document: &ExtractedDocument) -> Result<()> {
         "Article contains terminal control characters"
     );
     crate::source::link_url(&document.final_url)?;
+    crate::source::article::rules::reject_obstruction(&document.body)?;
     Ok(())
 }
 

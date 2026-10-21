@@ -31,12 +31,18 @@ mod highlighting;
 mod images;
 #[path = "workloads/interaction.rs"]
 mod interaction;
+#[path = "workloads/links.rs"]
+mod links;
 #[path = "workloads/note_interactions.rs"]
 mod note_interactions;
 #[path = "workloads/note_study.rs"]
 mod note_study;
+#[path = "workloads/pane_search.rs"]
+mod pane_search;
 #[path = "workloads/panes.rs"]
 mod panes;
+#[path = "workloads/presentation.rs"]
+mod presentation;
 #[path = "workloads/reading_tools.rs"]
 mod reading_tools;
 #[path = "workloads/recommendations.rs"]
@@ -101,6 +107,8 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
     rich_text::run(iterations, stress)?;
     configuration::run(iterations, stress)?;
     tables::run(iterations, stress)?;
+    links::run(iterations, stress)?;
+    presentation::run(iterations, stress)?;
     welcome::run(iterations, stress)?;
     code_viewport::run(iterations, stress)?;
     interaction::run(iterations, stress)?;
@@ -109,6 +117,7 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
     reading_tools::run(iterations, stress)?;
     smoothness::run(iterations, stress)?;
     panes::run(iterations, stress)?;
+    pane_search::run(iterations, stress)?;
     workspaces::run(iterations, stress)?;
     Ok(())
 }
@@ -130,12 +139,15 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--notes-only", note_interactions::run),
     ("--workspaces-only", workspaces::run),
     ("--panes-only", panes::run),
+    ("--pane-search-only", pane_search::run),
     ("--smoothness-only", smoothness::run),
     ("--expansion-only", expansion::run),
     ("--full-article-only", full_article::run),
     ("--feed-content-only", feed_content::run),
     ("--archive-feeds-only", feed_content::archives),
     ("--tables-only", tables::run),
+    ("--links-only", links::run),
+    ("--presentation-only", presentation::run),
     ("--highlighting-only", highlighting::run),
     ("--reading-tools-only", reading_tools::run),
     ("--catalog-only", catalog::run),

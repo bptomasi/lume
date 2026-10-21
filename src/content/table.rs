@@ -11,6 +11,10 @@ pub(super) struct Table {
     nested: usize,
     header: bool,
     link: Option<String>,
+    bold_depth: usize,
+    cell_bold: bool,
+    cell_plain: bool,
+    row_bold: Option<bool>,
 }
 
 impl Table {
@@ -33,6 +37,11 @@ impl Table {
             ("tr", true) => self.finish_row(),
             ("td" | "th", true) => self.finish_cell(),
             ("th", false) if self.rows.is_empty() => self.header = true,
+            ("thead", false) if self.rows.is_empty() => self.header = true,
+            ("strong" | "b", false) => self.bold_depth += 1,
+            ("strong" | "b", true) => {
+                self.bold_depth = self.bold_depth.saturating_sub(1);
+            }
             ("br", false) => self.cell.push_str(" / "),
             ("a", true) => self.close_link(),
             _ => {}
@@ -40,6 +49,10 @@ impl Table {
     }
 
     pub(super) fn text(&mut self, text: &str) {
+        if !text.trim().is_empty() {
+            self.cell_bold |= self.bold_depth > 0;
+            self.cell_plain |= self.bold_depth == 0;
+        }
         self.cell.push_str(text);
     }
 
@@ -64,8 +77,12 @@ impl Table {
     fn finish_cell(&mut self) {
         self.close_link();
         let cell = self.cell.split_whitespace().collect::<Vec<_>>().join(" ");
+        let bold = self.cell_bold && !self.cell_plain;
+        self.row_bold = Some(self.row_bold.unwrap_or(true) && bold);
         self.row.push(cell.replace('|', "\\|"));
         self.cell.clear();
+        self.cell_bold = false;
+        self.cell_plain = false;
     }
 
     fn finish_row(&mut self) {
@@ -73,8 +90,14 @@ impl Table {
             self.finish_cell();
         }
         if !self.row.is_empty() {
+            // Some publishers use fully bold td cells instead of th/thead.
+            // Promote only that explicit visual convention, never plain data.
+            if self.rows.is_empty() && self.row_bold == Some(true) {
+                self.header = true;
+            }
             self.rows.push(std::mem::take(&mut self.row));
         }
+        self.row_bold = None;
     }
 
     pub(super) fn markdown(mut self) -> String {

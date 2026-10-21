@@ -7,6 +7,9 @@
 pub mod rules;
 mod worker;
 
+#[cfg(test)]
+mod tests;
+
 pub use worker::{Completion, Worker};
 
 use anyhow::{Context, Result, ensure};
@@ -45,12 +48,29 @@ pub fn extract_with_selector(
 ) -> Result<ExtractedDocument> {
     ensure!(html.len() <= MAX_PAGE_BYTES, "Article page exceeds 2 MiB");
     let address = super::link_url(address)?;
-    let fragment = if selector.is_empty() {
-        readable_html(html, address.as_str())?
-    } else {
-        rules::select(html, selector)?
+    if !selector.is_empty() {
+        let fragment = rules::select(html, selector)?;
+        return normalize_fragment(&fragment, address.as_str());
+    }
+    let result = readable_html(html, address.as_str())
+        .and_then(|fragment| normalize_fragment(&fragment, address.as_str()));
+    let error = match result {
+        Ok(document) => return Ok(document),
+        Err(error) => error,
     };
-    normalize_fragment(&fragment, address.as_str())
+    // Semantic containers can survive pages that confuse Readability. Keep
+    // the same element/body limits and require one unambiguous container.
+    for selector in ["article", "main", "[role=main]"] {
+        if let Ok(fragment) = rules::select(html, selector)
+            && let Ok(document) =
+                normalize_fragment(&fragment, address.as_str())
+        {
+            return Ok(document);
+        }
+    }
+    Err(error).context(
+        "Automatic extraction failed; no usable semantic article container",
+    )
 }
 
 fn readable_html(html: &str, address: &str) -> Result<String> {

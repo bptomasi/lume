@@ -393,3 +393,35 @@ fn feed_and_full_keep_independent_reading_positions_when_switching_sources()
     assert_eq!(writer.progress(target.article)?, feed_position);
     Ok(())
 }
+
+#[test]
+fn an_old_footer_only_cache_falls_back_without_erasing_either_source()
+-> Result<()> {
+    let (directory, app, writer, target) = reading("Useful feed summary.")?;
+    drop(app);
+    cache(&writer, &target, "Previously accepted extraction.")?;
+    let connection =
+        rusqlite::Connection::open(directory.path().join("library.sqlite3"))?;
+    connection.execute(
+        include_str!("../src/store/sql/test_update_document_footer.sql"),
+        [target.article],
+    )?;
+    drop(connection);
+    let store = Store::open(&directory.path().join("library.sqlite3"))?;
+
+    let reopened = App::new(store, false)?;
+
+    assert_eq!(reopened.content_source, ContentSource::Feed);
+    assert_eq!(reopened.body, "Useful feed summary.");
+    assert!(reopened.article_warning.contains("showing feed"));
+    assert!(reopened.article_warning.contains("footer"));
+    assert_eq!(writer.body(target.article)?, "Useful feed summary.");
+    assert!(
+        writer
+            .cached_document(target.article)?
+            .context("Existing cache was deleted")?
+            .body
+            .contains("Copyright")
+    );
+    Ok(())
+}

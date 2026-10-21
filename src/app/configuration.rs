@@ -101,8 +101,12 @@ impl App {
         });
         if appearance || profiles {
             if appearance {
+                let justify = self.workspace.justify;
                 update.ui.apply(&mut self.workspace);
                 self.apply_image_preferences();
+                if self.workspace.justify != justify {
+                    self.cache_reader_rows();
+                }
             }
             if profiles {
                 self.layouts.profiles = update.workspaces.clone();

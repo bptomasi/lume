@@ -298,7 +298,8 @@ impl App {
         Ok(())
     }
 
-    /// Apply only the newest admitted read, outside drafts and selections.
+    /// Deliver the latest read during navigation or disposable query editing.
+    /// Source-bound drafts and selections retain their captured article.
     ///
     /// # Errors
     /// Reports worker/storage failures while leaving the selected identity intact.
@@ -308,18 +309,26 @@ impl App {
             .as_ref()
             .and_then(|writer| writer.poll_error())
         {
-            self.progress_memory.borrow_mut().clear();
-            anyhow::bail!("Background save failed: {error}");
+            self.session_problem = Some(error.clone());
+            if self.session_failed() {
+                self.progress_memory.borrow_mut().clear();
+                anyhow::bail!(
+                    "Background save failed: {error} · :save-status details · :w retry"
+                );
+            }
+            self.status =
+                "Earlier session save recovered · :save-status details".into();
         }
         let catalog_changed =
             self.poll_configuration()? | self.poll_catalog()?;
+        let delivery = self.navigation_delivery_allowed();
         let Some(worker) = &mut self.navigation_worker else {
             return Ok(catalog_changed);
         };
         if let Some(result) = worker.worker.poll() {
             worker.ready = Some(result);
         }
-        if !matches!(self.mode, Mode::Normal) || self.selection.is_some() {
+        if !delivery {
             return Ok(catalog_changed);
         }
         let Some(result) = worker.ready.take() else {
@@ -330,6 +339,27 @@ impl App {
             return Ok(catalog_changed);
         }
         Ok(self.publish_navigation(result)? || catalog_changed)
+    }
+
+    fn navigation_delivery_allowed(&self) -> bool {
+        if self.selection.is_some() {
+            return false;
+        }
+        if matches!(self.mode, Mode::Normal) {
+            return true;
+        }
+        // Query editors capture no article mutation. They receive live
+        // results; source-bound drafts and explicit jump arrivals still wait.
+        matches!(
+            &self.mode,
+            Mode::Input(input) if matches!(
+                input.kind,
+                super::InputKind::Search | super::InputKind::LibrarySearch
+            )
+        ) && self
+            .navigation_worker
+            .as_ref()
+            .is_none_or(|worker| worker.arrival.is_none())
     }
 
     fn publish_navigation(

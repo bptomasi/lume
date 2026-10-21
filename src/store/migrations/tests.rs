@@ -188,3 +188,47 @@ fn v10_library(path: &std::path::Path) -> Result<()> {
         .run(&mut connection)?;
     Ok(())
 }
+
+#[test]
+fn justification_upgrade_admits_unpublished_preferences_and_keeps_owned_data()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("justify-upgrade.sqlite3");
+    let config = directory.path().join("config.toml");
+    v12_justified_library(&path, &config)?;
+    assert!(!crate::config::read_document(&config)?.ui.justify);
+
+    for _ in 0..2 {
+        let store = Store::open(&path)?;
+        assert!(store.workspace()?.justify);
+        assert_eq!(store.body(1)?, "Original body");
+        assert_eq!(store.comments(1)?[0].body, "Keep this private note");
+        store.reconcile_configuration(&config)?;
+        assert!(crate::config::read_document(&config)?.ui.justify);
+    }
+    Ok(())
+}
+
+fn v12_justified_library(
+    path: &std::path::Path,
+    config: &std::path::Path,
+) -> Result<()> {
+    v10_library(path)?;
+    let mut connection = Connection::open(path)?;
+    let migrations = MIGRATIONS
+        .iter()
+        .take(12)
+        .map(|(name, sql)| Migration::unapplied(name, sql))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Runner::new(&migrations)
+        .set_grouped(true)
+        .run(&mut connection)?;
+    let legacy = Store { connection };
+    legacy.save_workspace(&crate::model::Workspace::default())?;
+    legacy.reconcile_configuration(config)?;
+    let mut workspace = legacy.workspace()?;
+    workspace.justify = true;
+    legacy.save_workspace(&workspace)?;
+    assert!(!legacy.configuration_pending(config)?);
+    Ok(())
+}

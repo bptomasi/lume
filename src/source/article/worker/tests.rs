@@ -165,3 +165,36 @@ fn dropping_the_worker_during_io_prevents_a_later_cache_write() -> Result<()> {
     assert!(store.cached_document(target.article)?.is_none());
     Ok(())
 }
+
+#[test]
+fn an_unusable_download_preserves_cache_and_records_the_validation_failure()
+-> Result<()> {
+    let (directory, store, target) = library()?;
+    store.cache_document(&target, &document())?;
+    let worker =
+        Worker::spawn(directory.path().join("worker.sqlite3"), || {
+            |_url: &str, _selector: &str| {
+                Ok(ExtractedDocument {
+                    final_url: "https://journal.example/full".into(),
+                    body: "Copyright © 2026. All rights reserved.".into(),
+                })
+            }
+        })?;
+
+    worker.fetch(target.clone())?;
+    let completion = worker.results.recv_timeout(Duration::from_secs(3))?;
+
+    assert!(
+        completion
+            .error
+            .context("Footer accepted")?
+            .contains("footer")
+    );
+    let cached = store
+        .cached_document(target.article)?
+        .context("Cache lost")?;
+    assert_eq!(cached.body, document().body);
+    assert_eq!(cached.revision, 1);
+    assert!(cached.error.contains("footer"));
+    Ok(())
+}

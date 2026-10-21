@@ -24,6 +24,7 @@ query = "type:question status:open"
 [ui]
 theme = "lume"
 mouse = true
+justify = false
 
 [ui.keybindings]
 "ctrl-t" = "toc"

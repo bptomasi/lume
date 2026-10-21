@@ -17,6 +17,7 @@ mod notebook;
 pub(crate) use notebook::context_scroll_limit as notebook_scroll_limit;
 mod overlays;
 mod pane_motion;
+mod pane_search;
 mod panes;
 mod popup;
 mod reader_text;

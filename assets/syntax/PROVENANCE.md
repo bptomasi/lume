@@ -9,6 +9,11 @@ The Rust directory also supplies MIT terms, retained in `Rust-license.txt`.
 Lume loads only these embedded definitions. It never loads grammar files or
 regex patterns from a feed. Its own colors are defined by the reader owner.
 
+`LumeSQL.sublime-syntax` is a project-authored MIT overlay. It includes the
+unmodified SQL grammar and adds command keywords such as CALL, ATTACH and
+CONNECT. Syntect owns matching, string/comment contexts and multiline state;
+the overlay is compiled and linked with the same reviewed grammar pack.
+
 ## Expanded language set (2026-10-17)
 
 The pack contains 21 definitions plus plain text. C++, CSS, HTML, Java,

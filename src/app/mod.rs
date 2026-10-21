@@ -21,6 +21,7 @@ mod events;
 mod exchange;
 mod extraction;
 mod help;
+mod horizontal;
 mod images;
 mod input;
 mod layouts;
@@ -34,12 +35,14 @@ mod note_refresh;
 mod notebook;
 mod organization;
 mod pane_motion;
+mod pane_search;
 mod panel_docking;
 mod panels;
 mod passages;
 mod personal_tasks;
 mod picker;
 mod pointer;
+mod reader_links;
 mod reader_tools;
 mod reading;
 pub use reading::ReaderIdentity;
@@ -111,6 +114,8 @@ pub enum InputKind {
     NoteCollection,
     /// Live metadata search.
     Search,
+    /// In-memory name search within sidebar destinations.
+    LibrarySearch,
     /// Search only the current publisher text without changing library scope.
     ReaderSearch,
     /// Ex-style command line.
@@ -235,6 +240,7 @@ pub struct App {
     pub library: Library,
     /// Navigation destinations in display order.
     pub navigation: Vec<NavItem>,
+    library_search: pane_search::LibrarySearch,
     /// Selected navigation row.
     pub nav_selected: usize,
     /// Current article filter.
@@ -361,6 +367,10 @@ pub struct App {
     pub links: Vec<(String, String)>,
     /// Horizontal code/table scroll in terminal columns.
     pub horizontal: usize,
+    horizontal_state: horizontal::Horizontal,
+    horizontal_groups: Vec<Option<usize>>,
+    prose_lines: Vec<bool>,
+    session_problem: Option<String>,
     /// Display rows that preserve columns, including code blocks and tables.
     pub code_lines: Vec<bool>,
     /// Display row ranges of tables, which keep the ordinary panel background.
@@ -415,6 +425,7 @@ impl App {
             store,
             library,
             navigation: Vec::new(),
+            library_search: pane_search::LibrarySearch::default(),
             nav_selected: 0,
             view: workspace.view.clone(),
             focus: if workspace.fullscreen {
@@ -501,6 +512,10 @@ impl App {
             reader_styled: Vec::new(),
             links: Vec::new(),
             horizontal: 0,
+            horizontal_state: horizontal::Horizontal::default(),
+            horizontal_groups: Vec::new(),
+            prose_lines: Vec::new(),
+            session_problem: None,
             code_lines: Vec::new(),
             table_rows: Vec::new(),
             help_scroll: 0,

@@ -20,6 +20,7 @@ pub(super) fn library(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let block = panel(" 01  Library ".into(), app.focus == Focus::Library);
     let inner = block.inner(area);
     frame.render_widget(block, area);
+    let inner = super::pane_search::draw(frame, app, Focus::Library, inner);
     super::navigation::draw(frame, app, inner);
 }
 
@@ -28,6 +29,7 @@ pub(super) fn articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let block = panel(title, app.focus == Focus::Articles);
     let inner = block.inner(area);
     frame.render_widget(block, area);
+    let inner = super::pane_search::draw(frame, app, Focus::Articles, inner);
     if app.visible.is_empty() {
         empty_articles(frame, app, inner);
         return;

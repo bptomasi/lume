@@ -1,0 +1,112 @@
+{
+  "measured_at": "2026-10-21T22:31:02.496548+00:00",
+  "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "release",
+  "binary_sha256": "acbfd3e994590924128c7a1c045bf3e8552b4948a96a070d128197d9eb9e49e5",
+  "scope": [
+    "Ten incremental query keystrokes, filtered sidebar identity and cached frame.",
+    "200 or 5,000 subscriptions; no network requests or article bodies.",
+    "Catalog setup and normalized name indexes precede operation timers.",
+    "800 checked type/select/frame/cancel cycles per process, three processes per size.",
+    "Process wall time, RSS and I/O include setup and worker startup.",
+    "No physical terminal latency or baseline speedup claim."
+  ],
+  "runs": [
+    {
+      "stress": false,
+      "trial": 1,
+      "iterations": 800,
+      "total_ms": 245.629,
+      "mean_ms": 0.30703625,
+      "process": {
+        "wall_seconds": 0.28,
+        "peak_rss_kib": 14664,
+        "user_seconds": 0.26,
+        "system_seconds": 0.01,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": false,
+      "trial": 2,
+      "iterations": 800,
+      "total_ms": 229.98,
+      "mean_ms": 0.287475,
+      "process": {
+        "wall_seconds": 0.26,
+        "peak_rss_kib": 14412,
+        "user_seconds": 0.26,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": false,
+      "trial": 3,
+      "iterations": 800,
+      "total_ms": 228.05,
+      "mean_ms": 0.2850625,
+      "process": {
+        "wall_seconds": 0.26,
+        "peak_rss_kib": 14704,
+        "user_seconds": 0.25,
+        "system_seconds": 0.0,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": true,
+      "trial": 1,
+      "iterations": 800,
+      "total_ms": 636.742,
+      "mean_ms": 0.7959274999999999,
+      "process": {
+        "wall_seconds": 0.89,
+        "peak_rss_kib": 17084,
+        "user_seconds": 0.83,
+        "system_seconds": 0.06,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": true,
+      "trial": 2,
+      "iterations": 800,
+      "total_ms": 643.241,
+      "mean_ms": 0.80405125,
+      "process": {
+        "wall_seconds": 0.93,
+        "peak_rss_kib": 16520,
+        "user_seconds": 0.86,
+        "system_seconds": 0.06,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "stress": true,
+      "trial": 3,
+      "iterations": 800,
+      "total_ms": 622.079,
+      "mean_ms": 0.7775987499999999,
+      "process": {
+        "wall_seconds": 0.9,
+        "peak_rss_kib": 16644,
+        "user_seconds": 0.83,
+        "system_seconds": 0.07,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    }
+  ],
+  "median_mean_ms": {
+    "False": 0.287475,
+    "True": 0.7959274999999999
+  }
+}

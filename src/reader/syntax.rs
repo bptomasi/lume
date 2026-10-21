@@ -35,10 +35,13 @@ pub(super) fn highlight(text: &str, language: &str) -> Vec<Line<'static>> {
     if text.len() > 65_536 || text.lines().any(|line| line.len() > 4096) {
         return plain(text);
     }
-    let language = language_token(language);
-    let syntax = syntaxes
-        .find_syntax_by_token(&language)
-        .unwrap_or_else(|| syntaxes.find_syntax_plain_text());
+    let language = super::language::resolve(text, language);
+    let syntax = (if language == "sql" {
+        syntaxes.find_syntax_by_name("Lume SQL")
+    } else {
+        syntaxes.find_syntax_by_token(&language)
+    })
+    .unwrap_or_else(|| syntaxes.find_syntax_plain_text());
     let mut highlighter = HighlightLines::new(syntax, THEME.get_or_init(theme));
     LinesWithEndings::from(text)
         .map(|line| {
@@ -58,27 +61,6 @@ pub(super) fn highlight(text: &str, language: &str) -> Vec<Line<'static>> {
             )
         })
         .collect()
-}
-
-fn language_token(info: &str) -> String {
-    let token = info
-        .split(|c: char| c.is_whitespace() || c == ',')
-        .next()
-        .unwrap_or_default()
-        .trim_matches(|c| matches!(c, '{' | '}' | '.'))
-        .to_ascii_lowercase();
-    let token = token
-        .strip_prefix("language-")
-        .or_else(|| token.strip_prefix("lang-"))
-        .unwrap_or(&token);
-    match token {
-        "golang" => "go",
-        "node" | "nodejs" | "ecmascript" => "javascript",
-        "shell" | "shell-session" | "console" => "bash",
-        "tf" | "tfvars" | "hcl" => "terraform",
-        _ => token,
-    }
-    .to_owned()
 }
 
 fn plain(text: &str) -> Vec<Line<'static>> {

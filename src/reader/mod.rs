@@ -8,6 +8,8 @@
 pub mod cursor;
 pub mod images;
 pub mod index;
+mod justification;
+mod language;
 mod layout_worker;
 mod links;
 mod live;
@@ -45,6 +47,10 @@ pub struct Rendered {
     pub ranges: Vec<Range<usize>>,
     /// Rows that preserve source columns and allow horizontal scrolling.
     pub code: Vec<bool>,
+    /// Original source-byte block identity for independent horizontal scrolling.
+    pub horizontal_groups: Vec<Option<usize>>,
+    /// Nonfinal prose rows eligible for visual justification.
+    pub justifiable: Vec<bool>,
     /// Display row ranges of terminal tables, sharing horizontal code navigation.
     pub table_rows: Vec<Range<usize>>,
     /// Readable text before soft wrapping; copied selections use these bytes.
@@ -72,6 +78,8 @@ struct Builder<'a> {
     code: Option<String>,
     paragraph: bool,
     quote: usize,
+    list_depth: usize,
+    horizontal_group: Option<usize>,
     links: links::Links,
     image: Option<images::PendingImage>,
     table: Option<tables::Pending>,
@@ -102,6 +110,8 @@ pub(super) fn render_with(
         code: None,
         paragraph: false,
         quote: 0,
+        list_depth: 0,
+        horizontal_group: None,
         links: links::Links::default(),
         image: None,
         table: None,
@@ -129,6 +139,8 @@ impl Builder<'_> {
             Event::Text(text) if self.code.is_some() => {
                 self.append_code(&text, range);
             }
+            Event::Html(ref text) | Event::InlineHtml(ref text)
+                if crate::content::anchors::invisible(text) => {}
             Event::Text(text) | Event::Html(text) | Event::InlineHtml(text) => {
                 self.append(text.into_string(), range);
             }
@@ -176,8 +188,9 @@ impl Builder<'_> {
             .mappings
             .push(SourceMapping::new(base..base + text.len(), range.clone()));
         let language = self.code.as_deref().unwrap_or_default();
+        let language = language::resolve(text, language);
         let mut offset = 0;
-        for (line, source) in (self.highlight)(text, language)
+        for (line, source) in (self.highlight)(text, &language)
             .into_iter()
             .zip(text.split_inclusive('\n'))
         {
@@ -199,8 +212,12 @@ impl Builder<'_> {
                 self.paragraph = matches!(&tag, Tag::Paragraph);
                 self.start = range.start;
                 self.end = range.end;
+                if matches!(&tag, Tag::CodeBlock(_)) {
+                    self.horizontal_group = Some(range.start);
+                }
                 self.block_style(tag);
             }
+            Tag::List(_) => self.list_depth += 1,
             Tag::Item => {
                 self.flush();
                 self.start = range.start;
@@ -261,7 +278,11 @@ impl Builder<'_> {
                 }
                 if tag == TagEnd::CodeBlock {
                     self.code = None;
+                    self.horizontal_group = None;
                 }
+            }
+            TagEnd::List(_) => {
+                self.list_depth = self.list_depth.saturating_sub(1)
             }
             TagEnd::Link => {
                 self.links.end();
@@ -339,9 +360,29 @@ impl Builder<'_> {
         let base = self.rendered.text.len();
         self.rendered.text.push_str(&text);
         self.rendered.text.push('\n');
+        self.wrap_paragraph(&spans, &mappings, &text, code, base);
+        self.rendered
+            .mappings
+            .extend(mappings.into_iter().map(|mut map| {
+                map.display.start += base;
+                map.display.end += base;
+                map
+            }));
+    }
+
+    fn wrap_paragraph(
+        &mut self,
+        spans: &[Span<'static>],
+        mappings: &[SourceMapping],
+        text: &str,
+        code: bool,
+        base: usize,
+    ) {
         let mut consumed = 0;
-        let mut paragraph = wrapping::Paragraph::new(&spans, &mappings);
-        for wrapped in textwrap::wrap(&text, self.width) {
+        let mut paragraph = wrapping::Paragraph::new(spans, mappings);
+        let rows = textwrap::wrap(text, self.width);
+        let count = rows.len();
+        for (index, wrapped) in rows.into_iter().enumerate() {
             let offset = text[consumed..].find(wrapped.as_ref()).unwrap_or(0);
             let start = consumed + offset;
             let end = start + wrapped.len();
@@ -352,15 +393,15 @@ impl Builder<'_> {
                 code,
                 base + start..base + end,
             );
+            if let Some(eligible) = self.rendered.justifiable.last_mut() {
+                *eligible = self.paragraph
+                    && !code
+                    && self.quote == 0
+                    && self.list_depth == 0
+                    && index + 1 < count;
+            }
             consumed = end;
         }
-        self.rendered
-            .mappings
-            .extend(mappings.into_iter().map(|mut map| {
-                map.display.start += base;
-                map.display.end += base;
-                map
-            }));
     }
 
     fn generated(&mut self, line: Line<'static>, source: Range<usize>) {
@@ -381,6 +422,10 @@ impl Builder<'_> {
         self.rendered.lines.push(line);
         self.rendered.ranges.push(range);
         self.rendered.code.push(code);
+        self.rendered
+            .horizontal_groups
+            .push(code.then_some(self.horizontal_group.unwrap_or(self.start)));
+        self.rendered.justifiable.push(false);
         self.rendered.text_ranges.push(text);
     }
 }

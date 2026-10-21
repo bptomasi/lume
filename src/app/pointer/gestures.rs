@@ -200,7 +200,7 @@ impl App {
         let column = event.column.clamp(content.x, content.right() - 1);
         let goal = usize::from(column - content.x)
             + if self.code_lines.get(index) == Some(&true) {
-                self.horizontal
+                self.horizontal_for_row(index)
             } else {
                 0
             };

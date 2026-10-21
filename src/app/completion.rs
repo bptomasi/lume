@@ -678,6 +678,18 @@ const COMMANDS: &[CommandSpec] = &[
         aliases: &[],
     },
     CommandSpec {
+        name: "justify",
+        usage: "justify on|off|toggle",
+        description: "Justify prose visually; preserve copied text and code",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "save-status",
+        usage: "save-status",
+        description: "Inspect session saving and the latest failure; :w retries",
+        aliases: &[],
+    },
+    CommandSpec {
         name: "theme",
         usage: "theme lume|nord|gruvbox",
         description: "Select a persistent dark palette",

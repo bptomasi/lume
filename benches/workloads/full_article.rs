@@ -20,6 +20,7 @@ const DISCUSSION: &str = "[Comments](https://community.example/discussion)";
 pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     let html = fixture(stress)?;
     let document = extraction(&html, iterations)?;
+    semantic_fallback(iterations, stress)?;
     let (directory, store, target) = library()?;
     store.cache_document(&target, &document)?;
     cache_search(&store, &target, &document, iterations)?;
@@ -69,6 +70,34 @@ fn extraction(html: &str, iterations: usize) -> Result<ExtractedDocument> {
     Ok(document)
 }
 
+fn semantic_fallback(iterations: usize, stress: bool) -> Result<()> {
+    let links = if stress { 5000 } else { 500 };
+    let navigation = "<a href='/nav'>Navigation</a>".repeat(links);
+    let html = include_str!("../../tests/fixtures/extraction/quote-main.html")
+        .replace("<body>", &format!("<body><nav>{navigation}</nav>"));
+    println!(
+        "fallback input · navigation_links={links} · bytes={}",
+        html.len()
+    );
+    super::measure(
+        "semantic fallback after rejected footer",
+        iterations,
+        || {
+            let document = source::article::extract(
+                &html,
+                "https://journal.example/report",
+            )?;
+            ensure!(
+                document.body.contains("Request cleanup must inspect"),
+                "Article lost"
+            );
+            ensure!(!document.body.contains("Copyright ©"), "Footer accepted");
+            ensure!(!document.body.contains("Navigation"), "Navigation leaked");
+            Ok(())
+        },
+    )
+}
+
 fn fixture(stress: bool) -> Result<String> {
     let template = include_str!("../../tests/fixtures/article.html");
     if !stress {
@@ -80,10 +109,19 @@ fn fixture(stress: bool) -> Result<String> {
     let end = template
         .find("</article>")
         .context("Fixture has no article end")?;
+    let section = template.get(start..end).context("Invalid fixture range")?;
+    // Keep a large successful page below the 256 KiB fragment limit, with
+    // room for the extractor's generated wrappers. Oversize rejection is
+    // qualified separately by the extraction and HTTP failure contracts.
+    let copies = (224_usize * 1024)
+        .saturating_sub(template.len())
+        .checked_div(section.len())
+        .context("Empty article fixture")?;
+    ensure!(copies > 0, "Article fixture exceeds the stress budget");
     Ok(format!(
         "{}{}{}",
         &template[..start],
-        template[start..end].repeat(100),
+        section.repeat(copies),
         &template[end..]
     ))
 }
@@ -154,7 +192,15 @@ fn failure_preservation(
     document: &ExtractedDocument,
     iterations: usize,
 ) -> Result<()> {
+    let footer = ExtractedDocument {
+        final_url: document.final_url.clone(),
+        body: "Copyright © 2026. All rights reserved.".into(),
+    };
     super::measure("failed fetch preserves cached article", iterations, || {
+        ensure!(
+            store.cache_document(target, &footer).is_err(),
+            "Footer replaced article"
+        );
         store.document_failure(target, "Controlled publisher failure")?;
         let retained = store
             .cached_document(target.article)?

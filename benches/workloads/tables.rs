@@ -22,7 +22,42 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
         body.len()
     );
     layout(&body, rows, iterations)?;
+    publisher_header(rows, columns, iterations)?;
     frames(&body, rows, columns, iterations)
+}
+
+fn publisher_header(
+    rows: usize,
+    columns: usize,
+    iterations: usize,
+) -> Result<()> {
+    let mut html = String::from("<table><tbody><tr>");
+    for column in 0..columns {
+        html.push_str(&format!("<td><strong>Column {column}</strong></td>"));
+    }
+    html.push_str("</tr>");
+    for row in 0..rows {
+        html.push_str("<tr>");
+        for column in 0..columns {
+            html.push_str(&format!("<td>{row}-{column}</td>"));
+        }
+        html.push_str("</tr>");
+    }
+    html.push_str("</tbody></table>");
+    super::measure("publisher HTML table + semantic header", iterations, || {
+        let source = lume::content::article_markdown(&html, true, "");
+        let rendered = reader::render(&source, 80);
+        ensure!(rendered.table_rows.len() == 1, "Table lost");
+        ensure!(
+            rendered.table_rows[0].len() == rows + 4,
+            "Header gained a blank row"
+        );
+        ensure!(
+            rendered.lines[1].to_string().contains("Column 0"),
+            "Header misplaced"
+        );
+        Ok(())
+    })
 }
 
 fn layout(body: &str, rows: usize, iterations: usize) -> Result<()> {

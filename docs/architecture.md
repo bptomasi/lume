@@ -88,6 +88,16 @@ as wrapped rows advance. It retires completed prefixes instead of rescanning
 all formatting for every row. `reader::links` separately collects bounded labels
 from parser events, including hard breaks and image alternatives. Destination
 lookup preserves first-seen order without copying the preceding paragraph.
+Eligible prose rows can use cached word-gap expansion. `reader::viewport`
+projects these extra cells back to the original byte of the word separator,
+so mouse hits, Vim motion, search, yanks and note anchors share one text identity.
+Each unwrapped code/table row also retains its source block key; horizontal
+positions belong to that key and survive reflow without moving sibling blocks.
+`reader::index::Navigation` separately retains each link's source range, so
+Enter follows the occurrence under the cursor even when labels repeat or wrap.
+HTTP(S) destinations open through the system browser. Same-page fragments use
+preserved HTML IDs or heading slugs and the reader's bounded jump history;
+missing sections report their absence without guessing a different passage.
 
 The reader enables pulldown-cmark's table events and captures styled cells with
 their original byte mappings. `reader::tables` owns Unicode column widths,
@@ -96,6 +106,8 @@ grid rows share the indexed horizontal viewport used by code, with separate
 row ranges retaining the ordinary panel background. The inspector reuses cached
 rows when available. Selection and annotation project cell text back to source;
 decorative borders and padding have no quotation mapping.
+HTML `thead`/`th` and fully bold first rows identify publisher headers. Plain or
+partly emphasized data rows do not become invented column labels.
 
 Padded grid output has a shared 1 MiB budget per article, at most 64 columns,
 2,000 rows including the header, and 4,096 terminal cells per row. Exceeding a
@@ -155,11 +167,44 @@ source identity; unmatched positions remain explicit rather than guessing a new
 anchor. Feed and full-article provenance remain distinguishable. Full-article
 extraction uses the qualified Readability/CSS libraries and reports short,
 obstructed or failed extraction without replacing a good cached document.
+Clear copyright-only results are rejected even when wrapped in invisible anchor
+markup. If automatic extraction fails, unique `article`, `main` or `role=main`
+containers are tried under the same size/element limits. Explicit CSS rules
+remain authoritative. Previously cached obstructions fall back to the original
+feed in the reader; neither source nor its annotations are deleted.
 
 Sparse row checkpoints bound Unicode work for long code rows. Drawing projects
 only visible cells and preserves syntax, search, selection and cursor offsets.
 Layout and wrapping run outside input where they are expensive; tests cover
 long rows, resizing and libraries larger than the displayed metadata page.
+
+Library search caches normalized destination names when the catalog changes.
+Typing filters those names without SQLite work; article search reuses the
+bounded latest-request navigation worker and the existing destination query.
+Both fields reserve rows inside their own panes. Renderers and pointer hit
+testing share that geometry. Cancel restores the sidebar destination by identity,
+so a catalog refresh cannot retarget it. Reader Escape clears source-local search
+marks before changing fullscreen or library state. Subsequent Escape restores
+the layout and returns focus to Articles, revealing that pane if collapsed.
+Leaving Reader with an empty search does not cause a redundant article reload.
+
+### Terminal frame map
+
+| Surface | Frame owner |
+| --- | --- |
+| Library, Articles, Reader, Annotations and Notebook panes | `ui::theme::panel` |
+| Help, commands, note/card editors, forms, pickers and documents | `ui::popup::draw_frame` |
+| Settings, Space actions, Ctrl-w guide and hovered notes | `ui::popup::draw_frame` |
+| Floating and compact dragged panes | Captured panel or `ui::drag_picture` |
+| Reader tables and their text inspections | `reader::tables` |
+
+Frames retain the Unicode arcs `╭ ╮ ╰ ╯`. Popup titles leave connected border
+segments beside both upper corners, even with wide Unicode text. The terminal
+owns glyph rasterization; these character-cell outlines have no pixel radius
+setting. Fullscreen image views, welcome art and split insertion markers are
+not framed windows. Native image occlusion uses the same popup footprints.
+Hovered note previews bound cleaning and row allocation rather than preparing
+an entire long note on every frame.
 
 The workspace owns pane topology, visibility and widths. Keyboard and mouse use
 those same operations and hit regions. The reader's centered fullscreen column
@@ -181,6 +226,8 @@ The bootstrap and executed migrations are not renamed or rewritten. V11 adds
 configuration revision/binding state and reversible definition archival. Older
 populated libraries retain the former implicit recommendation profile explicitly;
 new libraries start neutral. Migration tests exercise real owned SQLite files.
+V13 observes justification-only appearance changes and admits previously enabled
+preferences for configuration publication without replacing personal data.
 
 Native tests cover public behavior and credible failures. Visual snapshots cover
 reviewed terminal cells, styles, themes and sizes. Real HTTP fixtures qualify
@@ -212,7 +259,12 @@ writing from cursor input. A disconnected writer acknowledges each outstanding
 ticket as uncertain failure; it cannot leave an endless pending indicator.
 
 Appearance/progress use a separate ordered session writer because they do not
-share personal undo. External configuration publication uses a nonblocking
+share personal undo. Only these idempotent writes retry transient SQLite locks,
+with three attempts and bounded worker-side backoff. Failed latest values remain
+per-key in a bounded recovery backlog. An explicit flush retries them; a newer
+successful value clears only its own key. `:save-status` retains the last error
+in the session, and `:w` retries without reporting unresolved writes as saved.
+External configuration publication uses a nonblocking
 barrier plus a local-edit guard before replacing cached appearance. Drafts,
 ranking edits, session saves and configuration publication have independently
 attempted shutdown boundaries, including drawing/input/setup errors. Errors are

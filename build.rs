@@ -71,6 +71,7 @@ const GRAMMARS: &[&str] = &[
     include_str!("assets/syntax/Python.sublime-syntax"),
     include_str!("assets/syntax/Regular Expressions (Python).sublime-syntax"),
     include_str!("assets/syntax/SQL.sublime-syntax"),
+    include_str!("assets/syntax/LumeSQL.sublime-syntax"),
     include_str!("assets/syntax/RegExp.sublime-syntax"),
     include_str!("assets/syntax/JSON.sublime-syntax"),
     include_str!("assets/syntax/Bash.sublime-syntax"),

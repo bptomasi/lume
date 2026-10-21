@@ -135,9 +135,11 @@ impl Builder<'_> {
             layout::render(table, MAX_BYTES.saturating_sub(self.table_bytes))
         {
             self.table_bytes += bytes;
+            self.horizontal_group = Some(source.start);
             for row in rows {
                 self.table_row(row, source.start);
             }
+            self.horizontal_group = None;
             self.rendered
                 .table_rows
                 .push(first..self.rendered.lines.len());

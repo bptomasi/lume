@@ -148,7 +148,9 @@ fn horizontally_scrolled_code_and_tabs_keep_their_mouse_cell_mapping()
     let (_directory, mut app) = application()?;
     let column = reader_content(&app)?.x;
     let row = reader_row(&app, "let value")?;
-    app.horizontal = 4;
+    for _ in 0..4 {
+        mouse(&mut app, MouseEventKind::ScrollRight, column + 4, row)?;
+    }
 
     mouse(
         &mut app,

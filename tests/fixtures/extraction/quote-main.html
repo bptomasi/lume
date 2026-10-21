@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head><title>Repairing request cleanup</title></head>
+<body>
+<div class="maincolumn flexcol">
+  <div class="middlecolumn">
+    <div class="PageHeadline"><h1>Repairing request cleanup</h1></div>
+    <div class="ArticleText"><main>
+      The maintainers published <a href="/upstream">an engineering report</a>
+      about delayed cleanup fixes and the testing work needed to ship them.
+      <p>
+      <blockquote class="bq">
+        Request cleanup must inspect only fully initialized entries. When an
+        allocation fails between publishing a new entry and initializing its
+        fields, cleanup can observe partial state. The fix must preserve the
+        ownership boundary across every early return and allocation failure.
+        Existing callers rely on the previous behavior, so the implementation
+        requires careful compatibility checks. Reproducing this failure needs
+        deterministic allocation injection and independent assertions about
+        which fields are visible. The team added focused failure scenarios and
+        reviewed the shared cleanup routine before shipping the correction.
+      </blockquote>
+      <form><input type="submit" value="Log in"> to post comments</form>
+    </main></div>
+  </div>
+</div>
+<center><p><span class="ReallySmall">
+  Copyright © 2026, Example Journal. Comments and public postings are
+  copyrighted by their creators. Example is a registered trademark of its
+  respective owner. All rights reserved.
+</span></p></center>
+</body>
+</html>

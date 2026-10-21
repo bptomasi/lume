@@ -52,6 +52,8 @@ impl App {
                 .current()
                 .is_some_and(|article| article.url == document.url)
             && !document.body.is_empty()
+            && crate::source::article::rules::rejection(&document.body)
+                .is_none()
         {
             if self.feed_body_kind == BodyKind::ReferencesOnly {
                 self.feed_links =

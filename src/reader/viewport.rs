@@ -25,11 +25,20 @@ struct Position {
 pub(crate) struct RowIndex {
     points: Vec<Position>,
     span_ends: Vec<usize>,
+    gaps: Vec<(usize, usize)>,
 }
 
 impl RowIndex {
     /// Index the exact readable row and its concatenated styled spans.
     pub(crate) fn new(text: &str, line: &Line<'_>) -> Self {
+        Self::build(text, line, Vec::new())
+    }
+
+    pub(crate) fn justified(text: &str, line: &Line<'_>, width: usize) -> Self {
+        Self::build(text, line, super::justification::gaps(text, width))
+    }
+
+    fn build(text: &str, line: &Line<'_>, gaps: Vec<(usize, usize)>) -> Self {
         let mut points = vec![Position::default()];
         let mut column = 0;
         let mut next = 256;
@@ -38,7 +47,7 @@ impl RowIndex {
                 points.push(Position { byte, column });
                 next = byte.saturating_add(256);
             }
-            column += cursor::width(grapheme, column);
+            column += cursor::width(grapheme, column) + padding(&gaps, byte);
         }
         let mut end = 0;
         let span_ends = line
@@ -49,7 +58,11 @@ impl RowIndex {
                 end
             })
             .collect();
-        Self { points, span_ends }
+        Self {
+            points,
+            span_ends,
+            gaps,
+        }
     }
 
     fn before_column(&self, column: usize) -> Position {
@@ -70,9 +83,11 @@ impl RowIndex {
             .unwrap_or_default();
         text.get(point.byte..byte)
             .unwrap_or_default()
-            .graphemes(true)
-            .fold(point.column, |column, grapheme| {
-                column + cursor::width(grapheme, column)
+            .grapheme_indices(true)
+            .fold(point.column, |column, (byte, grapheme)| {
+                column
+                    + cursor::width(grapheme, column)
+                    + padding(&self.gaps, point.byte + byte)
             })
     }
 
@@ -81,7 +96,9 @@ impl RowIndex {
         let point = self.before_column(goal);
         let mut column = point.column;
         for (byte, grapheme) in text[point.byte..].grapheme_indices(true) {
-            let next = column + cursor::width(grapheme, column);
+            let next = column
+                + cursor::width(grapheme, column)
+                + padding(&self.gaps, point.byte + byte);
             if next > goal {
                 return point.byte + byte;
             }
@@ -107,7 +124,9 @@ impl RowIndex {
             if column >= end {
                 break;
             }
-            let next = column + cursor::width(grapheme, column);
+            let next = column
+                + cursor::width(grapheme, column)
+                + padding(&self.gaps, point.byte + byte);
             if next > skip {
                 let byte = point.byte + byte;
                 let span = self.span_ends.partition_point(|end| *end <= byte);
@@ -130,6 +149,7 @@ fn append(
     style: Style,
 ) {
     let text = if grapheme == "\t"
+        || (grapheme == " " && cells.len() > 1)
         || cells.start < viewport.start
         || cells.end > viewport.end
     {
@@ -146,6 +166,13 @@ fn append(
     } else {
         spans.push(Span::styled(text, style));
     }
+}
+
+fn padding(gaps: &[(usize, usize)], byte: usize) -> usize {
+    let index = gaps.partition_point(|(offset, _)| *offset < byte);
+    gaps.get(index)
+        .filter(|(offset, _)| *offset == byte)
+        .map_or(0, |(_, extra)| *extra)
 }
 
 #[cfg(test)]

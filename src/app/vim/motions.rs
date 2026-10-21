@@ -139,6 +139,7 @@ impl App {
     }
 
     pub(super) fn vim_z_key(&mut self, code: KeyCode, count: usize) {
+        self.select_horizontal_block();
         match code {
             KeyCode::Char('t') => self.scroll = self.reader_cursor,
             KeyCode::Char('z') => {

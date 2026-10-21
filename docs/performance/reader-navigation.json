@@ -1,0 +1,328 @@
+{
+  "measured_at": "2026-10-21T21:27:54.195021+00:00",
+  "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "release",
+  "binary_sha256": "f8af7f49362441971717854b37db27982a8f970f7ac168468e0b4eea75c367f9",
+  "scope": [
+    "Correctness-checked link/anchor indexing and cached Enter/history.",
+    "Links: 200 or 2,000 sections; fixtures precede operation timers.",
+    "Tables: styled publisher headers, source grids and cached frames.",
+    "Extraction: rejected footer fallback and preserved previous caches.",
+    "Process wall time, RSS and I/O include setup and grammar warmup.",
+    "No physical terminal latency or baseline speedup claim."
+  ],
+  "runs": [
+    {
+      "workload": "links",
+      "stress": false,
+      "trial": 1,
+      "process": {
+        "wall_seconds": 0.04,
+        "peak_rss_kib": 16268,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "operations": [
+        {
+          "operation": "link/anchor indexing + exact source hits",
+          "iterations": 40,
+          "total_ms": 13.273,
+          "mean_ms": 0.332
+        },
+        {
+          "operation": "cached Enter jump + history return",
+          "iterations": 800,
+          "total_ms": 5.166,
+          "mean_ms": 0.006
+        }
+      ]
+    },
+    {
+      "workload": "links",
+      "stress": false,
+      "trial": 2,
+      "process": {
+        "wall_seconds": 0.05,
+        "peak_rss_kib": 16252,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "operations": [
+        {
+          "operation": "link/anchor indexing + exact source hits",
+          "iterations": 40,
+          "total_ms": 18.451,
+          "mean_ms": 0.461
+        },
+        {
+          "operation": "cached Enter jump + history return",
+          "iterations": 800,
+          "total_ms": 5.183,
+          "mean_ms": 0.006
+        }
+      ]
+    },
+    {
+      "workload": "links",
+      "stress": false,
+      "trial": 3,
+      "process": {
+        "wall_seconds": 0.05,
+        "peak_rss_kib": 16156,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "operations": [
+        {
+          "operation": "link/anchor indexing + exact source hits",
+          "iterations": 40,
+          "total_ms": 17.695,
+          "mean_ms": 0.442
+        },
+        {
+          "operation": "cached Enter jump + history return",
+          "iterations": 800,
+          "total_ms": 5.121,
+          "mean_ms": 0.006
+        }
+      ]
+    },
+    {
+      "workload": "links",
+      "stress": true,
+      "trial": 1,
+      "process": {
+        "wall_seconds": 0.23,
+        "peak_rss_kib": 27292,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "operations": [
+        {
+          "operation": "link/anchor indexing + exact source hits",
+          "iterations": 40,
+          "total_ms": 145.21,
+          "mean_ms": 3.63
+        },
+        {
+          "operation": "cached Enter jump + history return",
+          "iterations": 800,
+          "total_ms": 31.793,
+          "mean_ms": 0.04
+        }
+      ]
+    },
+    {
+      "workload": "links",
+      "stress": true,
+      "trial": 2,
+      "process": {
+        "wall_seconds": 0.24,
+        "peak_rss_kib": 27136,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "operations": [
+        {
+          "operation": "link/anchor indexing + exact source hits",
+          "iterations": 40,
+          "total_ms": 149.713,
+          "mean_ms": 3.743
+        },
+        {
+          "operation": "cached Enter jump + history return",
+          "iterations": 800,
+          "total_ms": 31.662,
+          "mean_ms": 0.04
+        }
+      ]
+    },
+    {
+      "workload": "links",
+      "stress": true,
+      "trial": 3,
+      "process": {
+        "wall_seconds": 0.27,
+        "peak_rss_kib": 27036,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "operations": [
+        {
+          "operation": "link/anchor indexing + exact source hits",
+          "iterations": 40,
+          "total_ms": 173.477,
+          "mean_ms": 4.337
+        },
+        {
+          "operation": "cached Enter jump + history return",
+          "iterations": 800,
+          "total_ms": 32.342,
+          "mean_ms": 0.04
+        }
+      ]
+    },
+    {
+      "workload": "tables",
+      "stress": false,
+      "trial": 1,
+      "process": {
+        "wall_seconds": 0.56,
+        "peak_rss_kib": 21440,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "operations": [
+        {
+          "operation": "table layout + source correspondence",
+          "iterations": 40,
+          "total_ms": 12.165,
+          "mean_ms": 0.304
+        },
+        {
+          "operation": "publisher HTML table + semantic header",
+          "iterations": 40,
+          "total_ms": 14.631,
+          "mean_ms": 0.366
+        },
+        {
+          "operation": "table motion + selected cached frame",
+          "iterations": 1000,
+          "total_ms": 486.93,
+          "mean_ms": 0.487
+        },
+        {
+          "operation": "cached table inspector + close",
+          "iterations": 40,
+          "total_ms": 0.919,
+          "mean_ms": 0.023
+        }
+      ]
+    },
+    {
+      "workload": "tables",
+      "stress": true,
+      "trial": 1,
+      "process": {
+        "wall_seconds": 2.27,
+        "peak_rss_kib": 43860,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "operations": [
+        {
+          "operation": "table layout + source correspondence",
+          "iterations": 40,
+          "total_ms": 528.065,
+          "mean_ms": 13.202
+        },
+        {
+          "operation": "publisher HTML table + semantic header",
+          "iterations": 40,
+          "total_ms": 735.65,
+          "mean_ms": 18.391
+        },
+        {
+          "operation": "table motion + selected cached frame",
+          "iterations": 1000,
+          "total_ms": 817.993,
+          "mean_ms": 0.818
+        },
+        {
+          "operation": "cached table inspector + close",
+          "iterations": 40,
+          "total_ms": 36.504,
+          "mean_ms": 0.913
+        }
+      ]
+    },
+    {
+      "workload": "full-article",
+      "stress": false,
+      "trial": 1,
+      "process": {
+        "wall_seconds": 0.19,
+        "peak_rss_kib": 22148,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "operations": [
+        {
+          "operation": "full-page extraction + safe normalization",
+          "iterations": 40,
+          "total_ms": 16.357,
+          "mean_ms": 0.409
+        },
+        {
+          "operation": "semantic fallback after rejected footer",
+          "iterations": 40,
+          "total_ms": 96.831,
+          "mean_ms": 2.421
+        },
+        {
+          "operation": "full cache + FTS + revision stability",
+          "iterations": 40,
+          "total_ms": 20.392,
+          "mean_ms": 0.51
+        },
+        {
+          "operation": "failed fetch preserves cached article",
+          "iterations": 40,
+          "total_ms": 2.579,
+          "mean_ms": 0.064
+        },
+        {
+          "operation": "Feed/Full switches + cached frame",
+          "iterations": 40,
+          "total_ms": 34.102,
+          "mean_ms": 0.853
+        }
+      ]
+    },
+    {
+      "workload": "full-article",
+      "stress": true,
+      "trial": 1,
+      "process": {
+        "wall_seconds": 2.7,
+        "peak_rss_kib": 37496,
+        "input_blocks": 0,
+        "output_blocks": 0
+      },
+      "operations": [
+        {
+          "operation": "full-page extraction + safe normalization",
+          "iterations": 40,
+          "total_ms": 719.726,
+          "mean_ms": 17.993
+        },
+        {
+          "operation": "semantic fallback after rejected footer",
+          "iterations": 40,
+          "total_ms": 943.769,
+          "mean_ms": 23.594
+        },
+        {
+          "operation": "full cache + FTS + revision stability",
+          "iterations": 40,
+          "total_ms": 145.746,
+          "mean_ms": 3.644
+        },
+        {
+          "operation": "failed fetch preserves cached article",
+          "iterations": 40,
+          "total_ms": 3.878,
+          "mean_ms": 0.097
+        },
+        {
+          "operation": "Feed/Full switches + cached frame",
+          "iterations": 40,
+          "total_ms": 803.745,
+          "mean_ms": 20.094
+        }
+      ]
+    }
+  ]
+}

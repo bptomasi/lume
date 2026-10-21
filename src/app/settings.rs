@@ -17,7 +17,7 @@ pub struct SettingsDraft {
 }
 
 impl SettingsDraft {
-    pub(crate) const FIELD_COUNT: usize = 12;
+    pub(crate) const FIELD_COUNT: usize = 13;
 }
 
 /// Stable key spelling accepted by `:bind`; no draft/editor key is remapped.
@@ -70,6 +70,7 @@ impl App {
                 self.workspace.theme = argument.into();
                 self.persist_preferences()?;
             }
+            "justify" => self.set_justification(argument)?,
             "bind" => self.bind_command(argument)?,
             "unbind" => {
                 self.workspace.keybindings.remove(argument);
@@ -78,6 +79,23 @@ impl App {
             _ => return Ok(None),
         }
         Ok(Some(Action::None))
+    }
+
+    fn set_justification(&mut self, argument: &str) -> Result<()> {
+        let enabled = match argument {
+            "on" => true,
+            "off" => false,
+            "" | "toggle" => !self.workspace.justify,
+            _ => anyhow::bail!("Use :justify on|off|toggle"),
+        };
+        self.workspace.justify = enabled;
+        self.cache_reader_rows();
+        self.persist_preferences()?;
+        self.status = format!(
+            "Prose justification {}",
+            if enabled { "enabled" } else { "disabled" }
+        );
+        Ok(())
     }
 
     fn bind_command(&mut self, argument: &str) -> Result<()> {
@@ -103,6 +121,7 @@ impl App {
     }
 
     pub(super) fn settings_key(&mut self, key: KeyEvent) -> Result<Action> {
+        let justify = self.workspace.justify;
         let Mode::Settings(draft) = &mut self.mode else {
             return Ok(Action::None);
         };
@@ -132,6 +151,9 @@ impl App {
                 change_visual(&mut self.workspace, draft.field, true)
             }
             _ => {}
+        }
+        if self.workspace.justify != justify {
+            self.cache_reader_rows();
         }
         Ok(Action::None)
     }
@@ -174,6 +196,7 @@ fn change_visual(workspace: &mut Workspace, field: usize, forward: bool) {
             workspace.fullscreen_width =
                 resize(workspace.fullscreen_width, forward, 40, 140)
         }
+        12 => workspace.justify = !workspace.justify,
         _ => {}
     }
 }

@@ -75,7 +75,7 @@ fn individual_wheel_steps_scroll_exactly_one_visual_line_and_stop_at_edges()
 }
 
 #[test]
-fn wheel_bursts_preserve_exact_distance_direction_changes_and_horizontal_steps()
+fn wheel_bursts_preserve_distance_and_direction_without_panning_prose()
 -> Result<()> {
     let (_directory, mut app, content) = reader()?;
     let mut events = vec![
@@ -99,9 +99,10 @@ fn wheel_bursts_preserve_exact_distance_direction_changes_and_horizontal_steps()
     assert!(batch.is_empty());
 
     app.mouse(event(MouseEventKind::ScrollRight, content.x, content.y))?;
-    assert_eq!(app.horizontal, 1);
+    assert_eq!(app.horizontal, 0);
     app.mouse(event(MouseEventKind::ScrollLeft, content.x, content.y))?;
     assert_eq!(app.horizontal, 0);
+    assert_eq!(app.scroll, 7);
     Ok(())
 }
 

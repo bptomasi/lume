@@ -205,21 +205,23 @@ impl App {
         if self.panel_drag().is_some() {
             return;
         }
-        let reader =
+        let Some(reader) =
             ui::workspace_areas(self.screen, self.focus, &self.workspace)
-                .reader;
-        if !reader.is_some_and(|area| {
-            area.contains(Position::new(event.column, event.row))
-        }) {
+                .reader
+        else {
+            return;
+        };
+        let content = ui::workspace_reader_content(reader, &self.workspace);
+        if !content.contains(Position::new(event.column, event.row)) {
             return;
         }
         self.pane_flight = None;
         self.pane_neighbors = None;
-        self.horizontal = if event.kind == MouseEventKind::ScrollLeft {
-            self.horizontal.saturating_sub(1)
-        } else {
-            self.horizontal.saturating_add(1).min(4096)
-        };
+        let row = self.scroll + usize::from(event.row - content.y);
+        self.scroll_horizontal_row(
+            row,
+            event.kind == MouseEventKind::ScrollRight,
+        );
     }
 
     fn pointer_down(&mut self, event: MouseEvent) -> Result<()> {

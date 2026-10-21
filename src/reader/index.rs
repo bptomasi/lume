@@ -2,6 +2,10 @@
 
 use std::ops::Range;
 
+mod navigation;
+
+pub use navigation::{Link, Navigation};
+
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 
 /// One navigable heading, retaining its original source anchor.
@@ -27,6 +31,8 @@ pub struct CodeBlock {
 /// Width-independent reader structure; never parsed while drawing.
 #[derive(Clone, Debug, Default)]
 pub struct DocumentIndex {
+    /// Link occurrences and section destinations independent of display width.
+    pub navigation: Navigation,
     /// Headings in encounter order.
     pub headings: Vec<Heading>,
     /// Code blocks in encounter order.
@@ -56,6 +62,7 @@ impl DocumentIndex {
                 index.limited = true;
                 break;
             }
+            index.navigation.event(&event, range.clone());
             match event {
                 Event::Start(Tag::Heading { level, .. }) => {
                     heading = Some(Heading {
@@ -66,6 +73,7 @@ impl DocumentIndex {
                 }
                 Event::End(TagEnd::Heading(_)) => {
                     if let Some(item) = heading.take() {
+                        index.navigation.heading(&item.title, item.range.start);
                         index.headings.push(item);
                     }
                 }

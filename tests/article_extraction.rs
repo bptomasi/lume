@@ -55,3 +55,34 @@ fn element_limit_rejects_large_documents_without_returning_partial_success() {
     let error = article::extract(&html, "https://journal.example/article");
     assert!(error.is_err());
 }
+
+#[test]
+fn copyright_only_results_fail_but_short_articles_and_legal_topics_survive()
+-> Result<()> {
+    let footer = "Copyright © 2026, Eklektix, Inc. Comments and public \
+        postings are copyrighted by their creators. Linux is a registered \
+        trademark of Linus Torvalds";
+    let html = format!("<article><p>{footer}</p></article>");
+
+    let result = article::extract_with_selector(
+        &html,
+        "https://journal.example/article",
+        "article",
+    );
+
+    assert!(result.is_err());
+    assert!(article::rules::rejection(footer).is_some());
+    for text in [
+        "A useful short note.",
+        "Copyright law affects how we distribute software.",
+        "Actual technical reasoning.\n\nCopyright © 2026. All rights reserved.",
+    ] {
+        assert!(article::rules::rejection(text).is_none());
+        article::extract_with_selector(
+            &format!("<article><p>{text}</p></article>"),
+            "https://journal.example/article",
+            "article",
+        )?;
+    }
+    Ok(())
+}

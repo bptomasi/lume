@@ -103,6 +103,7 @@ Annotation collections use the Notebook search grammar.
 [ui]
 theme = "lume"
 mouse = true
+justify = true
 
 [ui.keybindings]
 "ctrl-t" = "toc"
@@ -245,3 +246,15 @@ Image preferences persist across sessions. `:images on/off` changes `enabled`;
 Loading off prevents new automatic image work; already cached previews may
 remain visible, and explicitly opening an image is a user action. Offline mode
 separately prevents network access. See the [support matrix](development.md#terminal-support).
+
+## Prose justification
+
+Set `justify = true` under `[ui]`, or use `:justify on` / `:justify off`.
+The visual settings panel also previews this preference. The default is off.
+Commands publish the same preference to the declarative file, including when
+justification is the only setting changed. It survives restarting the reader.
+
+Only nonfinal prose rows expand existing word gaps, by at most three extra
+cells per gap. Code blocks, tables, headings, lists and quotations keep their
+original alignment. Readable text, clipboard contents, links and annotation
+source ranges retain their original bytes.

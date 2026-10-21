@@ -1,23 +1,18 @@
 //! Prefix help is a transient overlay, independent of persistent pane geometry.
 
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::Style,
-    widgets::{Clear, Paragraph},
-};
+use ratatui::{Frame, layout::Rect, style::Style, widgets::Paragraph};
 
 use crate::app::{App, Mode};
 
-use super::theme::{AMBER, TEXT, panel};
+use super::theme::TEXT;
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     let Some(area) = area(app, frame.area()) else {
         return;
     };
     let width = area.width;
-    frame.render_widget(Clear, area);
-    let title = format!(" Layout · Ctrl-w · {} ", app.focus.title());
+    let title = format!("Layout · Ctrl-w · {}", app.focus.title());
+    let inner = super::popup::draw_frame(frame, &title, area);
     let help = if width < 62 {
         concat!(
             " h/j/k/l Focus · w Cycle\n",
@@ -39,10 +34,8 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
         )
     };
     frame.render_widget(
-        Paragraph::new(help)
-            .style(Style::new().fg(TEXT))
-            .block(panel(title, true).border_style(Style::new().fg(AMBER))),
-        area,
+        Paragraph::new(help).style(Style::new().fg(TEXT)),
+        inner,
     );
 }
 

@@ -3,8 +3,10 @@
 //! The HTML tokenizer owns recovery and entity decoding. This adapter maps
 //! readable tags to Markdown, suppresses active content and validates links.
 
+pub(crate) mod anchors;
 mod availability;
 mod code;
+mod code_context;
 mod images;
 mod table;
 
@@ -67,6 +69,7 @@ struct Fragment {
     text: String,
     hidden: Option<String>,
     preformatted: Option<CodeBlock>,
+    code_context: code_context::CodeContext,
     quotes: usize,
     link: Option<String>,
     table: Option<table::Table>,
@@ -79,6 +82,7 @@ impl Fragment {
             text: String::new(),
             hidden: None,
             preformatted: None,
+            code_context: code_context::CodeContext::default(),
             quotes: 0,
             link: None,
             table: None,
@@ -91,6 +95,9 @@ impl Fragment {
             Token::StartTag(tag) => self.start_tag(tag),
             Token::EndTag(tag) => {
                 let name = String::from_utf8_lossy(&tag.name);
+                if self.hidden.is_none() && self.preformatted.is_none() {
+                    self.code_context.end(&name);
+                }
                 if self.hidden.as_deref() == Some(name.as_ref()) {
                     self.hidden = None;
                 } else if self.hidden.is_none() {
@@ -117,27 +124,31 @@ impl Fragment {
             self.hidden = Some(name);
             return;
         }
-        if name == "a" && self.preformatted.is_none() {
+        if let Some(block) = &mut self.preformatted {
+            if name == "code" {
+                block.set_language(&tag);
+            }
+            return;
+        }
+        self.code_context.start(&tag);
+        if self.table.is_none()
+            && let Some(marker) = anchors::marker(&tag)
+        {
+            self.text.push_str(&marker);
+        }
+        if name == "a" {
             self.begin_link(&tag);
         }
-        if name == "img" && self.preformatted.is_none() {
+        if name == "img" {
             self.image(&tag);
             return;
         }
-        if self.preformatted.is_none()
-            && (self.table.is_some() || name == "table")
-        {
+        if self.table.is_some() || name == "table" {
             self.table_tag(&name, false);
             return;
         }
         if name == "pre" {
             self.begin_code(&tag);
-            return;
-        }
-        if let Some(block) = &mut self.preformatted {
-            if name == "code" {
-                block.set_language(&tag);
-            }
             return;
         }
         self.tag(&name, false);
@@ -163,7 +174,8 @@ impl Fragment {
         self.finish_code();
         self.close_link();
         self.paragraph();
-        self.preformatted = Some(CodeBlock::new(tag));
+        self.preformatted =
+            Some(CodeBlock::new(tag, self.code_context.language()));
     }
 
     fn finish_code(&mut self) {
@@ -174,6 +186,9 @@ impl Fragment {
 
     fn link_url(&self, href: &[u8]) -> Option<String> {
         let href = String::from_utf8_lossy(href);
+        if href.starts_with('#') && !href.chars().any(char::is_control) {
+            return Some(href.into_owned());
+        }
         let url = self
             .base
             .as_ref()
