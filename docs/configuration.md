@@ -105,6 +105,7 @@ theme = "lume"
 mouse = true
 justify = true
 latex_formulas = true
+latex_graphics = false
 
 [ui.keybindings]
 "ctrl-t" = "toc"
@@ -265,3 +266,25 @@ Formula rendering defaults to `latex_formulas = true` under `[ui]`.
 `:settings` offers a reversible preview. With rendering off, `$...$` and
 `$$...$$` retain their original source. Changes apply to articles, table
 inspection and temporary linked pages, including back/forward history.
+
+Choose lightweight text or local vector typesetting explicitly:
+
+Set `[ui] latex_formulas = true` and `[ui] latex_graphics = false` for
+text, or use `latex_graphics = true` for graphical formula blocks on Sixel
+terminals.
+
+`:latex-formulas text` and `:latex-formulas graphics` select and save the mode.
+`:latex-formulas off` shows original source; `on` preserves the chosen style.
+Settings exposes both switches. Text is the default and initializes no graphic
+font resources. Graphics use self-contained vector outlines on the layout/image
+workers, without network access, a browser, Node or a TeX installation. Small
+inline variables and expressions remain in the paragraph as selectable text.
+Display equations and complex inline layouts use compact graphic blocks, with
+one em occupying 80% of a terminal row rather than stretching to the slot.
+Click a graphic to inspect and zoom; `y` copies the original TeX.
+
+Numbered and nested lists retain their markers around formula blocks. Table
+cells and table inspection always use text formulas to preserve their columns.
+Terminals without Sixel and temporary linked text pages also retain the
+lightweight projection. Unsupported or excessive expressions remain readable;
+a document admits at most 32 graphic formulas and 32 ordinary image slots.

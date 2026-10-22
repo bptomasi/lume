@@ -190,6 +190,13 @@ impl App {
     /// # Errors
     /// Returns navigation, annotation or completed-layout persistence failures.
     pub fn mouse(&mut self, event: MouseEvent) -> Result<Action> {
+        let motion = self.pending_formula_motion();
+        let action = self.handle_mouse(event);
+        self.retarget_formula_motion(motion);
+        action
+    }
+
+    fn handle_mouse(&mut self, event: MouseEvent) -> Result<Action> {
         self.pointer.seen = true;
         if matches!(
             event.kind,
@@ -320,7 +327,9 @@ impl App {
                     if view == super::View::Annotated {
                         return self.open_notebook("", None);
                     }
-                    self.set_view(view)?;
+                    if !view.same_destination(&self.view) {
+                        self.set_view(view)?;
+                    }
                     if let super::View::Group(_) = self.view {
                         self.toggle_navigation_group("")?;
                     }
@@ -391,7 +400,9 @@ impl App {
                     pane
                 };
             self.focus = pane;
+            let motion = self.pending_formula_motion();
             self.scroll_focused_pane(event, amount)?;
+            self.retarget_formula_motion(motion);
         }
         self.resize_workspace(self.screen);
         Ok(())

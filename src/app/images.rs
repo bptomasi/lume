@@ -11,7 +11,7 @@ use crate::{
     media::{
         ImageDetail, ImageKey, ImageProtocol, ImageSlice, Thumbnail, Worker,
     },
-    reader::images::{IMAGE_ROWS, ImageSlot},
+    reader::images::ImageSlot,
 };
 
 use super::{Action, App};
@@ -97,7 +97,9 @@ impl ReaderImages {
     fn remember(&mut self, key: ImageKey, result: Result<Thumbnail, String>) {
         self.cache.retain(|(old, _)| *old != key);
         self.cache.push_front((key, result));
-        self.cache.truncate(24);
+        // A viewport can contain all 32 compact formulas, four publisher
+        // images and two inspector crops. Avoid evicting visible formula rows.
+        self.cache.truncate(40);
         let mut details = 0;
         let mut bytes = 0;
         self.cache.retain(|(key, _)| {
@@ -152,6 +154,9 @@ impl App {
         let base =
             address.and_then(|address| crate::source::feed_url(address).ok());
         for slot in &mut self.images.slots {
+            if slot.formula.is_some() {
+                continue;
+            }
             let url = crate::source::feed_url(&slot.url).ok().or_else(|| {
                 let base = base.as_ref()?;
                 crate::source::feed_url(base.join(&slot.url).ok()?.as_str())
@@ -163,13 +168,15 @@ impl App {
 
     /// Exact preparation key for an already resolved publisher image slot.
     pub fn image_key(&self, slot: &ImageSlot) -> Option<ImageKey> {
-        if slot.url.is_empty() {
+        if slot.url.is_empty()
+            || slot.formula.is_some() && !self.uses_sixel_images()
+        {
             return None;
         }
         Some(ImageKey {
             url: slot.url.clone(),
             width: self.reader_width.clamp(1, 160) as u16,
-            height: IMAGE_ROWS as u16,
+            height: slot.rows.len().clamp(1, 48) as u16,
             background: crate::ui::image_background(&self.workspace.theme),
             detail: self.inline_pixel_detail(slot),
         })
@@ -180,13 +187,16 @@ impl App {
             return None;
         }
         let bottom = self.scroll + self.reader_height;
-        let eligible = self
-            .images
-            .visible_slots(self.scroll, self.reader_height)
-            .iter()
-            .filter(|image| image.rows.start < bottom)
-            .take(4)
-            .any(|image| image.source == slot.source);
+        let eligible = slot.formula.is_some()
+            || self
+                .images
+                .visible_slots(self.scroll, self.reader_height)
+                .iter()
+                .filter(|image| {
+                    image.formula.is_none() && image.rows.start < bottom
+                })
+                .take(4)
+                .any(|image| image.source == slot.source);
         if !eligible {
             return None;
         }
@@ -197,7 +207,7 @@ impl App {
             cell_pixels: self.images.cell_pixels,
             slice: Some(ImageSlice {
                 first_row: 0,
-                rows: IMAGE_ROWS as u16,
+                rows: slot.rows.len().clamp(1, 48) as u16,
             }),
         })
     }
@@ -242,7 +252,7 @@ impl App {
         if matches!(self.mode, super::Mode::Image(_)) {
             return true;
         }
-        self.images.enabled
+        (self.images.enabled || self.workspace.latex_graphics)
             && crate::ui::workspace_areas(
                 self.screen,
                 self.focus,
@@ -270,6 +280,7 @@ impl App {
             self.images
                 .visible_slots(self.scroll, self.reader_height)
                 .iter()
+                .filter(|slot| self.images.enabled || slot.formula.is_some())
                 .filter_map(|slot| self.image_key(slot))
                 .find(|key| {
                     self.images.cached(key).is_none()
@@ -287,7 +298,7 @@ impl App {
         if let Some(key) = next
             && let Some(worker) = &self.images.worker
         {
-            match worker.submit(key.clone()) {
+            match worker.submit(key.clone(), self.generated_image(&key)) {
                 Ok(()) => self.images.pending.push(key),
                 Err(error) => {
                     self.images.remember(key, Err(error.to_string()));
@@ -296,6 +307,22 @@ impl App {
             }
         }
         false
+    }
+
+    fn generated_image(&self, key: &ImageKey) -> Option<std::sync::Arc<[u8]>> {
+        if let super::Mode::Image(image) = &self.mode
+            && image.url == key.url
+            && let Some(formula) = &image.formula
+        {
+            return Some(formula.svg.clone());
+        }
+        self.images
+            .slots
+            .iter()
+            .find(|slot| slot.url == key.url)?
+            .formula
+            .as_ref()
+            .map(|formula| formula.svg.clone())
     }
 
     /// Whether image I/O or preparation is admitted in the background.
@@ -320,7 +347,7 @@ impl App {
             return Ok(None);
         }
         if verb == "image-open" {
-            return Ok(Some(Action::Open(self.captured_image()?.url)));
+            return Ok(Some(self.captured_image()?.original_action()));
         }
         match argument {
             "" => {}

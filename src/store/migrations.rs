@@ -8,7 +8,7 @@ use anyhow::{Result, ensure};
 use refinery::{Migration, Runner};
 use rusqlite::{Connection, OptionalExtension, Transaction};
 
-pub(super) const LATEST_SCHEMA_VERSION: i64 = 15;
+pub(super) const LATEST_SCHEMA_VERSION: i64 = 16;
 
 pub(super) fn run(connection: &mut Connection) -> Result<()> {
     let version: i64 =
@@ -154,6 +154,12 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "V15__publish_formula_preferences",
         include_str!("sql/migrations/V15__publish_formula_preferences.sql"),
+    ),
+    (
+        "V16__publish_graphic_formula_preferences",
+        include_str!(
+            "sql/migrations/V16__publish_graphic_formula_preferences.sql"
+        ),
     ),
 ];
 

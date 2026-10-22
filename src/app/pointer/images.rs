@@ -40,6 +40,7 @@ impl App {
                 (caption || pixels).then(|| ImageInspector {
                     url: key.url,
                     title: slot.alt.clone(),
+                    formula: slot.formula.clone(),
                     zoom: 1,
                     pan: [0, 0],
                 })

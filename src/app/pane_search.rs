@@ -99,6 +99,8 @@ impl App {
         let previous = self.library_search.query.to_lowercase();
         let narrowing =
             !previous.is_empty() && query.to_lowercase().starts_with(&previous);
+        self.navigation_first = 0;
+        self.navigation_skip = 0;
         self.library_search.query = query.to_owned();
         self.filter_library_search(narrowing);
     }
@@ -175,6 +177,7 @@ impl App {
             _ => return Ok(false),
         };
         if library {
+            self.pin_navigation_viewport();
             if let Some(selected) = self.move_library_match(forward, 1) {
                 self.nav_selected = selected;
             }

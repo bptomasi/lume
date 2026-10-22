@@ -16,6 +16,7 @@ mod links;
 mod lists;
 mod live;
 mod math;
+pub use math::graphics::FormulaImage;
 pub mod motion;
 mod projection;
 mod syntax;
@@ -46,12 +47,25 @@ const BLUE: Color = Color::Rgb(145, 180, 218);
 pub struct RenderOptions {
     /// Convert supported LaTeX to selectable Unicode; otherwise keep raw source.
     pub latex_formulas: bool,
+    /// Prepare optional SVG formula blocks in the background layout worker.
+    pub graphical_formulas: bool,
 }
 
 impl Default for RenderOptions {
     fn default() -> Self {
         Self {
             latex_formulas: true,
+            graphical_formulas: false,
+        }
+    }
+}
+
+impl RenderOptions {
+    /// Text-only surfaces retain semantic math without allocating pixel slots.
+    pub fn text_only(self) -> Self {
+        Self {
+            graphical_formulas: false,
+            ..self
         }
     }
 }
@@ -218,6 +232,22 @@ impl Builder<'_> {
             .unwrap_or_else(|| {
                 self.source.get(range.clone()).unwrap_or(latex).to_owned()
             });
+        if self.options.latex_formulas
+            && self.options.graphical_formulas
+            && self.table.is_none()
+            && math::needs_graphics(latex, &text, block)
+            && self
+                .rendered
+                .images
+                .iter()
+                .filter(|image| image.formula.is_some())
+                .count()
+                < 32
+            && let Some(formula) = self.math.graphic(latex, block)
+        {
+            self.formula_image(formula, text, range);
+            return;
+        }
         self.append(text, range);
         if block {
             self.flush();
@@ -287,7 +317,15 @@ impl Builder<'_> {
             Tag::Emphasis => self.push_style(Modifier::ITALIC),
             Tag::Strong => self.push_style(Modifier::BOLD),
             Tag::Link { dest_url, .. } => self.begin_link(&dest_url),
-            Tag::Image { dest_url, .. } if self.rendered.images.len() < 32 => {
+            Tag::Image { dest_url, .. }
+                if self
+                    .rendered
+                    .images
+                    .iter()
+                    .filter(|image| image.formula.is_none())
+                    .count()
+                    < 32 =>
+            {
                 self.flush_list_content();
                 self.image = Some(images::PendingImage {
                     url: dest_url.into_string(),

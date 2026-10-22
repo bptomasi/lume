@@ -83,7 +83,7 @@ fn command(app: &mut App, text: &str) -> Result<Action> {
 
 #[test]
 fn responsive_images_choose_bounded_high_resolution_sources() {
-    let html = r#"<img src="tiny.png" srcset="small.png 320w, sharp.png 1920w, huge.png 8000w" alt="Diagram"><img src="fallback.png" data-srcset="low.png 1x, retina.png 2x, excessive.png 4x">"#;
+    let html = r#"<img src="tiny.png" srcset="small.png 320w, sharp.png 1920w, sharp-4k.png 3840w, huge.png 8000w" alt="Diagram"><img src="fallback.png" data-srcset="low.png 1x, retina.png 2x, ultra.png 4x, excessive.png 5x">"#;
     let markdown = lume::content::article_markdown(
         html,
         true,
@@ -98,8 +98,8 @@ fn responsive_images_choose_bounded_high_resolution_sources() {
     assert_eq!(
         urls,
         [
-            "https://example.org/sharp.png",
-            "https://example.org/retina.png"
+            "https://example.org/sharp-4k.png",
+            "https://example.org/ultra.png"
         ]
     );
 }

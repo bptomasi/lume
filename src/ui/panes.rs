@@ -323,9 +323,11 @@ fn reader_progress(
     column: Rect,
     inner: Rect,
 ) {
-    let percent = ((app.scroll + column.height as usize) * 100
-        / app.reader_lines.len().max(1))
-    .min(100);
+    let percent = scroll_percent(
+        app.scroll,
+        app.reader_lines.len(),
+        usize::from(column.height),
+    );
     let text = if app.workspace.fullscreen {
         format!(
             " {percent}% · Esc / F11 exit · {}",
@@ -340,4 +342,31 @@ fn reader_progress(
         Paragraph::new(text).style(Style::new().fg(FAINT)),
         Rect::new(inner.x, inner.bottom().saturating_sub(1), inner.width, 1),
     );
+}
+
+fn scroll_percent(scroll: usize, rows: usize, viewport: usize) -> usize {
+    if rows == 0 {
+        return 0;
+    }
+    let travel = rows.saturating_sub(viewport.max(1));
+    if travel == 0 {
+        return 100;
+    }
+    (scroll.min(travel) as u128 * 100 / travel as u128) as usize
+}
+
+#[cfg(test)]
+mod tests {
+    use super::scroll_percent;
+
+    #[test]
+    fn progress_measures_scroll_position_instead_of_the_visible_bottom() {
+        assert_eq!(scroll_percent(0, 120, 20), 0);
+        assert_eq!(scroll_percent(50, 120, 20), 50);
+        assert_eq!(scroll_percent(100, 120, 20), 100);
+        assert_eq!(scroll_percent(200, 120, 20), 100);
+        assert_eq!(scroll_percent(0, 0, 20), 0);
+        assert_eq!(scroll_percent(0, 8, 20), 100);
+        assert_eq!(scroll_percent(usize::MAX / 2, usize::MAX, 1), 50);
+    }
 }

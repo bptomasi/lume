@@ -57,6 +57,7 @@ fn prepare(image: &DynamicImage, key: &ImageKey) -> (DynamicImage, (u32, u32)) {
     let prepared = if key.detail.is_some() {
         crop_raster(image, key)
     } else {
+        let image = matte(image, key);
         image.resize(
             u32::from(key.width),
             u32::from(key.height) * 2,
@@ -78,18 +79,76 @@ fn crop_raster(image: &DynamicImage, key: &ImageKey) -> DynamicImage {
     let x = x.min(image.width() - 1);
     let y = y.min(image.height() - 1);
     // Crop before resizing: zoom cannot allocate an entire enlarged source.
-    image
-        .crop_imm(
-            x,
-            y,
-            width.max(1).min(image.width() - x),
-            height.max(1).min(image.height() - y),
-        )
-        .resize_exact(
-            geometry.width,
-            geometry.height,
-            image::imageops::FilterType::Lanczos3,
-        )
+    let crop = image.crop_imm(
+        x,
+        y,
+        width.max(1).min(image.width() - x),
+        height.max(1).min(image.height() - y),
+    );
+    matte(&crop, key).resize_exact(
+        geometry.width,
+        geometry.height,
+        image::imageops::FilterType::Lanczos3,
+    )
+}
+
+fn matte<'a>(
+    image: &'a DynamicImage,
+    key: &ImageKey,
+) -> std::borrow::Cow<'a, DynamicImage> {
+    if !image.color().has_alpha() || opaque_alpha(image) {
+        return std::borrow::Cow::Borrowed(image);
+    }
+    if matches!(
+        image.color(),
+        image::ColorType::Rgba16 | image::ColorType::La16
+    ) {
+        return std::borrow::Cow::Owned(matte16(image, key));
+    }
+    // Hidden RGB must never bleed into resized edges. Composite against the
+    // actual matte before filtering, retaining the original cached source.
+    let mut canvas = image::RgbaImage::from_pixel(
+        image.width(),
+        image.height(),
+        image::Rgba([
+            key.background[0],
+            key.background[1],
+            key.background[2],
+            255,
+        ]),
+    );
+    image::imageops::overlay(&mut canvas, &image.to_rgba8(), 0, 0);
+    std::borrow::Cow::Owned(DynamicImage::ImageRgba8(canvas))
+}
+
+fn opaque_alpha(image: &DynamicImage) -> bool {
+    match image {
+        DynamicImage::ImageRgba8(pixels) => {
+            pixels.pixels().all(|p| p[3] == u8::MAX)
+        }
+        DynamicImage::ImageRgba16(pixels) => {
+            pixels.pixels().all(|p| p[3] == u16::MAX)
+        }
+        DynamicImage::ImageLumaA8(pixels) => {
+            pixels.pixels().all(|p| p[1] == u8::MAX)
+        }
+        DynamicImage::ImageLumaA16(pixels) => {
+            pixels.pixels().all(|p| p[1] == u16::MAX)
+        }
+        _ => false,
+    }
+}
+
+fn matte16(image: &DynamicImage, key: &ImageKey) -> DynamicImage {
+    let [red, green, blue] =
+        key.background.map(|channel| u16::from(channel) * 257);
+    let mut canvas = image::ImageBuffer::from_pixel(
+        image.width(),
+        image.height(),
+        image::Rgba([red, green, blue, u16::MAX]),
+    );
+    image::imageops::overlay(&mut canvas, &image.to_rgba16(), 0, 0);
+    DynamicImage::ImageRgba16(canvas)
 }
 
 fn reader(bytes: &[u8]) -> Result<ImageReader<Cursor<&[u8]>>> {

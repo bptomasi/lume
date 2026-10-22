@@ -1,16 +1,14 @@
 //! Worker-prepared Sixel strips make arbitrary terminal-row clipping bounded.
 //!
-//! icy_sixel owns shared-palette quantization and encoding; ratatui-image
-//! owns fixed-widget placement. Each
+//! Quantette owns shared-palette quantization; icy_sixel owns encoding and
+//! ratatui-image owns fixed-widget placement. Each
 //! fitted image is split once at cell-height boundaries so drawing can select
 //! complete cached strips in either direction without decoding or resizing.
 
 use anyhow::{Result, ensure};
-use icy_sixel::{
-    DiffusionMethod, MethodForLargest, MethodForRep, PixelFormat, Quality,
-    dither::sixel_dither, output::sixel_output,
-};
+use icy_sixel::{PixelFormat, dither::sixel_dither, output::sixel_output};
 use image::DynamicImage;
+use quantette::{ImageRef, Pipeline, deps::palette::Srgb};
 use ratatui::{
     buffer::{Buffer, Cell},
     layout::Rect,
@@ -40,14 +38,7 @@ impl SixelRows {
         cell_height: u16,
     ) -> Result<Self> {
         let rgb = image.to_rgb8();
-        let mut palette = palette(rgb.as_raw(), image.width(), image.height())?;
-        let indexed = palette
-            .apply_palette(
-                rgb.as_raw(),
-                image.width() as i32,
-                image.height() as i32,
-            )
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let (mut palette, indexed) = indexed_pixels(&rgb)?;
         palette.set_pixelformat(PixelFormat::PAL8);
         let strip_area = Rect::new(0, 0, area.width, 1);
         let mut scratch = Buffer::empty(strip_area);
@@ -122,25 +113,47 @@ impl SixelRows {
     }
 }
 
-fn palette(rgb: &[u8], width: u32, height: u32) -> Result<sixel_dither> {
-    let mut palette =
-        sixel_dither::new(256).map_err(|e| anyhow::anyhow!("{e}"))?;
-    palette
-        .initialize(
-            rgb,
-            width as i32,
-            height as i32,
-            PixelFormat::RGB888,
-            MethodForLargest::Auto,
-            MethodForRep::Pixels,
-            Quality::HIGH,
-        )
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    palette.set_diffusion_type(DiffusionMethod::Stucki);
-    // Keep one palette and continuous diffusion for the whole image, so
-    // separately clipped rows never develop different colors or seams.
+fn indexed_pixels(image: &image::RgbImage) -> Result<(sixel_dither, Vec<u8>)> {
+    let pixels: Vec<_> = image
+        .pixels()
+        .map(|pixel| Srgb::new(pixel[0], pixel[1], pixel[2]))
+        .collect();
+    let input = ImageRef::new(image.width(), image.height(), &pixels)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+    // Quantize and diffuse once, including the boundaries between strips.
+    let indexed = Pipeline::new()
+        .input_image(input)
+        .output_srgb8_indexed_image();
+    let mut palette = sixel_dither::new(indexed.palette().len() as i32)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+    palette.set_palette(
+        indexed
+            .palette()
+            .iter()
+            .flat_map(|color| [color.red, color.green, color.blue])
+            .collect(),
+    );
     palette.set_optimize_palette(false);
-    Ok(palette)
+    Ok((palette, indexed.indices().to_vec()))
+}
+
+/// The inspector uses the same color preparation as clipped reader images.
+pub(super) fn native(image: DynamicImage, area: Rect) -> Result<Protocol> {
+    let rgb = image.to_rgb8();
+    let (mut palette, mut indexed) = indexed_pixels(&rgb)?;
+    palette.set_pixelformat(PixelFormat::PAL8);
+    let sixel = encode(
+        &mut indexed,
+        image.width(),
+        image.height(),
+        area,
+        &mut palette,
+    )?;
+    ensure!(
+        sixel.data.len() <= MAX_ENCODED_BYTES,
+        "Native pixels exceed 8 MiB"
+    );
+    Ok(Protocol::Sixel(sixel))
 }
 
 fn encode(

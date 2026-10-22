@@ -258,6 +258,9 @@ pub struct App {
     maintenance: Option<maintenance::Maintenance>,
     /// Selected navigation row.
     pub nav_selected: usize,
+    /// Transient Library viewport: filtered entry position and leading rows.
+    pub(crate) navigation_first: usize,
+    pub(crate) navigation_skip: usize,
     /// Current article filter.
     pub view: View,
     /// Current keyboard focus.
@@ -451,6 +454,8 @@ impl App {
             network_enabled: false,
             maintenance: None,
             nav_selected: 0,
+            navigation_first: 0,
+            navigation_skip: 0,
             view: workspace.view.clone(),
             focus: if workspace.fullscreen {
                 Focus::Reader
@@ -589,7 +594,9 @@ impl App {
     /// # Errors
     /// Returns recoverable storage or command-validation failures.
     pub fn key(&mut self, key: KeyEvent) -> Result<Action> {
+        let motion = self.pending_formula_motion();
         let action = self.handle_key(key);
+        self.retarget_formula_motion(motion);
         self.observe_draft();
         action
     }

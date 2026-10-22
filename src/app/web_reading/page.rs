@@ -54,8 +54,11 @@ impl WebPage {
         options: crate::reader::RenderOptions,
     ) -> Self {
         let source = text_images(&document.body);
-        let rendered =
-            crate::reader::render_with_options(&source, width, options);
+        let rendered = crate::reader::render_with_options(
+            &source,
+            width,
+            options.text_only(),
+        );
         let index = DocumentIndex::parse_with_options(&source, options);
         let cursor = crate::reader::to_display(
             &rendered.mappings,

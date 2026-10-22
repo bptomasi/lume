@@ -141,6 +141,8 @@ pub struct Ui {
     pub justify: bool,
     /// Render supported LaTeX as selectable Unicode instead of raw source.
     pub latex_formulas: bool,
+    /// Opt into SVG typesetting; unsupported terminals retain readable text.
+    pub latex_graphics: bool,
     /// Normal-mode key names mapped to ex commands.
     pub keybindings: BTreeMap<String, String>,
     /// Pane arrangement and prose widths, without article identities.
@@ -161,6 +163,7 @@ impl Ui {
             images: workspace.images.clone(),
             justify: workspace.justify,
             latex_formulas: workspace.latex_formulas,
+            latex_graphics: workspace.latex_graphics,
             keybindings: workspace.keybindings.clone(),
             layout: PanelLayout::capture(workspace),
         }
@@ -174,6 +177,7 @@ impl Ui {
         workspace.images = self.images.clone();
         workspace.justify = self.justify;
         workspace.latex_formulas = self.latex_formulas;
+        workspace.latex_graphics = self.latex_graphics;
         workspace.keybindings = self.keybindings.clone();
     }
 }

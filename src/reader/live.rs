@@ -99,10 +99,18 @@ impl LiveRenderer {
     /// Change formula presentation without reusing layouts from the old policy.
     /// Returns whether the policy changed; syntax caches remain reusable.
     pub fn set_latex_formulas(&mut self, enabled: bool) -> bool {
-        if self.options.latex_formulas == enabled {
+        self.set_render_options(RenderOptions {
+            latex_formulas: enabled,
+            ..self.options
+        })
+    }
+
+    /// Change presentation without discarding unrelated syntax caches.
+    pub fn set_render_options(&mut self, options: RenderOptions) -> bool {
+        if self.options == options {
             return false;
         }
-        self.options.latex_formulas = enabled;
+        self.options = options;
         self.immediate = None;
         if let Some(layout) = &mut self.layout {
             layout.set_options(self.options);

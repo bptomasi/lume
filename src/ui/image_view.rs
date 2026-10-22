@@ -78,8 +78,13 @@ fn title(app: &App, key: &crate::media::ImageKey) -> Option<String> {
         .detail
         .as_ref()
         .map_or("Blocks", |detail| detail.protocol.label());
+    let kind = if image.formula.is_some() {
+        "Formula"
+    } else {
+        "Image"
+    };
     Some(format!(
-        "Image · {}× · {protocol}{dimensions} · {}",
+        "{kind} · {}× · {protocol}{dimensions} · {}",
         image.zoom,
         crate::content::label(&image.title, 160),
     ))
@@ -102,9 +107,15 @@ fn chrome(frame: &mut Frame<'_>, app: &App, key: &crate::media::ImageKey) {
         screen.width,
         2.min(screen.height),
     );
+    let controls = if matches!(&app.mode, Mode::Image(image) if image.formula.is_some())
+    {
+        "+/- zoom · 0 fit · hjkl/arrows or wheel pan · y copy LaTeX · Esc close"
+    } else {
+        CONTROLS
+    };
     frame.render_widget(
         Paragraph::new(format!(
-            "{CONTROLS}\nPixel backends preserve detail; blocks approximate the image."
+            "{controls}\nPixel backends preserve detail; blocks approximate the image."
         ))
         .style(Style::new().fg(theme::MUTED)),
         footer,

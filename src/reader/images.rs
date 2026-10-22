@@ -23,6 +23,8 @@ pub struct ImageSlot {
     pub rows: Range<usize>,
     /// Original Markdown image range.
     pub source: Range<usize>,
+    /// Trusted local formula data; publisher image markup cannot supply this.
+    pub formula: Option<super::FormulaImage>,
 }
 
 pub(super) struct PendingImage {
@@ -64,6 +66,34 @@ impl Builder<'_> {
             caption,
             rows: start..start + IMAGE_ROWS,
             source: image.source,
+            formula: None,
+        });
+    }
+
+    pub(super) fn formula_image(
+        &mut self,
+        formula: super::FormulaImage,
+        text: String,
+        source: Range<usize>,
+    ) {
+        self.flush_list_content();
+        let caption = self.rendered.lines.len();
+        let start = self.rendered.text.len();
+        let end = start + text.len();
+        self.generated(Line::raw(text.clone()), source.clone());
+        self.rendered
+            .mappings
+            .push(super::SourceMapping::new(start..end, source.clone()));
+        for _ in 1..formula.rows {
+            self.generated(Line::raw(""), source.clone());
+        }
+        self.rendered.images.push(ImageSlot {
+            url: formula.identity.clone(),
+            alt: text,
+            caption,
+            rows: caption..caption + formula.rows,
+            source,
+            formula: Some(formula),
         });
     }
 }

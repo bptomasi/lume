@@ -37,11 +37,7 @@ $$
 
 After.";
     let rendered = reader::render(body, 80);
-    assert!(
-        rendered.text.contains("x² + y₁ = (a)/(b)"),
-        "{}",
-        rendered.text
-    );
+    assert!(rendered.text.contains("x² + y₁ = a/b"), "{}", rendered.text);
     assert!(rendered.text.contains("√(x) + α ≤ β"), "{}", rendered.text);
     assert!(rendered.text.contains("After."));
 }
@@ -84,7 +80,7 @@ fn sums_products_integrals_and_limits_have_readable_bounds() {
     for (latex, expected) in [
         (r"\sum_{i=1}^{n} x_i^2", "∑ᵢ₌₁ⁿ xᵢ²"),
         (r"\prod_{k=1}^{n} k", "∏ₖ₌₁ⁿ k"),
-        (r"\int_0^\infty e^{-x}\,dx", "∫₀^(∞) e⁻ˣ dx"),
+        (r"\int_0^\infty e^{-x}\,dx", "∫₀^∞ e⁻ˣ dx"),
         (r"\lim_{x\to0}\frac{\sin x}{x}", "lim_(x→0)"),
     ] {
         let rendered = reader::render(&format!("$$\n{latex}\n$$"), 80);
@@ -136,6 +132,7 @@ fn disabled_formulas_keep_the_exact_raw_source_even_in_tables_and_headings() {
     let body = "# $x^2$\n\nInline $x^2$.\n\n$$\n\\sum_{i=1}^n x_i\n$$\n\n| Formula |\n| --- |\n| $y_1$ |";
     let options = reader::RenderOptions {
         latex_formulas: false,
+        graphical_formulas: false,
     };
     let rendered = reader::render_with_options(body, 80, options);
     assert!(rendered.text.contains("$x^2$"));
@@ -148,4 +145,56 @@ fn disabled_formulas_keep_the_exact_raw_source_even_in_tables_and_headings() {
             .title,
         "$x^2$"
     );
+}
+
+#[test]
+fn fractional_powers_and_grouped_bases_preserve_arithmetic_meaning() {
+    for (source, expected) in [
+        (r"$O(\log^{3/2} n)$", "O(log³⁄² n)"),
+        (r"${a+b}^2$", "(a + b)²"),
+        (r"$\frac{1}{2}$", "½"),
+        (r"$\frac{a+b}{c+d}$", "(a+b)/(c+d)"),
+        (r"$x^{\frac{3}{2}}$", "x³⁄²"),
+        (r"$x^{\frac{1}{2}}$", "x¹⁄²"),
+        (r"$\frac{\frac{a}{b}}{c}$", "(a/b)/c"),
+    ] {
+        let rendered = reader::render(source, 80);
+        assert!(
+            rendered.text.contains(expected),
+            "{source}: {}",
+            rendered.text
+        );
+    }
+}
+
+#[test]
+fn nested_grouped_bases_and_vulgar_fraction_scripts_remain_unambiguous() {
+    for (source, expected) in [
+        (r"${(a)+(b)}^2$", "((a) + (b))²"),
+        (r"$x^{\frac{1}{5}}$", "x¹⁄⁵"),
+        (r"$x^{\frac{5}{6}}$", "x⁵⁄⁶"),
+    ] {
+        let rendered = reader::render(source, 80);
+        assert!(
+            rendered.text.contains(expected),
+            "{source}: {}",
+            rendered.text
+        );
+    }
+}
+
+#[test]
+fn powers_of_powers_and_fraction_bases_keep_their_grouping() {
+    for (source, expected) in [
+        (r"${x^2}^3$", "(x²)³"),
+        (r"${x_i^2}^3$", "(xᵢ²)³"),
+        (r"${\frac{1}{2}}^2$", "(½)²"),
+    ] {
+        let rendered = reader::render(source, 80);
+        assert!(
+            rendered.text.contains(expected),
+            "{source}: {}",
+            rendered.text
+        );
+    }
 }

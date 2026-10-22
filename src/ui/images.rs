@@ -15,6 +15,9 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
         .visible_slots(app.scroll, usize::from(column.height))
     {
         let Some(key) = app.image_key(slot) else {
+            if slot.formula.is_some() {
+                continue;
+            }
             message(
                 frame,
                 column,
@@ -25,6 +28,9 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
             continue;
         };
         if let Some(image) = app.images.thumbnail(&key) {
+            if slot.formula.is_some() {
+                clear_formula_caption(frame, column, app.scroll, slot.caption);
+            }
             if image.rows.is_some() {
                 continue;
             }
@@ -35,7 +41,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
                 slot.rows.start,
                 &image.cells,
             );
-        } else {
+        } else if slot.formula.is_none() {
             let status = app.images.placeholder(&key);
             message(frame, column, app.scroll, slot.rows.start, status);
         }
@@ -81,6 +87,23 @@ pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
             && let Some((area, first)) = native_area(app, slot, column, image)
         {
             rows.render_uncovered(area, first, frame.buffer_mut(), &occlusions);
+        }
+    }
+}
+
+fn clear_formula_caption(
+    frame: &mut Frame<'_>,
+    column: Rect,
+    scroll: usize,
+    caption: usize,
+) {
+    if caption < scroll || caption >= scroll + usize::from(column.height) {
+        return;
+    }
+    let y = column.y + (caption - scroll) as u16;
+    for x in column.x..column.right() {
+        if let Some(cell) = frame.buffer_mut().cell_mut((x, y)) {
+            cell.set_symbol(" ");
         }
     }
 }

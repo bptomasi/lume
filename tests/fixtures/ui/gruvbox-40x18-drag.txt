@@ -14,7 +14,7 @@
 │  Since     │ measure.             │   
 │  Groupe    │                      │   
 ╰────────────│ let answer = 42;     │   
- NORMAL  Read│ 75% · v select · y co│to 
+ NORMAL  Read│ 0% · v select · y cop│to 
   w/W/e word ╰──────────────────────╯ota
 0:0..4 Style::new().fg(Color::Rgb(150, 113, 28)).bg(Color::Rgb(24, 24, 24))
 0:4..8 Style::new().fg(Color::Rgb(141, 131, 106)).bg(Color::Rgb(24, 24, 24)).bold()

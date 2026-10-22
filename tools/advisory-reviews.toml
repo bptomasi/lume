@@ -44,3 +44,12 @@ version = "0.12.5"
 checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
 expires = 2027-01-19
 reason = "Ratatui layout cache never calls pop and its Rect/Layout keys have no panicking Drop. The affected unwind/key-destructor preconditions are absent."
+
+[[review]]
+id = "RUSTSEC-2026-0192"
+category = "unmaintained"
+package = "ttf-parser"
+version = "0.25.1"
+checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
+expires = 2027-01-19
+reason = "RaTeX's SVG outline exporter parses only the embedded, unmodified KaTeX font set. Lume rejects CJK/emoji fallback font identifiers before export, so publisher text cannot cause system font discovery or provide font bytes. Ordinary SVG rendering continues through resvg's separate restricted font path. This informational finding reports discontinued maintenance, with no patched version; changing the font consumer, source authority or checksum requires renewed review."

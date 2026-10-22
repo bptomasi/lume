@@ -21,7 +21,7 @@ pub struct SettingsDraft {
 }
 
 impl SettingsDraft {
-    pub(crate) const FIELD_COUNT: usize = 14;
+    pub(crate) const FIELD_COUNT: usize = 15;
 }
 
 /// Stable key spelling accepted by `:bind`; no draft/editor key is remapped.
@@ -180,6 +180,10 @@ impl App {
 }
 
 fn change_visual(workspace: &mut Workspace, field: usize, forward: bool) {
+    if let Some(value) = visual_switch(workspace, field) {
+        *value = !*value;
+        return;
+    }
     match field {
         0 => {
             let themes = ["lume", "nord", "gruvbox"];
@@ -202,22 +206,14 @@ fn change_visual(workspace: &mut Workspace, field: usize, forward: bool) {
             workspace.article_width =
                 resize(workspace.article_width, forward, 24, 80)
         }
-        4 => workspace.compact = !workspace.compact,
-        5 => workspace.show_library = !workspace.show_library,
-        6 => workspace.show_articles = !workspace.show_articles,
         7 => {
             workspace.annotation_width =
                 resize(workspace.annotation_width, forward, 24, 80)
         }
-        8 => workspace.show_reader = !workspace.show_reader,
-        9 => workspace.show_annotations = !workspace.show_annotations,
-        10 => workspace.mouse = !workspace.mouse,
         11 => {
             workspace.fullscreen_width =
                 resize(workspace.fullscreen_width, forward, 40, 140)
         }
-        12 => workspace.justify = !workspace.justify,
-        13 => workspace.latex_formulas = !workspace.latex_formulas,
         _ => {}
     }
 }
@@ -275,4 +271,19 @@ pub(crate) fn validate_binding(key: &str, command: &str) -> Result<()> {
         "Bind an available : command"
     );
     Ok(())
+}
+
+fn visual_switch(workspace: &mut Workspace, field: usize) -> Option<&mut bool> {
+    Some(match field {
+        4 => &mut workspace.compact,
+        5 => &mut workspace.show_library,
+        6 => &mut workspace.show_articles,
+        8 => &mut workspace.show_reader,
+        9 => &mut workspace.show_annotations,
+        10 => &mut workspace.mouse,
+        12 => &mut workspace.justify,
+        13 => &mut workspace.latex_formulas,
+        14 => &mut workspace.latex_graphics,
+        _ => return None,
+    })
 }

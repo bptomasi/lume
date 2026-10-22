@@ -10,6 +10,15 @@ use crate::model::{ArticlePage, ArticleQuery};
 use super::{App, Focus, NavItem, View};
 
 impl App {
+    pub(super) fn pin_navigation_viewport(&mut self) {
+        if let Some((first, skip)) =
+            crate::ui::navigation_origin(self, self.screen)
+        {
+            self.navigation_first = first;
+            self.navigation_skip = skip;
+        }
+    }
+
     pub(super) fn filter_preview(&mut self) -> Result<()> {
         if self.navigation_worker.is_none() {
             return self.filter_now();
@@ -150,6 +159,7 @@ impl App {
     /// # Errors
     /// Returns SQLite or content-loading errors.
     pub fn set_view(&mut self, view: View) -> Result<()> {
+        self.pin_navigation_viewport();
         self.close_notebook();
         self.save_reading_position()?;
         self.retained_article = None;

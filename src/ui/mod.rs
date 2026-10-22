@@ -39,6 +39,7 @@ pub use layout::{
     Areas, SplitBoundary, areas, pane_buttons, pane_close_rect, pane_move_rect,
     picker_regions, reader_content, workspace_areas, workspace_reader_content,
 };
+pub(crate) use navigation::origin as navigation_origin;
 pub use note_preview::note_preview_area;
 
 /// Render cached rows; no SQL, HTTP, syntax parsing or Markdown layout occurs.

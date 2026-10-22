@@ -14,6 +14,7 @@ use super::{Action, App};
 impl App {
     /// Update terminal geometry before dispatching pointer events or drawing.
     pub fn resize_workspace(&mut self, area: Rect) {
+        self.pin_navigation_viewport();
         if self.screen != area {
             self.cancel_pointer();
             self.note_marks.delete = None;

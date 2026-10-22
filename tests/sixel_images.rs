@@ -304,6 +304,7 @@ fn visible_image_bounds_include_captions_clips_gaps_and_empty_viewports() {
         .map(|index| {
             let caption = index * 20;
             ImageSlot {
+                formula: None,
                 url: format!("https://example.org/{index}.svg"),
                 alt: String::new(),
                 caption,

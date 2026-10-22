@@ -19,6 +19,17 @@ pub struct ImageInspector {
     pub zoom: u8,
     /// Overflow position in horizontal/vertical permille, from zero to 1000.
     pub pan: [u16; 2],
+    /// Captured local outlines survive navigation and never become an HTTP URL.
+    pub formula: Option<crate::reader::FormulaImage>,
+}
+
+impl ImageInspector {
+    pub(in crate::app) fn original_action(&self) -> Action {
+        self.formula.as_ref().map_or_else(
+            || Action::Open(self.url.clone()),
+            |formula| Action::Copy(formula.latex.to_string()),
+        )
+    }
 }
 
 impl App {
@@ -42,6 +53,7 @@ impl App {
             ImagePreference::Sixel => ImageProtocol::Sixel,
             ImagePreference::Iterm2 => ImageProtocol::Iterm2,
         };
+        self.apply_formula_preferences();
     }
 
     /// Update OS-reported cell geometry; unusable reports fall back to 10×20.
@@ -73,6 +85,7 @@ impl App {
         Ok(ImageInspector {
             url: key.url,
             title: slot.alt.clone(),
+            formula: slot.formula.clone(),
             zoom: 1,
             pan: [0, 0],
         })
@@ -150,7 +163,10 @@ impl App {
         };
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => self.mode = Mode::Normal,
-            KeyCode::Char('o') => return Ok(Action::Open(image.url.clone())),
+            KeyCode::Char('y') if image.formula.is_some() => {
+                return Ok(image.original_action());
+            }
+            KeyCode::Char('o') => return Ok(image.original_action()),
             KeyCode::Char('+') | KeyCode::Char('=') => {
                 image.zoom = image.zoom.saturating_add(1).min(8);
             }
@@ -168,7 +184,10 @@ impl App {
             KeyCode::Right | KeyCode::Char('l') => pan(image, 0, true, 1),
             KeyCode::Up | KeyCode::Char('k') => pan(image, 1, false, 1),
             KeyCode::Down | KeyCode::Char('j') => pan(image, 1, true, 1),
-            KeyCode::Char('b') => self.images.protocol = ImageProtocol::Blocks,
+            KeyCode::Char('b') => {
+                self.images.protocol = ImageProtocol::Blocks;
+                self.apply_formula_preferences();
+            }
             _ => {}
         }
         Ok(Action::None)

@@ -4,6 +4,8 @@
 //! claiming pixel typesetting. Unsupported or excessive input stays verbatim.
 
 use math_core::{LatexToMathML, MathCoreConfig, MathDisplay, MaxExpansions};
+mod fractions;
+pub(super) mod graphics;
 mod projection;
 mod scripts;
 
@@ -12,6 +14,9 @@ pub(super) struct Math {
     converter: Option<LatexToMathML>,
     count: usize,
     bytes: usize,
+    cache: std::collections::VecDeque<(String, bool, String)>,
+    graphic_cache:
+        std::collections::VecDeque<(String, bool, graphics::FormulaImage)>,
 }
 
 impl Math {
@@ -25,6 +30,22 @@ impl Math {
         if self.count > 256 || self.bytes > 65536 || !admissible(latex) {
             return None;
         }
+        if let Some((_, _, text)) = self
+            .cache
+            .iter()
+            .find(|(source, display, _)| source == latex && *display == block)
+        {
+            return Some(text.clone());
+        }
+        let text = self.convert(latex, block)?;
+        if self.cache.len() == 32 {
+            self.cache.pop_front();
+        }
+        self.cache.push_back((latex.into(), block, text.clone()));
+        Some(text)
+    }
+
+    fn convert(&mut self, latex: &str, block: bool) -> Option<String> {
         if self.converter.is_none() {
             let config = MathCoreConfig {
                 max_expansions: MaxExpansions(64),
@@ -62,6 +83,44 @@ impl Math {
         let text = projection::project(document.root_element(), 0)?;
         (text.len() <= 8192).then(|| text.trim().to_owned())
     }
+
+    pub(super) fn graphic(
+        &mut self,
+        latex: &str,
+        block: bool,
+    ) -> Option<graphics::FormulaImage> {
+        if self.count > 256 || self.bytes > 65536 {
+            return None;
+        }
+        if let Some((_, _, image)) = self
+            .graphic_cache
+            .iter()
+            .find(|(source, display, _)| source == latex && *display == block)
+        {
+            return Some(image.clone());
+        }
+        let image = graphics::render(latex, block)?;
+        if self.graphic_cache.len() == 32 {
+            self.graphic_cache.pop_front();
+        }
+        self.graphic_cache
+            .push_back((latex.into(), block, image.clone()));
+        Some(image)
+    }
+}
+
+/// Small inline expressions stay in the paragraph, including variables and
+/// command names. Reserve pixels for layouts that benefit from typesetting.
+pub(super) fn needs_graphics(latex: &str, text: &str, block: bool) -> bool {
+    block
+        || text.contains(['_', '^'])
+        || super::cursor::column(text, text.len()) > 16
+        || [
+            r"\frac", r"\dfrac", r"\tfrac", r"\sqrt", r"\sum", r"\prod",
+            r"\int", r"\begin", r"\binom",
+        ]
+        .iter()
+        .any(|command| latex.contains(command))
 }
 
 fn admissible(latex: &str) -> bool {

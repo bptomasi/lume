@@ -12,7 +12,7 @@
 │  Trash         │                                                          │   
 │  Continue r    │ Keep one copy & measure.                                 │   
 │  Since last    │                                                          │   
-│  Grouped ar    │ 57% · v select · y copy · s highlight · Tab panels · Z fu│−]╮
+│  Grouped ar    │ 0% · v select · y copy · s highlight · Tab panels · Z ful│−]╮
 │  For you       ╰──────────────────────────────────────────────────────────╯  │
 │                  ││  Your reading, annotated.                                │
 │  FEEDS           ││                                                          │

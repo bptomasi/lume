@@ -1,9 +1,19 @@
 {
   "generator": "cargo-about 0.9.2",
-  "lock_sha256": "841ee45f892319d7a4a1c5df293475a48cad5b37409c1036681b1a87bb17fec8",
-  "manifest_sha256": "e3ee05c9e40c72d57e02633155a122602d65c3bff110c47240997addbe31ba28",
+  "lock_sha256": "0755f7018b96d54c820d809ce98ec87664a2da77d2627d416c98fa4f345baedb",
+  "manifest_sha256": "7cda674463aeea1c003d07300c7d9c077ba25979f828e83028a5eb20fbab137c",
   "policy_sha256": "b00f99a4f88922e6aa93c2449d6e0bef161fb589a9c0f3080f5662fe2674bcd9",
   "packages": [
+    {
+      "name": "ab_glyph",
+      "version": "0.2.32",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "ab_glyph_rasterizer",
+      "version": "0.1.10",
+      "license": "Apache-2.0"
+    },
     {
       "name": "adler2",
       "version": "2.0.1",
@@ -81,6 +91,11 @@
     },
     {
       "name": "base64",
+      "version": "0.22.1",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "base64",
       "version": "0.23.1",
       "license": "MIT OR Apache-2.0"
     },
@@ -110,6 +125,11 @@
       "license": "MIT OR Apache-2.0"
     },
     {
+      "name": "bitvec",
+      "version": "1.1.1",
+      "license": "MIT"
+    },
+    {
       "name": "block-buffer",
       "version": "0.12.1",
       "license": "MIT OR Apache-2.0"
@@ -117,6 +137,11 @@
     {
       "name": "bumpalo",
       "version": "3.20.3",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "by_address",
+      "version": "1.2.1",
       "license": "MIT OR Apache-2.0"
     },
     {
@@ -200,6 +225,11 @@
       "license": "MIT"
     },
     {
+      "name": "const-oid",
+      "version": "0.10.2",
+      "license": "Apache-2.0 OR MIT"
+    },
+    {
       "name": "core-foundation",
       "version": "0.10.1",
       "license": "MIT OR Apache-2.0"
@@ -213,6 +243,11 @@
       "name": "core_detect",
       "version": "1.0.0",
       "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "core_maths",
+      "version": "0.1.1",
+      "license": "MIT"
     },
     {
       "name": "cpufeatures",
@@ -346,6 +381,11 @@
     },
     {
       "name": "fancy-regex",
+      "version": "0.14.0",
+      "license": "MIT"
+    },
+    {
+      "name": "fancy-regex",
       "version": "0.16.2",
       "license": "MIT"
     },
@@ -405,6 +445,16 @@
       "license": "MIT OR Apache-2.0"
     },
     {
+      "name": "fontconfig-parser",
+      "version": "0.5.8",
+      "license": "MIT"
+    },
+    {
+      "name": "fontdb",
+      "version": "0.23.0",
+      "license": "MIT"
+    },
+    {
       "name": "fontdb",
       "version": "0.24.0",
       "license": "MIT"
@@ -413,6 +463,11 @@
       "name": "form_urlencoded",
       "version": "1.2.2",
       "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "funty",
+      "version": "2.0.0",
+      "license": "MIT"
     },
     {
       "name": "futures-core",
@@ -640,6 +695,11 @@
       "license": "MIT OR Apache-2.0"
     },
     {
+      "name": "libm",
+      "version": "0.2.16",
+      "license": "MIT"
+    },
+    {
       "name": "libsqlite3-sys",
       "version": "0.30.1",
       "license": "MIT"
@@ -710,6 +770,21 @@
       "license": "Unlicense OR MIT"
     },
     {
+      "name": "memmap2",
+      "version": "0.9.12",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "mime",
+      "version": "0.3.17",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "mime_guess",
+      "version": "2.0.5",
+      "license": "MIT"
+    },
+    {
       "name": "miniz_oxide",
       "version": "0.8.9",
       "license": "MIT OR Zlib OR Apache-2.0"
@@ -770,9 +845,34 @@
       "license": "MIT OR Apache-2.0"
     },
     {
+      "name": "ordered-float",
+      "version": "5.5.0",
+      "license": "MIT"
+    },
+    {
       "name": "outref",
       "version": "0.5.2",
       "license": "MIT"
+    },
+    {
+      "name": "owned_ttf_parser",
+      "version": "0.25.1",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "palette",
+      "version": "0.7.7",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "palette_derive",
+      "version": "0.7.7",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "palette_math",
+      "version": "0.7.7",
+      "license": "MIT OR Apache-2.0"
     },
     {
       "name": "parking_lot",
@@ -796,6 +896,11 @@
     },
     {
       "name": "phf",
+      "version": "0.11.3",
+      "license": "MIT"
+    },
+    {
+      "name": "phf",
       "version": "0.13.1",
       "license": "MIT"
     },
@@ -811,6 +916,11 @@
     },
     {
       "name": "phf_generator",
+      "version": "0.11.3",
+      "license": "MIT"
+    },
+    {
+      "name": "phf_generator",
       "version": "0.13.1",
       "license": "MIT"
     },
@@ -821,12 +931,22 @@
     },
     {
       "name": "phf_macros",
+      "version": "0.11.3",
+      "license": "MIT"
+    },
+    {
+      "name": "phf_macros",
       "version": "0.13.1",
       "license": "MIT"
     },
     {
       "name": "phf_macros",
       "version": "0.14.0",
+      "license": "MIT"
+    },
+    {
+      "name": "phf_shared",
+      "version": "0.11.3",
       "license": "MIT"
     },
     {
@@ -900,6 +1020,11 @@
       "license": "BSD-3-Clause OR Apache-2.0"
     },
     {
+      "name": "quantette",
+      "version": "0.6.0",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
       "name": "quick-error",
       "version": "2.0.1",
       "license": "MIT OR Apache-2.0"
@@ -918,6 +1043,11 @@
       "name": "r-efi",
       "version": "6.0.0",
       "license": "MIT OR Apache-2.0 OR LGPL-2.1-or-later"
+    },
+    {
+      "name": "radium",
+      "version": "0.7.0",
+      "license": "MIT"
     },
     {
       "name": "rand",
@@ -945,6 +1075,51 @@
       "license": "MIT"
     },
     {
+      "name": "ratex-font",
+      "version": "0.1.15",
+      "license": "MIT"
+    },
+    {
+      "name": "ratex-font-loader",
+      "version": "0.1.15",
+      "license": "MIT"
+    },
+    {
+      "name": "ratex-katex-fonts",
+      "version": "0.1.15",
+      "license": "MIT"
+    },
+    {
+      "name": "ratex-layout",
+      "version": "0.1.15",
+      "license": "MIT"
+    },
+    {
+      "name": "ratex-lexer",
+      "version": "0.1.15",
+      "license": "MIT"
+    },
+    {
+      "name": "ratex-parser",
+      "version": "0.1.15",
+      "license": "MIT"
+    },
+    {
+      "name": "ratex-svg",
+      "version": "0.1.15",
+      "license": "MIT"
+    },
+    {
+      "name": "ratex-types",
+      "version": "0.1.15",
+      "license": "MIT"
+    },
+    {
+      "name": "ratex-unicode-font",
+      "version": "0.1.15",
+      "license": "MIT"
+    },
+    {
       "name": "read-fonts",
       "version": "0.41.0",
       "license": "MIT OR Apache-2.0"
@@ -953,6 +1128,16 @@
       "name": "redox_syscall",
       "version": "0.5.18",
       "license": "MIT"
+    },
+    {
+      "name": "ref-cast",
+      "version": "1.0.27",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "ref-cast-impl",
+      "version": "1.0.27",
+      "license": "MIT OR Apache-2.0"
     },
     {
       "name": "refinery",
@@ -980,6 +1165,11 @@
       "license": "MIT OR Apache-2.0"
     },
     {
+      "name": "regex-lite",
+      "version": "0.1.9",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
       "name": "regex-syntax",
       "version": "0.8.11",
       "license": "MIT OR Apache-2.0"
@@ -1001,12 +1191,32 @@
     },
     {
       "name": "roxmltree",
+      "version": "0.20.0",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "roxmltree",
       "version": "0.21.1",
       "license": "MIT OR Apache-2.0"
     },
     {
       "name": "rusqlite",
       "version": "0.32.1",
+      "license": "MIT"
+    },
+    {
+      "name": "rust-embed",
+      "version": "8.13.0",
+      "license": "MIT"
+    },
+    {
+      "name": "rust-embed-impl",
+      "version": "8.13.0",
+      "license": "MIT"
+    },
+    {
+      "name": "rust-embed-utils",
+      "version": "8.13.0",
       "license": "MIT"
     },
     {
@@ -1058,6 +1268,11 @@
       "name": "ryu",
       "version": "1.0.23",
       "license": "Apache-2.0 OR BSL-1.0"
+    },
+    {
+      "name": "safe_arch",
+      "version": "1.2.0",
+      "license": "Zlib OR Apache-2.0 OR MIT"
     },
     {
       "name": "same-file",
@@ -1275,6 +1490,21 @@
       "license": "MIT"
     },
     {
+      "name": "sys-locale",
+      "version": "0.3.2",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "system-fonts",
+      "version": "0.1.2",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "tap",
+      "version": "1.0.1",
+      "license": "MIT"
+    },
+    {
       "name": "tempfile",
       "version": "3.27.0",
       "license": "MIT OR Apache-2.0"
@@ -1360,6 +1590,11 @@
       "license": "MIT OR Apache-2.0"
     },
     {
+      "name": "ttf-parser",
+      "version": "0.25.1",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
       "name": "tui-textarea",
       "version": "0.7.0",
       "license": "MIT"
@@ -1382,6 +1617,11 @@
     {
       "name": "unicode-ident",
       "version": "1.0.26",
+      "license": "(MIT OR Apache-2.0) AND Unicode-3.0"
+    },
+    {
+      "name": "unicode-normalization",
+      "version": "0.1.26",
       "license": "(MIT OR Apache-2.0) AND Unicode-3.0"
     },
     {
@@ -1515,6 +1755,11 @@
       "license": "MIT OR Apache-2.0"
     },
     {
+      "name": "web-sys",
+      "version": "0.3.106",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
       "name": "web_atoms",
       "version": "0.2.4",
       "license": "MIT OR Apache-2.0"
@@ -1523,6 +1768,11 @@
       "name": "weezl",
       "version": "0.1.12",
       "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "wide",
+      "version": "1.7.1",
+      "license": "Zlib OR Apache-2.0 OR MIT"
     },
     {
       "name": "winapi",
@@ -1675,6 +1925,11 @@
       "license": "Unicode-3.0"
     },
     {
+      "name": "wyz",
+      "version": "0.5.1",
+      "license": "MIT"
+    },
+    {
       "name": "xmlwriter",
       "version": "0.1.0",
       "license": "MIT"
@@ -1764,7 +2019,7 @@
     }
   ],
   "files": {
-    "THIRD_PARTY_LICENSES.txt": "8b0aa0d5a434c6d0ed99df457a932f09d8cee202defe1a3b100ec664f12ad3b6",
+    "THIRD_PARTY_LICENSES.txt": "9c1f1ac61a7fc884f59a486d736138f6ef25766df7c0f930b61e8c3ba5c0960f",
     "sources/cssparser-0.37.0.crate": "8c9cdaae01d5ed7882b04d795e7f752f46ff52d2fa3b50a20d28c464510bba98",
     "sources/cssparser-macros-0.7.0.crate": "10a2a99df6e410a8ff4245aa2006499ea662245f967cc7c0a38c83ef8eb44dbf",
     "sources/dtoa-short-0.3.5.crate": "cd1511a7b6a56299bd043a9c167a6d2bfb37bf84a6dfceaba651168adfb43c87",

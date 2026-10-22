@@ -38,6 +38,8 @@ def seed(directory):
         "# Request ownership\n\nEach boundary owns a responsibility.\n\n"
         r"$R{\mathcal{I}}=\text{Combine}\circ\text{Disintegrate}$"
         "\n\n"
+        r"$\ell_\infty+\frac{1}{2}+\log^{3/2} n$"
+        "\n\n"
         f"![Request path]({ADDRESS})\n\n"
         + "Read the mechanism and question the tradeoff.\n\n" * 80
     )
@@ -153,18 +155,17 @@ def verify_pixels(directory, initial, cell_height):
 
 
 def verify_colors(image):
-    # icy_sixel 0.1.3 bins RGB into five-bit channels, then emits integer
-    # percentages. These independent fixture expectations include that
-    # documented quantization; one value permits decoder rounding.
+    # Compare the publisher fixture itself, permitting only Sixel's integer
+    # percentage color precision and the independent decoder's rounding.
     for x, y, expected in [
-        (20, 100, (224, 176, 105)),
-        (320, 100, (143, 176, 199)),
-        (620, 100, (176, 191, 153)),
-        (250, 0, (15, 15, 23)),
+        (20, 100, (225, 179, 109)),
+        (320, 100, (145, 180, 203)),
+        (620, 100, (176, 199, 155)),
+        (250, 0, (23, 23, 26)),
     ]:
         point = (round(x * image.width / 800), round(y * image.height / 240))
         actual = image.getpixel(point)
-        if any(abs(left - right) > 1 for left, right in zip(actual, expected)):
+        if any(abs(left - right) > 2 for left, right in zip(actual, expected)):
             raise RuntimeError(f"Known Sixel color changed: {point}: {actual}")
 
 
@@ -333,6 +334,7 @@ def qualify(directory, process):
     inspector = inspect(directory, process, initial, geometry["cell_pixels"][1])
     services = reading_services(directory, process)
     preference_edits = preferences(directory, process)
+    graphics = graphic_formulas(directory, process, initial, geometry["cell_pixels"][1])
     command(directory, "quit")
     process.wait(timeout=10)
     cleanup = json.loads((directory / "exit.json").read_text())
@@ -342,7 +344,95 @@ def qualify(directory, process):
             "scroll_rows": samples, "selection": selections, "reader_aliases": aliases,
             "help_search": guide, "inspector": inspector,
             "reading_services": services, "preferences": preference_edits,
+            "graphic_formulas": graphics,
             "cleanup": cleanup}
+
+
+def graphic_formulas(directory, process, initial, cell_height):
+    source_width = max(strip["width"] for strip in initial["strips"])
+    before = frame(directory)["offset"]
+    command(directory, "latex-formulas graphics")
+    send(directory, b"gg")
+    wait_for("both prepared formula sources", lambda: formula_sources(
+        directory, before, source_width), process)
+    # Differential frames need not repeat unchanged Sixel cells. Restore a
+    # covering popup to qualify both cached formulas in one complete repaint.
+    before = frame(directory)["offset"]
+    send(directory, b"?")
+    wait_for("formula covering guide", lambda: wire_contains(
+        (directory / "terminal-output.bin").read_bytes()[before:],
+        "field guide"), process)
+    before = frame(directory)["offset"]
+    send(directory, b"\x1b")
+    current = wait_for("native graphic formulas", lambda: formula_frame(
+        directory, before, source_width), process)
+    decoded = decode_formula_rows(directory, current, source_width)
+    if len(decoded) != 2 or any(image["height"] > cell_height * 2 for image in decoded):
+        raise RuntimeError(f"Graphic formulas exceeded compact font-relative rows: {decoded}")
+    command(directory, "find Combine")
+    time.sleep(0.1)
+    before = frame(directory)["offset"]
+    command(directory, "image")
+    wait_for("formula zoom inspector", lambda: native_frame(directory, before), process)
+    before = frame(directory)["offset"]
+    send(directory, b"+")
+    wait_for("formula source zoom", lambda: native_frame(directory, before), process)
+    output = directory / "terminal-output.bin"
+    before_copy = output.stat().st_size
+    send(directory, b"y")
+    source = r"R{\mathcal{I}}=\text{Combine}\circ\text{Disintegrate}"
+    clipboard = b"\x1b]52;c;" + base64.b64encode(source.encode()) + b"\x1b\\"
+    wait_for("formula original LaTeX", lambda: clipboard in output.read_bytes()[before_copy:], process)
+    send(directory, b"\x1b")
+    time.sleep(0.1)
+    before_text = output.stat().st_size
+    command(directory, "latex-formulas text")
+    wait_for("return to lightweight formula text", lambda: wire_contains(
+        output.read_bytes()[before_text:], "Rℐ = Combine ∘ Disintegrate"), process)
+    return {"decoded_formula_images": decoded, "inspector_zoom": True,
+            "original_latex_copy": True, "returns_to_text": True}
+
+
+def formula_sources(directory, after, source_width):
+    raw = (directory / "terminal-output.bin").read_bytes()[after:]
+    widths = set()
+    for match in SIXEL.finditer(raw):
+        dimensions = re.search(rb'"1;1;(\d+);(\d+)', match[0])
+        if dimensions and int(dimensions[1]) != source_width:
+            widths.add(int(dimensions[1]))
+    return len(widths) >= 2
+
+
+def formula_frame(directory, after, source_width):
+    current = native_frame(directory, after)
+    if current and len({strip["width"] for strip in current["strips"]
+                        if strip["width"] != source_width}) >= 2:
+        return current
+    return None
+
+
+def decode_formula_rows(directory, current, source_width):
+    Image = pillow()
+    groups = {}
+    for index, strip in enumerate(current["strips"]):
+        if strip["width"] == source_width:
+            continue
+        path = directory / f"formula-strip-{index}.sixel"
+        path.write_bytes(strip["data"])
+        target = path.with_suffix(".png")
+        subprocess.run(["convert", str(path), str(target)], check=True, timeout=10)
+        with Image.open(target) as image:
+            groups.setdefault(strip["width"], []).append(image.convert("RGB"))
+    result = []
+    for index, rows in enumerate(groups.values()):
+        canvas = Image.new("RGB", (rows[0].width, sum(row.height for row in rows)))
+        y = 0
+        for row in rows:
+            canvas.paste(row, (0, y))
+            y += row.height
+        canvas.save(directory / f"native-formula-{index}.png")
+        result.append({"width": canvas.width, "height": canvas.height})
+    return result
 
 
 def wire_contains(raw, text):
@@ -398,7 +488,7 @@ def guide_search(directory, process):
         send(directory, key)
         wait_for("guide search navigation", lambda: service_frame(directory, previous, b""), process)
     raw = output.read_bytes()
-    if "Rℐ = Combine ∘ Disintegrate".encode() not in raw or b"\\mathcal" in raw:
+    if not wire_contains(raw, "Rℐ = Combine ∘ Disintegrate") or b"\\mathcal" in raw:
         raise RuntimeError("Terminal formula projection did not match the source fixture")
     return {"live_query": "resize", "next_previous": True,
             "escape_clears_first": True, "unicode_formula": True}
@@ -504,7 +594,8 @@ def launch(binary, directory):
                 saved = json.loads(db.execute(
                     "SELECT value FROM settings WHERE key = 'workspace'",
                 ).fetchone()[0])
-                if saved["reading_width"] != 96 or not saved["latex_formulas"]:
+                if (saved["reading_width"] != 96 or not saved["latex_formulas"]
+                        or saved["latex_graphics"]):
                     raise RuntimeError("Entered preferences were not persisted")
             if not actual or any(row[0] != body for row in actual):
                 raise RuntimeError("Image interaction changed publisher text")

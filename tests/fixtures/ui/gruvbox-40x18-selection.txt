@@ -12,7 +12,7 @@
 │  Trash     0 ││ measure.             │
 │  Contin    0 ││                      │
 │  Since     0 ││ let answer = 42;     │
-│  Groupe    1 ││ 75% · v select · y co│
+│  Groupe    1 ││ 0% · v select · y cop│
 ╰──────────────╯╰──────────────────────╯
  VISUAL  Reader   VISUAL · hjkl / w b · 
   y copy  ·  s highlight  ·  n note  ·  

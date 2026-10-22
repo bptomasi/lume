@@ -1,7 +1,7 @@
 //! One bounded row projection keeps visible rendering and pointer hits consistent.
 //!
-//! Walk backward only far enough to center the selection, then stream visible
-//! rows. Indexed destinations avoid scanning the preceding catalog on each frame.
+//! Keep the viewport stable while selection remains visible; scroll only enough
+//! to reveal an offscreen destination. Draw and hit testing share the same rows.
 
 use ratatui::{
     Frame,
@@ -50,11 +50,48 @@ pub(super) fn at(app: &App, height: u16, row: usize) -> Option<usize> {
 }
 
 fn window(app: &App, height: u16) -> impl Iterator<Item = Row> + '_ {
-    // An entry owns its optional blank/heading rows before the selectable item.
-    // Count only the lookbehind needed to center that item in display rows.
-    let mut first = app.navigation_position(app.nav_selected).unwrap_or(0);
+    let (first, skip) = window_start(app, height);
+    rows(app, first).skip(skip).take(usize::from(height))
+}
+
+pub(crate) fn origin(app: &App, screen: Rect) -> Option<(usize, usize)> {
+    let area =
+        super::workspace_areas(screen, app.focus, &app.workspace).library?;
+    let inner = super::pane_search::content(
+        app,
+        crate::model::Pane::Library,
+        area.inner(ratatui::layout::Margin::new(1, 1)),
+    );
+    (inner.height > 0).then(|| window_start(app, inner.height))
+}
+
+fn window_start(app: &App, height: u16) -> (usize, usize) {
+    let selected = app.navigation_position(app.nav_selected).unwrap_or(0);
+    if selected < app.navigation_first {
+        return lookbehind(app, selected, 0);
+    }
+    let first = app.navigation_first.min(selected);
+    let skip = if first == app.navigation_first {
+        app.navigation_skip.min(heading_rows(app, first))
+    } else {
+        0
+    };
+    if rows(app, first)
+        .skip(skip)
+        .take(usize::from(height))
+        .any(|row| row == Row::Item(app.nav_selected))
+    {
+        return (first, skip);
+    }
+    lookbehind(app, selected, usize::from(height).saturating_sub(1))
+}
+
+fn lookbehind(
+    app: &App,
+    mut first: usize,
+    mut remaining: usize,
+) -> (usize, usize) {
     let mut skip = heading_rows(app, first);
-    let mut remaining = usize::from(height) / 2;
     loop {
         if remaining <= skip {
             skip -= remaining;
@@ -68,7 +105,7 @@ fn window(app: &App, height: u16) -> impl Iterator<Item = Row> + '_ {
         first -= 1;
         skip = heading_rows(app, first) + 1;
     }
-    rows(app, first).skip(skip).take(usize::from(height))
+    (first, skip)
 }
 
 fn heading_rows(app: &App, position: usize) -> usize {

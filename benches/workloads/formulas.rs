@@ -4,7 +4,7 @@ use lume::reader::{self, LiveRenderer, RenderOptions};
 
 const EXPRESSIONS: &[(&str, &str)] = &[
     (r"\sum_{i=1}^{n} x_i^2", "∑ᵢ₌₁ⁿ xᵢ²"),
-    (r"\int_0^\infty e^{-x}\,dx", "∫₀^(∞) e⁻ˣ dx"),
+    (r"\int_0^\infty e^{-x}\,dx", "∫₀^∞ e⁻ˣ dx"),
     (r"\hat{x}+\vec{u}", "x\u{0302} + u\u{20d7}"),
     (r"\begin{pmatrix}a&b\\c&d\end{pmatrix}", "(a, b; c, d)"),
     (r"\sin(x)+\log_2 x", "sin (x) + log₂ x"),
@@ -20,6 +20,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     for enabled in [true, false] {
         let options = RenderOptions {
             latex_formulas: enabled,
+            graphical_formulas: false,
         };
         let label = if enabled {
             "advanced formula parse + Unicode layout"
@@ -42,7 +43,30 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
             Ok(())
         })?;
     }
+    graphical_layout(&body.replace('$', "$$"), iterations)?;
+    compact_abstract(iterations)?;
     cached_transitions(&body, iterations)
+}
+
+fn compact_abstract(iterations: usize) -> Result<()> {
+    let body = include_str!("../../tests/fixtures/arxiv-tool-access.md");
+    super::measure("compact mixed arXiv formula layout", iterations, || {
+        let rendered = reader::render_with_options(
+            body,
+            80,
+            RenderOptions {
+                latex_formulas: true,
+                graphical_formulas: true,
+            },
+        );
+        ensure!(rendered.images.len() == 2, "Inline variables became images");
+        ensure!(rendered.lines.len() < 24, "Abstract became fragmented");
+        ensure!(
+            rendered.images.iter().all(|slot| slot.rows.len() <= 2),
+            "Formula exceeded its compact font size"
+        );
+        Ok(())
+    })
 }
 
 fn cached_transitions(body: &str, iterations: usize) -> Result<()> {
@@ -62,6 +86,39 @@ fn cached_transitions(body: &str, iterations: usize) -> Result<()> {
                 ensure!(
                     cached.text == rendered.text,
                     "Cache changed formula text"
+                );
+            }
+            Ok(())
+        },
+    )
+}
+
+fn graphical_layout(body: &str, iterations: usize) -> Result<()> {
+    super::measure(
+        "vector formula layout + shared source outlines",
+        iterations,
+        || {
+            let rendered = reader::render_with_options(
+                body,
+                80,
+                RenderOptions {
+                    latex_formulas: true,
+                    graphical_formulas: true,
+                },
+            );
+            ensure!(
+                rendered.images.len() == 32,
+                "Formula image budget changed"
+            );
+            for slot in &rendered.images {
+                let formula = slot
+                    .formula
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("Remote formula image"))?;
+                ensure!(!formula.svg.is_empty(), "Formula outlines missing");
+                ensure!(
+                    body[slot.source.clone()].contains(&*formula.latex),
+                    "Source drifted"
                 );
             }
             Ok(())

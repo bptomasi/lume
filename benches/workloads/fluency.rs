@@ -81,7 +81,7 @@ fn formulas(iterations: usize, stress: bool) -> Result<()> {
                 "Formula budget/render mismatch"
             );
             ensure!(
-                rendered.text.matches("x² = (a)/(b)").count() == converted,
+                rendered.text.matches("x² = a/b").count() == converted,
                 "Fraction lost"
             );
             Ok(())

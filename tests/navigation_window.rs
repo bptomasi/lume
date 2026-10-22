@@ -3,6 +3,7 @@
 mod common;
 
 use anyhow::{Context, Result};
+use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use lume::{
     app::{App, Focus, NavItem},
     model::View,
@@ -73,6 +74,45 @@ fn wide_titles_keep_large_counts_inside_the_sidebar() -> Result<()> {
         terminal.backend().buffer()[(area.right() - 1, row)].symbol(),
         "│"
     );
+    Ok(())
+}
+
+#[test]
+fn clicking_visible_destinations_does_not_recenter_or_change_pointer_targets()
+-> Result<()> {
+    let (_directory, mut app) = application()?;
+    app.navigation = (0..80)
+        .map(|n| NavItem {
+            view: View::Feed(n),
+            title: format!("Feed {n}"),
+            group: if n < 40 { "FEEDS" } else { "SMART LISTS" },
+            count: 0,
+        })
+        .collect();
+    let screen = Rect::new(0, 0, 80, 24);
+    app.resize_workspace(screen);
+    app.set_view(View::Feed(30))?;
+    app.resize_workspace(screen);
+    let area = ui::workspace_areas(screen, app.focus, &app.workspace)
+        .library
+        .context("Library pane")?;
+    let targets = |app: &App| {
+        (area.y + 1..area.bottom() - 1)
+            .map(|row| ui::navigation_at(app, area, row))
+            .collect::<Vec<_>>()
+    };
+    let before = targets(&app);
+    for local in [3, 15, 8, 8] {
+        let expected = before[local].context("Expected selectable row")?;
+        app.mouse(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: area.x + 3,
+            row: area.y + 1 + local as u16,
+            modifiers: KeyModifiers::NONE,
+        })?;
+        assert_eq!(app.nav_selected, expected);
+        assert_eq!(targets(&app), before, "Click moved the viewport");
+    }
     Ok(())
 }
 

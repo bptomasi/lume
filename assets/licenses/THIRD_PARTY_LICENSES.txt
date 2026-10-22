@@ -903,6 +903,9 @@ limitations under the License.
 
 
 Apache License 2.0
+  ab_glyph 0.2.32 (https://github.com/alexheretic/ab-glyph)
+  ab_glyph_rasterizer 0.1.10 (https://github.com/alexheretic/ab-glyph)
+  owned_ttf_parser 0.25.1 (https://github.com/alexheretic/owned-ttf-parser)
   ryu 1.0.23 (https://github.com/dtolnay/ryu)
 
 Apache License
@@ -1846,6 +1849,7 @@ MIT License
   wasm-bindgen-macro 0.2.129 (https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro)
   wasm-bindgen-shared 0.2.129 (https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared)
   wasm-bindgen 0.2.129 (https://github.com/wasm-bindgen/wasm-bindgen)
+  web-sys 0.3.106 (https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/web-sys)
 
 Copyright (c) 2014 Alex Crichton
 
@@ -1929,10 +1933,36 @@ DEALINGS IN THE SOFTWARE.
 
 
 MIT License
+  mime 0.3.17 (https://github.com/hyperium/mime)
+
+Copyright (c) 2014 Sean McArthur
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+
+MIT License
   bitflags 2.13.2 (https://github.com/bitflags/bitflags)
   log 0.4.34 (https://github.com/rust-lang/log)
   num-traits 0.2.19 (https://github.com/rust-num/num-traits)
   regex-automata 0.4.18 (https://github.com/rust-lang/regex)
+  regex-lite 0.1.9 (https://github.com/rust-lang/regex)
   regex-syntax 0.8.11 (https://github.com/rust-lang/regex)
   regex 1.13.1 (https://github.com/rust-lang/regex)
 
@@ -2214,6 +2244,7 @@ DEALINGS IN THE SOFTWARE.
 MIT License
   lume 0.2.0 ()
   new_debug_unreachable 1.0.6 (https://github.com/mbrubeck/rust-debug-unreachable)
+  ordered-float 5.5.0 (https://github.com/reem/rust-ordered-float)
 
 Copyright (c) 2015 Jonathan Reem
 
@@ -2307,6 +2338,7 @@ MIT License
   heck 0.5.0 (https://github.com/withoutboats/heck)
   linked-hash-map 0.5.6 (https://github.com/contain-rs/linked-hash-map)
   unicode-bidi 0.3.18 (https://github.com/servo/unicode-bidi)
+  unicode-normalization 0.1.26 (https://github.com/unicode-rs/unicode-normalization)
   unicode-segmentation 1.13.3 (https://github.com/unicode-rs/unicode-segmentation)
   unicode-width 0.1.14 (https://github.com/unicode-rs/unicode-width)
   unicode-width 0.2.0 (https://github.com/unicode-rs/unicode-width)
@@ -2846,6 +2878,36 @@ DEALINGS IN THE SOFTWARE.
 
 
 MIT License
+  by_address 1.2.1 (https://github.com/mbrubeck/by_address)
+
+Copyright (c) 2017 Matt Brubeck
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+
+MIT License
   redox_syscall 0.5.18 (https://gitlab.redox-os.org/redox-os/syscall)
 
 Copyright (c) 2017 Redox OS Developers
@@ -3177,6 +3239,7 @@ DEALINGS IN THE SOFTWARE.
 
 MIT License
   svgtypes 0.16.1 (https://github.com/linebender/svgtypes)
+  ttf-parser 0.25.1 (https://github.com/harfbuzz/ttf-parser)
 
 Copyright (c) 2018 Yevhenii Reizner
 
@@ -3555,6 +3618,38 @@ DEALINGS IN THE SOFTWARE.
 
 
 MIT License
+  memmap2 0.9.12 (https://github.com/RazrFalcon/memmap2-rs)
+
+Copyright (c) 2020 Yevhenii Reizner
+Copyright (c) 2015 Dan Burkert
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+
+MIT License
+  const-oid 0.10.2 (https://github.com/RustCrypto/formats)
   cpufeatures 0.3.1 (https://github.com/RustCrypto/utils)
 
 Copyright (c) 2020-2026 The RustCrypto Project Developers
@@ -4232,6 +4327,32 @@ SOFTWARE.
 
 
 MIT License
+  tap 1.0.1 (https://github.com/myrrlyn/tap)
+
+MIT License
+
+Copyright (c) 2017 Elliot Linder <darfink@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+MIT License
   lume 0.2.0 ()
   precomputed-hash 0.1.1 (https://github.com/emilio/precomputed-hash)
 
@@ -4391,6 +4512,33 @@ SOFTWARE.
 
 
 MIT License
+  bitvec 1.1.1 (https://github.com/bitvecto-rs/bitvec)
+  wyz 0.5.1 (https://github.com/myrrlyn/wyz)
+
+MIT License
+
+Copyright (c) 2018 myrrlyn (Alexander Payne)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+MIT License
   bytemuck 1.25.2 (https://github.com/Lokathor/bytemuck)
   bytemuck_derive 1.12.1 (https://github.com/Lokathor/bytemuck)
 
@@ -4513,6 +4661,58 @@ SOFTWARE.
 
 
 MIT License
+  radium 0.7.0 (https://github.com/bitvecto-rs/radium)
+
+MIT License
+
+Copyright (c) 2019 kneecaw (Nika Layzell)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+MIT License
+  wide 1.7.1 (https://github.com/Lokathor/wide)
+
+MIT License
+
+Copyright (c) 2020 Daniel "Lokathor" Gee
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+MIT License
   lume 0.2.0 ()
   html-escape 0.2.13 (https://github.com/magiclen/html-escape)
   utf8-width 0.1.8 (https://github.com/magiclen/utf8-width)
@@ -4520,6 +4720,58 @@ MIT License
 MIT License
 
 Copyright (c) 2020 magiclen.org (Ron Li)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+MIT License
+  funty 2.0.0 (https://github.com/myrrlyn/funty)
+
+MIT License
+
+Copyright (c) 2020 myrrlyn (Alexander Payne)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+MIT License
+  sys-locale 0.3.2 (https://github.com/1Password/sys-locale)
+
+MIT License
+
+Copyright (c) 2021 1Password
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -4644,6 +4896,20 @@ SOFTWARE.
 
 
 MIT License
+  safe_arch 1.2.0 (https://github.com/Lokathor/safe_arch)
+
+MIT License
+
+Copyright (c) 2023 Daniel "Lokathor" Gee.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice (including the next paragraph) shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+MIT License
   lume 0.2.0 ()
   dom_query 0.28.0 (https://github.com/niklak/dom_query)
 
@@ -4703,6 +4969,31 @@ SOFTWARE.
 
 
 MIT License
+  core_maths 0.1.1 (https://github.com/robertbastian/core_maths)
+
+MIT License
+
+Copyright (c) 2024 Robert Bastian
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+MIT License
   lume 0.2.0 ()
 
 MIT License
@@ -4731,9 +5022,21 @@ SOFTWARE.
 MIT License
   base64-simd 0.8.0 (https://github.com/Nugine/simd)
   chrono 0.4.45 (https://github.com/chronotope/chrono)
+  libm 0.2.16 (https://github.com/rust-lang/compiler-builtins)
   math-core-renderer-internal 0.9.0 (https://github.com/tmke8/math-core)
   math-core 0.9.0 (https://github.com/tmke8/math-core)
+  palette_math 0.7.7 (https://github.com/Ogeon/palette)
+  quantette 0.6.0 (https://github.com/IanManske/quantette)
   r-efi 6.0.0 (https://github.com/r-efi/r-efi)
+  ratex-font-loader 0.1.15 (https://github.com/erweixin/RaTeX)
+  ratex-font 0.1.15 (https://github.com/erweixin/RaTeX)
+  ratex-katex-fonts 0.1.15 (https://github.com/erweixin/RaTeX)
+  ratex-layout 0.1.15 (https://github.com/erweixin/RaTeX)
+  ratex-lexer 0.1.15 (https://github.com/erweixin/RaTeX)
+  ratex-parser 0.1.15 (https://github.com/erweixin/RaTeX)
+  ratex-svg 0.1.15 (https://github.com/erweixin/RaTeX)
+  ratex-types 0.1.15 (https://github.com/erweixin/RaTeX)
+  ratex-unicode-font 0.1.15 (https://github.com/erweixin/RaTeX)
   refinery-core 0.8.16 (https://github.com/rust-db/refinery)
   refinery-macros 0.8.16 (https://github.com/rust-db/refinery)
   refinery 0.8.16 (https://github.com/rust-db/refinery)
@@ -5039,6 +5342,58 @@ SOFTWARE.
 
 
 MIT License
+  fontconfig-parser 0.5.8 (https://github.com/Riey/fontconfig-parser)
+
+MIT License
+
+Copyright (c) 2021 Riey
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+MIT License
+  system-fonts 0.1.2 (https://github.com/yijehyung/system-fonts)
+
+MIT License
+
+Copyright (c) 2026 Jehyung
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+MIT License
   lume 0.2.0 ()
   rustc-hash 2.1.3 (https://github.com/rust-lang/rustc-hash)
 
@@ -5084,6 +5439,8 @@ MIT License
   pin-project-lite 0.2.17 (https://github.com/taiki-e/pin-project-lite)
   proc-macro2 1.0.107 (https://github.com/dtolnay/proc-macro2)
   quote 1.0.47 (https://github.com/dtolnay/quote)
+  ref-cast-impl 1.0.27 (https://github.com/dtolnay/ref-cast)
+  ref-cast 1.0.27 (https://github.com/dtolnay/ref-cast)
   rustix 0.38.44 (https://github.com/bytecodealliance/rustix)
   rustix 1.1.5 (https://github.com/bytecodealliance/rustix)
   rustversion 1.0.23 (https://github.com/dtolnay/rustversion)
@@ -5263,6 +5620,7 @@ THE SOFTWARE.
 
 
 MIT License
+  fancy-regex 0.14.0 (https://github.com/fancy-regex/fancy-regex)
   fancy-regex 0.16.2 (https://github.com/fancy-regex/fancy-regex)
 
 The MIT License
@@ -5341,13 +5699,17 @@ SOFTWARE.
 
 MIT License
   lume 0.2.0 ()
+  phf 0.11.3 (https://github.com/rust-phf/rust-phf)
   phf 0.13.1 (https://github.com/rust-phf/rust-phf)
   phf 0.14.0 (https://github.com/rust-phf/rust-phf)
   phf_codegen 0.13.1 (https://github.com/rust-phf/rust-phf)
+  phf_generator 0.11.3 (https://github.com/rust-phf/rust-phf)
   phf_generator 0.13.1 (https://github.com/rust-phf/rust-phf)
   phf_generator 0.14.0 (https://github.com/rust-phf/rust-phf)
+  phf_macros 0.11.3 (https://github.com/rust-phf/rust-phf)
   phf_macros 0.13.1 (https://github.com/rust-phf/rust-phf)
   phf_macros 0.14.0 (https://github.com/rust-phf/rust-phf)
+  phf_shared 0.11.3 (https://github.com/rust-phf/rust-phf)
   phf_shared 0.13.1 (https://github.com/rust-phf/rust-phf)
   phf_shared 0.14.0 (https://github.com/rust-phf/rust-phf)
 
@@ -5371,6 +5733,32 @@ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+MIT License
+  base64 0.22.1 (https://github.com/marshallpierce/rust-base64)
+
+The MIT License (MIT)
+
+Copyright (c) 2015 Alice Maz
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 
 
 MIT License
@@ -5454,6 +5842,34 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+MIT License
+  palette 0.7.7 (https://github.com/Ogeon/palette)
+  palette_derive 0.7.7 (https://github.com/Ogeon/palette)
+
+The MIT License (MIT)
+
+Copyright (c) 2015 Erik Hedvall
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 
 
 MIT License
@@ -5698,6 +6114,7 @@ SOFTWARE.
 
 
 MIT License
+  roxmltree 0.20.0 (https://github.com/RazrFalcon/roxmltree)
   roxmltree 0.21.1 (https://github.com/RazrFalcon/roxmltree)
 
 The MIT License (MIT)
@@ -5721,6 +6138,35 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+MIT License
+  rust-embed-impl 8.13.0 (https://pyrossh.dev/repos/rust-embed)
+  rust-embed-utils 8.13.0 (https://pyrossh.dev/repos/rust-embed)
+  rust-embed 8.13.0 (https://pyrossh.dev/repos/rust-embed)
+
+The MIT License (MIT)
+
+Copyright (c) 2018 pyros2097
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 
 
 MIT License
@@ -5750,6 +6196,7 @@ SOFTWARE.
 
 
 MIT License
+  fontdb 0.23.0 (https://github.com/RazrFalcon/fontdb)
   fontdb 0.24.0 (https://github.com/RazrFalcon/fontdb)
 
 The MIT License (MIT)
@@ -5958,6 +6405,33 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+MIT License
+  mime_guess 2.0.5 (https://github.com/abonander/mime_guess)
+
+The MIT License (MIT)
+
+Copyright (c) 2015 Austin Bonander
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 
 
 MIT License
@@ -7179,6 +7653,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 Unicode License v3
   unicode-ident 1.0.26 (https://github.com/dtolnay/unicode-ident)
+  unicode-normalization 0.1.26 (https://github.com/unicode-rs/unicode-normalization)
 
 UNICODE LICENSE V3
 

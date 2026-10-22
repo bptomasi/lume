@@ -19,6 +19,7 @@ pub fn render_with_options(
     source: &str,
     options: super::RenderOptions,
 ) -> String {
+    let options = options.text_only();
     if source.len() > MAX_BYTES {
         return limited(source);
     }

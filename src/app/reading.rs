@@ -365,8 +365,7 @@ impl App {
     }
 
     pub(super) fn wrap_reader(&mut self) {
-        self.renderer
-            .set_latex_formulas(self.workspace.latex_formulas);
+        self.renderer.set_render_options(self.formula_options());
         let cursor = self.cursor_offset();
         let previous_article_end = self.article_text_end;
         let previous = std::mem::take(&mut self.reader_text);
@@ -628,6 +627,7 @@ impl App {
     }
 
     pub(super) fn move_reader(&mut self, forward: bool, amount: usize) {
+        let motion = self.pending_formula_motion();
         self.pending_anchor = None;
         let goal = self.reader_goal.unwrap_or_else(|| {
             self.row_column(self.reader_cursor, self.reader_column)
@@ -642,6 +642,7 @@ impl App {
         };
         self.reader_column = self.row_byte_at(self.reader_cursor, goal);
         self.ensure_cursor_visible();
+        self.retarget_formula_motion(motion);
     }
 
     pub(super) fn save_reading_position(&self) -> Result<()> {

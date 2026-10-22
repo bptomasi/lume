@@ -10,7 +10,7 @@
 │  Read          0 ││                                                          │
 │  Notebook      0 ││ Keep one copy & measure.                                 │
 │  Trash         0 ││                                                          │
-│  Continue r    0 ││ 57% · v select · y copy · s highlight · Tab panels · Z fu│
+│  Continue r    0 ││ 0% · v select · y copy · s highlight · Tab panels · Z ful│
 │  Since last    0 │╰──────────────────────────────────────────────────────────╯
 │  Grouped ar    1 │╭ Annotations · 0 ──────────────────────────────────[≡]─[−]╮
 │  For y╭─ Layout · Ctrl-w · Reader ─────────────────────────────────────────╮ │

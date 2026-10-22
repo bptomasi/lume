@@ -103,6 +103,9 @@ fn encode(image: DynamicImage, area: Rect, key: &ImageKey) -> Result<Protocol> {
     let Some(detail) = &key.detail else {
         return Ok(Protocol::Halfblocks(Halfblocks::new(image, area)?));
     };
+    if detail.protocol == ImageProtocol::Sixel {
+        return super::sixel::native(image, area);
+    }
     let protocol = match detail.protocol {
         ImageProtocol::Blocks => {
             return Ok(Protocol::Halfblocks(Halfblocks::new(image, area)?));

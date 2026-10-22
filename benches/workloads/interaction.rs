@@ -47,7 +47,12 @@ fn library_frames(
             )
             .library
             .context("Library pane")?;
-            let row = area.y + 1 + (area.height - 2) / 2;
+            let row = (area.y + 1..area.bottom() - 1)
+                .find(|row| {
+                    terminal.backend().buffer()[(area.x + 1, *row)].symbol()
+                        == "▎"
+                })
+                .context("Selected Library row is not visible")?;
             ensure!(
                 ui::navigation_at(app, area, row) == Some(app.nav_selected),
                 "Rendered navigation and mouse hit disagree"

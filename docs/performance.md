@@ -261,3 +261,82 @@ Nested list workloads include mixed ordered/unordered levels, empty publisher
 items and invisible anchor-only entries. Empty entries do not paint markers;
 ordered entries retain their numbering authority. Rendering does not rewrite
 cached publisher bytes or invalidate annotation offsets.
+
+## Optional typesetting and image color review
+
+Formula preparation caches up to 32 successful text projections and 32 shared
+vector sources per document layout; input count/byte limits still apply to cache
+hits. The `--formulas-only` workload checks text, raw and graphic preparation,
+including bounded slots and exact source identity. Graphic font parsing is lazy
+and excluded from lightweight mode. Complex and display equations occupy compact
+blocks while short inline expressions retain paragraph flow. The arXiv abstract
+workload checks compact layout and its two complex formula slots.
+
+The image worker retains one bounded parsed SVG tree for repeated zoom/pan,
+while retaining the original raster precision. Transparent raster pixels are
+composited against their actual matte before filtering, including a separate
+16-bit path. Native Sixel inspection and inline strips share Quantette's Oklab
+palette preparation; one continuous index image avoids per-row palette seams.
+Sixel still quantizes to at most 256 colors and integer color percentages.
+These limits do not permit claiming lossless photographs or recovering detail
+absent from a publisher's source. All preparation remains outside drawing.
+
+On 2026-10-22, three alternating optimized process pairs compared this review
+with `79e54c5`, using Rust 1.99.1 and the same fixtures. Median milliseconds per
+iteration are below. Image preparation uses 40 iterations per process; cached
+Sixel scrolling uses 200, and other cached frames use 2,000. Formula preparation
+uses 40 expressions with five distinct sources, including repeated cache hits.
+
+| Workload | Before | After |
+| --- | ---: | ---: |
+| Repeated SVG paths/text, block preparation | 9.965 | 0.982 |
+| Repeated SVG zoom, block preparation | 9.653 | 0.480 |
+| SVG source and Sixel inspector encoding | 93.059 | 48.222 |
+| SVG source and inline Sixel strips | 22.038 | 9.305 |
+| Cached Sixel scroll and two clipped frames | 5.510 | 5.495 |
+| Cold raster decode and block preparation | 4.438 | 4.553 |
+| Repeated text formula layout | 0.391 | 0.106 |
+| Graphic formula layout and vector sources | — | 1.075 |
+
+The SVG gains reflect retained parsing and improved color preparation. Cached
+scrolling is effectively unchanged; cold raster preparation shows a small cost
+in this sample. Graphic layout excludes pixel encoding and costs more than
+text, so it remains opt-in. These controlled workloads establish neither
+physical display latency nor uniform improvements for every article.
+
+Foot 1.21.0 qualification additionally decoded the native formula pixels,
+checked zoom and original-TeX copying, then returned to persisted text mode.
+Its diagram fixture had zero inter-strip channel spread in all three sampled
+flat regions, within two RGB levels of the original source colors. Selection,
+bidirectional scroll, popup restoration and terminal cleanup also passed.
+
+The subsequent compact-layout review corrects two separate presentation bugs:
+fitting every equation to its slot enlarged even single variables, and the
+four-publisher-image native budget also downgraded later formulas to blocks.
+Graphic canvases now use font-relative rows with bounded padding. Formula
+slots always use native Sixel when selected, independently of the four native
+publisher images. A 40-entry cache admits all 32 formula slots, four native
+publisher images and two inspector crops without visible-slot churn; the
+32 MiB encoded-strip budget remains enforced. Pending or failed formulas
+retain selectable text instead of covering it with image-loading messages.
+
+Library windows retain a transient origin and scroll minimally to reveal an
+offscreen selection. Clicking an already visible destination preserves every
+pointer target; clicking the active destination avoids reloading its articles.
+Full-row reference tests cover forward/reverse navigation, repeated group
+headers and filtered identities at multiple heights. Drawing never mutates the
+viewport state or scans the entire catalog to find a visible row.
+
+Viewport capture belongs to destination changes, filtered-selection movement
+and resize, not every query keystroke. During a formula policy change, later
+keyboard or mouse movement retargets the pending source anchor. A completed
+layout therefore preserves the user's newer position instead of restoring the
+cursor captured before the policy change. This path remains inactive when no
+formula projection is pending.
+
+The progress footer measures scroll position over the available scroll range,
+not the bottom of the first viewport. Scrollable articles start at 0% and reach
+100% at the final screen. Empty documents report 0%; a document fitting entirely
+in its viewport reports 100%. Saved reading anchors remain source-based.
+Boundary tests and reviewed snapshots cover this presentation independently of
+reading-position persistence.

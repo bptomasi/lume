@@ -20,14 +20,20 @@ pub(crate) struct Completion {
     pub(crate) result: Result<Thumbnail, String>,
 }
 
+struct Request {
+    key: ImageKey,
+    // Only application-owned formula slots can submit local bytes.
+    generated: Option<Arc<[u8]>>,
+}
+
 pub(crate) struct Worker {
-    requests: SyncSender<ImageKey>,
+    requests: SyncSender<Request>,
     results: Receiver<Completion>,
 }
 
 impl Worker {
     pub(crate) fn start(directory: PathBuf, offline: bool) -> Result<Self> {
-        let (requests, receiver) = mpsc::sync_channel::<ImageKey>(2);
+        let (requests, receiver) = mpsc::sync_channel::<Request>(2);
         let (sender, results) = mpsc::sync_channel(2);
         let receiver = Arc::new(Mutex::new(receiver));
         let decoder = Arc::new(Mutex::new(Decoder::default()));
@@ -43,9 +49,13 @@ impl Worker {
         Ok(Self { requests, results })
     }
 
-    pub(crate) fn submit(&self, key: ImageKey) -> Result<()> {
+    pub(crate) fn submit(
+        &self,
+        key: ImageKey,
+        generated: Option<Arc<[u8]>>,
+    ) -> Result<()> {
         self.requests
-            .try_send(key)
+            .try_send(Request { key, generated })
             .context("Image worker is busy or stopped")
     }
 
@@ -63,7 +73,7 @@ impl Worker {
 fn run(
     directory: PathBuf,
     offline: bool,
-    receiver: Arc<Mutex<Receiver<ImageKey>>>,
+    receiver: Arc<Mutex<Receiver<Request>>>,
     sender: SyncSender<Completion>,
     decoder: Arc<Mutex<Decoder>>,
 ) {
@@ -73,9 +83,14 @@ fn run(
             Ok(receiver) => receiver.recv(),
             Err(_) => break,
         };
-        let Ok(key) = key else { break };
-        let result = load(&directory, offline, &mut client, &decoder, &key)
-            .map_err(|error| format!("{error:#}"));
+        let Ok(Request { key, generated }) = key else {
+            break;
+        };
+        let result = match generated {
+            Some(bytes) => render(&decoder, &bytes, &key),
+            None => load(&directory, offline, &mut client, &decoder, &key),
+        }
+        .map_err(|error| format!("{error:#}"));
         if sender.send(Completion { key, result }).is_err() {
             break;
         }

@@ -245,3 +245,46 @@ encoding. This removes per-row palette seams and repeated quantizer setup;
 there is no new image codec or protocol implementation. Image dimensions,
 prepared-payload and shared decoder-cache budgets remain enforced. Two bounded
 HTTP lanes overlap downloads while serializing decoding through one cache.
+
+## Graphic formulas and shared-palette color preparation
+
+RaTeX 0.1.15 (`ratex-parser`, `ratex-layout`, `ratex-types`, `ratex-svg`)
+provides the optional runtime graphic presentation. It has a small upstream
+maintainer base and a pre-1.0 API; pinned versions, bounded publisher input,
+behavioral/golden checks and explicit fallback are required. Its parser has
+recursion and macro-expansion limits. Layout and SVG paths stay in worker
+preparation, without a browser, JavaScript runtime, shell or external service.
+Embedded KaTeX font outlines avoid system font discovery for admitted math.
+The font binaries are SIL OFL-1.1, separately from the MIT Rust code. Their
+unaltered notices are retained in `assets/licenses/images/ratex-fonts` and
+installed with the image integration notices. This scoped font redistribution
+uses OFL's bundling permission; it does not change the application's MIT license.
+
+Quantette 0.6.0 (MIT OR Apache-2.0, Rust 1.90 minimum) owns Wu palette generation
+and continuous error diffusion in Oklab. Its upstream has a small maintainer
+base and is also used by newer icy_sixel releases. Only `std` is enabled;
+k-means, random generators, Rayon and image-loading adapters are disabled.
+Lume retains one palette/index buffer for the whole image and delegates PAL8
+wire encoding to the already qualified icy_sixel 0.1.3. Keeping that encoder
+avoids introducing a second protocol implementation or per-strip palettes.
+These choices require independent pixel checks and measured preparation costs;
+upstream benchmark claims do not establish Lume performance or security.
+
+The reviewed graphic formula path adds 51 active packages to the previous
+348-package feature graph, primarily the RaTeX font/layout stack and palette
+arithmetic. It does not load its font data in text mode. The complete lock and
+inventory qualify 399 active packages and four explicitly inactive entries.
+Responsive image selection admits width descriptors through 4096 pixels and
+densities through 4x; decoded image byte, dimension and pixel limits remain
+independent of the publisher's descriptor.
+
+The optional RaTeX outline exporter introduces `ttf-parser 0.25.1` through
+`ab_glyph` and fallback font adapters. RUSTSEC-2026-0192 reports discontinued
+maintenance, with no patched version, rather than a reported vulnerability.
+The checksum-specific review expires on 2027-01-19. Only embedded, unmodified
+KaTeX font bytes reach the exporter: CJK and emoji fallback identifiers are
+rejected before export, and publisher input cannot select a font file, font
+bytes or a resource resolver. Unsupported text remains in the lightweight
+projection. A change to those consumers or authorities invalidates the review.
+Migration of the upstream exporter to a maintained font parser remains a
+maintenance requirement; the advisory gate retains and checks this finding.

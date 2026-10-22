@@ -3,12 +3,14 @@
 use anyhow::{Context, Result, ensure};
 use image::{DynamicImage, RgbaImage};
 use resvg::{tiny_skia, usvg};
+use sha2::{Digest, Sha256};
 
 use super::ImageKey;
 
 #[derive(Default)]
 pub(super) struct SvgDecoder {
     options: Option<usvg::Options<'static>>,
+    cached: Option<([u8; 32], usvg::Tree)>,
 }
 
 impl SvgDecoder {
@@ -18,12 +20,7 @@ impl SvgDecoder {
         key: &ImageKey,
     ) -> Result<(DynamicImage, (u32, u32))> {
         ensure!(bytes.len() <= 512 * 1024, "SVG exceeds 512 KiB");
-        let xml = parse(bytes)?;
-        let options = self.options.get_or_insert_with(restricted_options);
-        if xml.descendants().any(|node| node.has_tag_name("text")) {
-            super::fonts::prepare(options)?;
-        }
-        let tree = usvg::Tree::from_xmltree(&xml, options)?;
+        let tree = self.tree(bytes)?;
         let size = tree.size();
         let dimensions =
             (size.width().ceil() as u32, size.height().ceil() as u32);
@@ -33,7 +30,7 @@ impl SvgDecoder {
             tiny_skia::Pixmap::new(geometry.width, geometry.height)
                 .context("Could not allocate SVG thumbnail")?;
         resvg::render(
-            &tree,
+            tree,
             tiny_skia::Transform::from_row(
                 geometry.scale,
                 0.0,
@@ -46,6 +43,25 @@ impl SvgDecoder {
         );
         let image = unpremultiply(&pixmap)?;
         Ok((image, dimensions))
+    }
+
+    fn tree(&mut self, bytes: &[u8]) -> Result<&usvg::Tree> {
+        let digest: [u8; 32] = Sha256::digest(bytes).into();
+        if self.cached.as_ref().is_none_or(|(old, _)| *old != digest) {
+            // One admitted source only. Failed input cannot render stale paths.
+            self.cached = None;
+            let xml = parse(bytes)?;
+            let options = self.options.get_or_insert_with(restricted_options);
+            if xml.descendants().any(|node| node.has_tag_name("text")) {
+                super::fonts::prepare(options)?;
+            }
+            self.cached =
+                Some((digest, usvg::Tree::from_xmltree(&xml, options)?));
+        }
+        self.cached
+            .as_ref()
+            .map(|(_, tree)| tree)
+            .context("SVG source was not prepared")
     }
 }
 

@@ -369,3 +369,30 @@ fn inspector_geometry_is_bounded_even_on_tiny_and_large_terminals() -> Result<()
     }
     Ok(())
 }
+
+#[test]
+fn transparent_source_rgb_cannot_bleed_into_scaled_edges() -> Result<()> {
+    use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
+    use std::io::Cursor;
+    let mut outputs = Vec::new();
+    for hidden in [[255, 0, 255, 0], [0, 255, 0, 0]] {
+        let pixels = RgbaImage::from_fn(31, 15, |x, _| {
+            Rgba(if x < 15 { hidden } else { [225, 179, 109, 255] })
+        });
+        let mut bytes = Cursor::new(Vec::new());
+        DynamicImage::ImageRgba8(pixels)
+            .write_to(&mut bytes, ImageFormat::Png)?;
+        let mut request = key(ImageProtocol::Sixel, 1, [0, 0]);
+        request.width = 9;
+        request.height = 4;
+        let thumbnail = Decoder::default().render(bytes.get_ref(), &request)?;
+        let Some(ratatui_image::protocol::Protocol::Sixel(image)) =
+            thumbnail.native
+        else {
+            anyhow::bail!("Expected native pixels")
+        };
+        outputs.push(image.data);
+    }
+    assert_eq!(outputs[0], outputs[1]);
+    Ok(())
+}

@@ -679,8 +679,8 @@ const COMMANDS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "latex-formulas",
-        usage: "latex-formulas on|off|toggle",
-        description: "Render LaTeX as Unicode or show original source; persistent",
+        usage: "latex-formulas on|off|toggle|text|graphics",
+        description: "Select text, vector formulas or original source; persistent",
         aliases: &[],
     },
     CommandSpec {

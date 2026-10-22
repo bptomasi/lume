@@ -90,6 +90,14 @@ fn visual_preferences(
         format!("Fullscreen: {} cols", app.workspace.fullscreen_width),
         format!("Justify prose: {}", app.workspace.justify),
         format!("LaTeX formulas: {}", app.workspace.latex_formulas),
+        format!(
+            "Formula presentation: {}",
+            if app.workspace.latex_graphics {
+                "Graphics"
+            } else {
+                "Text"
+            }
+        ),
     ]
 }
 

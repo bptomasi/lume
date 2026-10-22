@@ -26,6 +26,7 @@ theme = "lume"
 mouse = true
 justify = false
 latex_formulas = true
+latex_graphics = false
 
 [ui.keybindings]
 "ctrl-t" = "toc"

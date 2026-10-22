@@ -408,7 +408,9 @@ DECLARATIVE CONFIGURATION
   /               Search the guide live; words match the same help row
   Enter           Keep the query; n / N visit next / previous matching row
   Esc             Cancel query editing; then clear matches; then close help
-  :latex-formulas on|off|toggle   Persistent Unicode formulas / raw LaTeX
+  :latex-formulas on|off|toggle   Enable formulas / show original LaTeX
+  :latex-formulas text|graphics  Lightweight Unicode / vector formula blocks
+  Graphics need Sixel. Click a formula for zoom; y there copies its LaTeX.
                   Also [ui] latex_formulas = true in config.toml.
   Formulas        Inline $LaTeX$ and display $$LaTeX$$ render as Unicode
                   Fractions, roots, scripts, sums, products, integrals, accents

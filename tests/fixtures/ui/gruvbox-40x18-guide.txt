@@ -12,7 +12,7 @@
 │ │ u/r Undo / redo layout           │ │
 │ │ = Restore standard layout        │ │
 │ │ Esc Cancel                       │ │
-│ │                                  │o│
+│ │                                  │p│
 ╰─╰──────────────────────────────────╯─╯
  NORMAL  Reader   Layout: h/l focus · H/
   Ctrl-w · h/j/k/l focus · H/J/K/L move 

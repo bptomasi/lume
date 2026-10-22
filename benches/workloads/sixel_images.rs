@@ -96,6 +96,7 @@ pub(super) fn visible_bounds(iterations: usize, stress: bool) -> Result<()> {
     let mut images = ReaderImages::default();
     images.slots = (0..count)
         .map(|index| ImageSlot {
+            formula: None,
             url: format!("https://benchmark.example/{index}.svg"),
             alt: String::new(),
             caption: index * 20,

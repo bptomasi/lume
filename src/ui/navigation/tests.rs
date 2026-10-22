@@ -5,11 +5,10 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::{app::NavItem, model::View, store::Store};
 
-use super::{App, Row, window};
+use super::{App, Row, window, window_start};
 
 #[test]
-fn centered_windows_match_full_projection_across_repeated_groups() -> Result<()>
-{
+fn stable_windows_match_full_projection_across_repeated_groups() -> Result<()> {
     let (_directory, mut app) = application()?;
     app.navigation = (0..80)
         .map(|index| NavItem {
@@ -49,20 +48,30 @@ fn assert_windows(app: &mut App) {
         }
         expected.push(Row::Item(*index));
     }
-    for selected in indices {
-        app.nav_selected = selected;
-        let position = expected
-            .iter()
-            .position(|row| *row == Row::Item(selected))
-            .unwrap_or_default();
-        for height in [0, 1, 2, 3, 8, 19, 44] {
-            let start = position.saturating_sub(usize::from(height) / 2);
+    for height in [0, 1, 2, 3, 8, 19, 44] {
+        app.navigation_first = 0;
+        app.navigation_skip = 0;
+        let mut start = 0;
+        for selected in indices.iter().chain(indices.iter().rev()) {
+            app.nav_selected = *selected;
+            let position = expected
+                .iter()
+                .position(|row| *row == Row::Item(*selected))
+                .unwrap_or_default();
+            if position < start {
+                start = position;
+            } else if position >= start + usize::from(height) {
+                start = position
+                    .saturating_sub(usize::from(height).saturating_sub(1));
+            }
             let reference = expected[start..]
                 .iter()
                 .copied()
                 .take(usize::from(height))
                 .collect::<Vec<_>>();
             assert_eq!(window(app, height).collect::<Vec<_>>(), reference);
+            (app.navigation_first, app.navigation_skip) =
+                window_start(app, height);
         }
     }
 }

@@ -63,10 +63,10 @@ impl Fragment {
         }
         let quality = if let Some(width) = descriptor.strip_suffix('w') {
             let width = width.parse::<u32>().ok()?;
-            (1..=2560).contains(&width).then_some(width)?
+            (1..=4096).contains(&width).then_some(width)?
         } else {
             let density = descriptor.strip_suffix('x')?.parse::<f32>().ok()?;
-            if !(0.0..=3.0).contains(&density) || density == 0.0 {
+            if !(0.0..=4.0).contains(&density) || density == 0.0 {
                 return None;
             }
             (density * 1000.0) as u32
