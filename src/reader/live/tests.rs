@@ -43,7 +43,7 @@ fn cache_eviction_and_oversized_results_keep_the_retained_budget() -> Result<()>
                 text: "old".into(),
                 language: "rust".into(),
             },
-            lines: Vec::new(),
+            lines: Vec::new().into(),
         },
         bytes: CACHE_BUDGET,
     });
@@ -54,7 +54,7 @@ fn cache_eviction_and_oversized_results_keep_the_retained_budget() -> Result<()>
             text: "new".into(),
             language: "go".into(),
         },
-        lines: vec![Line::raw("new")],
+        lines: vec![Line::raw("new")].into(),
     });
     assert_eq!(renderer.cache.len(), 1);
     assert_eq!(renderer.cache[0].completed.key.text.as_ref(), "new");
@@ -64,7 +64,7 @@ fn cache_eviction_and_oversized_results_keep_the_retained_budget() -> Result<()>
             text: "huge".into(),
             language: "sql".into(),
         },
-        lines: vec![Line::raw("x".repeat(CACHE_BUDGET + 1))],
+        lines: vec![Line::raw("x".repeat(CACHE_BUDGET + 1))].into(),
     });
     assert_eq!(renderer.cache.len(), 1);
     assert_eq!(renderer.cache[0].completed.key.text.as_ref(), "new");

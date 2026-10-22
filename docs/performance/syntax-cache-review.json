@@ -1,0 +1,268 @@
+{
+  "measured_at": "2026-10-22T14:54:42.179856+00:00",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "baseline_source": "eeb0297 with the same syntax-cache resize workload; final source/color assertions were strengthened outside its timer",
+  "scope": "Three alternating release processes per revision and workload. Setup is outside operation timers; resource records include setup. TestBackend frames exclude terminal transport and physical display latency.",
+  "baseline_binary_sha256": "59fea80e97d7c8e22b9083bd93a9a6077f420986e67e5f4781f325a869387589",
+  "revised_binary_sha256": "151987139205afa1f1d106182465db961d4ae742693848069920c8522169b46a",
+  "implementation": "Immutable syntax rows are shared with admitted layout jobs; unchanged requests do not build style snapshots. Layout delivery admits missing grammars without building discarded code rows. The speculative viewport allocation change was removed.",
+  "commands": [
+    "cargo bench --locked --bench reader -- --highlighting-only",
+    "cargo bench --locked --bench reader -- --presentation-only",
+    "cargo bench --locked --bench reader -- --code-viewport-only",
+    "cargo bench --locked --bench reader -- --pane-search-only",
+    "cargo bench --locked --bench reader -- --smoothness-only"
+  ],
+  "syntax_fixture": {
+    "cached_blocks": 12,
+    "rows_per_block": 48,
+    "resized_article": "A small article after a large syntax cache.",
+    "widths": [
+      60,
+      80
+    ],
+    "admissions_per_process": 2000,
+    "correctness": "Readable source is retained on each admission; revisiting the code preserves source and syntax colors. The final workload checks all 576 nonempty code rows before and after."
+  },
+  "scenarios": [
+    {
+      "operation": "15-language article layout",
+      "before": {
+        "statistic": "mean_ms",
+        "median_ms": 114.916,
+        "runs_ms": [
+          126.0048,
+          114.916,
+          110.9845
+        ]
+      },
+      "after": {
+        "statistic": "mean_ms",
+        "median_ms": 115.24555,
+        "runs_ms": [
+          88.780175,
+          115.24555,
+          129.00415
+        ]
+      }
+    },
+    {
+      "operation": "resize admission with unrelated cached syntax",
+      "before": {
+        "statistic": "mean_ms",
+        "median_ms": 0.355494,
+        "runs_ms": [
+          0.355494,
+          0.9357285,
+          0.3310535
+        ]
+      },
+      "after": {
+        "statistic": "mean_ms",
+        "median_ms": 0.002343,
+        "runs_ms": [
+          0.0017995,
+          0.002343,
+          0.002418
+        ]
+      }
+    },
+    {
+      "operation": "justified selection + exact yank + cached frame",
+      "before": {
+        "statistic": "mean_ms",
+        "median_ms": 0.3104588,
+        "runs_ms": [
+          0.2295875,
+          0.3104588,
+          0.3821388
+        ]
+      },
+      "after": {
+        "statistic": "mean_ms",
+        "median_ms": 0.3130513,
+        "runs_ms": [
+          0.2380225,
+          0.3130513,
+          0.3546563
+        ]
+      }
+    },
+    {
+      "operation": "deep code motion + selected full frame",
+      "before": {
+        "statistic": "mean_ms",
+        "median_ms": 0.301427,
+        "runs_ms": [
+          0.207581,
+          0.302407,
+          0.301427
+        ]
+      },
+      "after": {
+        "statistic": "mean_ms",
+        "median_ms": 0.293017,
+        "runs_ms": [
+          0.206469,
+          0.293017,
+          0.333536
+        ]
+      }
+    },
+    {
+      "operation": "live sidebar query + exact destination + frame",
+      "before": {
+        "statistic": "mean_ms",
+        "median_ms": 0.394765,
+        "runs_ms": [
+          0.4549825,
+          0.394765,
+          0.3931725
+        ]
+      },
+      "after": {
+        "statistic": "mean_ms",
+        "median_ms": 0.3942675,
+        "runs_ms": [
+          0.2523238,
+          0.3946175,
+          0.3942675
+        ]
+      }
+    },
+    {
+      "operation": "smart-list change + text-first frame",
+      "before": {
+        "statistic": "p95_ms",
+        "median_ms": 1.47,
+        "runs_ms": [
+          1.95,
+          1.284,
+          1.47
+        ]
+      },
+      "after": {
+        "statistic": "p95_ms",
+        "median_ms": 1.466,
+        "runs_ms": [
+          1.458,
+          1.655,
+          1.466
+        ]
+      }
+    },
+    {
+      "operation": "Vim input + runtime resize/poll + frame",
+      "before": {
+        "statistic": "p95_ms",
+        "median_ms": 0.263,
+        "runs_ms": [
+          0.263,
+          0.231,
+          0.268
+        ]
+      },
+      "after": {
+        "statistic": "p95_ms",
+        "median_ms": 0.271,
+        "runs_ms": [
+          0.262,
+          0.296,
+          0.271
+        ]
+      }
+    }
+  ],
+  "foot_latency": {
+    "measured_at": "2026-10-22T14:57:40.566897+00:00",
+    "binary_sha256": "24a827336bd21cf9765ab6ee2084e3bf05dd7c8d980d56e4c87b1f0e4ec424bb",
+    "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+    "scope": "Private input injection to a matching frame and Foot DSR 5 acknowledgement; excludes compositor/physical presentation.",
+    "corpus": {
+      "articles": 10002,
+      "feeds": 16,
+      "smart_lists": 64
+    },
+    "summary": {
+      "scroll-during-collection": {
+        "samples": 100,
+        "metrics": {
+          "input_to_frame_ms": {
+            "p50": 1.856749,
+            "p95": 2.600397,
+            "p99": 2.87053,
+            "max": 3.517167
+          },
+          "input_to_terminal_ack_ms": {
+            "p50": 2.87414,
+            "p95": 3.887232,
+            "p99": 4.783354,
+            "max": 5.102494
+          },
+          "relay_admission_ms": {
+            "p50": 0.10181,
+            "p95": 0.235474,
+            "p99": 0.298754,
+            "max": 0.301409
+          }
+        },
+        "output_bytes": 2550700
+      },
+      "cached-image-scroll": {
+        "samples": 100,
+        "metrics": {
+          "input_to_frame_ms": {
+            "p50": 1.774633,
+            "p95": 2.699119,
+            "p99": 3.245258,
+            "max": 4.805425
+          },
+          "input_to_terminal_ack_ms": {
+            "p50": 2.84571,
+            "p95": 3.635868,
+            "p99": 5.252728,
+            "max": 5.536491
+          },
+          "relay_admission_ms": {
+            "p50": 0.090006,
+            "p95": 0.178245,
+            "p99": 1.015326,
+            "max": 1.026306
+          }
+        },
+        "output_bytes": 2575309
+      },
+      "article-switch": {
+        "samples": 100,
+        "metrics": {
+          "input_to_frame_ms": {
+            "p50": 18.701533,
+            "p95": 20.414283,
+            "p99": 21.295341,
+            "max": 22.659615
+          },
+          "input_to_terminal_ack_ms": {
+            "p50": 19.118261,
+            "p95": 20.881153,
+            "p99": 21.627772,
+            "max": 23.230845
+          },
+          "relay_admission_ms": {
+            "p50": 0.10132,
+            "p95": 1.142555,
+            "p99": 1.356455,
+            "max": 1.413162
+          }
+        },
+        "output_bytes": 4112803
+      }
+    },
+    "cleanup": {
+      "returncode": 0,
+      "termios_restored": true
+    },
+    "passed": true,
+    "comparison": "One independent process, 100 samples per scenario; this qualifies the final runtime and establishes no latency improvement over the baseline."
+  }
+}

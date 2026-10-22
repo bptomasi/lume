@@ -9,7 +9,7 @@ use crate::latest::Latest;
 
 use super::{RenderOptions, Rendered, live::CodeKey};
 
-type Styles = Vec<(CodeKey, Vec<Line<'static>>)>;
+type Styles = Vec<(CodeKey, Arc<[Line<'static>]>)>;
 
 struct Request {
     body: Arc<str>,
@@ -58,7 +58,7 @@ impl LayoutWorker {
         &mut self,
         body: &str,
         width: usize,
-        styles: Styles,
+        styles: impl FnOnce() -> Styles,
     ) -> Rendered {
         let same = self.requested(body, width);
         if !same {
@@ -67,7 +67,7 @@ impl LayoutWorker {
             self.worker.submit(Request {
                 body,
                 width,
-                styles,
+                styles: styles(),
                 options: self.options,
             });
         }
@@ -159,7 +159,7 @@ fn prepare(request: Request) -> Result<Completed> {
                 .styles
                 .iter()
                 .find(|(cached, _)| *cached == key)
-                .map(|(_, lines)| lines.clone())
+                .map(|(_, lines)| lines.to_vec())
                 .unwrap_or_else(|| {
                     text.split_inclusive('\n')
                         .map(|line| {
@@ -178,4 +178,70 @@ fn prepare(request: Request) -> Result<Completed> {
         blocks,
         options: request.options,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::Cell;
+
+    use super::*;
+
+    #[test]
+    fn unchanged_requests_do_not_rebuild_syntax_snapshots() -> Result<()> {
+        let mut worker = LayoutWorker::start(RenderOptions::default())?;
+        let snapshots = Cell::new(0);
+        let styles = || {
+            snapshots.set(snapshots.get() + 1);
+            Vec::new()
+        };
+
+        worker.render("First source", 60, styles);
+        worker.render("First source", 60, styles);
+        assert_eq!(snapshots.get(), 1);
+        worker.render("First source", 80, styles);
+        assert_eq!(snapshots.get(), 2);
+        worker.invalidate_styles();
+        worker.render("First source", 80, styles);
+        assert_eq!(snapshots.get(), 3);
+        worker.render("Second source", 80, styles);
+        assert_eq!(snapshots.get(), 4);
+
+        let rendered = super::super::render("Second source", 80);
+        worker.seed("Second source", 80, &rendered);
+        assert_eq!(
+            worker.render("Second source", 80, styles).text,
+            rendered.text
+        );
+        assert_eq!(snapshots.get(), 4);
+        Ok(())
+    }
+
+    #[test]
+    fn admitted_styles_survive_eviction_and_preserve_code_bytes() -> Result<()>
+    {
+        let text = "let café = 42;\n";
+        let key = CodeKey {
+            text: Arc::from(text),
+            language: "rust".into(),
+        };
+        let colored = Line::styled(
+            text.trim_end_matches('\n').to_owned(),
+            ratatui::style::Style::new().fg(ratatui::style::Color::Red),
+        );
+        let cache: Arc<[Line<'static>]> = vec![colored.clone()].into();
+        let styles = vec![(key, cache.clone())];
+        drop(cache);
+
+        let completed = prepare(Request {
+            body: Arc::from(format!("```rust\n{text}```")),
+            width: 60,
+            styles,
+            options: RenderOptions::default(),
+        })?;
+
+        assert!(completed.rendered.lines.contains(&colored));
+        assert!(completed.rendered.text.contains(text.trim_end()));
+        assert_eq!(completed.blocks.len(), 1);
+        Ok(())
+    }
 }

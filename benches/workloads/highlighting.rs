@@ -8,6 +8,9 @@ use std::{hint::black_box, time::Instant};
 use anyhow::{Result, ensure};
 use lume::reader::{self, Rendered};
 
+#[path = "syntax_reuse.rs"]
+mod syntax_reuse;
+
 pub fn run(iterations: usize, stress: bool) -> Result<()> {
     let repetitions = if stress { 100 } else { 20 };
     let (source, expected) = article(repetitions);
@@ -24,7 +27,8 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     super::measure("15-language article layout", iterations, || {
         let rendered = reader::render(black_box(&source), 78);
         verify(&rendered, &expected)
-    })
+    })?;
+    syntax_reuse::run(iterations, stress)
 }
 
 fn article(repetitions: usize) -> (String, Vec<&'static str>) {

@@ -169,7 +169,7 @@ def process_resources(pid):
 
 def exercise(directory, process, publisher, count):
     wait_for("Foot startup", lambda: (directory / "terminal.json").exists(), process)
-    enter_library(directory, process)
+    enter_library(directory, process, "ALPHA HEADMARK @@@@@@@@@@@@")
     wait_for("active collector", publisher.started.is_set, process)
     command(directory, "fullscreen")
     wait_for(

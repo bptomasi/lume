@@ -533,7 +533,7 @@ def service_frame(directory, after, marker):
     return None
 
 
-def enter_library(directory, process):
+def enter_library(directory, process, expected_article="Request ownership"):
     output = directory / "terminal-output.bin"
     wait_for(
         "native welcome screen",
@@ -552,7 +552,8 @@ def enter_library(directory, process):
     )
     wait_for(
         "prepared article after background startup",
-        lambda: b"Request ownership" in output.read_bytes()[before:], process,
+        lambda: wire_contains(output.read_bytes()[before:], expected_article),
+        process,
     )
     return {"native_pixel_art": True, "entry_key_consumed": True}
 

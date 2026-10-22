@@ -28,7 +28,7 @@ pub(super) struct CodeKey {
 
 struct Completed {
     key: CodeKey,
-    lines: Vec<Line<'static>>,
+    lines: Arc<[Line<'static>]>,
 }
 
 struct Cached {
@@ -75,7 +75,7 @@ impl LiveRenderer {
             .name("lume-syntax".into())
             .spawn(move || {
                 while let Ok(key) = receiver.recv() {
-                    let lines = highlight(&key.text, &key.language);
+                    let lines = highlight(&key.text, &key.language).into();
                     if sender.send(Completed { key, lines }).is_err() {
                         break;
                     }
@@ -146,17 +146,20 @@ impl LiveRenderer {
             self.layout = None;
         }
         if let Some(layout) = &mut self.layout {
-            let styles = self
-                .cache
-                .iter()
-                .map(|cached| {
-                    (
-                        cached.completed.key.clone(),
-                        cached.completed.lines.clone(),
-                    )
-                })
-                .collect();
-            return layout.render(body, width, styles);
+            // Snapshot only admitted jobs. Immutable colors remain shared until
+            // the worker copies the code blocks used by this document.
+            let cache = &self.cache;
+            return layout.render(body, width, || {
+                cache
+                    .iter()
+                    .map(|cached| {
+                        (
+                            cached.completed.key.clone(),
+                            cached.completed.lines.clone(),
+                        )
+                    })
+                    .collect()
+            });
         }
         self.render_now(body, width)
     }
@@ -195,7 +198,9 @@ impl LiveRenderer {
         let blocks = self.layout.as_mut().and_then(|layout| layout.poll());
         let mut changed = blocks.is_some();
         for key in blocks.into_iter().flatten() {
-            self.code(&key.text, &key.language);
+            if self.cached_code(&key.text, &key.language).is_none() {
+                self.request_code(&key.text, &key.language);
+            }
         }
         loop {
             match self.results.try_recv() {
@@ -262,6 +267,20 @@ impl LiveRenderer {
     }
 
     fn code(&mut self, text: &str, language: &str) -> Vec<Line<'static>> {
+        if let Some(lines) = self.cached_code(text, language) {
+            return lines.to_vec();
+        }
+        self.request_code(text, language);
+        text.split_inclusive('\n')
+            .map(|line| Line::raw(line.trim_end_matches('\n').to_owned()))
+            .collect()
+    }
+
+    fn cached_code(
+        &mut self,
+        text: &str,
+        language: &str,
+    ) -> Option<Arc<[Line<'static>]>> {
         if let Some(index) = self.cache.iter().position(|entry| {
             entry.completed.key.text.as_ref() == text
                 && entry.completed.key.language == language
@@ -269,8 +288,14 @@ impl LiveRenderer {
         {
             let lines = entry.completed.lines.clone();
             self.cache.push_back(entry);
-            return lines;
+            return Some(lines);
         }
+        None
+    }
+
+    // Scheduling and painting have distinct costs: polling a completed layout
+    // only admits missing grammar work, without allocating discarded text rows.
+    fn request_code(&mut self, text: &str, language: &str) {
         if !self.stopped
             && text.len() <= 65_536
             && language.len() <= 256
@@ -283,9 +308,6 @@ impl LiveRenderer {
             };
             self.admit(key);
         }
-        text.split_inclusive('\n')
-            .map(|line| Line::raw(line.trim_end_matches('\n').to_owned()))
-            .collect()
     }
 
     fn admit(&mut self, key: CodeKey) {
@@ -327,7 +349,7 @@ impl LiveRenderer {
 fn retained_size(completed: &Completed) -> usize {
     completed.key.text.len()
         + completed.key.language.len()
-        + completed.lines.capacity() * size_of::<Line<'static>>()
+        + completed.lines.len() * size_of::<Line<'static>>()
         + completed
             .lines
             .iter()

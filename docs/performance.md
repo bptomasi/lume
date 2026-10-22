@@ -340,3 +340,35 @@ not the bottom of the first viewport. Scrollable articles start at 0% and reach
 in its viewport reports 100%. Saved reading anchors remain source-based.
 Boundary tests and reviewed snapshots cover this presentation independently of
 reading-position persistence.
+
+The [syntax-cache review](performance/syntax-cache-review.json) compares three
+alternating release processes against `eeb0297`. After visiting 12 code blocks
+of 48 rows each, admission of a small article's resize fell from a median
+0.355494 to 0.002343 ms across 2,000 admissions per process. Immutable syntax
+rows are shared with admitted layout jobs; unchanged requests do not build
+another snapshot. Polling a completed layout also avoids constructing code
+rows that would immediately be discarded. The approximate 4 MiB retained
+syntax budget and bounded worker queues remain in place.
+
+Each admission checks retained readable text; revisiting the code checks
+source preservation and syntax colors. The final workload verifies all 576
+nonempty code rows before and after. Unit tests cover snapshot reuse across
+source/width/style changes and ownership after releasing the original cache.
+Existing blocked/disconnected-worker tests continue to qualify readable
+fallbacks and nonblocking navigation.
+
+Checked cached frames remained close to baseline: median iteration means were
+0.310459/0.313051 ms for justified selection, 0.301427/0.293017 ms for deep
+Unicode code, and 0.394765/0.394268 ms for sidebar search, before/after. A
+speculative viewport allocation change was removed after failing to improve
+frames. These results establish a syntax-cache admission gain, not a uniform
+speedup or a physical display latency improvement.
+
+One final Foot run with 10,002 articles, 16 feeds and 64 smart lists collected
+100 samples per scenario. Input-to-terminal-ack p95 was 3.887 ms for scrolling
+during collection, 3.636 ms for cached-image scrolling and 20.881 ms for article
+switches. Native image/formula qualification and terminal cleanup also passed.
+The shared startup driver now accepts each fixture's own article marker, so
+the latency test does not wait for text belonging to the image fixture.
+These final-runtime observations provide no before/after latency comparison
+and exclude compositor and physical presentation time.
