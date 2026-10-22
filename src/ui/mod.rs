@@ -23,7 +23,9 @@ mod popup;
 mod reader_text;
 mod selectors;
 mod theme;
+mod web;
 mod welcome;
+pub use web::content as web_content;
 
 pub(crate) use theme::image_background;
 pub use welcome::draw as draw_welcome;
@@ -49,7 +51,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &App) {
 /// Capture bounded pane pictures before hints and terminal output.
 pub fn draw_interactive(frame: &mut Frame<'_>, app: &mut App) {
     draw_base(frame, app);
-    if matches!(app.mode, crate::app::Mode::Image(_)) {
+    if matches!(app.mode, crate::app::Mode::Image(_)) || app.web_active() {
         return;
     }
     app.capture_pane_frame(frame.buffer_mut());
@@ -58,6 +60,14 @@ pub fn draw_interactive(frame: &mut Frame<'_>, app: &mut App) {
 }
 
 fn draw_base(frame: &mut Frame<'_>, app: &App) {
+    if app.web_active() {
+        web::draw(frame, app);
+        if !matches!(app.mode, crate::app::Mode::Web) {
+            overlays::draw(frame, app);
+        }
+        theme::apply(frame.buffer_mut(), &app.workspace.theme);
+        return;
+    }
     if matches!(app.mode, crate::app::Mode::Image(_)) {
         image_view::draw(frame, app);
         return;

@@ -39,7 +39,7 @@ impl Popup {
             Mode::Document(_) => Some(Self::Document),
             Mode::Settings(_) => Some(Self::Settings),
             Mode::Leader => Some(Self::Leader),
-            Mode::Normal | Mode::Image(_) => None,
+            Mode::Normal | Mode::Image(_) | Mode::Web => None,
         }
     }
 

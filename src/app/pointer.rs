@@ -170,6 +170,9 @@ impl App {
     /// Returns navigation, annotation or completed-layout persistence failures.
     pub fn mouse(&mut self, event: MouseEvent) -> Result<Action> {
         self.pointer.seen = true;
+        if matches!(self.mode, Mode::Web) && self.workspace.mouse {
+            return self.web_mouse(event);
+        }
         if !self.workspace.mouse
             || !event.modifiers.is_empty()
             || self.screen.width < 24

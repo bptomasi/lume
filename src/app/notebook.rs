@@ -47,6 +47,7 @@ pub struct Notebook {
     pub scroll: usize,
     /// Most recent successful explicit searches.
     pub recent: Vec<String>,
+    recent_generation: u64,
     /// Captured note identities selected for a synthesis.
     pub marked: std::collections::BTreeSet<i64>,
     /// A list query is pending; cached results remain available.
@@ -81,6 +82,7 @@ impl Notebook {
             scroll: 0,
             link_selected: 0,
             recent: Vec::new(),
+            recent_generation: 0,
             marked: std::collections::BTreeSet::new(),
             loading: false,
             context_loading: false,
@@ -121,10 +123,17 @@ impl Notebook {
             text: self.query.clone(),
             article: self.article,
             offset: self.offset,
+            recent_generation: self.recent_generation,
         });
         self.loading = true;
         self.error.clear();
         Ok(())
+    }
+
+    pub(super) fn install_recent(&mut self, recent: Vec<String>) {
+        // A late list snapshot must not overwrite an acknowledged history edit.
+        self.recent_generation = self.recent_generation.wrapping_add(1);
+        self.recent = recent;
     }
 
     fn install_listing(&mut self, listing: readers::Listing) {
@@ -137,7 +146,9 @@ impl Notebook {
         self.offset = listing.offset;
         self.collections = listing.collections;
         self.collection = self.collection.min(self.collections.len() + 3);
-        self.recent = listing.recent;
+        if self.recent_generation == listing.recent_generation {
+            self.recent = listing.recent;
+        }
         self.selected = id
             .and_then(|id| {
                 self.page.notes.iter().position(|note| note.id == id)
@@ -347,5 +358,41 @@ impl App {
         self.notebook.as_ref().is_some_and(|notebook| {
             notebook.loading || notebook.context_loading
         })
+    }
+}
+
+#[cfg(test)]
+mod history_tests {
+    use super::*;
+
+    #[test]
+    fn acknowledged_search_history_outlives_an_older_listing_snapshot()
+    -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let store = crate::store::Store::open(
+            &directory.path().join("library.sqlite3"),
+        )?;
+        let app = App::new(store, false)?;
+        let mut notebook = Notebook::start(&app, "", None)?;
+        let previous = listing(0, Vec::new());
+
+        notebook.install_recent(vec!["body:consensus".into()]);
+        notebook.install_listing(previous);
+
+        assert_eq!(notebook.recent, ["body:consensus"]);
+        let current = listing(1, vec!["body:protocol".into()]);
+        notebook.install_listing(current);
+        assert_eq!(notebook.recent, ["body:protocol"]);
+        Ok(())
+    }
+
+    fn listing(generation: u64, recent: Vec<String>) -> readers::Listing {
+        readers::Listing {
+            page: NotePage::default(),
+            offset: 0,
+            collections: Vec::new(),
+            recent,
+            recent_generation: generation,
+        }
     }
 }

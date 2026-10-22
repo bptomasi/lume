@@ -45,6 +45,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
 
 pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
     if matches!(app.mode, crate::app::Mode::Image(_))
+        || app.web_active()
         || app.pane_motion_active()
         || app.notebook.is_some()
         || (app.article_preparing() && !app.reader_stale())

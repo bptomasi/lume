@@ -2,6 +2,17 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Captured web content without a subscription or library mutation identity.
+#[derive(Clone, Debug)]
+pub struct WebDocument {
+    /// Final validated HTTP(S) address.
+    pub url: String,
+    /// Terminal-safe display title.
+    pub title: String,
+    /// Original safe Markdown, retained on an explicit save.
+    pub body: String,
+}
+
 /// Source of a body or captured passage; feed refreshes never replace Full.
 #[derive(
     Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize,

@@ -205,3 +205,15 @@ shell evidence. Explicit languages, including plain text, take precedence.
 Syntect owns all grammar matching; `LumeSQL.sublime-syntax` is an MIT overlay
 including the unchanged reviewed SQL definition. Publisher wrapper hints are
 bounded to 128 tracked container levels and cannot select external grammars.
+
+Linked pages and offline preparation reuse the qualified `ureq`, `dom_smoothie`,
+`dom_query`, `pulldown-cmark`, image/Resvg and Rusqlite integrations above.
+No browser engine, model runtime, service or dependency feature is added.
+The existing HTTP deadlines and decoded-byte limits remain authoritative;
+original offline image bytes pass the same decoder before publication.
+The standard library's advisory file lock serializes offline package writers.
+SQLite's existing transaction/JSON/FTS contracts own checkpoint consistency and
+cache-index updates. Storage inspection uses the documented
+[page-count and free-list pragmas](https://www.sqlite.org/pragma.html);
+no implicit VACUUM or auto-vacuum migration is introduced. Behavioral, HTTP
+failure and representative workload checks qualify these integrations.

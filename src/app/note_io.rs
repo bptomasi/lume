@@ -109,6 +109,10 @@ impl App {
         &mut self,
         completion: Completion,
     ) -> Result<Action> {
+        if let Some(started) = completion.started {
+            self.performance
+                .record(super::Operation::Save, started.elapsed());
+        }
         self.pending_note_deletes.remove(&completion.ticket);
         let pending = self.take_completed_write(completion.ticket);
         if self.complete_article_edit(
@@ -119,6 +123,9 @@ impl App {
             return Ok(Action::None);
         }
         match completion.result? {
+            Outcome::SavedPage { article, url } => {
+                self.finish_web_save(article, &url)?
+            }
             Outcome::Written {
                 draft,
                 target,
@@ -134,7 +141,7 @@ impl App {
             Outcome::Collections => self.invalidate_notebook(),
             Outcome::SearchHistory(history) => {
                 if let Some(notebook) = &mut self.notebook {
-                    notebook.recent = history;
+                    notebook.install_recent(history);
                 }
             }
             Outcome::Exported(report) => {

@@ -92,7 +92,7 @@ fn load(
     Ok(image)
 }
 
-fn download(client: &ureq::Agent, address: &str) -> Result<Vec<u8>> {
+pub(crate) fn download(client: &ureq::Agent, address: &str) -> Result<Vec<u8>> {
     let mut response = client
         .get(address)
         .header(

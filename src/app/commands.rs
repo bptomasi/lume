@@ -52,37 +52,43 @@ impl App {
             return Ok(action);
         }
         let (verb, argument) = command_parts(text);
+        if let Some(action) = self.web_command(verb, argument)? {
+            return Ok(action);
+        }
+        anyhow::ensure!(
+            !self.web.active || matches!(verb, "help" | "performance"),
+            "Linked pages are read-only · :save-page adds one to the library"
+        );
+        if let Some(action) = self.maintenance_command(verb, argument)? {
+            return Ok(action);
+        }
         self.guard_notebook_article_command(verb)?;
         self.guard_stale_command(verb)?;
-        if let Some(action) = self.recommendation_command(verb, argument)? {
-            return Ok(action);
-        }
-        if let Some(action) = self.layout_commands(verb, argument)? {
-            return Ok(action);
-        }
-        if let Some(action) = self.panel_command(verb, argument)? {
-            return Ok(action);
-        }
-        if let Some(action) = self.reading_command(verb, argument)? {
-            return Ok(action);
-        }
-        if let Some(action) = self.organization_command(verb, argument)? {
-            return Ok(action);
-        }
-        if let Some(action) = self.study_command(verb, argument)? {
-            return Ok(action);
-        }
-        if let Some(action) = self.settings_command(verb, argument)? {
-            return Ok(action);
-        }
-        if let Some(action) = self.exchange_command(verb, argument)? {
-            return Ok(action);
-        }
-        if let Some(action) = self.workspace_command(verb, argument)? {
-            return Ok(action);
-        }
-        if let Some(action) = self.folder_command(verb, argument)? {
-            return Ok(action);
+        self.dispatch_command(verb, argument)
+    }
+
+    fn dispatch_command(
+        &mut self,
+        verb: &str,
+        argument: &str,
+    ) -> Result<Action> {
+        type Handler = fn(&mut App, &str, &str) -> Result<Option<Action>>;
+        let handlers: &[Handler] = &[
+            App::recommendation_command,
+            App::layout_commands,
+            App::panel_command,
+            App::reading_command,
+            App::organization_command,
+            App::study_command,
+            App::settings_command,
+            App::exchange_command,
+            App::workspace_command,
+            App::folder_command,
+        ];
+        for handler in handlers {
+            if let Some(action) = handler(self, verb, argument)? {
+                return Ok(action);
+            }
         }
         if let Some(action) = self.article_command(verb)? {
             return Ok(action);
@@ -95,6 +101,9 @@ impl App {
         verb: &str,
         argument: &str,
     ) -> Result<Option<Action>> {
+        if verb == "performance" {
+            return self.performance_command(argument).map(Some);
+        }
         if let Some(action) = self.notebook_command(verb, argument)? {
             return Ok(Some(action));
         }

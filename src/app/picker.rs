@@ -91,6 +91,10 @@ pub enum PickerKind {
 /// Captured operation, independent of background refresh selection changes.
 #[derive(Clone, Debug)]
 pub enum ChoiceAction {
+    /// Confirm an explicitly previewed recoverable-cache cleanup.
+    CleanCache(crate::storage::Cleanup),
+    /// Start exactly the time-budget proposal that was previewed.
+    StartSession(crate::model::ReadingSession),
     /// Captured notebook, type or reference action.
     Note(super::NoteAction),
     /// Execute a workspace operation.
@@ -147,10 +151,15 @@ pub struct Picker {
     /// Cached context for the active row.
     pub preview: String,
     pub(crate) candidates: Vec<Choice>,
+    applied_query: Option<String>,
+    previewed: Option<i64>,
 }
 
 impl App {
     pub(super) fn open_picker(&mut self, kind: PickerKind) -> Result<()> {
+        if matches!(kind, PickerKind::Articles) {
+            self.reset_picker_reads()?;
+        }
         let candidates = self.picker_candidates(&kind);
         self.mode = Mode::Picker(Box::new(Picker {
             kind,
@@ -159,6 +168,8 @@ impl App {
             choices: Vec::new(),
             preview: String::new(),
             candidates,
+            applied_query: None,
+            previewed: None,
         }));
         self.update_picker()
     }
@@ -214,23 +225,19 @@ impl App {
     }
 
     pub(super) fn update_picker(&mut self) -> Result<()> {
+        if self.update_article_picker() {
+            return Ok(());
+        }
         let Mode::Picker(picker) = &mut self.mode else {
             return Ok(());
         };
-        if matches!(picker.kind, PickerKind::Articles) {
-            picker.choices = article_choices(&self.store, &picker.query)?;
-        } else {
-            let terms = picker.query.to_lowercase();
-            picker.choices = picker
-                .candidates
-                .iter()
-                .filter(|choice| {
-                    let text = format!("{} {}", choice.title, choice.detail)
-                        .to_lowercase();
-                    terms.split_whitespace().all(|term| text.contains(term))
-                })
-                .cloned()
-                .collect();
+        if picker.applied_query.as_deref() != Some(&picker.query) {
+            picker.choices = if matches!(picker.kind, PickerKind::Articles) {
+                article_choices(&self.store, &picker.query)?
+            } else {
+                picker.filtered_candidates()
+            };
+            picker.applied_query = Some(picker.query.clone());
         }
         picker.selected =
             picker.selected.min(picker.choices.len().saturating_sub(1));
@@ -238,7 +245,16 @@ impl App {
             Some(Choice {
                 action: ChoiceAction::JumpArticle(id),
                 ..
-            }) => self.store.body(*id)?.chars().take(6000).collect(),
+            }) if picker.previewed != Some(*id) => {
+                picker.previewed = Some(*id);
+                self.store.body(*id)?.chars().take(6000).collect()
+            }
+            Some(Choice {
+                action: ChoiceAction::JumpArticle(_),
+                ..
+            }) => {
+                return Ok(());
+            }
             Some(choice) => choice.detail.clone(),
             None => "No matches · refine your search".into(),
         };
@@ -277,6 +293,7 @@ impl App {
         let name =
             crate::store::validate_collection_name(&picker.query)?.to_owned();
         if names.insert(name.clone()) {
+            picker.applied_query = None;
             picker.candidates.push(Choice {
                 title: name.clone(),
                 detail: "New folder · Enter commits · Esc cancels".into(),
@@ -320,6 +337,16 @@ impl App {
         action: ChoiceAction,
     ) -> Result<Action> {
         match action {
+            ChoiceAction::CleanCache(scope) => {
+                self.submit_maintenance(super::maintenance::Request::Clean(
+                    scope,
+                ))?;
+            }
+            ChoiceAction::StartSession(session) => {
+                self.submit_maintenance(super::maintenance::Request::Start(
+                    session,
+                ))?;
+            }
             ChoiceAction::Note(action) => {
                 return self.apply_note_action(action);
             }
@@ -354,14 +381,16 @@ impl App {
     pub fn discovered(&mut self, candidates: Vec<Candidate>) -> Result<()> {
         self.open_picker(PickerKind::Sources)?;
         if let Mode::Picker(picker) = &mut self.mode {
-            picker.candidates = candidates
-                .into_iter()
-                .map(|candidate| Choice {
-                    title: candidate.title.clone(),
-                    detail: candidate.url.clone(),
-                    action: ChoiceAction::Subscribe(candidate),
-                })
-                .collect();
+            picker.replace_candidates(
+                candidates
+                    .into_iter()
+                    .map(|candidate| Choice {
+                        title: candidate.title.clone(),
+                        detail: candidate.url.clone(),
+                        action: ChoiceAction::Subscribe(candidate),
+                    })
+                    .collect(),
+            );
         }
         self.update_picker()
     }
@@ -533,6 +562,24 @@ const COMMANDS: &[(&str, &str, WorkspaceCommand)] = &[
 ];
 
 impl Picker {
+    pub(crate) fn replace_candidates(&mut self, candidates: Vec<Choice>) {
+        self.candidates = candidates;
+        self.applied_query = None;
+    }
+
+    fn filtered_candidates(&self) -> Vec<Choice> {
+        let terms = self.query.to_lowercase();
+        self.candidates
+            .iter()
+            .filter(|choice| {
+                let text = format!("{} {}", choice.title, choice.detail)
+                    .to_lowercase();
+                terms.split_whitespace().all(|term| text.contains(term))
+            })
+            .cloned()
+            .collect()
+    }
+
     fn edit_query(&mut self, key: KeyEvent) {
         let control = key.modifiers.contains(KeyModifiers::CONTROL);
         match key.code {
@@ -573,7 +620,7 @@ impl Picker {
     }
 }
 
-fn article_choices(
+pub(super) fn article_choices(
     store: &crate::store::Store,
     text: &str,
 ) -> Result<Vec<Choice>> {

@@ -109,7 +109,7 @@ fn normalize_fragment(
     })
 }
 
-pub(super) fn fetch_with_selector(
+pub(crate) fn fetch_with_selector(
     client: &ureq::Agent,
     address: &str,
     selector: &str,

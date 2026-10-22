@@ -1,0 +1,429 @@
+{
+  "measured_at": "2026-10-22T00:33:19.280055+00:00",
+  "environment": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "binary_sha256": "0d35122ead8aebd65a7b20dd3d865fecff638258b3f43961fd5a5e6814253821",
+  "scope": [
+    "Release profile; three fresh processes per workload and size.",
+    "Plans: 100/512 scored metadata candidates; 30 total minutes.",
+    "Offline: 10/100 cached full articles and a decoded pinned SVG.",
+    "Cleanup: 10/100 Full caches; fixture/cache refill excluded.",
+    "Selector: 200/2000 articles, 50 choices, input pair plus two frames.",
+    "Linked pages: 50/500 sections, worker layout and delivery; no HTTP.",
+    "Correctness checks verify bounds, identities, content and previews.",
+    "Setup excluded from operation timers; resources include setup.",
+    "No previous equivalent baseline or general speedup is claimed.",
+    "TestBackend frames exclude terminal transport and display latency."
+  ],
+  "runs": [
+    {
+      "workload": "reading-services",
+      "stress": false,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "time-budget plan: 100/512 metadata candidates",
+          "iterations": 800,
+          "total_ms": 23.954,
+          "mean_ms": 0.03
+        },
+        {
+          "operation": "offline package: cached text + validated/pinned SVG",
+          "iterations": 40,
+          "total_ms": 278.08,
+          "mean_ms": 6.952
+        },
+        {
+          "operation": "storage report: SQLite + file usage",
+          "iterations": 40,
+          "total_ms": 1.381,
+          "mean_ms": 0.035
+        }
+      ],
+      "cleanup_mean_ms": 1.076,
+      "resources": {
+        "wall_seconds": 0.52,
+        "peak_rss_kib": 16848,
+        "user_seconds": 0.45,
+        "system_seconds": 0.07,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "reading-services",
+      "stress": false,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "time-budget plan: 100/512 metadata candidates",
+          "iterations": 800,
+          "total_ms": 33.727,
+          "mean_ms": 0.042
+        },
+        {
+          "operation": "offline package: cached text + validated/pinned SVG",
+          "iterations": 40,
+          "total_ms": 286.76,
+          "mean_ms": 7.169
+        },
+        {
+          "operation": "storage report: SQLite + file usage",
+          "iterations": 40,
+          "total_ms": 1.38,
+          "mean_ms": 0.035
+        }
+      ],
+      "cleanup_mean_ms": 1.084,
+      "resources": {
+        "wall_seconds": 0.55,
+        "peak_rss_kib": 16328,
+        "user_seconds": 0.46,
+        "system_seconds": 0.08,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "reading-services",
+      "stress": false,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "time-budget plan: 100/512 metadata candidates",
+          "iterations": 800,
+          "total_ms": 39.238,
+          "mean_ms": 0.049
+        },
+        {
+          "operation": "offline package: cached text + validated/pinned SVG",
+          "iterations": 40,
+          "total_ms": 295.634,
+          "mean_ms": 7.391
+        },
+        {
+          "operation": "storage report: SQLite + file usage",
+          "iterations": 40,
+          "total_ms": 1.408,
+          "mean_ms": 0.035
+        }
+      ],
+      "cleanup_mean_ms": 1.227,
+      "resources": {
+        "wall_seconds": 0.59,
+        "peak_rss_kib": 16680,
+        "user_seconds": 0.49,
+        "system_seconds": 0.09,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "reading-services",
+      "stress": true,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "time-budget plan: 100/512 metadata candidates",
+          "iterations": 800,
+          "total_ms": 146.234,
+          "mean_ms": 0.183
+        },
+        {
+          "operation": "offline package: cached text + validated/pinned SVG",
+          "iterations": 40,
+          "total_ms": 995.551,
+          "mean_ms": 24.889
+        },
+        {
+          "operation": "storage report: SQLite + file usage",
+          "iterations": 40,
+          "total_ms": 2.248,
+          "mean_ms": 0.056
+        }
+      ],
+      "cleanup_mean_ms": 10.323,
+      "resources": {
+        "wall_seconds": 3.2,
+        "peak_rss_kib": 17532,
+        "user_seconds": 2.83,
+        "system_seconds": 0.36,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "reading-services",
+      "stress": true,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "time-budget plan: 100/512 metadata candidates",
+          "iterations": 800,
+          "total_ms": 145.181,
+          "mean_ms": 0.181
+        },
+        {
+          "operation": "offline package: cached text + validated/pinned SVG",
+          "iterations": 40,
+          "total_ms": 996.012,
+          "mean_ms": 24.9
+        },
+        {
+          "operation": "storage report: SQLite + file usage",
+          "iterations": 40,
+          "total_ms": 2.154,
+          "mean_ms": 0.054
+        }
+      ],
+      "cleanup_mean_ms": 10.018,
+      "resources": {
+        "wall_seconds": 3.1,
+        "peak_rss_kib": 17932,
+        "user_seconds": 2.77,
+        "system_seconds": 0.32,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "reading-services",
+      "stress": true,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "time-budget plan: 100/512 metadata candidates",
+          "iterations": 800,
+          "total_ms": 141.713,
+          "mean_ms": 0.177
+        },
+        {
+          "operation": "offline package: cached text + validated/pinned SVG",
+          "iterations": 40,
+          "total_ms": 1096.622,
+          "mean_ms": 27.416
+        },
+        {
+          "operation": "storage report: SQLite + file usage",
+          "iterations": 40,
+          "total_ms": 2.087,
+          "mean_ms": 0.052
+        }
+      ],
+      "cleanup_mean_ms": 10.05,
+      "resources": {
+        "wall_seconds": 3.23,
+        "peak_rss_kib": 18100,
+        "user_seconds": 2.82,
+        "system_seconds": 0.39,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "service-interaction",
+      "stress": false,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "selector sweep input + frame (50 choices)",
+          "iterations": 400,
+          "total_ms": 308.065,
+          "mean_ms": 0.77
+        },
+        {
+          "operation": "idempotent explicit page save",
+          "iterations": 40,
+          "total_ms": 2.604,
+          "mean_ms": 0.065
+        },
+        {
+          "operation": "cached linked page admission + layout + delivery",
+          "iterations": 40,
+          "total_ms": 86.798,
+          "mean_ms": 2.17
+        }
+      ],
+      "cleanup_mean_ms": null,
+      "resources": {
+        "wall_seconds": 0.46,
+        "peak_rss_kib": 21328,
+        "user_seconds": 0.43,
+        "system_seconds": 0.15,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "service-interaction",
+      "stress": false,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "selector sweep input + frame (50 choices)",
+          "iterations": 400,
+          "total_ms": 325.422,
+          "mean_ms": 0.814
+        },
+        {
+          "operation": "idempotent explicit page save",
+          "iterations": 40,
+          "total_ms": 2.975,
+          "mean_ms": 0.074
+        },
+        {
+          "operation": "cached linked page admission + layout + delivery",
+          "iterations": 40,
+          "total_ms": 82.443,
+          "mean_ms": 2.061
+        }
+      ],
+      "cleanup_mean_ms": null,
+      "resources": {
+        "wall_seconds": 0.48,
+        "peak_rss_kib": 21124,
+        "user_seconds": 0.48,
+        "system_seconds": 0.1,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "service-interaction",
+      "stress": false,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "selector sweep input + frame (50 choices)",
+          "iterations": 400,
+          "total_ms": 319.664,
+          "mean_ms": 0.799
+        },
+        {
+          "operation": "idempotent explicit page save",
+          "iterations": 40,
+          "total_ms": 4.695,
+          "mean_ms": 0.117
+        },
+        {
+          "operation": "cached linked page admission + layout + delivery",
+          "iterations": 40,
+          "total_ms": 81.045,
+          "mean_ms": 2.026
+        }
+      ],
+      "cleanup_mean_ms": null,
+      "resources": {
+        "wall_seconds": 0.48,
+        "peak_rss_kib": 21768,
+        "user_seconds": 0.45,
+        "system_seconds": 0.14,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "service-interaction",
+      "stress": true,
+      "trial": 1,
+      "timings": [
+        {
+          "operation": "selector sweep input + frame (50 choices)",
+          "iterations": 400,
+          "total_ms": 309.642,
+          "mean_ms": 0.774
+        },
+        {
+          "operation": "idempotent explicit page save",
+          "iterations": 40,
+          "total_ms": 11.212,
+          "mean_ms": 0.28
+        },
+        {
+          "operation": "cached linked page admission + layout + delivery",
+          "iterations": 40,
+          "total_ms": 665.968,
+          "mean_ms": 16.649
+        }
+      ],
+      "cleanup_mean_ms": null,
+      "resources": {
+        "wall_seconds": 1.24,
+        "peak_rss_kib": 36228,
+        "user_seconds": 1.24,
+        "system_seconds": 0.57,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "service-interaction",
+      "stress": true,
+      "trial": 2,
+      "timings": [
+        {
+          "operation": "selector sweep input + frame (50 choices)",
+          "iterations": 400,
+          "total_ms": 321.949,
+          "mean_ms": 0.805
+        },
+        {
+          "operation": "idempotent explicit page save",
+          "iterations": 40,
+          "total_ms": 12.012,
+          "mean_ms": 0.3
+        },
+        {
+          "operation": "cached linked page admission + layout + delivery",
+          "iterations": 40,
+          "total_ms": 644.109,
+          "mean_ms": 16.103
+        }
+      ],
+      "cleanup_mean_ms": null,
+      "resources": {
+        "wall_seconds": 1.25,
+        "peak_rss_kib": 36172,
+        "user_seconds": 1.25,
+        "system_seconds": 0.55,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    },
+    {
+      "workload": "service-interaction",
+      "stress": true,
+      "trial": 3,
+      "timings": [
+        {
+          "operation": "selector sweep input + frame (50 choices)",
+          "iterations": 400,
+          "total_ms": 320.937,
+          "mean_ms": 0.802
+        },
+        {
+          "operation": "idempotent explicit page save",
+          "iterations": 40,
+          "total_ms": 9.553,
+          "mean_ms": 0.239
+        },
+        {
+          "operation": "cached linked page admission + layout + delivery",
+          "iterations": 40,
+          "total_ms": 640.111,
+          "mean_ms": 16.003
+        }
+      ],
+      "cleanup_mean_ms": null,
+      "resources": {
+        "wall_seconds": 1.22,
+        "peak_rss_kib": 35900,
+        "user_seconds": 1.19,
+        "system_seconds": 0.58,
+        "input_blocks": 0,
+        "output_blocks": 0
+      }
+    }
+  ]
+}

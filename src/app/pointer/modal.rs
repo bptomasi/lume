@@ -130,6 +130,7 @@ impl App {
     ) -> Result<()> {
         let forward = event.kind == MouseEventKind::ScrollDown;
         match &mut self.mode {
+            Mode::Web => self.web_scroll(forward, amount),
             Mode::Image(_) => self.pan_image(forward, amount),
             Mode::Help => {
                 self.help_scroll = shifted(

@@ -318,16 +318,16 @@ fn enter_opens_the_exact_external_occurrence_in_a_wrapped_label() -> Result<()>
     app.resize_reader(14, 5);
     command(&mut app, "find label")?;
 
-    assert_eq!(
-        key(&mut app, KeyCode::Enter)?,
-        Action::Open("https://example.org/first".into())
-    );
+    assert_eq!(key(&mut app, KeyCode::Enter)?, Action::None);
+    assert!(app.web_active());
+    key(&mut app, KeyCode::Esc)?;
+    assert!(!app.web_active());
+    assert_eq!(app.cursor_link(), Some("https://example.org/first"));
 
     command(&mut app, "find-next")?;
-    assert_eq!(
-        key(&mut app, KeyCode::Enter)?,
-        Action::Open("https://example.org/second".into())
-    );
+    assert_eq!(app.cursor_link(), Some("https://example.org/second"));
+    assert_eq!(key(&mut app, KeyCode::Enter)?, Action::None);
+    assert!(app.web_active());
     Ok(())
 }
 

@@ -28,7 +28,8 @@ impl App {
         if self.inspection_key(key) {
             return Ok(Action::None);
         }
-        match &self.mode {
+        let action = match &self.mode {
+            Mode::Web => self.web_key(key),
             Mode::Help => {
                 self.help_key(key);
                 Ok(Action::None)
@@ -42,7 +43,9 @@ impl App {
             Mode::Image(_) => self.image_inspector_keypress(key),
             Mode::Normal if self.notebook.is_some() => self.notebook_key(key),
             Mode::Normal => self.normal_key(key),
-        }
+        };
+        self.restore_web_mode();
+        action
     }
 
     fn stale_reader_key(&mut self, key: KeyEvent) -> bool {
@@ -75,7 +78,7 @@ impl App {
         {
             return true;
         }
-        matches!(self.mode, Mode::Normal)
+        matches!(self.mode, Mode::Normal | Mode::Web)
             && key.kind == KeyEventKind::Repeat
             && matches!(
                 key.code,

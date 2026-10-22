@@ -13,9 +13,11 @@ pub mod exchange;
 pub mod external_editor;
 pub mod media;
 pub mod model;
+pub mod offline;
 pub mod reader;
 pub mod search;
 pub mod source;
+pub mod storage;
 pub mod store;
 pub mod ui;
 

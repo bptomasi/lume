@@ -25,6 +25,7 @@ mod horizontal;
 mod images;
 mod input;
 mod layouts;
+mod maintenance;
 mod navigation;
 mod navigation_worker;
 mod note_actions;
@@ -39,8 +40,11 @@ mod pane_search;
 mod panel_docking;
 mod panels;
 mod passages;
+mod performance;
+pub use performance::Operation;
 mod personal_tasks;
 mod picker;
+mod picker_reads;
 mod pointer;
 mod reader_links;
 mod reader_tools;
@@ -54,7 +58,9 @@ mod settings;
 pub(crate) use settings::validate_binding;
 mod study;
 mod vim;
+mod web_reading;
 mod workspace;
+pub use web_reading::{WebDocument, WebPage};
 
 pub use annotations::{AnnotationEntry, AnnotationPosition};
 pub use completion::{CommandSpec, command_suggestions};
@@ -182,6 +188,8 @@ pub struct Input {
 /// Current keyboard mode.
 #[derive(Clone, Debug, Default)]
 pub enum Mode {
+    /// A temporary linked reading with no article mutation identity.
+    Web,
     /// Vim-inspired navigation and actions.
     #[default]
     Normal,
@@ -241,6 +249,11 @@ pub struct App {
     /// Navigation destinations in display order.
     pub navigation: Vec<NavItem>,
     library_search: pane_search::LibrarySearch,
+    picker_reads: Option<picker_reads::PickerReads>,
+    performance: performance::Performance,
+    web: web_reading::WebReading,
+    network_enabled: bool,
+    maintenance: Option<maintenance::Maintenance>,
     /// Selected navigation row.
     pub nav_selected: usize,
     /// Current article filter.
@@ -426,6 +439,11 @@ impl App {
             library,
             navigation: Vec::new(),
             library_search: pane_search::LibrarySearch::default(),
+            picker_reads: None,
+            performance: performance::Performance::default(),
+            web: web_reading::WebReading::default(),
+            network_enabled: false,
+            maintenance: None,
             nav_selected: 0,
             view: workspace.view.clone(),
             focus: if workspace.fullscreen {

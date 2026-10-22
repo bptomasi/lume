@@ -959,4 +959,46 @@ const COMMANDS: &[CommandSpec] = &[
         description: "Find articles sharing current interests",
         aliases: &[],
     },
+    CommandSpec {
+        name: "offline",
+        usage: "offline prepare [MiB]|queue [MiB]|resume|cancel|release|status",
+        description: "Prepare a folder or Read next, including full text and images",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "storage",
+        usage: "storage [status|clean images|clean articles|clean all]",
+        description: "Inspect storage; preview explicit recoverable-cache cleanup",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "session",
+        usage: "session MINUTES|status|next|end",
+        description: "Preview a diverse reading plan within a total time budget",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "open-link",
+        usage: "open-link",
+        description: "Open the reader cursor's link as a temporary reading",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "open-page",
+        usage: "open-page URL",
+        description: "Read a linked page inside Lume; Ctrl-o returns",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "save-page",
+        usage: "save-page",
+        description: "Save the current temporary page in Saved pages",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "performance",
+        usage: "performance [on|off|reset|status]",
+        description: "Inspect bounded processing percentiles and pending work",
+        aliases: &[],
+    },
 ];

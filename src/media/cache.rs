@@ -29,6 +29,15 @@ pub fn path(directory: &Path, address: &str) -> PathBuf {
 /// # Errors
 /// Returns permission, I/O or oversized-cache errors without network access.
 pub fn read(directory: &Path, address: &str) -> Result<Option<Vec<u8>>> {
+    // Prepared originals remain authoritative while a package is pinned.
+    let cached = read_one(&directory.join("offline"), address)?;
+    if cached.is_some() {
+        return Ok(cached);
+    }
+    read_one(directory, address)
+}
+
+fn read_one(directory: &Path, address: &str) -> Result<Option<Vec<u8>>> {
     let file = match fs::File::open(path(directory, address)) {
         Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -85,7 +94,7 @@ fn prune(directory: &Path) -> Result<()> {
     Ok(())
 }
 
-fn owned_filename(name: &str) -> bool {
+pub(crate) fn owned_filename(name: &str) -> bool {
     name.strip_suffix(".img").is_some_and(|stem| {
         stem.len() == 64 && stem.bytes().all(|byte| byte.is_ascii_hexdigit())
     })

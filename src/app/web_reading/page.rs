@@ -1,0 +1,279 @@
+//! Prepared page text uses the qualified extractor, Markdown and cursor owners.
+
+use std::sync::Arc;
+
+use anyhow::{Context, Result, ensure};
+
+use crate::{
+    reader::{Rendered, index::DocumentIndex},
+    store::Store,
+};
+
+pub use crate::model::WebDocument;
+
+/// Width-specific linked reading; no article ID or mutation authority is present.
+pub struct WebPage {
+    /// Captured source.
+    pub document: Arc<WebDocument>,
+    /// Cached styled text and original byte correspondence.
+    pub rendered: Rendered,
+    /// Current readable-text cursor byte.
+    pub cursor: usize,
+    /// First visible display row.
+    pub scroll: usize,
+    /// Optional visual selection anchor.
+    pub selection: Option<usize>,
+    pub(super) linewise: bool,
+    /// Width used for cached layout.
+    pub width: usize,
+    pub(crate) columns: Vec<crate::reader::viewport::RowIndex>,
+    pub(crate) rows: Vec<String>,
+    horizontal: std::collections::BTreeMap<usize, usize>,
+    pub(super) index: DocumentIndex,
+    pub(super) words: crate::reader::motion::WordIndex,
+    pub(super) row_goal: Option<usize>,
+    pub(super) back: Vec<usize>,
+    pub(super) forward: Vec<usize>,
+}
+
+impl WebPage {
+    pub(super) fn prepare(
+        document: Arc<WebDocument>,
+        width: usize,
+        anchor: usize,
+    ) -> Self {
+        let source = text_images(&document.body);
+        let rendered = crate::reader::render(&source, width);
+        let index = DocumentIndex::parse(&source);
+        let cursor = crate::reader::to_display(
+            &rendered.mappings,
+            anchor..anchor.saturating_add(1),
+        )
+        .first()
+        .map_or(0, |range| range.start);
+        let words = crate::reader::motion::WordIndex::new(&rendered.text);
+        let rows = rendered
+            .lines
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>();
+        let columns = rows
+            .iter()
+            .zip(&rendered.lines)
+            .map(|(text, line)| {
+                crate::reader::viewport::RowIndex::new(text, line)
+            })
+            .collect();
+        Self {
+            document,
+            rendered,
+            cursor,
+            scroll: 0,
+            selection: None,
+            linewise: false,
+            index,
+            words,
+            row_goal: None,
+            back: Vec::new(),
+            forward: Vec::new(),
+            width,
+            rows,
+            columns,
+            horizontal: std::collections::BTreeMap::new(),
+        }
+    }
+
+    /// Display row containing the cursor, including empty rows.
+    pub fn cursor_row(&self) -> usize {
+        self.rendered
+            .text_ranges
+            .partition_point(|range| range.end < self.cursor)
+            .min(self.rendered.lines.len().saturating_sub(1))
+    }
+
+    pub(super) fn source_anchor(&self) -> usize {
+        crate::reader::to_source(
+            &self.rendered.mappings,
+            self.cursor..self.cursor.saturating_add(1),
+        )
+        .map_or(0, |range| range.start)
+    }
+
+    /// Supported link at the precise cursor occurrence.
+    pub fn cursor_link(&self) -> Option<&str> {
+        let range = crate::reader::to_source(
+            &self.rendered.mappings,
+            self.cursor..self.cursor.saturating_add(1),
+        )?;
+        self.index
+            .navigation
+            .link_at(range.start)
+            .map(|link| link.destination.as_str())
+    }
+
+    pub(super) fn reveal(&mut self, height: usize) {
+        let row = self.cursor_row();
+        if row < self.scroll {
+            self.scroll = row;
+        }
+        if row >= self.scroll.saturating_add(height.max(1)) {
+            self.scroll = row.saturating_sub(height.max(1) - 1);
+        }
+        if let Some(Some(group)) = self.rendered.horizontal_groups.get(row)
+            && let Some(range) = self.rendered.text_ranges.get(row)
+        {
+            let column = self.columns[row].column(
+                &self.rows[row],
+                self.cursor.saturating_sub(range.start),
+            );
+            let offset = self.horizontal.entry(*group).or_default();
+            if column < *offset {
+                *offset = column;
+            }
+            if column >= offset.saturating_add(self.width) {
+                *offset = column.saturating_sub(self.width.saturating_sub(1));
+            }
+        }
+    }
+
+    pub(super) fn inherit_view(&mut self, previous: &mut Self) {
+        self.seek_source(previous.source_anchor());
+        self.selection = previous.selection.and_then(|anchor| {
+            let source = crate::reader::to_source(
+                &previous.rendered.mappings,
+                anchor..anchor.saturating_add(1),
+            )?;
+            crate::reader::to_display(&self.rendered.mappings, source)
+                .first()
+                .map(|range| range.start)
+        });
+        self.linewise = previous.linewise;
+        self.back = std::mem::take(&mut previous.back);
+        self.forward = std::mem::take(&mut previous.forward);
+    }
+
+    fn source_position(&self, anchor: usize) -> Option<usize> {
+        let display = crate::reader::to_display(
+            &self.rendered.mappings,
+            anchor..anchor.saturating_add(1),
+        );
+        display.first().map(|range| range.start).or_else(|| {
+            // Heading markers/HTML anchors are intentionally invisible.
+            self.rendered
+                .mappings
+                .iter()
+                .filter(|mapping| {
+                    mapping.source.start >= anchor
+                        && !mapping.display.is_empty()
+                })
+                .min_by_key(|mapping| mapping.source.start)
+                .map(|mapping| mapping.display.start)
+        })
+    }
+
+    pub(super) fn seek_source(&mut self, anchor: usize) {
+        self.cursor = self.source_position(anchor).unwrap_or(0);
+    }
+
+    pub(super) fn jump_fragment(&mut self, fragment: &str) -> Result<()> {
+        let anchor = self
+            .index
+            .navigation
+            .anchor(fragment)
+            .context("Section is absent from this page")?;
+        self.cursor = self
+            .source_position(anchor)
+            .context("Section has no readable text")?;
+        Ok(())
+    }
+
+    /// Exact readable selection, including display rows for visual-line mode.
+    pub fn selected_range(&self) -> Option<std::ops::Range<usize>> {
+        let anchor = self.selection?;
+        let start = anchor.min(self.cursor);
+        let end = crate::reader::cursor::next(
+            &self.rendered.text,
+            anchor.max(self.cursor),
+        );
+        if !self.linewise {
+            return Some(start..end);
+        }
+        let rows = &self.rendered.text_ranges;
+        let first = rows
+            .partition_point(|range| range.end < start)
+            .min(rows.len().saturating_sub(1));
+        let last = rows
+            .partition_point(|range| range.end < anchor.max(self.cursor))
+            .min(rows.len().saturating_sub(1));
+        Some(rows.get(first)?.start..rows.get(last)?.end)
+    }
+
+    /// Per-block horizontal viewport in terminal cells.
+    pub fn horizontal(&self, row: usize) -> usize {
+        self.rendered
+            .horizontal_groups
+            .get(row)
+            .copied()
+            .flatten()
+            .and_then(|group| self.horizontal.get(&group))
+            .copied()
+            .unwrap_or(0)
+    }
+}
+
+pub(super) fn load(
+    connection: &mut Option<Store>,
+    path: &std::path::Path,
+    address: &str,
+    online: bool,
+) -> Result<WebDocument> {
+    if connection.is_none() {
+        *connection = Some(Store::open(path)?);
+    }
+    let store = connection
+        .as_ref()
+        .context("Linked-page connection unavailable")?;
+    let url = crate::source::link_url(address)?;
+    let cached = store.cached_page_body(url.as_str())?;
+    let (url, body) = if let Some(body) = cached {
+        (url.to_string(), body)
+    } else {
+        ensure!(online, "Page is not cached · network is disabled");
+        let document = crate::source::article::fetch_with_selector(
+            &crate::source::agent(),
+            url.as_str(),
+            "",
+        )?;
+        (document.final_url, document.body)
+    };
+    let title = body
+        .lines()
+        .find_map(|line| line.strip_prefix("# "))
+        .map_or_else(|| url.clone(), |title| crate::content::label(title, 160));
+    Ok(WebDocument { url, title, body })
+}
+
+fn text_images(body: &str) -> String {
+    use pulldown_cmark::{Event, Parser, Tag};
+    let mut result = String::with_capacity(body.len());
+    let mut consumed = 0;
+    let mut images = 0;
+    for (event, range) in Parser::new(body).into_offset_iter() {
+        let Event::Start(Tag::Image { dest_url, .. }) = event else {
+            continue;
+        };
+        if range.start < consumed {
+            continue;
+        }
+        result.push_str(&body[consumed..range.start]);
+        if images < 128 && crate::source::link_url(&dest_url).is_ok() {
+            result.push_str(&format!("[Image]({dest_url})"));
+        } else {
+            result.push_str("[Image unavailable or limit reached]");
+        }
+        consumed = range.end;
+        images += 1;
+    }
+    result.push_str(&body[consumed..]);
+    result
+}

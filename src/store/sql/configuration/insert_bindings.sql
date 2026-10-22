@@ -1,7 +1,8 @@
 INSERT INTO configuration_bindings (kind, entity, key)
 SELECT 'feed', record.id, 'feed-' || lower(hex(randomblob(12)))
 FROM feeds AS record
-WHERE NOT EXISTS (
+WHERE record.url != 'https://lume.invalid/saved-pages'
+AND NOT EXISTS (
     SELECT 1
     FROM configuration_bindings AS binding
     WHERE binding.kind = 'feed'

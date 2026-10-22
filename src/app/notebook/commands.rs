@@ -131,7 +131,7 @@ impl App {
         } else {
             self.store.remember_note_search(query)?;
             if let Some(notebook) = &mut self.notebook {
-                notebook.recent = self.store.note_search_history()?;
+                notebook.install_recent(self.store.note_search_history()?);
             }
         }
         Ok(())

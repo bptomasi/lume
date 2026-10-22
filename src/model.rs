@@ -1,6 +1,10 @@
 //! Small data contracts shared by storage, collection and presentation.
 
 mod document;
+mod offline;
+mod reading_session;
+pub use offline::*;
+pub use reading_session::{ReadingSession, SessionItem};
 mod extraction;
 mod layout;
 mod layout_history;

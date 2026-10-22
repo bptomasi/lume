@@ -18,7 +18,7 @@ MIGRATE_FROM ?=
 .PHONY: help paths check check-release check-http check-alacritty fmt format
 .PHONY: lint test bench build run demo clean
 .PHONY: install upgrade test-tools bench-tools bench-notes bench-recommendations
-.PHONY: bench-images bench-interaction bench-code check-image-display check-foot
+.PHONY: bench-reading bench-images bench-interaction bench-code check-image-display check-foot
 .PHONY: check-latency bench-configuration check-licenses check-security licenses package
 
 # Serialize composition even when a caller uses make -j.
@@ -59,6 +59,7 @@ help:
 		'  bench-configuration   TOML publication and revision checks' \
 		'  bench-code            Long code rows and selected frames' \
 		'  bench-interaction     Input, navigation and resize workloads' \
+		'  bench-reading         Plans, offline/cache, selectors and linked pages' \
 		'  bench-images          Image decode, encoding, zoom and scroll' \
 		'  bench-notes           Annotations and large notebooks' \
 		'  bench-recommendations Local relevance and cached navigation' \
@@ -87,7 +88,7 @@ check:
 		tools/bench_support.py tools/bench_recommendations.py tools/bench_images.py \
 		tools/qualify_foot.py tools/foot_terminal.py tools/bench_interaction.py \
 		tools/terminal_latency.py tools/latency_fixture.py tools/qualify_latency.py \
-		tools/bench_code.py tools/bench_configuration.py \
+		tools/bench_code.py tools/bench_configuration.py tools/bench_reading.py \
 		tools/advisories.py tools/dependency_inventory.py tools/visual_dependencies.py \
 		tools/package_release.py
 
@@ -148,6 +149,9 @@ bench-notes:
 
 bench-recommendations:
 	$(PYTHON) tools/bench_recommendations.py
+
+bench-reading:
+	$(PYTHON) tools/bench_reading.py
 
 bench-images:
 	$(PYTHON) tools/bench_images.py

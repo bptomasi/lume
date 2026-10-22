@@ -190,6 +190,7 @@ impl App {
     }
 
     pub(super) fn defer_navigation(&mut self, request: Request) {
+        self.performance.begin(super::Operation::Article);
         self.cancel_reader_pointer();
         self.note_marks.hover = None;
         self.selection = None;

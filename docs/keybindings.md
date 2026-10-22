@@ -73,3 +73,47 @@ portable character preview. Click an image to open the inspector, use `+/-`
 to zoom, pan using the indicated controls and `Esc` to return. Selection,
 menus and panels clip native rows within their owned rectangles. Clipboard
 copy uses the terminal's OSC 52 support and follows terminal clipboard policy.
+
+## Linked pages, offline reading and sessions
+
+`Enter` on a reader link opens a temporary page inside Lume. Same-page links
+jump directly to their section. `Ctrl-o` goes back, `Ctrl-i` goes forward, and
+`Esc` returns to the original article. Linked readings preserve that article's
+cursor and personal data. They are text views with explicit image links;
+`o` opens the original in a browser. `:open-page URL` opens an address directly.
+`:save-page` explicitly adds it to **Saved pages**, without subscribing to a
+site. Saving an existing article preserves its identity and publisher text.
+
+`:offline queue` prepares **Read next**. Inside a personal folder,
+`:offline prepare` captures that folder instead. Both download full text and
+original images on a background lane. The optional final argument sets the
+package budget in MiB, for example `:offline queue 128`. Defaults are 100
+articles and 64 MiB; the byte budget accepts 1–512 MiB. Inspect
+`:offline status`, resume with `:offline resume`, or request cancellation with
+`:offline cancel`. Cancellation waits for the current bounded HTTP request.
+A partial entry is never reported as fully ready. `:offline release` removes
+pinned images and the checkpoint while keeping cached article text. Launch
+`lume --offline` to read without HTTP.
+
+`:session 20` previews a diverse sequence within a total estimate of 20 minutes.
+It uses the current cached unread recommendations, so configure interests first.
+`Enter` confirms the sequence and another `Enter` opens its current article.
+`:session status` resumes it, including after restart; `:session next` advances
+and skips removed or changed targets. `:session end` releases the sequence.
+Planning and advancing do not mark articles read or imply positive feedback.
+
+`:storage` reports logical text sizes, SQLite reusable pages, WAL and image
+files. `:storage clean images|articles|all` previews an explicit cleanup;
+`Enter` confirms. Feed text and personal records remain. Full caches attached
+to favorites, queued articles, folders, notes/highlights, recoverable drafts,
+the offline package or the remaining session are protected. Image cleanup
+removes only ordinary
+orphaned cache files. Completed cleanup batches remain committed after a later
+failure or cancellation. `:storage cancel` requests cancellation between
+batches. SQLite can reuse pages without shrinking its file.
+
+`:performance on` enables bounded in-memory processing samples. Use
+`:performance status` for counts, p50/p95/p99/max in milliseconds and pending
+work; `off` stops sampling and `reset` clears it. Frame times include terminal
+flush, but exclude compositor presentation. These are not physical key-to-pixel
+measurements. Diagnostics send no telemetry and are disabled by default.

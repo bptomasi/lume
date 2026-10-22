@@ -45,6 +45,8 @@ mod panes;
 mod presentation;
 #[path = "workloads/query_editing.rs"]
 mod query_editing;
+#[path = "workloads/reading_services.rs"]
+mod reading_services;
 #[path = "workloads/reading_tools.rs"]
 mod reading_tools;
 #[path = "workloads/recommendations.rs"]
@@ -53,6 +55,8 @@ mod recommendations;
 mod recovery_navigation;
 #[path = "workloads/rich_text.rs"]
 mod rich_text;
+#[path = "workloads/service_interaction.rs"]
+mod service_interaction;
 #[path = "workloads/smoothness.rs"]
 mod smoothness;
 #[path = "workloads/tables.rs"]
@@ -103,6 +107,8 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    reading_services::run(iterations, stress)?;
+    service_interaction::run(iterations, stress)?;
     recovery_navigation::run(iterations, stress)?;
     annotation_projection::run(iterations, stress)?;
     dense_annotations::run(iterations, stress)?;
@@ -128,6 +134,8 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--reading-services-only", reading_services::run),
+    ("--service-interaction-only", service_interaction::run),
     ("--annotation-projection-only", annotation_projection::run),
     ("--recovery-navigation-only", recovery_navigation::run),
     ("--dense-annotations-only", dense_annotations::run),

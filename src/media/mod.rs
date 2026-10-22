@@ -14,6 +14,7 @@ mod worker;
 
 pub use decode::Decoder;
 pub use sixel::SixelRows;
+pub(crate) use worker::download;
 pub(crate) use worker::{Completion, Worker};
 
 use ratatui::buffer::Buffer;

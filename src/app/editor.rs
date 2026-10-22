@@ -52,8 +52,16 @@ impl App {
     pub fn paste(&mut self, text: &str) -> Result<()> {
         if let Mode::Picker(picker) = &mut self.mode {
             let remaining = 4096_usize.saturating_sub(picker.query.len());
+            let mut available = remaining;
             picker.query.extend(
-                text.chars().filter(|c| !c.is_control()).take(remaining),
+                text.chars().filter(|c| !c.is_control()).take_while(
+                    |character| {
+                        let fits = character.len_utf8() <= available;
+                        available =
+                            available.saturating_sub(character.len_utf8());
+                        fits
+                    },
+                ),
             );
             return self.update_picker();
         }

@@ -18,6 +18,7 @@ use crate::model::{Comment, DraftTarget, NoteChange, NoteDraft, UndoEffect};
 
 #[derive(Clone)]
 pub(super) enum Task {
+    SavePage(std::sync::Arc<crate::model::WebDocument>),
     Write(NoteDraft),
     Query(QueryEdit),
     Edit(Edit),
@@ -77,6 +78,10 @@ pub(super) enum Edit {
 }
 
 pub(super) enum Outcome {
+    SavedPage {
+        article: i64,
+        url: String,
+    },
     Written {
         draft: NoteDraft,
         target: DraftTarget,
@@ -96,11 +101,13 @@ pub(super) enum Outcome {
 struct Job {
     ticket: u64,
     task: Task,
+    started: Option<std::time::Instant>,
 }
 
 pub(super) struct Completion {
     pub(super) ticket: u64,
     pub(super) result: Result<Outcome>,
+    pub(super) started: Option<std::time::Instant>,
 }
 
 pub(super) struct PersonalWrites {
@@ -108,6 +115,7 @@ pub(super) struct PersonalWrites {
     results: mpsc::Receiver<Completion>,
     next: u64,
     pending: RefCell<VecDeque<u64>>,
+    diagnostics: bool,
 }
 
 impl PersonalWrites {
@@ -124,6 +132,7 @@ impl PersonalWrites {
                     let _ = sender.send(Completion {
                         ticket: job.ticket,
                         result,
+                        started: job.started,
                     });
                 }
             })?;
@@ -132,6 +141,7 @@ impl PersonalWrites {
             results,
             next: 0,
             pending,
+            diagnostics: false,
         })
     }
 
@@ -141,6 +151,7 @@ impl PersonalWrites {
         if let Err(error) = self.requests.try_send(Job {
             ticket: self.next,
             task,
+            started: self.diagnostics.then(std::time::Instant::now),
         }) {
             return Err(anyhow!(
                 "Personal write not admitted: {error}; retry the action"
@@ -159,6 +170,7 @@ impl PersonalWrites {
                 result: Err(anyhow!(
                     "Personal writer stopped before acknowledgement; inspect the library before retrying"
                 )),
+                started: None,
             },
         };
         self.pending.borrow_mut().pop_front();
@@ -167,6 +179,10 @@ impl PersonalWrites {
 
     pub(super) fn pending(&self) -> bool {
         !self.pending.borrow().is_empty()
+    }
+
+    pub(super) fn set_diagnostics(&mut self, enabled: bool) {
+        self.diagnostics = enabled;
     }
 }
 
@@ -189,6 +205,7 @@ mod tests {
             results,
             next: 2,
             pending: RefCell::new([1, 2].into()),
+            diagnostics: false,
         };
         drop(sender);
         for ticket in [1, 2] {

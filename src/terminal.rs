@@ -63,6 +63,7 @@ fn run_session(
     let mut background = None;
     let result = (|| {
         app.enable_background_navigation(&path)?;
+        app.set_network_enabled(!demo && !offline);
         app.load_workspace();
         images::start(app, &path, offline || demo);
         let worker = Background::start(
@@ -210,7 +211,13 @@ fn dispatch_input(
 fn poll_reading_workers(app: &mut App) -> bool {
     let mut changed = app.poll_reader();
     changed |= app.poll_images();
-    for result in [app.poll_navigation(), app.poll_recommendations()] {
+    for result in [
+        app.poll_navigation(),
+        app.poll_recommendations(),
+        app.poll_picker(),
+        app.poll_web(),
+        app.poll_maintenance(),
+    ] {
         match result {
             Ok(ready) => changed |= ready,
             Err(error) => {
@@ -218,6 +225,9 @@ fn poll_reading_workers(app: &mut App) -> bool {
                 changed = true;
             }
         }
+    }
+    if !app.article_preparing() && !app.reader_stale() {
+        app.finish_measurement(lume::app::Operation::Article);
     }
     changed
 }
@@ -240,6 +250,9 @@ fn poll_interval(app: &App) -> Duration {
         || app.note_catalog_pending()
         || app.notes_pending()
         || app.recommendations_pending()
+        || app.picker_pending()
+        || app.web_pending()
+        || app.maintenance_pending()
         || app.navigation_loading
         || app.catalog_pending()
         || app.pane_motion_active();
@@ -251,10 +264,12 @@ fn draw_workspace(
     app: &mut App,
     welcome: bool,
 ) -> Result<()> {
+    app.begin_measurement(lume::app::Operation::Frame);
     if welcome {
         io::stdout().sync_update(|_| {
             terminal.draw(|frame| ui::draw_welcome(frame, &app.workspace.theme))
         })??;
+        app.finish_measurement(lume::app::Operation::Frame);
         return Ok(());
     }
     let area = terminal.size()?;
@@ -269,6 +284,7 @@ fn draw_workspace(
     } else {
         terminal.draw(|frame| ui::draw_interactive(frame, app))?;
     }
+    app.finish_measurement(lume::app::Operation::Frame);
     Ok(())
 }
 
@@ -279,8 +295,11 @@ fn dispatch_batch(
     background: &Background,
     guard: &mut TerminalGuard,
 ) -> Result<bool> {
-    loop {
-        let action = match batch.dispatch_next(app) {
+    while !batch.is_empty() {
+        app.begin_measurement(lume::app::Operation::Input);
+        let result = batch.dispatch_next(app);
+        app.finish_measurement(lume::app::Operation::Input);
+        let action = match result {
             Ok(Some(action)) => action,
             Ok(None) => return Ok(false),
             Err(error) => {
@@ -302,7 +321,7 @@ fn dispatch_batch(
             Action::Copy(text) => {
                 match lume::clipboard::copy(&mut io::stdout().lock(), &text) {
                     Ok(()) => {
-                        app.selection = None;
+                        app.clear_copied_selection();
                         app.status = format!(
                             "Yank sent to terminal clipboard · {} bytes",
                             text.len(),
@@ -314,6 +333,7 @@ fn dispatch_batch(
             Action::None => {}
         }
     }
+    Ok(false)
 }
 
 fn launch_browser(app: &mut App, address: &str) {

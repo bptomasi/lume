@@ -51,7 +51,7 @@
   :mouse on|off|status     Capture preference / observed terminal events
   Click           Focus a panel, open an article or jump to a note
   Click image     Open enlarged image; +/- zoom, 0 fit, Esc return
-  Enter on link   Open HTTP(S) links in the system browser; local anchors
+  Enter on link   Read HTTP(S) links inside Lume; local anchors
                   jump to a section. Ctrl-o goes back; Ctrl-i goes forward.
                   Place the reader cursor with a click or Vim motions first.
                   :edit-note edits a note overlapping a link.
@@ -362,3 +362,37 @@ DECLARATIVE CONFIGURATION
   lume config path / check / show / export FILE
                   Inspect or back up portable definitions from the CLI.
                   New libraries are empty; presets are optional.
+
+  ── LINKED READINGS AND OFFLINE ─────────────────────────────────────────
+  Enter on link   Open a temporary read-only page; Ctrl-o returns to the article
+  Ctrl-o / Ctrl-i Linked-page back / forward; Esc closes the linked reading
+  :open-page URL  Open an address without adding a subscription or article
+  :save-page      Save current linked page in the Saved pages folder
+                  Existing articles keep their identity, body and notes.
+                  Linked pages show text; images appear as explicit links.
+                  o opens the current page in the system browser.
+  :offline queue [MiB]    Prepare Read next: full text and original images
+  :offline prepare [MiB]  Prepare the selected personal folder
+  :offline status / resume / cancel / release
+                  Inspect progress, resume, cancel, or release pinned images.
+                  Defaults: 100 articles, 64 MiB; byte limit accepts 1–512 MiB.
+                  Cancellation waits for the active bounded HTTP request.
+                  Partial entries are labelled; checkpoints survive restart.
+                  lume --offline forbids network access.
+
+  ── READING SESSIONS AND STORAGE ────────────────────────────────────────
+  :session 20     Preview a diverse plan within 20 estimated minutes
+                  Enter saves the sequence; Enter again opens its first article.
+  :session status Resume the saved sequence after restarting Lume
+  :session next   Advance to the next article; never marks entries read
+  :session end    Release the sequence without altering articles or notes
+                  Plans use the cached unread recommendations, not a model.
+                  Configure interests first; at most eight entries fit a plan.
+  :storage        Inspect feed, Full cache, notes, database/WAL and image usage
+  :storage clean images|articles|all
+                  Preview eligible cache cleanup; Enter confirms, Esc cancels.
+                  Personal context, folders, offline and session entries stay.
+                  SQLite can reuse freed pages without shrinking its file.
+  :performance on|off|reset|status
+                  Opt-in p50/p95/p99/max processing times and pending work.
+                  Samples stay in memory; no physical display latency claim.

@@ -354,6 +354,15 @@ fn server(
     body: &[u8],
     headers: &str,
 ) -> Result<(String, mpsc::Receiver<String>)> {
+    server_after_delay(status, body, headers, Duration::ZERO)
+}
+
+fn server_after_delay(
+    status: u16,
+    body: &[u8],
+    headers: &str,
+    delay: Duration,
+) -> Result<(String, mpsc::Receiver<String>)> {
     let listener = TcpListener::bind("127.0.0.1:0").context(
         "Real HTTP qualification requires loopback socket permission",
     )?;
@@ -362,6 +371,7 @@ fn server(
     let headers = headers.to_owned();
     let (sender, receiver) = mpsc::channel();
     thread::spawn(move || {
+        thread::sleep(delay);
         if let Ok(request) = serve(listener, status, &body, &headers) {
             let _ = sender.send(request);
         }
@@ -454,6 +464,213 @@ fn decoded_article_boundaries_cover_gzip_and_preserve_a_good_cache()
             assert_eq!(cache.revision, 1);
         }
         request.recv_timeout(Duration::from_secs(5))?;
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn offline_package_downloads_full_text_and_pins_validated_svg() -> Result<()> {
+    let (directory, mut store, feed) = common::seeded_store()?;
+    let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="orange"/></svg>"#;
+    let (image, image_request) =
+        server(200, svg, "Content-Type: image/svg+xml\r\n")?;
+    let html = format!(
+        "<html><body><article><h1>Offline qualification</h1><p>Readable independent article content with durable offline availability and a useful diagram.</p><img src='{image}' alt='Diagram'/></article></body></html>"
+    );
+    let (address, article_request) =
+        server(200, html.as_bytes(), "Content-Type: text/html\r\n")?;
+    let target = set_article_url(&mut store, &feed, &address)?;
+    store.set_queued(target.article, true)?;
+    let plan = lume::offline::capture(
+        &store,
+        lume::model::View::Queue,
+        lume::model::OfflineLimits::default(),
+    )?;
+    let images = directory.path().join("images");
+    corrupt_image_caches(&images, &image)?;
+
+    let result = lume::offline::prepare(
+        &store,
+        &images,
+        plan,
+        &std::sync::atomic::AtomicBool::new(false),
+        |_| {},
+    )?;
+
+    article_request.recv_timeout(Duration::from_secs(5))?;
+    image_request.recv_timeout(Duration::from_secs(5))?;
+    assert_eq!(
+        result.items[0].status,
+        lume::model::OfflineStatus::Ready,
+        "{result:?}"
+    );
+    assert_eq!(result.items[0].images, 1);
+    assert_eq!(
+        lume::media::cache::read(&images, &image)?.context("Pinned image")?,
+        svg
+    );
+    assert!(lume::media::cache::path(&images.join("offline"), &image).exists());
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn offline_failed_image_keeps_readable_text_and_reports_partial() -> Result<()>
+{
+    let (directory, mut store, feed) = common::seeded_store()?;
+    let (image, image_request) =
+        server(503, b"Unavailable", "Content-Type: text/plain\r\n")?;
+    let html = format!(
+        "<html><body><article><h1>Partial qualification</h1><p>Useful full article remains readable even when its image server cannot supply a diagram.</p><img src='{image}' alt='Diagram'/></article></body></html>"
+    );
+    let (address, article_request) =
+        server(200, html.as_bytes(), "Content-Type: text/html\r\n")?;
+    let target = set_article_url(&mut store, &feed, &address)?;
+    store.set_queued(target.article, true)?;
+    let plan = lume::offline::capture(
+        &store,
+        lume::model::View::Queue,
+        lume::model::OfflineLimits::default(),
+    )?;
+
+    let result = lume::offline::prepare(
+        &store,
+        &directory.path().join("images"),
+        plan,
+        &std::sync::atomic::AtomicBool::new(false),
+        |_| {},
+    )?;
+
+    article_request.recv_timeout(Duration::from_secs(5))?;
+    image_request.recv_timeout(Duration::from_secs(5))?;
+    assert_eq!(result.items[0].status, lume::model::OfflineStatus::Partial);
+    assert!(result.items[0].error.contains("503"));
+    assert!(
+        store
+            .cached_document(target.article)?
+            .context("Full cache")?
+            .body
+            .contains("Useful full article")
+    );
+    assert!(
+        lume::media::cache::read(&directory.path().join("images"), &image)?
+            .is_none()
+    );
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn linked_http_reading_stays_temporary_until_explicitly_saved() -> Result<()> {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let (_directory, store, _) = common::seeded_store()?;
+    let (address, request) = server(
+        200,
+        include_bytes!("fixtures/article.html"),
+        "Content-Type: text/html\r\n",
+    )?;
+    let mut app = lume::app::App::new(store, false)?;
+    let original = app.current().context("Original article")?.id;
+    app.set_network_enabled(true);
+    app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
+    app.paste(&format!("open-page {address}"))?;
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while app.web_pending() {
+        app.poll_web()?;
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "Linked reading timed out"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
+    request.recv_timeout(Duration::from_secs(5))?;
+    assert!(
+        app.web_page()
+            .context("Page")?
+            .rendered
+            .text
+            .contains("Durable")
+    );
+    assert_eq!(app.current().context("Original article")?.id, original);
+    assert_eq!(app.library.articles.len(), 1);
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
+    assert!(!app.web_active());
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn resizing_during_linked_http_never_replaces_the_new_navigation_with_old_layout()
+-> Result<()> {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let (_directory, store, _) = common::seeded_store()?;
+    store.save_web_document(&lume::model::WebDocument {
+        url: "https://example.org/previous".into(),
+        title: "Previous page".into(),
+        body: "# Previous page\n\nThis previous page must not win.".into(),
+    })?;
+    let mut app = lume::app::App::new(store, false)?;
+    app.set_network_enabled(true);
+    open_linked(&mut app, "https://example.org/previous")?;
+    settle_linked(&mut app)?;
+    let (address, request) = server_after_delay(
+        200,
+        include_bytes!("fixtures/article.html"),
+        "Content-Type: text/html\r\n",
+        Duration::from_millis(200),
+    )?;
+
+    open_linked(&mut app, &address)?;
+    app.resize_workspace(ratatui::layout::Rect::new(0, 0, 50, 30));
+    app.poll_web()?;
+    settle_linked(&mut app)?;
+
+    request.recv_timeout(Duration::from_secs(5))?;
+    assert_eq!(app.web_page().context("New page")?.document.url, address);
+    assert!(
+        app.web_page()
+            .context("New page")?
+            .rendered
+            .text
+            .contains("Durable")
+    );
+    app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
+    assert_eq!(
+        app.web_page().context("Previous page")?.document.url,
+        "https://example.org/previous"
+    );
+    Ok(())
+}
+
+fn open_linked(app: &mut lume::app::App, address: &str) -> Result<()> {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
+    app.paste(&format!("open-page {address}"))?;
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    Ok(())
+}
+
+fn settle_linked(app: &mut lume::app::App) -> Result<()> {
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while app.web_pending() {
+        app.poll_web()?;
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "Linked reading timed out"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
+    Ok(())
+}
+
+fn corrupt_image_caches(
+    directory: &std::path::Path,
+    address: &str,
+) -> Result<()> {
+    for path in [directory.to_path_buf(), directory.join("offline")] {
+        lume::media::cache::write(&path, address, b"corrupt image cache")?;
     }
     Ok(())
 }

@@ -301,6 +301,7 @@ def qualify(directory, process):
     send(directory, b"\x1b")
     wait_for("reader returns", lambda: native_frame(directory, before), process)
     inspector = inspect(directory, process, initial, geometry["cell_pixels"][1])
+    services = reading_services(directory, process)
     command(directory, "quit")
     process.wait(timeout=10)
     cleanup = json.loads((directory / "exit.json").read_text())
@@ -308,7 +309,46 @@ def qualify(directory, process):
         raise RuntimeError(f"Foot terminal cleanup failed: {cleanup}")
     return {"geometry": geometry, "welcome": welcome, "decoded_strips": pixels,
             "scroll_rows": samples, "selection": selections, "reader_aliases": aliases,
-            "inspector": inspector, "cleanup": cleanup}
+            "inspector": inspector, "reading_services": services, "cleanup": cleanup}
+
+
+def reading_services(directory, process):
+    before = frame(directory)["offset"]
+    command(directory, "open-page https://journal.example/article")
+    linked = wait_for(
+        "temporary linked reading without native image leakage",
+        lambda: service_frame(directory, before, b":save-page"), process,
+    )
+    send(directory, b"\x0f")
+    wait_for("linked back restores native rows",
+             lambda: native_frame(directory, linked["offset"]), process)
+    before = frame(directory)["offset"]
+    command(directory, "performance on")
+    enabled = wait_for(
+        "opt-in performance report", lambda: service_frame(directory, before, b"p99"),
+        process,
+    )
+    send(directory, b"\x1b")
+    wait_for("diagnostic close restores native rows",
+             lambda: native_frame(directory, enabled["offset"]), process)
+    command(directory, "performance off")
+    disabled = wait_for(
+        "disabled performance report",
+        lambda: service_frame(directory, enabled["offset"], b"disabled"), process,
+    )
+    send(directory, b"\x1b")
+    wait_for("final reading restored",
+             lambda: native_frame(directory, disabled["offset"]), process)
+    return {"linked_text_view": True, "back_restores_images": True,
+            "diagnostics_opt_in": True}
+
+
+def service_frame(directory, after, marker):
+    current = frame(directory)
+    if (current and current["offset"] > after and not current["strips"]
+            and marker in current["content"]):
+        return current
+    return None
 
 
 def enter_library(directory, process):
@@ -327,6 +367,10 @@ def enter_library(directory, process):
     wait_for(
         "library after entry key",
         lambda: b"Inbox" in output.read_bytes()[before:], process,
+    )
+    wait_for(
+        "prepared article after background startup",
+        lambda: b"Request ownership" in output.read_bytes()[before:], process,
     )
     return {"native_pixel_art": True, "entry_key_consumed": True}
 

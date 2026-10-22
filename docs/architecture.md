@@ -95,7 +95,7 @@ Each unwrapped code/table row also retains its source block key; horizontal
 positions belong to that key and survive reflow without moving sibling blocks.
 `reader::index::Navigation` separately retains each link's source range, so
 Enter follows the occurrence under the cursor even when labels repeat or wrap.
-HTTP(S) destinations open through the system browser. Same-page fragments use
+HTTP(S) destinations open as temporary read-only linked readings. Same-page fragments use
 preserved HTML IDs or heading slugs and the reader's bounded jump history;
 missing sections report their absence without guessing a different passage.
 
@@ -287,3 +287,67 @@ anchors are checked first; repeated unresolved quotations share one relocation
 result during annotation reconstruction. Rendering never writes note state.
 These indexes retain domain-specific ambiguity rules; no universal task
 executor, parser or cache framework is introduced.
+
+## Explicit reading services
+
+Article selectors use independent lazy `Latest` lanes for queries and previews.
+Each connection belongs to its thread. Query edits cancel old preview generations;
+reopening a selector resets both lanes. Sixteen bounded previews are retained
+only while that selector is open. Moving a generic selector does not refilter
+its unchanged candidate query. Rendering consumes prepared rows only.
+
+Linked readings own an independent `WebPage`, not a fabricated article identity.
+The existing HTTP extractor, Markdown parser and cursor/projection contracts
+prepare text on a worker. Page history retains at most eight prepared pages.
+Resizing requests replacement layout by source anchor. HTTP is disabled by the
+runtime's offline/demo modes. Images become explicit links in this text view;
+the original Markdown remains intact for an explicit save. Save creates a real
+article in a disabled, noncollecting manual source and an ordinary Saved pages
+folder. Existing article bodies and personal fields remain untouched. A delayed
+save cannot redirect a later linked reading or the underlying article.
+
+`app::maintenance` admits one explicit operation at a time on an ordered lane.
+Mutations are never superseded by new requests. Progress delivery is bounded
+and may coalesce; final results are acknowledged. Closing a report does not
+reopen it when work finishes. Dropping requests cancellation without waiting
+for HTTP; already admitted SQLite transactions finish atomically.
+
+`offline` captures at most 100 article identities and URLs from Read next or a
+personal folder. The existing extractor/decoder validate every new body/image.
+An adjacent advisory file lock serializes preparations across processes.
+Checkpoints in SQLite retain per-item availability, errors and logical bytes;
+resume revalidates entries. A package defaults to 64 MiB and cannot exceed its
+explicit 1–512 MiB budget. Original images live in the separate `images/offline`
+namespace, limited globally to 512 MiB and 4096 owned files. Ordinary image
+pruning never touches that namespace. Releasing a package removes only owned
+pinned files and its checkpoint, retaining article text. In-flight network work
+obeys existing HTTP deadlines; cancellation is observed between requests.
+
+`storage` inspects text and disk usage on the same maintenance lane. Full-cache
+reclamation uses small IMMEDIATE transactions, protecting current personal,
+offline and session context, including recoverable note drafts. Clearing body bytes retains cache identities and
+fires the existing FTS/recommendation triggers. Image reclamation first scans
+remaining publisher bodies, then removes only unreferenced owned regular files
+older than that scan. It preserves symlinks, foreign files and pinned images.
+SQLite page reuse is reported separately from physical file shrinkage. A
+multi-batch operation can partially complete; it is never presented as one
+filesystem/database transaction.
+
+Reading sessions greedily select at most eight cached unread recommendations
+within a 1–240 minute total estimate. Repeated sources/interests have diminishing
+returns and canonical duplicates are excluded; this is not an optimal knapsack
+solver or a quality guarantee. Confirmation persists the captured order and
+current index. Advancing uses an IMMEDIATE transaction, skips unavailable or
+retargeted identities, and leaves read flags and feedback unchanged. Sessions,
+offline checkpoints and temporary pages are reading state, not portable TOML
+subscription definitions.
+
+Optional diagnostics retain at most 512 microsecond samples for each processing
+boundary. Percentiles sort only on inspection. Disabled diagnostics record no
+timestamps or samples. Timings cover input dispatch, frame/flush, article-ready
+navigation, selector search/preview and ordered save admission-to-delivery;
+they do not include compositor display latency or send telemetry.
+
+Notebook listing snapshots also capture the recent-search generation. A local
+history acknowledgement advances it, so an older list completion cannot erase
+newly saved searches. New list requests can still adopt a current snapshot.

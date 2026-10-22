@@ -94,7 +94,7 @@ impl App {
     pub(super) fn inspect(&mut self, choices: Vec<Choice>) -> Result<()> {
         self.open_picker(PickerKind::Inspection)?;
         if let Mode::Picker(picker) = &mut self.mode {
-            picker.candidates = choices;
+            picker.replace_candidates(choices);
         }
         self.update_picker()
     }

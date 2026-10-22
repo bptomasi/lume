@@ -21,7 +21,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
         Mode::Document(document) => document_view(frame, document),
         Mode::Settings(draft) => settings(frame, app, draft),
         Mode::Leader => leader(frame),
-        Mode::Normal => {}
+        Mode::Normal | Mode::Web => {}
         Mode::Image(_) => {}
     }
 }

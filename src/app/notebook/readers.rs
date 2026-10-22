@@ -34,11 +34,13 @@ pub(super) struct ListRequest {
     pub(super) text: String,
     pub(super) article: Option<i64>,
     pub(super) offset: usize,
+    pub(super) recent_generation: u64,
 }
 
 pub(super) struct Listing {
     pub(super) page: NotePage,
     pub(super) offset: usize,
+    pub(super) recent_generation: u64,
     pub(super) collections: Vec<NoteCollection>,
     pub(super) recent: Vec<String>,
 }
@@ -75,6 +77,7 @@ fn listing(store: &Store, request: ListRequest) -> Result<Listing> {
     Ok(Listing {
         page,
         offset,
+        recent_generation: request.recent_generation,
         collections: store.note_collections()?,
         recent: store.note_search_history()?,
     })

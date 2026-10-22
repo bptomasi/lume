@@ -1,7 +1,7 @@
 //! Enter follows the cursor's exact link occurrence without parsing on input.
 //!
 //! Local jumps reuse source anchors and history without reloading SQLite.
-//! External destinations use the existing validated system-browser action.
+//! External destinations open a read-only linked page on a background lane.
 
 use anyhow::{Context, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
@@ -54,7 +54,8 @@ impl App {
         } else {
             let url = crate::source::link_url(destination)?;
             if !self.link_is_current_page(&url) || url.fragment().is_none() {
-                return Ok(Action::Open(url.to_string()));
+                self.open_web_page(url.as_str())?;
+                return Ok(Action::None);
             }
             url.fragment().unwrap_or_default().to_owned()
         };

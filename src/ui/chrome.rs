@@ -238,6 +238,7 @@ fn status_line(app: &App) -> Line<'static> {
     let (mode, color) = match &app.mode {
         Mode::Normal if app.selection.is_some() => (" VISUAL ", AMBER),
         Mode::Normal => (" NORMAL ", ACCENT),
+        Mode::Web => (" WEB ", BLUE),
         Mode::Help => (" HELP ", BLUE),
         Mode::Input(input) => (editor_mode(input), AMBER),
         Mode::Smart(_) => (" INSERT ", AMBER),

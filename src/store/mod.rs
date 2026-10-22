@@ -3,7 +3,8 @@
 //! Each thread opens its own connection. WAL permits reads during collection;
 //! ingestion only updates publisher fields, preserving personal state. A feed's
 //! validators advance in the same transaction as its articles, so a failed
-//! ingest cannot make a later 304 conceal missing content. No pruning runs.
+//! ingest cannot make a later 304 conceal missing content. Cache reclamation
+//! is explicit and protects personal context.
 
 mod annotations;
 mod backup;
@@ -21,10 +22,14 @@ mod layouts;
 mod migrations;
 mod notebook;
 mod occurrences;
+mod offline;
 mod organization;
 mod query;
+mod reading_sessions;
 mod recommendations;
+mod storage;
 mod study;
+mod web_pages;
 mod workspace;
 pub(crate) use layouts::valid_name as valid_workspace_name;
 pub(crate) use workspace::validate_dimensions as validate_workspace_dimensions;

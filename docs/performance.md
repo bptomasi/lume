@@ -15,6 +15,7 @@ make bench
 make bench-configuration
 make bench-code
 make bench-interaction
+make bench-reading
 make bench-images
 make bench-notes
 make bench-recommendations
@@ -47,6 +48,28 @@ current hardware or a substitute for measuring later changes.
 | Reader tables and code backgrounds | [Unicode layout, cached frames and inspection](performance/tables.json) |
 | Dense article preparation | [Repeated reader comparison](performance/reader-review.json) |
 | Native welcome frame | [Representative/stress frames and interaction qualification](performance/welcome.json) |
+| Reading services | [Repeated checked workloads](performance/reading-services.json), [native Foot qualification](performance/reading-foot.json) |
+
+The reading-service workloads use three release processes per size with Rust
+1.99.1 on the recorded Core Ultra 7 environment. A selector movement pair plus
+two cached TestBackend frames takes median iteration means of 0.799/0.802 ms
+with 200/2,000 library articles and 50 displayed choices. Cached linked-page
+admission, background layout and delivery takes 2.061/16.103 ms for 50/500
+sections. Neither measurement includes HTTP or physical presentation.
+
+Planning from 100/512 scored candidates takes 0.042/0.181 ms. Preparing
+10/100 cached full articles with a decoded, pinned SVG takes 7.169/24.900 ms;
+reclaiming the same number of eligible Full caches takes 1.084/10.050 ms.
+Operation timers exclude fixture creation and cache refill. Process-wide peak
+RSS across these workloads ranges from 16,328 to 36,228 KiB, including setup.
+The retained report contains repeated wall time, CPU and filesystem I/O counts;
+it establishes current costs, without an equivalent previous speedup baseline.
+
+Native Foot qualification covers linked text views without parent-image
+leakage, back navigation restoring cached image strips, opt-in diagnostics,
+selection, zoom and terminal restoration. The controlled fixture's publisher
+text remains unchanged. Startup waits for prepared article content before
+issuing source-bound commands; it does not rely on a fixed loading delay.
 
 Configuration measurements cover actual source/folder edits, stable portable
 identities, TOML publication, comment retention and verified rereads. Three
