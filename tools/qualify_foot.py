@@ -463,11 +463,16 @@ def preferences(directory, process):
         time.sleep(0.1)
     before = frame(directory)["offset"]
     command(directory, "settings")
-    wait_for("editable settings", lambda: service_frame(directory, before, b"Ctrl-s"), process)
+    wait_for(
+        "editable settings",
+        lambda: service_frame(directory, before, b"Settings", allow_native=True),
+        process,
+    )
     send(directory, b"j\r")
     time.sleep(0.1)
     send(directory, b"\x1b[200~96\x1b[201~\r")
     time.sleep(0.1)
+    before = frame(directory)["offset"]
     send(directory, b"\x13")
     wait_for("settings return to reader", lambda: native_frame(directory, before), process)
     return {"formula_policies": results, "settings_enter_edit_ctrl_s_save": True}
@@ -525,10 +530,12 @@ def reading_services(directory, process):
             "diagnostics_opt_in": True}
 
 
-def service_frame(directory, after, marker):
+def service_frame(directory, after, marker, *, allow_native=False):
+    # Small popups may leave native pixels visible outside their footprint.
     current = frame(directory)
-    if (current and current["offset"] > after and not current["strips"]
-            and marker in current["content"]):
+    if (current and current["offset"] > after
+            and (allow_native or not current["strips"])
+            and wire_contains(current["content"], marker.decode())):
         return current
     return None
 

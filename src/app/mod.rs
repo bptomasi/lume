@@ -273,6 +273,8 @@ pub struct App {
     pub visible: Vec<usize>,
     /// Selected position in `visible`.
     pub selected: usize,
+    /// First visible article-page position; drawing and pointer hits share it.
+    pub(crate) articles_first: usize,
     /// Cached body of the selected article.
     pub body: String,
     /// Cached feed-content availability; never inferred during drawing.
@@ -466,6 +468,7 @@ impl App {
             search: String::new(),
             visible: Vec::new(),
             selected: 0,
+            articles_first: 0,
             body: String::new(),
             body_kind: crate::content::BodyKind::Missing,
             content_source: crate::model::ContentSource::Feed,

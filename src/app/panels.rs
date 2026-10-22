@@ -21,6 +21,9 @@ impl App {
             self.screen = area;
         }
         let areas = ui::workspace_areas(area, self.focus, &self.workspace);
+        if let Some(articles) = areas.articles {
+            self.articles_first = ui::article_origin(self, articles);
+        }
         if let Some(reader) = areas.reader {
             if self.notebook.is_some() {
                 self.resize_notebook_context(

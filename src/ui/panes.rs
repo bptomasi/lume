@@ -314,20 +314,11 @@ fn reader_body(frame: &mut Frame<'_>, app: &App, column: Rect, inner: Rect) {
     );
     super::images::draw(frame, app, column);
     super::note_preview::markers(frame, app, column);
-    reader_progress(frame, app, column, inner);
+    reader_progress(frame, app, inner);
 }
 
-fn reader_progress(
-    frame: &mut Frame<'_>,
-    app: &App,
-    column: Rect,
-    inner: Rect,
-) {
-    let percent = scroll_percent(
-        app.scroll,
-        app.reader_lines.len(),
-        usize::from(column.height),
-    );
+fn reader_progress(frame: &mut Frame<'_>, app: &App, inner: Rect) {
+    let percent = cursor_percent(app.reader_cursor, app.reader_lines.len());
     let text = if app.workspace.fullscreen {
         format!(
             " {percent}% · Esc / F11 exit · {}",
@@ -344,29 +335,28 @@ fn reader_progress(
     );
 }
 
-fn scroll_percent(scroll: usize, rows: usize, viewport: usize) -> usize {
-    if rows == 0 {
-        return 0;
+fn cursor_percent(cursor: usize, rows: usize) -> usize {
+    match rows {
+        0 => 0,
+        1 => 100,
+        _ => (cursor.min(rows - 1) as u128 * 100 / (rows - 1) as u128) as usize,
     }
-    let travel = rows.saturating_sub(viewport.max(1));
-    if travel == 0 {
-        return 100;
-    }
-    (scroll.min(travel) as u128 * 100 / travel as u128) as usize
 }
 
 #[cfg(test)]
 mod tests {
-    use super::scroll_percent;
+    use super::cursor_percent;
 
     #[test]
-    fn progress_measures_scroll_position_instead_of_the_visible_bottom() {
-        assert_eq!(scroll_percent(0, 120, 20), 0);
-        assert_eq!(scroll_percent(50, 120, 20), 50);
-        assert_eq!(scroll_percent(100, 120, 20), 100);
-        assert_eq!(scroll_percent(200, 120, 20), 100);
-        assert_eq!(scroll_percent(0, 0, 20), 0);
-        assert_eq!(scroll_percent(0, 8, 20), 100);
-        assert_eq!(scroll_percent(usize::MAX / 2, usize::MAX, 1), 50);
+    fn progress_tracks_the_cursor_independently_of_viewport_height() {
+        assert_eq!(cursor_percent(0, 101), 0);
+        assert_eq!(cursor_percent(50, 101), 50);
+        assert_eq!(cursor_percent(100, 101), 100);
+        assert_eq!(cursor_percent(200, 101), 100);
+        assert_eq!(cursor_percent(0, 0), 0);
+        assert_eq!(cursor_percent(0, 1), 100);
+        assert_eq!(cursor_percent(0, 8), 0);
+        assert_eq!(cursor_percent(7, 8), 100);
+        assert_eq!(cursor_percent(usize::MAX / 2, usize::MAX), 50);
     }
 }

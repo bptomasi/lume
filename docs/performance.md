@@ -334,12 +334,23 @@ layout therefore preserves the user's newer position instead of restoring the
 cursor captured before the policy change. This path remains inactive when no
 formula projection is pending.
 
-The progress footer measures scroll position over the available scroll range,
-not the bottom of the first viewport. Scrollable articles start at 0% and reach
-100% at the final screen. Empty documents report 0%; a document fitting entirely
-in its viewport reports 100%. Saved reading anchors remain source-based.
-Boundary tests and reviewed snapshots cover this presentation independently of
-reading-position persistence.
+The progress footer follows the reader cursor over the article's display rows.
+It advances while reading the first screen, before the viewport scrolls, and
+works the same way for articles fitting entirely in one screen. The first row
+reports 0% and the final row 100%; empty documents report 0% and a single row
+reports 100%. Saved reading anchors remain source-based. Boundary and runtime
+frame tests cover forward/reverse movement independently of persistence.
+
+Article cards retain a transient viewport origin. Clicking a visible card
+preserves every pointer target; keyboard motion scrolls only enough to reveal
+an offscreen selection. Drawing and pointer lookup share the same bounded
+window, including compact cards and the inline search field.
+
+The `--panes-only` workload checks those pointer identities through actual
+clicks, background delivery and runtime frames. One release process with
+2,000 articles measured 0.566 ms per pair of clicks/frames with regular cards
+and 0.614 ms with compact cards, across 800 iterations each. Setup precedes
+timing; these TestBackend observations establish no before/after speedup.
 
 The [syntax-cache review](performance/syntax-cache-review.json) compares three
 alternating release processes against `eeb0297`. After visiting 12 code blocks

@@ -19,6 +19,17 @@ impl App {
         }
     }
 
+    fn pin_article_viewport(&mut self) {
+        let areas = crate::ui::workspace_areas(
+            self.screen,
+            self.focus,
+            &self.workspace,
+        );
+        if let Some(area) = areas.articles {
+            self.articles_first = crate::ui::article_origin(self, area);
+        }
+    }
+
     pub(super) fn filter_preview(&mut self) -> Result<()> {
         if self.navigation_worker.is_none() {
             return self.filter_now();
@@ -171,6 +182,7 @@ impl App {
         self.view = self.navigation[self.nav_selected].view.clone();
         self.page_offset = 0;
         self.selected = 0;
+        self.articles_first = 0;
         self.search.clear();
         self.filter()
     }
@@ -202,6 +214,7 @@ impl App {
         if position == previous {
             return Ok(());
         }
+        self.pin_article_viewport();
         let preview = matches!(&self.mode, super::Mode::Input(input)
             if matches!(input.kind, super::InputKind::Search));
         if !preview {
@@ -213,6 +226,7 @@ impl App {
             || self.library.articles.is_empty()
             || (preview && self.navigation_loading)
         {
+            self.articles_first = 0;
             self.page_offset = page;
             if preview {
                 self.filter_preview()?;

@@ -1,4 +1,4 @@
-"""Shared startup qualification must wait for each driver's own article."""
+"""Foot qualification checks source readiness and explicit popup footprints."""
 
 import importlib
 from pathlib import Path
@@ -45,6 +45,22 @@ class FootStartupTests(unittest.TestCase):
     def test_unrelated_article_does_not_qualify_startup(self):
         with self.assertRaisesRegex(AssertionError, "prepared article"):
             self.exercise("ALPHA HEADMARK", b"Request ownership")
+
+    def test_partial_popups_allow_uncovered_pixels_only_when_requested(self):
+        current = {"offset": 10, "strips": [{"row": 35}],
+                   "content": b"Set\x1b[4;7Htings"}
+        with patch.object(self.driver, "frame", return_value=current):
+            self.assertIsNone(self.driver.service_frame(None, 9, b"Settings"))
+            self.assertIs(
+                self.driver.service_frame(None, 9, b"Settings", allow_native=True),
+                current,
+            )
+            self.assertIsNone(
+                self.driver.service_frame(None, 10, b"Settings", allow_native=True),
+            )
+            self.assertIsNone(
+                self.driver.service_frame(None, 9, b"Wrong popup", allow_native=True),
+            )
 
 
 if __name__ == "__main__":

@@ -20,11 +20,23 @@ pub fn navigation_at(app: &App, area: Rect, row: u16) -> Option<usize> {
 pub(super) fn article_window(app: &App, height: u16) -> (usize, usize, u16) {
     let row_height = if app.workspace.compact { 2 } else { 4 };
     let capacity = usize::from(height / row_height).max(1);
+    let last = app.visible.len().saturating_sub(capacity);
+    let selected = app.selected.min(app.visible.len().saturating_sub(1));
     let first = app
-        .selected
-        .saturating_sub(capacity / 2)
-        .min(app.visible.len().saturating_sub(capacity));
+        .articles_first
+        .min(last)
+        .min(selected)
+        .max(selected.saturating_sub(capacity - 1).min(last));
     (first, capacity, row_height)
+}
+
+pub(crate) fn article_origin(app: &App, area: Rect) -> usize {
+    let inner = super::pane_search::content(
+        app,
+        crate::model::Pane::Articles,
+        area.inner(ratatui::layout::Margin::new(1, 1)),
+    );
+    article_window(app, inner.height).0
 }
 
 /// Article-page position under a row; unused trailing space selects nothing.

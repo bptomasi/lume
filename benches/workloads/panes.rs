@@ -3,6 +3,9 @@
 #[path = "pane_moves.rs"]
 mod moves;
 
+#[path = "article_cards.rs"]
+mod article_cards;
+
 use std::{
     thread,
     time::{Duration, Instant},
@@ -62,7 +65,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         );
     }
     report("annotation navigation/jump + runtime frame", samples);
-    Ok(())
+    article_cards::run(iterations, stress)
 }
 
 fn resize_workload(

@@ -20,7 +20,7 @@
 │                                │                                                                                                          │   
 │                                │                                                                                                          │   
 │                                │                                                                                                          │   
-│                                │ 100% · v select · y copy · s highlight · Tab panels · Z fullscreen                                       │−]╮
+│                                │ 0% · v select · y copy · s highlight · Tab panels · Z fullscreen                                         │−]╮
 │                                ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯  │
 │                                  ││  Your reading, annotated.                                                                                │
 │                                  ││                                                                                                          │

@@ -182,6 +182,7 @@ impl App {
             self.search.clone_from(&input.text);
             self.page_offset = 0;
             self.selected = 0;
+            self.articles_first = 0;
             self.filter_preview()?;
         }
         Ok(())

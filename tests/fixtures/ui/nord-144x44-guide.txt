@@ -18,7 +18,7 @@
 │  FEEDS                           ││                                                                                                          │
 │  Systems Journal               1 ││                                                                                                          │
 │                                  ││                                                                                                          │
-│                                  ││ 100% · v select · y copy · s highlight · Tab panels · Z fullscreen                                       │
+│                                  ││ 0% · v select · y copy · s highlight · Tab panels · Z fullscreen                                         │
 │                                  │╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 │                                  │╭ Annotations · 0 ──────────────────────────────────────────────────────────────────────────────────[≡]─[−]╮
 │                                  ││                                                                                                          │

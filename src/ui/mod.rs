@@ -34,6 +34,7 @@ use ratatui::Frame;
 
 use crate::app::App;
 
+pub(crate) use hit::article_origin;
 pub use hit::{annotation_at, article_at, navigation_at};
 pub use layout::{
     Areas, SplitBoundary, areas, pane_buttons, pane_close_rect, pane_move_rect,
