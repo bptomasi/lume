@@ -4,6 +4,8 @@
 //! ratatui-image owns fixed-widget placement. Each
 //! fitted image is split once at cell-height boundaries so drawing can select
 //! complete cached strips in either direction without decoding or resizing.
+//! Each strip erases its full cell width before painting pixels: skipped cells
+//! can still hold text from an earlier frame, including partially covered edges.
 
 use anyhow::{Result, ensure};
 use icy_sixel::{PixelFormat, dither::sixel_dither, output::sixel_output};
@@ -57,11 +59,14 @@ impl SixelRows {
                 strip_area,
                 &mut palette,
             )?;
-            bytes += sixel.data.len();
-            ensure!(bytes <= MAX_ENCODED_BYTES, "Inline pixels exceed 8 MiB");
             Image::new(&Protocol::Sixel(sixel))
                 .render(strip_area, &mut scratch);
-            rows.push(std::mem::take(&mut scratch[(0, 0)]));
+            let mut cell = std::mem::take(&mut scratch[(0, 0)]);
+            // ECH clears text without moving the cursor or crossing this row.
+            cell.set_symbol(&format!("\x1b[{}X{}", area.width, cell.symbol()));
+            bytes += cell.symbol().len();
+            ensure!(bytes <= MAX_ENCODED_BYTES, "Inline pixels exceed 8 MiB");
+            rows.push(cell);
         }
         Ok(Self { area, rows, bytes })
     }
@@ -104,8 +109,10 @@ impl SixelRows {
             {
                 continue;
             }
+            let style = buffer[(area.x, area.y + row)].style();
             buffer[(area.x, area.y + row)] =
                 self.rows[usize::from(first_row + row)].clone();
+            buffer[(area.x, area.y + row)].set_style(style);
             for column in 1..self.area.width {
                 buffer[(area.x + column, area.y + row)].set_skip(true);
             }

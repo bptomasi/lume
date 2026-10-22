@@ -46,7 +46,7 @@ fn clipped_strips_keep_exact_source_rows_and_cell_height() -> Result<()> {
     for row in 0..4 {
         let actual = clipped[(3, 2 + row)].symbol();
         assert_eq!(actual, complete[(3, 4 + row)].symbol());
-        assert!(actual.starts_with("\x1bP"));
+        assert!(actual.contains("\x1bP"));
         assert!(actual.contains("\"1;1;800;20"));
         assert!(clipped[(4, 2 + row)].skip);
     }
@@ -95,6 +95,40 @@ fn partial_final_row_is_not_stretched_to_a_whole_terminal_cell() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn strips_erase_previous_text_in_partially_covered_edge_cells() -> Result<()> {
+    let svg = br#"<svg xmlns="http://www.w3.org/2000/svg"
+        width="101" height="240">
+        <path fill="white" d="M0 0h101v240H0z"/>
+    </svg>"#;
+    let mut narrow = key();
+    narrow.width = 11;
+    let image = Decoder::default().render(svg, &narrow)?;
+    let rows = image.rows.context("Native Sixel strips")?;
+    assert_eq!(image.cells.area.width, 11);
+    let area = Rect::new(3, 2, 11, image.cells.area.height);
+    let mut previous = Buffer::empty(Rect::new(0, 0, 20, 16));
+    for cell in &mut previous.content {
+        cell.set_symbol("i");
+    }
+    let mut next = Buffer::empty(previous.area);
+    let background = ratatui::style::Color::Rgb(46, 52, 64);
+    next.set_style(area, ratatui::style::Style::new().bg(background));
+    rows.render(area, 0, &mut next);
+    let updates = previous.diff(&next);
+    for y in area.y..area.bottom() {
+        let (_, _, cell) = updates
+            .iter()
+            .find(|(x, row, _)| *x == area.x && *row == y)
+            .context("Strip missing from terminal updates")?;
+        assert!(cell.symbol().starts_with("\x1b[11X\x1bP"));
+        assert!(cell.symbol().contains("\"1;1;101;"));
+        assert_eq!(cell.bg, background);
+        assert!(next[(area.right() - 1, y)].skip);
+    }
+    Ok(())
+}
+
 fn reading() -> Result<(tempfile::TempDir, App)> {
     let (directory, mut store, feed) = common::seeded_store()?;
     let mut incoming =
@@ -135,7 +169,7 @@ fn native_rows(cells: &Buffer) -> usize {
     cells
         .content
         .iter()
-        .filter(|cell| cell.symbol().starts_with("\x1bP"))
+        .filter(|cell| cell.symbol().contains("\x1bP"))
         .count()
 }
 
@@ -345,7 +379,7 @@ fn popup_occlusion_hides_only_intersecting_strips() -> Result<()> {
     assert_eq!(cells[(10, 5)].symbol(), "Popup");
     for y in 2..14 {
         assert_eq!(
-            cells[(3, y)].symbol().starts_with("\x1bP"),
+            cells[(3, y)].symbol().contains("\x1bP"),
             !(5..8).contains(&y)
         );
         assert_eq!(cells[(4, y)].skip, !(5..8).contains(&y));

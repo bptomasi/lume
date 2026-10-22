@@ -49,27 +49,28 @@ fn cached_frames(bytes: &[u8], iterations: usize) -> Result<()> {
     cache::write(&cache_dir, &key.url, bytes)?;
     app.enable_images(cache_dir, true)?;
     super::settle(&mut app)?;
-    let height = app
+    let area = app
         .images
         .thumbnail(&key)
         .context("Ready pixels")?
         .cells
-        .area
-        .height;
+        .area;
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     super::super::measure(
         "cached Sixel bidirectional scroll + clipped frames",
         iterations * 5,
-        || scroll_frames(&mut app, &mut terminal, height),
+        || scroll_frames(&mut app, &mut terminal, area.width, area.height),
     )
 }
 
 fn scroll_frames(
     app: &mut App,
     terminal: &mut Terminal<TestBackend>,
+    width: u16,
     height: u16,
 ) -> Result<()> {
     let first = app.images.slots[0].rows.start;
+    let cleared_strip = format!("\x1b[{width}X\x1bP");
     for offset in (0..height).chain((0..height).rev()) {
         app.scroll = first + usize::from(offset);
         app.poll_images();
@@ -81,7 +82,7 @@ fn scroll_frames(
                 .buffer()
                 .content
                 .iter()
-                .any(|cell| { cell.symbol().starts_with("\x1bP") }),
+                .any(|cell| cell.symbol().starts_with(&cleared_strip)),
             "Clipped Sixel image disappeared"
         );
     }
