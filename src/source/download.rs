@@ -13,6 +13,9 @@ pub(super) struct Download {
 }
 
 pub(super) fn fetch(client: &ureq::Agent, feed: &Feed) -> Download {
+    if let Some(server) = feed.server.as_ref() {
+        return super::miniflux::fetch_entries(client, feed, server);
+    }
     let mut updated = feed.clone();
     let mut retry_at = 0;
     let result = request(client, feed).and_then(|mut response| {

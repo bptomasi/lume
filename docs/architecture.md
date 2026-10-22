@@ -15,8 +15,9 @@ container, external database or model runtime.
   history, publisher caches and private reading state. Its configuration adapter
   maps portable IDs onto local definitions.
 - `source` validates URLs, discovers and decodes feeds, collects with bounded
-  concurrency, and extracts original articles. Publisher refreshes preserve
-  personal flags, memberships, notes and article deletion.
+  concurrency, and extracts original articles. It also mirrors optional
+  Miniflux subscriptions and entries with bounded pages. Publisher refreshes
+  preserve personal flags, memberships, notes and article deletion.
 - `app` owns focus, modes, selection and workflows, composing typed storage and
   background contracts. `ui` reads cached presentation state and never runs SQL,
   HTTP, Markdown parsing, syntax compilation or image encoding while drawing.

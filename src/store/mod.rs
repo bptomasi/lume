@@ -27,6 +27,7 @@ mod organization;
 mod query;
 mod reading_sessions;
 mod recommendations;
+mod servers;
 mod storage;
 mod study;
 mod web_pages;

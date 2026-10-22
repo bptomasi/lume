@@ -9,6 +9,7 @@ pub mod article;
 mod body;
 pub mod discovery;
 mod download;
+mod miniflux;
 mod scheduler;
 mod worker;
 
@@ -70,6 +71,8 @@ pub struct ParsedFeed {
     pub title: String,
     /// At most 2,000 articles.
     pub articles: Vec<IncomingArticle>,
+    /// Optional server-owned batch identity and first-observation state.
+    pub remote: Option<crate::model::RemoteFeedUpdate>,
 }
 
 /// Normalize an explicit subscription URL without guessing discovery endpoints.
@@ -80,6 +83,21 @@ pub fn feed_url(address: &str) -> Result<Url> {
     let mut url = link_url(address)?;
     url.set_fragment(None);
     Ok(url)
+}
+
+/// Normalize a remote server root so API paths can be appended directly.
+///
+/// # Errors
+/// Rejects credentials, queries, fragments and non-HTTP(S) schemes.
+pub fn server_url(address: &str) -> Result<String> {
+    let mut url = feed_url(address)?;
+    ensure!(
+        url.query().is_none() && url.fragment().is_none(),
+        "Server URL cannot contain a query or fragment"
+    );
+    let path = url.path().trim_end_matches('/').to_owned();
+    url.set_path(&path);
+    Ok(url.as_str().trim_end_matches('/').to_owned())
 }
 
 /// Validate a browser link while preserving an article's fragment anchor.
@@ -149,7 +167,11 @@ pub fn parse(bytes: &[u8], address: &str) -> Result<ParsedFeed> {
         |title| content::label(&title.content, 200),
     );
     let articles = feed.entries.into_iter().map(normalize).collect();
-    Ok(ParsedFeed { title, articles })
+    Ok(ParsedFeed {
+        title,
+        articles,
+        remote: None,
+    })
 }
 
 pub(super) fn validate_feed_size(bytes: usize) -> Result<()> {

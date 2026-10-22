@@ -13,7 +13,9 @@ pub(crate) mod publication;
 mod schema;
 mod worker;
 
-pub use schema::{Configuration, Feed, Folder, Recommendations, SmartList, Ui};
+pub use schema::{
+    Configuration, Feed, Folder, Recommendations, Server, SmartList, Ui,
+};
 pub use worker::{Update, Worker};
 
 use std::path::{Path, PathBuf};
@@ -131,6 +133,9 @@ pub fn decode(text: &str) -> Result<Configuration> {
         .context("Invalid Lume TOML configuration")?;
     for feed in &mut config.feeds {
         feed.url = crate::source::feed_url(&feed.url)?.to_string();
+    }
+    for server in &mut config.servers {
+        server.url = crate::source::server_url(&server.url)?;
     }
     config.normalize();
     config.validate()?;

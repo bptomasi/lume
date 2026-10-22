@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 
 use crate::{
-    config::{Configuration, Feed, Folder, SmartList, Ui},
+    config::{Configuration, Feed, Folder, Server, SmartList, Ui},
     model::{PanelLayout, RecommendationProfile, SmartFilter},
     store::Store,
 };
@@ -20,6 +20,13 @@ impl Store {
         // Applying a projection must not repeat URL/query parsing per record.
         if config == previous {
             return Ok(());
+        }
+        for server in
+            changed_definitions(&previous.servers, &config.servers, |item| {
+                &item.id
+            })
+        {
+            self.apply_configuration_server(server)?;
         }
         for feed in
             changed_definitions(&previous.feeds, &config.feeds, |item| &item.id)
@@ -49,6 +56,29 @@ impl Store {
         }
         self.archive_configuration(config)?;
         self.apply_configuration_preferences(config)
+    }
+
+    fn apply_configuration_server(&self, server: &Server) -> Result<()> {
+        let url = crate::source::server_url(&server.url)?;
+        let id =
+            if let Some(id) = self.configuration_id("server", &server.id)? {
+                self.connection.execute(
+                    include_str!("../sql/configuration/update_server.sql"),
+                    (id, url.as_str(), &server.token_env, server.enabled),
+                )?;
+                id
+            } else {
+                self.connection.execute(
+                    include_str!("../sql/configuration/insert_server.sql"),
+                    (url.as_str(), &server.token_env, server.enabled),
+                )?;
+                self.connection.query_row(
+                    "SELECT id FROM servers WHERE url = ?1",
+                    [url.as_str()],
+                    |row| row.get(0),
+                )?
+            };
+        self.bind_configuration("server", id, &server.id)
     }
 
     fn apply_configuration_feed(&self, feed: &Feed) -> Result<()> {
@@ -191,6 +221,7 @@ impl Store {
             }
             let sql = match kind.as_str() {
                 "feed" => "UPDATE feeds SET enabled = 0 WHERE id = ?1",
+                "server" => "UPDATE servers SET enabled = 0 WHERE id = ?1",
                 "folder" => "UPDATE collections SET enabled = 0 WHERE id = ?1",
                 "smart" => "UPDATE smart_lists SET enabled = 0 WHERE id = ?1",
                 "notes" => {
@@ -268,9 +299,10 @@ fn changed_definitions<'a, T: PartialEq>(
 
 fn definition_keys(config: &Configuration) -> BTreeSet<(&str, &str)> {
     config
-        .feeds
+        .servers
         .iter()
-        .map(|item| ("feed", item.id.as_str()))
+        .map(|item| ("server", item.id.as_str()))
+        .chain(config.feeds.iter().map(|item| ("feed", item.id.as_str())))
         .chain(
             config
                 .folders
@@ -290,4 +322,43 @@ fn definition_keys(config: &Configuration) -> BTreeSet<(&str, &str)> {
                 .map(|item| ("notes", item.id.as_str())),
         )
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+
+    use crate::{
+        config::{Configuration, Server},
+        store::Store,
+    };
+
+    #[test]
+    fn server_projection_round_trips_through_configuration() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("library.sqlite3");
+        let store = Store::open(&path)?;
+        let previous = Configuration::default();
+        let mut config = previous.clone();
+        config.servers.push(Server {
+            id: "home".into(),
+            url: "https://reader.example/base/".into(),
+            token_env: "LUME_MINIFLUX_TOKEN".into(),
+            enabled: true,
+        });
+        config.normalize();
+        config.validate()?;
+        store.apply_configuration(&config, &previous)?;
+        let server = store
+            .servers()?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("Missing projected server"))?;
+        assert_eq!(server.url, "https://reader.example/base");
+        let captured = store.capture_configuration()?;
+        assert_eq!(captured.servers.len(), 1);
+        assert_eq!(captured.servers[0].id, "home");
+        assert_eq!(captured.servers[0].token_env, "LUME_MINIFLUX_TOKEN");
+        Ok(())
+    }
 }

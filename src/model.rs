@@ -98,6 +98,81 @@ pub struct Feed {
     pub modified: String,
     /// Last collection failure, empty after success.
     pub error: String,
+    /// Remote collection state when the feed is owned by an optional server.
+    pub server: Option<ServerFeed>,
+}
+
+/// Configuration projection for one optional remote reader server.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Server {
+    /// Local server identity.
+    pub id: i64,
+    /// Normalized server root without a trailing slash.
+    pub url: String,
+    /// Environment variable holding the API token.
+    pub token_env: String,
+    /// Whether collection through this server is enabled.
+    pub enabled: bool,
+    /// Last server-level failure, empty after success or before the first try.
+    pub error: String,
+}
+
+/// Local feed mapped to one remote subscription.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ServerFeed {
+    /// Local server identity.
+    pub server_id: i64,
+    /// Normalized server root.
+    pub server_url: String,
+    /// Environment variable holding the API token.
+    pub token_env: String,
+    /// Whether the server definition is enabled.
+    pub enabled: bool,
+    /// Remote feed identity.
+    pub remote_id: i64,
+    /// Whether a first successful entry page has been observed.
+    pub initialized: bool,
+    /// Latest observed remote `changed_at` second, zero before first sync.
+    pub last_changed: i64,
+    /// Whether the subscription still exists on the server.
+    pub present: bool,
+}
+
+/// Initial unread and starred state for one newly observed remote entry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RemoteArticleState {
+    /// Whether the entry is unread on the server.
+    pub unread: bool,
+    /// Whether the entry is starred on the server.
+    pub starred: bool,
+}
+
+/// Remote collection result for one server feed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RemoteFeedUpdate {
+    /// Local server identity.
+    pub server_id: i64,
+    /// Remote feed identity.
+    pub remote_id: i64,
+    /// Whether this update completes the first observed page set.
+    pub initialized: bool,
+    /// Latest remote `changed_at` second in this update.
+    pub last_changed: i64,
+    /// Initial state keyed by the article's stable external identity.
+    pub states: std::collections::BTreeMap<String, RemoteArticleState>,
+}
+
+/// One remote subscription discovered on a configured server.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RemoteFeedCandidate {
+    /// Remote feed identity.
+    pub remote_id: i64,
+    /// Remote display title.
+    pub title: String,
+    /// Original publisher feed URL reported by the server.
+    pub remote_url: String,
+    /// Local API identity used as the read-only feed URL.
+    pub local_url: String,
 }
 
 /// An explicitly named reading collection.

@@ -17,6 +17,9 @@ pub struct Configuration {
     pub ui: Ui,
     /// Explicit subscriptions, including optionally disabled sources.
     pub feeds: Vec<Feed>,
+    /// Optional remote reader servers, never required for a local library.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub servers: Vec<Server>,
     /// User-defined article folders; memberships remain in SQLite.
     pub folders: Vec<Folder>,
     /// Named article queries.
@@ -35,6 +38,7 @@ impl Default for Configuration {
             schema_version: 1,
             ui: Ui::default(),
             feeds: Vec::new(),
+            servers: Vec::new(),
             folders: Vec::new(),
             smart_lists: Vec::new(),
             note_collections: Vec::new(),
@@ -69,6 +73,21 @@ pub struct Feed {
 
 fn enabled() -> bool {
     true
+}
+
+/// Optional Miniflux-compatible collection server; the token stays external.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Server {
+    /// Stable identifier, independent of the server URL.
+    pub id: String,
+    /// Absolute HTTP(S) server root without a query or fragment.
+    pub url: String,
+    /// Environment variable holding the per-application API token.
+    pub token_env: String,
+    /// Whether collection through this server is enabled.
+    #[serde(default = "enabled")]
+    pub enabled: bool,
 }
 
 /// A named definition with a stable ID; folders leave the query empty.
@@ -185,6 +204,7 @@ impl Ui {
 impl Configuration {
     pub(crate) fn normalize(&mut self) {
         self.feeds.sort_by(|left, right| left.id.cmp(&right.id));
+        self.servers.sort_by(|left, right| left.id.cmp(&right.id));
         self.folders.sort_by(|left, right| left.id.cmp(&right.id));
         self.smart_lists
             .sort_by(|left, right| left.id.cmp(&right.id));
@@ -208,6 +228,7 @@ impl Configuration {
                 .map(|item| (&item.id, &item.name)),
         )?;
         self.validate_feeds()?;
+        self.validate_servers()?;
         self.validate_queries()?;
         let mut workspace = Workspace::default();
         self.ui.apply(&mut workspace);
@@ -254,6 +275,24 @@ impl Configuration {
         Ok(())
     }
 
+    fn validate_servers(&self) -> Result<()> {
+        ensure!(self.servers.len() <= 16, "At most 16 servers");
+        let mut ids = BTreeSet::new();
+        let mut urls = BTreeSet::new();
+        for server in &self.servers {
+            validate_id(&server.id)?;
+            ensure!(
+                ids.insert(&server.id),
+                "Duplicate server ID: {}",
+                server.id
+            );
+            let url = crate::source::server_url(&server.url)?;
+            ensure!(urls.insert(url.clone()), "Duplicate server URL: {url}");
+            validate_env_name(&server.token_env)?;
+        }
+        Ok(())
+    }
+
     fn validate_queries(&self) -> Result<()> {
         let feeds = self
             .feeds
@@ -286,6 +325,19 @@ impl Configuration {
     }
 }
 
+fn validate_env_name(name: &str) -> Result<()> {
+    let mut bytes = name.bytes();
+    ensure!(
+        name.len() <= 128
+            && bytes
+                .next()
+                .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_')
+            && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_'),
+        "Token environment variable requires 1–128 ASCII letters, digits or underscores and cannot start with a digit"
+    );
+    Ok(())
+}
+
 fn validate_id(id: &str) -> Result<()> {
     ensure!(
         !id.is_empty()
@@ -315,4 +367,65 @@ fn validate_names<'a>(
         );
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+
+    #[test]
+    fn server_definition_round_trips_with_a_normalized_root() -> Result<()> {
+        let config = crate::config::decode(
+            r#"
+            schema_version = 1
+
+            [[servers]]
+            id = "home"
+            url = "https://reader.example/base/"
+            token_env = "LUME_MINIFLUX_TOKEN"
+            "#,
+        )?;
+        assert_eq!(config.servers.len(), 1);
+        assert_eq!(config.servers[0].url, "https://reader.example/base");
+        assert!(config.servers[0].enabled);
+        let text = crate::config::encode(&config)?;
+        assert!(text.contains("[[servers]]"));
+        assert!(text.contains("token_env = \"LUME_MINIFLUX_TOKEN\""));
+        Ok(())
+    }
+
+    #[test]
+    fn server_validation_rejects_ambiguous_or_unsafe_roots() {
+        for (field, value) in [
+            ("url", "\"https://reader.example/?token=secret\""),
+            ("url", "\"https://user:secret@reader.example\""),
+            ("url", "\"ftp://reader.example\""),
+            ("token_env", "\"1INVALID\""),
+            ("token_env", "\"\""),
+        ] {
+            let text = format!(
+                "schema_version = 1\n[[servers]]\nid = \"home\"\n\
+                 url = \"https://reader.example\"\n\
+                 token_env = \"LUME_MINIFLUX_TOKEN\"\n{field} = {value}\n"
+            );
+            assert!(
+                crate::config::decode(&text).is_err(),
+                "accepted {field} = {value}"
+            );
+        }
+        let duplicate = r#"
+            schema_version = 1
+
+            [[servers]]
+            id = "home"
+            url = "https://reader.example"
+            token_env = "TOKEN_A"
+
+            [[servers]]
+            id = "home"
+            url = "https://other.example"
+            token_env = "TOKEN_B"
+            "#;
+        assert!(crate::config::decode(duplicate).is_err());
+    }
 }

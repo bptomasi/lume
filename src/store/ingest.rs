@@ -115,22 +115,18 @@ impl Store {
             .connection
             .prepare(
                 r#"
-            SELECT id, title, url, etag, modified, error
-            FROM feeds
-            WHERE enabled = 1
-            ORDER BY title COLLATE NOCASE, id
+            SELECT
+                f.id, f.title, f.url, f.etag, f.modified, f.error,
+                s.id, s.url, s.token_env, s.enabled,
+                sf.remote_id, sf.initialized, sf.last_changed, sf.present
+            FROM feeds AS f
+            LEFT JOIN servers AS s ON s.id = f.server_id
+            LEFT JOIN server_feeds AS sf ON sf.feed_id = f.id
+            WHERE f.enabled = 1
+            ORDER BY f.title COLLATE NOCASE, f.id
             "#,
             )?
-            .query_map([], |row| {
-                Ok(Feed {
-                    id: row.get(0)?,
-                    title: row.get(1)?,
-                    url: row.get(2)?,
-                    etag: row.get(3)?,
-                    modified: row.get(4)?,
-                    error: row.get(5)?,
-                })
-            })?
+            .query_map([], feed_row)?
             .collect::<rusqlite::Result<_>>()?)
     }
 
@@ -194,4 +190,30 @@ impl Store {
         )?;
         Ok(())
     }
+}
+
+fn feed_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Feed> {
+    let server_id: Option<i64> = row.get(6)?;
+    let server = match server_id {
+        Some(server_id) => Some(crate::model::ServerFeed {
+            server_id,
+            server_url: row.get(7)?,
+            token_env: row.get(8)?,
+            enabled: row.get(9)?,
+            remote_id: row.get(10)?,
+            initialized: row.get(11)?,
+            last_changed: row.get(12)?,
+            present: row.get(13)?,
+        }),
+        None => None,
+    };
+    Ok(Feed {
+        id: row.get(0)?,
+        title: row.get(1)?,
+        url: row.get(2)?,
+        etag: row.get(3)?,
+        modified: row.get(4)?,
+        error: row.get(5)?,
+        server,
+    })
 }
