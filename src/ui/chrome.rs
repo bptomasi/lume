@@ -115,15 +115,7 @@ pub(super) fn pane_controls(
     areas: &super::Areas,
 ) {
     for (pane, area) in areas.ordered() {
-        if let Some(grip) = super::pane_move_rect(area) {
-            let moving = app.panel_drag().is_some_and(|drag| drag.pane == pane);
-            let style = if moving {
-                Style::new().fg(BG).bg(AMBER)
-            } else {
-                Style::new().fg(AMBER).bg(PANEL)
-            };
-            frame.render_widget(Paragraph::new("[≡]").style(style), grip);
-        }
+        move_grip(frame, app, pane, area);
         if let Some(button) = super::pane_close_rect(area) {
             frame.render_widget(
                 Paragraph::new("[−]").style(Style::new().fg(AMBER).bg(PANEL)),
@@ -135,9 +127,33 @@ pub(super) fn pane_controls(
         return;
     }
     restore_buttons(frame, app);
-    if areas.ordered().is_empty() {
+    if areas.is_empty() {
         collapsed_workspace(frame);
     }
+}
+
+fn move_grip(frame: &mut Frame<'_>, app: &App, pane: Focus, area: Rect) {
+    let Some(grip) = super::pane_move_rect(area) else {
+        return;
+    };
+    // Reserve the controls' entire strip, including their one-cell separator.
+    // A long title must not leave stray letters between the two buttons.
+    let strip = Rect::new(grip.x, grip.y, 7, 1);
+    let border = if app.focus == pane { ACCENT } else { BORDER };
+    frame.render_widget(
+        Block::new()
+            .borders(Borders::TOP)
+            .style(Style::new().bg(PANEL))
+            .border_style(Style::new().fg(border)),
+        strip,
+    );
+    let moving = app.panel_drag().is_some_and(|drag| drag.pane == pane);
+    let style = if moving {
+        Style::new().fg(BG).bg(AMBER)
+    } else {
+        Style::new().fg(AMBER).bg(PANEL)
+    };
+    frame.render_widget(Paragraph::new("[≡]").style(style), grip);
 }
 
 pub(super) fn draw_panel_move(frame: &mut Frame<'_>, app: &App) {

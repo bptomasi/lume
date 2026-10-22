@@ -22,6 +22,11 @@ pub struct Areas {
 }
 
 impl Areas {
+    /// Whether every pane is collapsed or suppressed.
+    pub fn is_empty(&self) -> bool {
+        Pane::ALL.into_iter().all(|pane| self.get(pane).is_none())
+    }
+
     /// Rectangle of a visible pane, or none when collapsed/suppressed.
     pub fn get(&self, pane: Pane) -> Option<Rect> {
         match pane {
@@ -66,12 +71,12 @@ pub fn workspace_areas(
     if workspace.fullscreen {
         return single(area, Pane::Reader);
     }
-    let body = Layout::vertical([
-        Constraint::Length(2),
-        Constraint::Min(1),
-        Constraint::Length(2),
-    ])
-    .split(area)[1];
+    let body = Rect::new(
+        area.x,
+        area.y + area.height.min(2),
+        area.width,
+        area.height.saturating_sub(4),
+    );
     if workspace.zen && workspace.show_reader {
         return single(body, Pane::Reader);
     }
@@ -79,11 +84,12 @@ pub fn workspace_areas(
         return tree::arrange(body, tree, workspace, focus);
     }
     let panes = responsive_panes(body.width, focus, workspace);
-    let constraints = pane_constraints(body.width, &panes, workspace);
-    let rectangles = Layout::horizontal(constraints).split(body);
+    let widths = pane_widths(body.width, &panes, workspace);
     let mut areas = Areas::default();
-    for (pane, area) in panes.into_iter().zip(rectangles.iter()) {
-        areas.insert(pane, *area);
+    let mut column = body.x;
+    for (pane, width) in panes.into_iter().zip(widths) {
+        areas.insert(pane, Rect::new(column, body.y, width, body.height));
+        column += width;
     }
     areas
 }
@@ -94,37 +100,35 @@ fn single(area: Rect, pane: Pane) -> Areas {
     areas
 }
 
-fn pane_constraints(
-    width: u16,
-    panes: &[Pane],
-    workspace: &Workspace,
-) -> Vec<Constraint> {
+fn pane_widths(width: u16, panes: &[Pane], workspace: &Workspace) -> [u16; 4] {
     let flexible = if panes.contains(&Pane::Reader) {
         Some(Pane::Reader)
     } else {
         panes.last().copied()
     };
-    let mut remaining = width.saturating_sub(20);
+    let mut remaining =
+        width.saturating_sub(flexible.map_or(0, Pane::minimum_width));
     let mut minimums = panes
         .iter()
         .filter(|pane| Some(**pane) != flexible)
-        .map(|pane| if *pane == Pane::Library { 16 } else { 24 })
+        .map(|pane| pane.minimum_width())
         .sum::<u16>();
-    panes
-        .iter()
-        .map(|pane| {
-            if Some(*pane) == flexible {
-                return Constraint::Fill(1);
-            }
-            let minimum = if *pane == Pane::Library { 16 } else { 24 };
-            minimums = minimums.saturating_sub(minimum);
-            let available = remaining.saturating_sub(minimums);
-            let preferred = workspace.pane_width(*pane).unwrap_or(20);
-            let size = preferred.min(available);
-            remaining = remaining.saturating_sub(size);
-            Constraint::Length(size)
-        })
-        .collect()
+    let mut widths = [0; 4];
+    for (index, pane) in panes.iter().enumerate() {
+        if Some(*pane) == flexible {
+            continue;
+        }
+        let minimum = pane.minimum_width();
+        minimums = minimums.saturating_sub(minimum);
+        let available = remaining.saturating_sub(minimums);
+        let preferred = workspace.pane_width(*pane).unwrap_or(20);
+        widths[index] = preferred.min(available);
+        remaining = remaining.saturating_sub(widths[index]);
+    }
+    if let Some(index) = panes.iter().position(|pane| Some(*pane) == flexible) {
+        widths[index] = width.saturating_sub(widths.iter().sum());
+    }
+    widths
 }
 
 fn responsive_panes(
@@ -168,7 +172,7 @@ pub fn reader_content(area: Rect, width: u16) -> Rect {
     let width = width.min(area.width.saturating_sub(4));
     Rect::new(
         area.x + (area.width - width) / 2,
-        area.y.saturating_add(6),
+        area.y.saturating_add(area.height.min(6)),
         width,
         area.height.saturating_sub(8),
     )

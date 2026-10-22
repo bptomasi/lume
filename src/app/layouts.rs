@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result, bail, ensure};
 
-use crate::model::{Dock, Pane, PaneLayout};
+use crate::model::{Dock, Pane, PaneLayout, PanelLayout, Workspace};
 
 use super::{Action, App};
 
@@ -16,6 +16,7 @@ impl App {
             "workspace" => self.profile_command(argument)?,
             "layout-undo" => self.restore_layout(false)?,
             "layout-redo" => self.restore_layout(true)?,
+            "layout-reset" => self.reset_layout()?,
             "panel-dock" => self.dock_command(argument)?,
             "layout-columns" => {
                 self.workspace.layout = None;
@@ -24,6 +25,23 @@ impl App {
             _ => return Ok(None),
         }
         Ok(Some(Action::None))
+    }
+
+    fn reset_layout(&mut self) -> Result<()> {
+        self.cancel_pointer();
+        let standard = Workspace {
+            reading_width: self.workspace.reading_width,
+            fullscreen_width: self.workspace.fullscreen_width,
+            ..Workspace::default()
+        };
+        let layout = PanelLayout::capture(&standard);
+        if layout != PanelLayout::capture(&self.workspace) {
+            layout.apply(&mut self.workspace);
+            self.fullscreen_focus = None;
+            self.commit_panel_layout()?;
+        }
+        self.status = "Standard layout restored · Ctrl-w u undoes".into();
+        Ok(())
     }
 
     fn profile_command(&mut self, argument: &str) -> Result<()> {

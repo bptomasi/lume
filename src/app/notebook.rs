@@ -278,6 +278,8 @@ impl App {
         let Some(notebook) = &mut self.notebook else {
             return Ok(false);
         };
+        self.layouts
+            .observe(crate::model::PanelLayout::capture(&self.workspace));
         notebook
             .before_layouts
             .profiles

@@ -25,6 +25,8 @@ mod expansion;
 mod feed_content;
 #[path = "workloads/full_article.rs"]
 mod full_article;
+#[path = "workloads/geometry.rs"]
+mod geometry;
 #[path = "workloads/highlighting.rs"]
 mod highlighting;
 #[path = "workloads/images.rs"]
@@ -111,6 +113,7 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    geometry::run(iterations, stress)?;
     reading_services::run(iterations, stress)?;
     service_interaction::run(iterations, stress)?;
     recovery_navigation::run(iterations, stress)?;
@@ -140,6 +143,7 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--geometry-only", geometry::run),
     ("--reading-services-only", reading_services::run),
     ("--service-interaction-only", service_interaction::run),
     ("--annotation-projection-only", annotation_projection::run),

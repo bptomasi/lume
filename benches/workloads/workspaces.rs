@@ -150,6 +150,18 @@ fn layouts(
         let start = Instant::now();
         command(app, "workspace load Study")?;
         ensure!(app.workspace.layout.is_some(), "Study topology missing");
+        let study = PanelLayout::capture(&app.workspace);
+        command(app, "layout-reset")?;
+        ensure!(
+            app.workspace.layout.is_none()
+                && app.workspace.panel_order == lume::model::Pane::ALL,
+            "Reset did not restore standard columns"
+        );
+        command(app, "layout-undo")?;
+        ensure!(
+            PanelLayout::capture(&app.workspace) == study,
+            "Reset lost the previous study arrangement"
+        );
         app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
         terminal.draw(|frame| ui::draw_interactive(frame, app))?;
         app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
@@ -162,7 +174,10 @@ fn layouts(
         app.flush_session()?;
         samples.push(start.elapsed().as_secs_f64() * 1000.0);
     }
-    report("Study profile + guide + undo + confirmed writes", samples);
+    report(
+        "Study + reset/undo + guide + undo + confirmed writes",
+        samples,
+    );
     Ok(())
 }
 

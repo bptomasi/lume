@@ -18,7 +18,7 @@
 │  FEEDS│ s         Split below        v         Split right                 │ │
 │  Syste│ + / -     Resize split       c         Collapse                    │ │
 │       │ a         Open annotations   w         Cycle focus                 │ │
-│       │ u / r     Undo / redo layout                                       │ │
+│       │ u / r     Undo / redo layout =         Standard layout             │ │
 │       │                                                                    │ │
 │       │ :workspace load Study        Esc       Cancel                      │ │
 │       │                                                                    │ │

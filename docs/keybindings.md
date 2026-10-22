@@ -44,6 +44,10 @@ blank and short rows. Code fragments inside prose retain compact styling.
 ## Arrange your workspace
 
 Press `Ctrl-w` to see the next available layout keys in the application.
+`Ctrl-w =` or `:layout-reset` restores Library, Articles and Reader in that
+order, with standard sidebar/headline widths and Annotations collapsed. It
+leaves fullscreen and zen, preserving your article, notes, theme and prose
+widths. `Ctrl-w u` undoes the reset, including after reopening Lume.
 `Ctrl-w h/j/k/l` focuses the pane to the left/below/above/right in the current
 layout and stops at its edges. Outside the Reader, `h/l` and left/right arrows
 also follow panel geometry. `Tab` and `Shift-Tab` cycle the saved panel order.
@@ -57,6 +61,9 @@ arrangement. `:workspace save NAME` and `:workspace load NAME` manage profiles.
 
 Click a panel to focus it. Drag a divider to resize; drag its title/grip to
 reorder or dock it. Close/reopen controls are present for every panel.
+Divider movement respects the minimum size of both nested sections. Articles
+retains at least 24 columns while the terminal can fit the expanded panes;
+responsive suppression applies when the whole terminal is too small.
 Reader mouse selection stays inside the reader and uses source offsets rather
 than terminal framebuffer text. Wheel events move one row/item each; a terminal
 may emit several events per physical wheel step. Terminal-native selection can

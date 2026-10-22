@@ -25,6 +25,15 @@ impl Pane {
         Self::Annotations,
     ];
 
+    /// Minimum useful column allocation before responsive suppression.
+    pub fn minimum_width(self) -> u16 {
+        match self {
+            Self::Library => 16,
+            Self::Reader => 20,
+            Self::Articles | Self::Annotations => 24,
+        }
+    }
+
     /// Stable command spelling.
     pub fn name(self) -> &'static str {
         match self {

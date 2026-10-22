@@ -34,13 +34,13 @@
 │                                  ││                                   │ s         Split below        v         Split right                 │ │
 │                                  ││                                   │ + / -     Resize split       c         Collapse                    │ │
 │                                  ││                                   │ a         Open annotations   w         Cycle focus                 │ │
-│                                  ││                                   │ u / r     Undo / redo layout                                       │ │
+│                                  ││                                   │ u / r     Undo / redo layout =         Standard layout             │ │
 │                                  ││                                   │                                                                    │ │
 │                                  ││                                   │ :workspace load Study        Esc       Cancel                      │ │
 │                                  ││                                   │                                                                    │ │
 │                                  ││                                   │                                                                    │ │
 ╰──────────────────────────────────╯╰───────────────────────────────────╰────────────────────────────────────────────────────────────────────╯─╯
- NORMAL  Reader   Layout: h/l focus · H/L or arrows move · +/- resize · c collapse · a notes                                                    
+ NORMAL  Reader   Layout: h/l focus · H/L or arrows move · +/- resize · c collapse · a notes · = reset                                          
   Ctrl-w · h/j/k/l focus · H/J/K/L move · s/v split · u/r history · Esc cancel                                                                  
 0:0..4 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))
 0:4..8 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75)).bold()
@@ -334,6 +334,6 @@
 41:142..144 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
 42:0..8 Style::new().fg(Color::Rgb(46, 52, 64)).bg(Color::Rgb(136, 192, 208)).bold()
 42:8..16 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(67, 76, 94))
-42:16..92 Style::new().fg(Color::Rgb(216, 222, 233)).bg(Color::Rgb(52, 60, 75))
-42:92..144 Style::new().fg(Color::Reset).bg(Color::Rgb(52, 60, 75))
+42:16..102 Style::new().fg(Color::Rgb(216, 222, 233)).bg(Color::Rgb(52, 60, 75))
+42:102..144 Style::new().fg(Color::Reset).bg(Color::Rgb(52, 60, 75))
 43:0..144 Style::new().fg(Color::Rgb(157, 170, 189)).bg(Color::Rgb(52, 60, 75))

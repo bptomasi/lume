@@ -191,6 +191,16 @@ only visible cells and preserves syntax, search, selection and cursor offsets.
 Layout and wrapping run outside input where they are expensive; tests cover
 long rows, resizing and libraries larger than the displayed metadata page.
 
+`ui::layout` computes fixed columns and binary splits with bounded rectangle
+arithmetic. Rendering, focus and pointer hit testing share that geometry.
+Each split reserves the combined minimum dimensions of its expanded children;
+resizing cannot suppress Articles while the terminal can fit the whole tree.
+Focus cycling retains the saved pane order independently of spatial focus.
+Standard reset restores canonical pane order, visibility and widths as one undoable
+change, retaining source selection and prose preferences. Notebook layout
+remains independent. Built-in profiles start from canonical dimensions rather
+than inheriting a rearranged active workspace; saved profiles are preserved.
+
 Library search caches normalized destination names when the catalog changes.
 Typing filters those names without SQLite work; article search reuses the
 bounded latest-request navigation worker and the existing destination query.

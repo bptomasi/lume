@@ -214,7 +214,7 @@ impl App {
             self.panel_prefix = true;
             self.status = concat!(
                 "Layout: h/l focus · H/L or arrows move · ",
-                "+/- resize · c collapse · a notes"
+                "+/- resize · c collapse · a notes · = reset"
             )
             .into();
             return Ok(true);
@@ -261,7 +261,7 @@ impl App {
             _ => {
                 self.status = concat!(
                     "Ctrl-w: h/l focus · H/L or arrows move · ",
-                    "+/- resize · c collapse · a notes"
+                    "+/- resize · c collapse · a notes · = reset"
                 )
                 .into();
             }
@@ -282,6 +282,9 @@ impl App {
             return Ok(true);
         }
         match code {
+            KeyCode::Char('=') => {
+                self.layout_commands("layout-reset", "")?;
+            }
             KeyCode::Char('J') | KeyCode::Down => {
                 self.move_spatially(Dock::Below)?
             }

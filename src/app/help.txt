@@ -10,21 +10,24 @@
   Space v / :reader       Show or hide the reader
   Space t / :annotations  Toggle position-ordered article notes
   Ctrl-w          Open the contextual layout key guide
-  Ctrl-w h/j/k/l  Focus spatial neighbors in custom splits
+  Ctrl-w h/j/k/l  Focus spatial neighbors in the current layout
   Ctrl-w s / v    Split below / right, opening another pane
   Ctrl-w J / K    Move focused pane below / above a neighbor
   Ctrl-w u / r    Undo / redo layout changes (separate from article undo)
+  Ctrl-w =        Restore Library / Articles / Reader with standard widths
+  :layout-reset   Same reset; preserves article, notes and prose preferences
   :panel-dock annotations reader below   Dock using either axis
-  :layout-columns Return to classic column geometry
+  :layout-columns Flatten splits, retaining pane order and sizes
   :workspace list Show saved layouts; Reading, Study and Browse are seeded
   :workspace save NAME / load NAME / delete NAME
                   Profiles store layout only; the article stays selected.
-  Ctrl-w h/l      Previous / next expanded panel in classic columns (also k/j)
+  Ctrl-w h/l      Left / right pane in columns; j/k follows vertical splits
   Alt-Left/Right  Move focused panel left / right directly
   Ctrl-w H/L      Same move (or Ctrl-w, then Left/Right)
                   Release Ctrl-w before pressing Shift-h / Shift-l.
   Ctrl-w +/-      Resize by two columns; custom splits use two percentage points
                   Also >/<. Collapsed siblings never absorb the resize.
+                  Nested minimum sizes keep Articles visible when space permits.
   Ctrl-w c / a    Collapse focused panel / expand article notes
   :panel NAME     Toggle library, articles, reader or annotations
   :panel-focus NAME       Expand and focus a panel

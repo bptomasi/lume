@@ -798,9 +798,15 @@ const COMMANDS: &[CommandSpec] = &[
         aliases: &[],
     },
     CommandSpec {
+        name: "layout-reset",
+        usage: "layout-reset",
+        description: "Restore standard pane order and sizes · Ctrl-w =",
+        aliases: &[],
+    },
+    CommandSpec {
         name: "layout-columns",
         usage: "layout-columns",
-        description: "Restore classic column geometry",
+        description: "Flatten splits into columns, keeping pane order and sizes",
         aliases: &[],
     },
     CommandSpec {

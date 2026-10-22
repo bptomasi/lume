@@ -21,6 +21,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
             " +/- Resize · c Collapse\n",
             " a Open annotations\n",
             " u/r Undo / redo layout\n",
+            " = Restore standard layout\n",
             " Esc Cancel"
         )
     } else {
@@ -29,7 +30,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
             " s         Split below        v         Split right\n",
             " + / -     Resize split       c         Collapse\n",
             " a         Open annotations   w         Cycle focus\n",
-            " u / r     Undo / redo layout\n\n",
+            " u / r     Undo / redo layout =         Standard layout\n\n",
             " :workspace load Study        Esc       Cancel"
         )
     };

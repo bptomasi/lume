@@ -1,8 +1,8 @@
   ◉ lume  /  a quiet place for curious m
  [− L]     [+ A]     [− R]     [− N]    
-╭ 01  Librar[≡]─[−]╮╭ 03  Reader[≡]─[−]╮
-│                  ││ Cache &          │
-│  LIBRARY         ││ consequence      │
+╭ 01  Li[≡]─[−]╮╭ 03  Reader ───[≡]─[−]╮
+│              ││ Cache & consequence  │
+│  LIBRARY     ││                      │
 │▎╭─ Layout · Ctrl-w · Reader ───────╮ │
 │ │ h/j/k/l Focus · w Cycle          │ │
 │ │ H/J/K/L Move pane                │ │
@@ -10,9 +10,9 @@
 │ │ +/- Resize · c Collapse          │ │
 │ │ a Open annotations               │ │
 │ │ u/r Undo / redo layout           │ │
+│ │ = Restore standard layout        │ │
 │ │ Esc Cancel                       │ │
-│ │                                  │ │
-│ │                                  │ │
+│ │                                  │o│
 ╰─╰──────────────────────────────────╯─╯
  NORMAL  Reader   Layout: h/l focus · H/
   Ctrl-w · h/j/k/l focus · H/J/K/L move 
@@ -23,27 +23,27 @@
 1:10..20 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
 1:20..40 Style::new().fg(Color::Rgb(189, 174, 147)).bg(Color::Rgb(40, 40, 40))
 2:0..1 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
-2:1..12 Style::new().fg(Color::Rgb(189, 174, 147)).bg(Color::Rgb(40, 40, 40))
+2:1..8 Style::new().fg(Color::Rgb(189, 174, 147)).bg(Color::Rgb(40, 40, 40))
+2:8..11 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
+2:11..12 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
 2:12..15 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
 2:15..16 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
-2:16..19 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
-2:19..20 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
-2:20..40 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
+2:16..40 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
 3:0..1 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
-3:1..19 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
-3:19..20 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
-3:20..21 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
-3:21..22 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
-3:22..38 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40)).bold()
+3:1..15 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
+3:15..16 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
+3:16..17 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
+3:17..18 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
+3:18..38 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40)).bold()
 3:38..39 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
 3:39..40 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
 4:0..1 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
 4:1..10 Style::new().fg(Color::Rgb(146, 131, 116)).bg(Color::Rgb(40, 40, 40))
-4:10..19 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
-4:19..20 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
-4:20..21 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
-4:21..22 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
-4:22..38 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40)).bold()
+4:10..15 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
+4:15..16 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
+4:16..17 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
+4:17..18 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
+4:18..38 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40)).bold()
 4:38..39 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
 4:39..40 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
 5:0..1 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))

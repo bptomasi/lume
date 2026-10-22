@@ -22,14 +22,12 @@ pub struct LayoutHistory {
 impl LayoutHistory {
     /// Seed useful profiles without overwriting any persisted user profile.
     pub fn new(workspace: &Workspace) -> Self {
-        let mut reading = workspace.clone();
-        reading.layout = None;
-        reading.show_library = true;
-        reading.show_reader = true;
-        reading.fullscreen = false;
-        reading.zen = false;
-        reading.show_articles = false;
-        reading.show_annotations = false;
+        let reading = Workspace {
+            show_articles: false,
+            reading_width: workspace.reading_width,
+            fullscreen_width: workspace.fullscreen_width,
+            ..Workspace::default()
+        };
         let mut study = reading.clone();
         study.show_annotations = true;
         study.layout = PaneLayout::columns(&study.panel_order).dock(
