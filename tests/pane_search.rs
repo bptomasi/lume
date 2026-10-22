@@ -298,6 +298,7 @@ fn query_cursor_motion_preserves_selection_and_does_not_start_navigation()
             assert_eq!(app.current().context("Selection lost")?.id, selected);
         }
         key(&mut app, KeyCode::Enter)?;
+        common::settle_notes(&mut app)?;
         key(&mut app, KeyCode::Char('/'))?;
         key(&mut app, KeyCode::Esc)?;
         assert!(
@@ -331,5 +332,97 @@ fn catalog_refresh_preserves_an_uncommitted_library_match() -> Result<()> {
     assert_eq!(app.navigation[app.nav_selected].view, selected);
     key(&mut app, KeyCode::Enter)?;
     assert_eq!(app.view, selected);
+    Ok(())
+}
+
+#[test]
+fn async_search_publishes_titles_without_loading_the_selected_body()
+-> Result<()> {
+    let (directory, mut app) = two_article_application()?;
+    let body = app.body.clone();
+    app.enable_background_navigation(
+        &directory.path().join("library.sqlite3"),
+    )?;
+    app.focus = Focus::Articles;
+    key(&mut app, KeyCode::Char('/'))?;
+    let visible = app.visible.len();
+    app.paste("cache")?;
+    assert_eq!(app.visible.len(), visible, "Typing blanked the list");
+    common::settle_notes(&mut app)?;
+    key(&mut app, KeyCode::Down)?;
+    assert!(!app.navigation_loading, "Preview started a reader load");
+    assert_eq!(app.body, body);
+    let selected = app.current().context("Preview selection")?.id;
+    key(&mut app, KeyCode::Enter)?;
+    common::settle_notes(&mut app)?;
+    assert_eq!(app.current().context("Committed selection")?.id, selected);
+    assert!(!app.reader_stale());
+    Ok(())
+}
+
+#[test]
+fn sidebar_backspace_and_replacement_expand_matches_again() -> Result<()> {
+    let (_directory, mut app) = application()?;
+    app.focus = Focus::Library;
+    key(&mut app, KeyCode::Char('/'))?;
+    app.paste("Security reviews")?;
+    assert_eq!(app.navigation[app.nav_selected].title, "Security reviews");
+    for _ in 0..7 {
+        key(&mut app, KeyCode::Backspace)?;
+    }
+    key(&mut app, KeyCode::Up)?;
+    assert_eq!(app.navigation[app.nav_selected].title, "Security research");
+    app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL))?;
+    app.paste("Inbox")?;
+    assert_eq!(app.navigation[app.nav_selected].title, "Inbox");
+    Ok(())
+}
+
+#[test]
+fn beginning_article_search_saves_the_displayed_reading_position() -> Result<()>
+{
+    let (directory, mut app) = application()?;
+    app.resize_reader(12, 2);
+    app.scroll = 2;
+    let expected = app.line_ranges[app.scroll].start;
+    let id = app.current().context("Article")?.id;
+    app.focus = Focus::Articles;
+    key(&mut app, KeyCode::Char('/'))?;
+    let store =
+        lume::store::Store::open(&directory.path().join("library.sqlite3"))?;
+    assert_eq!(store.progress(id)?, expected);
+    Ok(())
+}
+
+#[test]
+fn moving_during_a_pending_query_does_not_lose_results_after_page_shrink()
+-> Result<()> {
+    let (directory, mut app) = two_article_application()?;
+    let mut store =
+        lume::store::Store::open(&directory.path().join("library.sqlite3"))?;
+    let feed = store.feeds()?.remove(0);
+    let mut incoming =
+        lume::source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
+    incoming.articles[0].external_id.push_str("-second");
+    incoming.articles[0].url.push_str("-second");
+    incoming.articles[0].title = "Other result".into();
+    incoming.articles[0].body = "An unrelated publisher text.".into();
+    store.ingest(&feed, &feed.title, &incoming.articles)?;
+    app.reload()?;
+    app.page_size = 1;
+    app.enable_background_navigation(
+        &directory.path().join("library.sqlite3"),
+    )?;
+    app.focus = Focus::Articles;
+    key(&mut app, KeyCode::Char('/'))?;
+    app.paste("title:cache")?;
+    key(&mut app, KeyCode::Down)?;
+    common::settle_notes(&mut app)?;
+    assert_eq!(app.page_total, 1);
+    assert_eq!(app.page_offset, 0);
+    assert_eq!(
+        app.current().context("Live result disappeared")?.title,
+        "Cache & consequence"
+    );
     Ok(())
 }

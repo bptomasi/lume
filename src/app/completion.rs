@@ -674,7 +674,13 @@ const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         name: "settings",
         usage: "settings",
-        description: "Preview themes and panel sizes; Enter saves, Esc discards",
+        description: "Preview preferences; Enter edits, Ctrl-s saves, Esc discards",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "latex-formulas",
+        usage: "latex-formulas on|off|toggle",
+        description: "Render LaTeX as Unicode or show original source; persistent",
         aliases: &[],
     },
     CommandSpec {

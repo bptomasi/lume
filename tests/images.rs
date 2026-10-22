@@ -82,6 +82,100 @@ fn command(app: &mut App, text: &str) -> Result<Action> {
 }
 
 #[test]
+fn responsive_images_choose_bounded_high_resolution_sources() {
+    let html = r#"<img src="tiny.png" srcset="small.png 320w, sharp.png 1920w, huge.png 8000w" alt="Diagram"><img src="fallback.png" data-srcset="low.png 1x, retina.png 2x, excessive.png 4x">"#;
+    let markdown = lume::content::article_markdown(
+        html,
+        true,
+        "https://example.org/article",
+    );
+    let rendered = reader::render(&markdown, 80);
+    let urls = rendered
+        .images
+        .iter()
+        .map(|image| image.url.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        urls,
+        [
+            "https://example.org/sharp.png",
+            "https://example.org/retina.png"
+        ]
+    );
+}
+
+#[test]
+fn malformed_or_unsupported_responsive_sets_keep_the_valid_fallback() {
+    for set in [
+        "javascript:alert(1) 2x, file:///secret 3x",
+        "data:image/png;base64,AAAA 2x",
+        "bad.png NaNx, bad.png 0w, bad.png -1x",
+        "bad.png 2x invalid",
+        "#anchor 2x",
+    ] {
+        let html = format!("<img src='fallback.png' srcset='{set}'>");
+        let markdown = lume::content::article_markdown(
+            &html,
+            true,
+            "https://example.org/article",
+        );
+        let rendered = reader::render(&markdown, 80);
+        assert_eq!(rendered.images.len(), 1, "{set}");
+        assert_eq!(
+            rendered.images[0].url, "https://example.org/fallback.png",
+            "{set}"
+        );
+    }
+}
+
+#[test]
+fn source_reuse_invalidates_changed_bytes_and_retries_failed_decodes()
+-> Result<()> {
+    let mut decoder = Decoder::default();
+    let original = raster(ImageFormat::Png)?;
+    let first = decoder.render(&original, &key(2, 1))?;
+    assert!(decoder.render(b"invalid", &key(2, 1)).is_err());
+    let mut bytes = Cursor::new(Vec::new());
+    DynamicImage::ImageRgba8(RgbaImage::from_pixel(
+        2,
+        2,
+        Rgba([0, 255, 0, 255]),
+    ))
+    .write_to(&mut bytes, ImageFormat::Png)?;
+    let changed = decoder.render(bytes.get_ref(), &key(2, 1))?;
+    assert_eq!(changed.cells[(0, 0)].fg, Color::Rgb(0, 255, 0));
+    assert_eq!(decoder.render(&original, &key(2, 1))?.cells, first.cells);
+    let resized = decoder.render(&original, &key(1, 1))?;
+    assert_eq!(resized.dimensions, (2, 2));
+    assert_eq!(resized.cells.area.width, 1);
+    Ok(())
+}
+
+#[test]
+fn high_bit_depth_sources_keep_precision_until_the_final_resampling()
+-> Result<()> {
+    let pixels = image::ImageBuffer::from_fn(100, 1, |x, _| {
+        let value = if x % 5 < 3 { 200u16 } else { 0 };
+        image::Rgba([value, value, value, u16::MAX])
+    });
+    let mut bytes = Cursor::new(Vec::new());
+    DynamicImage::ImageRgba16(pixels).write_to(&mut bytes, ImageFormat::Png)?;
+    let mut decoder = Decoder::default();
+    for _ in 0..2 {
+        let prepared = decoder.render(bytes.get_ref(), &key(1, 1))?;
+        // A 60% duty cycle at 200/65535 stays below half an 8-bit step.
+        let cell = &prepared.cells[(0, 0)];
+        let top = if cell.symbol() == "▄" {
+            cell.bg
+        } else {
+            cell.fg
+        };
+        assert_eq!(top, Color::Rgb(0, 0, 0));
+    }
+    Ok(())
+}
+
+#[test]
 fn raster_and_svg_preserve_known_colors_without_terminal_escape_sequences()
 -> Result<()> {
     let mut decoder = Decoder::default();

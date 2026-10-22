@@ -11,6 +11,7 @@ mod commands;
 mod completion;
 mod configuration;
 mod deletion;
+mod destination_deletion;
 mod document_view;
 mod documents;
 mod draft_commands;
@@ -20,6 +21,7 @@ mod editor;
 mod events;
 mod exchange;
 mod extraction;
+mod formulas;
 mod help;
 mod horizontal;
 mod images;
@@ -315,6 +317,7 @@ pub struct App {
     /// Whether the current database is an isolated demonstration.
     pub demo: bool,
     pub(crate) pending_g: bool,
+    pending_destination_delete: Option<View>,
     pub(crate) fullscreen_focus: Option<Focus>,
     pub(crate) retained_article: Option<i64>,
     pub(crate) pending_anchor: Option<usize>,
@@ -361,6 +364,7 @@ pub struct App {
     article_edits: article_edits::ArticleEdits,
     immediate_layout: bool,
     pending_reflow: bool,
+    formula_position: Option<formulas::FormulaPosition>,
     progress_memory: std::cell::RefCell<session_writer::ProgressMemory>,
     /// Selected metadata/content is being loaded without blocking input.
     pub navigation_loading: bool,
@@ -391,6 +395,7 @@ pub struct App {
     pub table_rows: Vec<std::ops::Range<usize>>,
     /// Scrollable help position.
     pub help_scroll: usize,
+    pub(crate) help_search: help::HelpSearch,
     /// Captured article identities for a reversible bulk operation.
     pub marked: std::collections::BTreeSet<i64>,
     screen: ratatui::layout::Rect,
@@ -485,6 +490,7 @@ impl App {
             refreshing: false,
             demo,
             pending_g: false,
+            pending_destination_delete: None,
             fullscreen_focus: None,
             retained_article,
             layouts,
@@ -520,6 +526,7 @@ impl App {
             article_edits: article_edits::ArticleEdits::default(),
             immediate_layout: false,
             pending_reflow: false,
+            formula_position: None,
             progress_memory: std::cell::RefCell::default(),
             navigation_loading: !eager,
             vim: vim::Vim::default(),
@@ -539,6 +546,7 @@ impl App {
             code_lines: Vec::new(),
             table_rows: Vec::new(),
             help_scroll: 0,
+            help_search: help::HelpSearch::default(),
             marked: std::collections::BTreeSet::new(),
             screen: ratatui::layout::Rect::default(),
             pointer: pointer::Pointer::default(),

@@ -44,6 +44,26 @@ impl Widths {
         workspace.article_width = self.articles;
         workspace.annotation_width = self.annotations;
     }
+
+    fn visible(
+        workspace: &Workspace,
+        areas: &ui::Areas,
+        pair: [Pane; 2],
+    ) -> Self {
+        let mut widths = Self::capture(workspace);
+        for (pane, width) in [
+            (Pane::Library, &mut widths.library),
+            (Pane::Articles, &mut widths.articles),
+            (Pane::Annotations, &mut widths.annotations),
+        ] {
+            if let Some(area) = areas.get(pane)
+                && pair.contains(&pane)
+            {
+                *width = (*width).min(area.width);
+            }
+        }
+        widths
+    }
 }
 
 enum Gesture {
@@ -62,6 +82,7 @@ struct ResizeCapture {
     right: Pane,
     column: u16,
     before: Widths,
+    visible: Widths,
 }
 
 struct SelectionCapture {
@@ -170,6 +191,14 @@ impl App {
     /// Returns navigation, annotation or completed-layout persistence failures.
     pub fn mouse(&mut self, event: MouseEvent) -> Result<Action> {
         self.pointer.seen = true;
+        if matches!(
+            event.kind,
+            MouseEventKind::Down(_)
+                | MouseEventKind::ScrollLeft
+                | MouseEventKind::ScrollRight
+        ) {
+            self.pending_destination_delete = None;
+        }
         if matches!(self.mode, Mode::Web) && self.workspace.mouse {
             return self.web_mouse(event);
         }
@@ -332,6 +361,7 @@ impl App {
     ) -> Result<()> {
         self.pointer.seen = true;
         self.note_marks.delete = None;
+        self.pending_destination_delete = None;
         if !self.workspace.mouse
             || !event.modifiers.is_empty()
             || self.screen.width < 24

@@ -3813,6 +3813,7 @@ MIT License
   clap_lex 1.1.1 (https://github.com/clap-rs/clap)
   colorchoice 1.0.5 (https://github.com/rust-cli/anstyle.git)
   is_terminal_polyfill 1.70.2 (https://github.com/polyfill-rs/is_terminal_polyfill)
+  kstring 2.0.5 (https://github.com/cobalt-org/kstring)
   once_cell_polyfill 1.70.2 (https://github.com/polyfill-rs/once_cell_polyfill)
   serde_spanned 1.1.1 (https://github.com/toml-rs/toml)
   toml_datetime 1.1.1+spec-1.1.0 (https://github.com/toml-rs/toml)
@@ -4484,7 +4485,9 @@ SOFTWARE.
 
 MIT License
   strum 0.26.3 (https://github.com/Peternator7/strum)
+  strum 0.28.0 (https://github.com/Peternator7/strum)
   strum_macros 0.26.4 (https://github.com/Peternator7/strum)
+  strum_macros 0.28.0 (https://github.com/Peternator7/strum)
 
 MIT License
 
@@ -4728,10 +4731,13 @@ SOFTWARE.
 MIT License
   base64-simd 0.8.0 (https://github.com/Nugine/simd)
   chrono 0.4.45 (https://github.com/chronotope/chrono)
+  math-core-renderer-internal 0.9.0 (https://github.com/tmke8/math-core)
+  math-core 0.9.0 (https://github.com/tmke8/math-core)
   r-efi 6.0.0 (https://github.com/r-efi/r-efi)
   refinery-core 0.8.16 (https://github.com/rust-db/refinery)
   refinery-macros 0.8.16 (https://github.com/rust-db/refinery)
   refinery 0.8.16 (https://github.com/rust-db/refinery)
+  stable-arena 0.3.0 (https://github.com/tmke8/stable-arena)
   vsimd 0.8.0 (https://github.com/Nugine/simd)
   winapi-i686-pc-windows-gnu 0.4.0 (https://github.com/retep998/winapi-rs)
   winapi-x86_64-pc-windows-gnu 0.4.0 (https://github.com/retep998/winapi-rs)
@@ -5336,10 +5342,14 @@ SOFTWARE.
 MIT License
   lume 0.2.0 ()
   phf 0.13.1 (https://github.com/rust-phf/rust-phf)
+  phf 0.14.0 (https://github.com/rust-phf/rust-phf)
   phf_codegen 0.13.1 (https://github.com/rust-phf/rust-phf)
   phf_generator 0.13.1 (https://github.com/rust-phf/rust-phf)
+  phf_generator 0.14.0 (https://github.com/rust-phf/rust-phf)
   phf_macros 0.13.1 (https://github.com/rust-phf/rust-phf)
+  phf_macros 0.14.0 (https://github.com/rust-phf/rust-phf)
   phf_shared 0.13.1 (https://github.com/rust-phf/rust-phf)
+  phf_shared 0.14.0 (https://github.com/rust-phf/rust-phf)
 
 The MIT License (MIT)
 

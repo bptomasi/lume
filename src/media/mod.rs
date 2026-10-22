@@ -1,13 +1,14 @@
 //! Bounded article thumbnails, independent of text layout and terminal I/O.
 //!
 //! The worker owns HTTP, disk cache, decoding and presentation encoding. The UI
-//! admits one request at a time and paints immutable cells or plans prepared
+//! admits at most two requests at a time and paints immutable cells or plans prepared
 //! pixel placements. Fixed reader slots preserve text and annotation anchors.
 
 pub mod cache;
 mod decode;
 mod fonts;
 mod geometry;
+mod raster;
 mod sixel;
 mod svg;
 mod worker;

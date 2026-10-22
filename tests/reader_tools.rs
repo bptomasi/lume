@@ -369,6 +369,60 @@ fn html_anchor_links_jump_to_the_publishers_exact_id() -> Result<()> {
 }
 
 #[test]
+fn open_link_and_enter_share_the_readers_local_navigation() -> Result<()> {
+    let (_directory, mut app) =
+        reading_body("[Jump](#target)\n\n## Target\n\nText.")?;
+    command(&mut app, "open-link")?;
+    assert_eq!(app.reader_lines[app.reader_cursor], "Target");
+    app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
+    assert_eq!(app.cursor_offset(), 0);
+    key(&mut app, KeyCode::Enter)?;
+    assert_eq!(app.reader_lines[app.reader_cursor], "Target");
+    Ok(())
+}
+
+#[test]
+fn relative_markdown_destinations_are_resolved_against_the_opened_article()
+-> Result<()> {
+    for (target, expected) in [
+        ("cache#target", "https://journal.example/cache#target"),
+        (
+            "../guide?lang=en#part",
+            "https://journal.example/guide?lang=en#part",
+        ),
+        ("//docs.example/guide", "https://docs.example/guide"),
+    ] {
+        let body = format!("[Jump]({target})\n\n## Target\n\nText.");
+        let (_directory, mut app) = reading_body(&body)?;
+        assert_eq!(app.cursor_link(), Some(target));
+        assert_eq!(
+            source::resolve_link("https://journal.example/cache", target)?
+                .as_str(),
+            expected
+        );
+        command(&mut app, "open-link")?;
+        if target == "cache#target" {
+            assert_eq!(app.reader_lines[app.reader_cursor], "Target");
+            assert!(!app.web_active());
+        } else {
+            assert!(app.web_active());
+        }
+    }
+    for target in [
+        "//user:password@example.org/a",
+        "javascript:alert(1)",
+        "file:///etc/passwd",
+        "https://example.org/\n",
+    ] {
+        assert!(
+            source::resolve_link("https://journal.example/cache", target)
+                .is_err()
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn unsafe_links_and_plain_text_never_emit_browser_actions() -> Result<()> {
     for body in [
         "[blocked](javascript:alert)",

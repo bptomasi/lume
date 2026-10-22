@@ -44,6 +44,54 @@ fn settle(app: &mut App) -> Result<()> {
 }
 
 #[test]
+fn open_link_command_follows_local_sections_in_a_linked_page() -> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    store.save_web_document(&WebDocument {
+        url: "https://example.org/sections".into(),
+        title: "Sections".into(),
+        body: "[Jump](#target)\n\n## Target\n\nDestination.".into(),
+    })?;
+    let mut app = App::new(store, false)?;
+    command(&mut app, "open-page https://example.org/sections")?;
+    settle(&mut app)?;
+    assert_eq!(app.web_page().context("Page")?.cursor, 0);
+    command(&mut app, "open-link")?;
+    let page = app.web_page().context("Page")?;
+    assert!(page.cursor > 0);
+    assert!(page.rendered.text[page.cursor..].starts_with("Target"));
+    Ok(())
+}
+
+#[test]
+fn missing_section_preserves_readable_page_and_original_browser_target()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    store.save_web_document(&WebDocument {
+        url: "https://example.org/sections".into(),
+        title: "Sections".into(),
+        body: "# Readable page\n\nContent remains available.".into(),
+    })?;
+    let mut app = App::new(store, false)?;
+    let target = "https://example.org/sections#removed";
+    command(&mut app, &format!("open-page {target}"))?;
+    settle(&mut app)?;
+    assert!(
+        app.web_page()
+            .context("Page")?
+            .rendered
+            .text
+            .contains("Content remains")
+    );
+    assert!(app.status.contains("Section unavailable"));
+    app.resize_workspace(ratatui::layout::Rect::new(0, 0, 100, 40));
+    settle(&mut app)?;
+    let action =
+        app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE))?;
+    assert_eq!(action, lume::app::Action::Open(target.into()));
+    Ok(())
+}
+
+#[test]
 fn linked_pages_leave_parent_notes_and_cursor_intact_and_back_restores_them()
 -> Result<()> {
     let (_directory, store, _) = common::seeded_store()?;
@@ -433,6 +481,26 @@ fn cache_linked(
     Ok(())
 }
 
+#[test]
+fn following_a_link_during_navigation_cannot_use_the_previous_page()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    cache_linked(&store, "first", "[Jump](#target)\n\n## Target\n\nOld text.")?;
+    cache_linked(&store, "second", "# New page\n\nCurrent text.")?;
+    let mut app = App::new(store, false)?;
+    command(&mut app, "open-page https://example.org/first")?;
+    settle(&mut app)?;
+    command(&mut app, "open-page https://example.org/second")?;
+    assert!(command(&mut app, "open-link").is_err());
+    key(&mut app, KeyCode::Esc)?;
+    settle(&mut app)?;
+    assert_eq!(
+        app.web_page().context("Page")?.document.url,
+        "https://example.org/second"
+    );
+    Ok(())
+}
+
 fn acknowledge_personal_writes(app: &mut App) -> Result<()> {
     let deadline = Instant::now() + Duration::from_secs(5);
     while app.notes_pending() {
@@ -543,5 +611,41 @@ fn holding_enter_on_a_link_does_not_start_repeated_resource_opens() -> Result<()
         app.web_page().context("Current page")?.document.url,
         "https://example.org/first"
     );
+    Ok(())
+}
+
+#[test]
+fn formula_preference_applies_to_linked_pages_and_back_history() -> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    for name in ["first", "second"] {
+        store.save_web_document(&WebDocument {
+            url: format!("https://example.org/{name}"),
+            title: name.into(),
+            body: format!("# {name}\n\n$x^2$ and $\\sum_{{i=1}}^n x_i$."),
+        })?;
+    }
+    let mut app = App::new(store, false)?;
+    for name in ["first", "second"] {
+        command(&mut app, &format!("open-page https://example.org/{name}"))?;
+        settle(&mut app)?;
+        assert!(app.web_page().context("Page")?.rendered.text.contains("x²"));
+    }
+    command(&mut app, "latex-formulas off")?;
+    settle(&mut app)?;
+    assert!(
+        app.web_page()
+            .context("Page")?
+            .rendered
+            .text
+            .contains("$x^2$")
+    );
+    app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
+    settle(&mut app)?;
+    let page = app.web_page().context("Back page")?;
+    assert!(page.document.url.ends_with("first"));
+    assert!(page.rendered.text.contains("$x^2$"));
+    command(&mut app, "latex-formulas on")?;
+    settle(&mut app)?;
+    assert!(app.web_page().context("Page")?.rendered.text.contains("x²"));
     Ok(())
 }

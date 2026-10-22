@@ -8,6 +8,7 @@ use super::{Action, App, Mode};
 pub(super) struct ConfigurationState {
     document: Option<crate::config::Update>,
     deferred: Option<Deferred>,
+    written_ui: Option<crate::config::Ui>,
 }
 
 struct Deferred {
@@ -19,6 +20,23 @@ impl App {
     /// Cache a successfully reconciled document; drawing never reads its file.
     pub fn configure_document(&mut self, update: crate::config::Update) {
         self.configuration.document = Some(update);
+    }
+
+    pub(super) fn remember_appearance_write(&mut self) {
+        let current = crate::config::Ui::capture(&self.workspace);
+        let previous = self.configuration.written_ui.as_ref().or_else(|| {
+            self.configuration
+                .document
+                .as_ref()
+                .map(|update| &update.ui)
+        });
+        if previous.is_some_and(|previous| *previous != current) {
+            // Advance even when returning to the initial value. Delayed
+            // publications carry this durable revision and cannot undo it.
+            self.workspace.appearance_revision =
+                self.workspace.appearance_revision.saturating_add(1);
+        }
+        self.configuration.written_ui = Some(current);
     }
 
     /// Whether external definitions can be installed without interrupting edits.
@@ -91,6 +109,7 @@ impl App {
         let previous = self.configuration.document.as_ref();
         let current = crate::config::Ui::capture(&self.workspace);
         let appearance = current != update.ui
+            && update.appearance_revision >= self.workspace.appearance_revision
             && previous.is_none_or(|previous| previous.ui == current);
         let profiles = self.layouts.profiles != update.workspaces
             && previous.is_none_or(|previous| {
@@ -104,6 +123,7 @@ impl App {
                 let justify = self.workspace.justify;
                 update.ui.apply(&mut self.workspace);
                 self.apply_image_preferences();
+                self.apply_formula_preferences();
                 if self.workspace.justify != justify {
                     self.cache_reader_rows();
                 }

@@ -122,6 +122,7 @@ fn divide(
         second: rectangles[1],
         horizontal: *horizontal,
         path: path.clone(),
+        percent: *percent,
     });
     for (trailing, child, rectangle) in
         [(false, first, rectangles[0]), (true, second, rectangles[1])]

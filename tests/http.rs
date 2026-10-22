@@ -719,6 +719,29 @@ fn browser_resource_case(headers: &str) -> Result<()> {
 
 #[test]
 #[ignore = "requires real loopback HTTP; required by make check-release"]
+fn unsupported_html_encoding_delegates_to_browser_with_the_requested_fragment()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    let (address, request) = server(
+        200,
+        b"<html>caf\xe9</html>",
+        "Content-Type: text/html; charset=iso-8859-1\r\n",
+    )?;
+    let target = format!("{address}#details");
+    let mut app = lume::app::App::new(store, false)?;
+    let article = app.current().context("Article")?.id;
+    app.set_network_enabled(true);
+    open_linked(&mut app, &target)?;
+    settle_linked(&mut app)?;
+    request.recv_timeout(Duration::from_secs(5))?;
+    assert_eq!(app.take_web_browser_request(), Some(target));
+    assert!(!app.web_active());
+    assert_eq!(app.current().context("Article")?.id, article);
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
 fn browser_resources_preserve_redirect_destinations_and_pdf_fragments()
 -> Result<()> {
     let (_directory, store, _) = common::seeded_store()?;

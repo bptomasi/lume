@@ -217,3 +217,31 @@ cache-index updates. Storage inspection uses the documented
 [page-count and free-list pragmas](https://www.sqlite.org/pragma.html);
 no implicit VACUUM or auto-vacuum migration is introduced. Behavioral, HTTP
 failure and representative workload checks qualify these integrations.
+
+## Terminal formulas and shared image palettes
+
+`math-core` **0.9.0** (MIT), with default features disabled and only `std`,
+owns LaTeX-to-MathML conversion. The multi-contributor tmke8/math-core project
+has sustained parser and conformance work; the pre-1.0 API is pinned. Its ten
+additional locked packages are permissively licensed Rust libraries (PHF tables,
+macro/arena/string helpers); no TeX process, browser runtime or network renderer
+is added. `pulldown-latex` was considered, but its own production-testing caveat
+and lack of the same configurable macro-expansion boundary favored math-core.
+This selection does not assert an independent security audit.
+
+CommonMark owns inline/display delimiters. Lume limits each expression to
+4 KiB, 256 backslashes, 64 nested braces and 64 macro expansions; a document
+converts at most 256 expressions totaling 64 KiB. Generated MathML is capped at
+64 KiB, 4,096 XML nodes and 64 projection levels, with DTD disabled. The Unicode
+projection is limited to 8 KiB and runs during source preparation. Unknown,
+invalid or excessive expressions preserve raw source; conversion uses local
+macro state, never filesystem/remote resource resolution. These are admission
+budgets, not a memory sandbox.
+
+`icy_sixel` **0.1.3** (MIT), already locked through ratatui-image, is now an
+explicit direct dependency for its public palette and encoder APIs. One palette
+and one diffusion pass cover each fitted image before independent cell-height
+encoding. This removes per-row palette seams and repeated quantizer setup;
+there is no new image codec or protocol implementation. Image dimensions,
+prepared-payload and shared decoder-cache budgets remain enforced. Two bounded
+HTTP lanes overlap downloads while serializing decoding through one cache.

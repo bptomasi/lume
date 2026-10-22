@@ -24,7 +24,7 @@ make bench-recommendations
 The native benchmark also accepts focused flags, including
 `--configuration-only`, `--welcome-only`, `--code-viewport-only`, `--images-only`,
 `--tables-only`, `--lists-only`, `--rich-text-only`, `--recommendations-only`,
-`--pane-search-only` and `--query-editing-only`. Add `--stress`
+`--pane-search-only`, `--query-editing-only` and `--fluency-only`. Add `--stress`
 for larger workloads.
 Setup precedes operation timers; resource reports identify process-wide
 memory/I/O scope.
@@ -232,3 +232,32 @@ Repeat with `cargo bench --locked --bench reader -- --query-editing-only` and
 `--interaction-only`, adding `--stress` for larger fixtures. These measurements
 cover application work, excluding terminal transport and physical display
 latency.
+
+## Live search and formula preparation
+
+`--fluency-only` checks incremental article metadata publication and frames with
+2,000 articles (20,000 under stress), a 140,600-byte selected source, help
+search and Unicode formula preparation. Article preview does not fetch or reflow a new
+Reader source until committed. Existing results remain visible while replacement
+queries run, and generation checks discard obsolete replies. Sidebar matching
+narrows its existing in-memory identities for extending queries and rebuilds the
+candidate set when a query broadens. These workloads exclude fixture setup.
+
+The Foot qualifier additionally decodes Sixel strips independently and measures
+mean RGB spread across six strips in three known flat regions. A two-level
+channel budget permits continuous diffusion while rejecting per-row palette
+bands; this supplements the independently known fixture color checks. Two real
+HTTP image lanes are qualified by observing both requests before either response
+is released; crops of the same URL share one download. No physical display or
+whole-application speed claim follows from preparation benchmarks alone.
+
+`--formulas-only` qualifies sums, integrals, accents, matrices and function
+application across 40 formulas (250 under stress). It separately measures
+rendered and raw-source layout, then checks repeated policy/cache transitions.
+Formula-off layouts never invoke the LaTeX converter. Background layout keys
+include formula policy; pending replies from previous policies are discarded.
+
+Nested list workloads include mixed ordered/unordered levels, empty publisher
+items and invisible anchor-only entries. Empty entries do not paint markers;
+ordered entries retain their numbering authority. Rendering does not rewrite
+cached publisher bytes or invalidate annotation offsets.

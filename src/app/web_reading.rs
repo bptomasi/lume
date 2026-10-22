@@ -20,11 +20,13 @@ enum Request {
         width: usize,
         online: bool,
         fragment: Option<String>,
+        options: crate::reader::RenderOptions,
     },
     Reflow {
         document: Arc<WebDocument>,
         width: usize,
         anchor: usize,
+        options: crate::reader::RenderOptions,
     },
 }
 
@@ -37,6 +39,7 @@ pub(super) struct WebReading {
     back: VecDeque<WebPage>,
     forward: Vec<WebPage>,
     requested_width: usize,
+    requested_options: crate::reader::RenderOptions,
     visit: u64,
     opening: bool,
     mouse_anchor: Option<usize>,
@@ -66,6 +69,8 @@ impl App {
         self.web.begin_navigation();
         let width = self.web_width();
         self.web.requested_width = width;
+        self.web.requested_options = self.formula_options();
+        let options = self.formula_options();
         self.web
             .worker
             .as_mut()
@@ -75,6 +80,7 @@ impl App {
                 width,
                 online: self.network_enabled,
                 fragment,
+                options,
             });
         self.web.active = true;
         self.web.opening = true;
@@ -97,6 +103,7 @@ impl App {
                     width,
                     online,
                     fragment,
+                    options,
                 } => page::load(
                     &mut connection,
                     &path,
@@ -104,13 +111,15 @@ impl App {
                     online,
                     width,
                     fragment,
+                    options,
                 ),
                 Request::Reflow {
                     document,
                     width,
                     anchor,
+                    options,
                 } => Ok(page::Loaded::Page(Box::new(WebPage::prepare(
-                    document, width, anchor,
+                    document, width, anchor, options,
                 )))),
             },
         )?);
@@ -171,13 +180,16 @@ impl App {
                 self.web.back.pop_front();
             }
         }
+        self.status = page.notice.clone().unwrap_or_else(|| {
+            "Linked page · Ctrl-o back · :save-page keeps it".into()
+        });
         self.web.current = Some(page);
-        self.status = "Linked page · Ctrl-o back · :save-page keeps it".into();
     }
 
     fn delegate_web_resource(&mut self, address: String) {
         if let Some(page) = &self.web.current {
             self.web.requested_width = page.width;
+            self.web.requested_options = page.options;
         } else {
             self.close_web();
         }
@@ -194,7 +206,11 @@ impl App {
 
     fn reflow_web(&mut self) {
         let width = self.web_width();
-        if self.web.opening || self.web.requested_width == width {
+        let options = self.formula_options();
+        if self.web.opening
+            || (self.web.requested_width == width
+                && self.web.requested_options == options)
+        {
             return;
         }
         let Some(page) = &self.web.current else {
@@ -205,8 +221,10 @@ impl App {
                 document: page.document.clone(),
                 width,
                 anchor: page.source_anchor(),
+                options,
             });
             self.web.requested_width = width;
+            self.web.requested_options = options;
         }
     }
 
@@ -227,15 +245,16 @@ impl App {
         argument: &str,
     ) -> Result<Option<Action>> {
         match verb {
+            "latex-formulas" => self.set_formula_rendering(argument)?,
             "open-link" => {
-                let address = if self.web.active {
-                    self.web_page().and_then(WebPage::cursor_link)
-                } else {
-                    self.cursor_link()
+                if self.web.active {
+                    return self.web_follow_link().map(Some);
                 }
-                .context("Place the cursor on a link")?
-                .to_owned();
-                self.open_web_page(&address)?;
+                let address = self
+                    .cursor_link()
+                    .context("Place the cursor on a link")?
+                    .to_owned();
+                return self.follow_reader_link(&address).map(Some);
             }
             "open-page" => self.open_web_page(argument)?,
             "save-page" => {

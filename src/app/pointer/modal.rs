@@ -157,7 +157,7 @@ impl App {
                 );
                 self.update_picker()?;
             }
-            Mode::Settings(draft) => {
+            Mode::Settings(draft) if draft.editor.is_none() => {
                 draft.field = shifted(
                     draft.field,
                     super::super::SettingsDraft::FIELD_COUNT,

@@ -13,10 +13,11 @@ impl App {
             InputKind::NoteTags { .. }
             | InputKind::NoteCollection
             | InputKind::NoteSearch => return Ok(Action::None),
-            InputKind::Search => return Ok(Action::None),
+            InputKind::Search => {
+                return self.commit_article_search().map(|()| Action::None);
+            }
             InputKind::LibrarySearch => {
-                self.commit_library_search()?;
-                return Ok(Action::None);
+                return self.commit_library_search().map(|()| Action::None);
             }
             InputKind::ReaderSearch => {
                 self.search_reader(&input.text)?;
@@ -138,7 +139,10 @@ impl App {
                 self.delete_captured_note(note.article, note.comment.id)?;
                 return Ok(Action::None);
             }
-            "unfeed" => self.unsubscribe()?,
+            "unfeed" => {
+                self.unsubscribe()?;
+                return Ok(Action::None);
+            }
             "read" => {
                 self.set_view(View::Read)?;
                 return Ok(Action::None);
@@ -346,9 +350,7 @@ impl App {
         let View::Feed(id) = self.view else {
             bail!("Select a feed in the library first");
         };
-        self.store.unsubscribe(id)?;
-        self.view = View::All;
-        Ok(())
+        self.remove_destination(View::Feed(id))
     }
 
     pub(super) fn open_url(&self) -> Action {

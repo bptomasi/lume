@@ -216,3 +216,73 @@ fn items_containing_only_a_block_keep_the_marker_before_that_block() {
         assert_ne!(visible.last().map(String::as_str), Some("•"), "{source}");
     }
 }
+
+#[test]
+fn cached_empty_nested_and_anchor_only_items_do_not_paint_dangling_markers()
+-> Result<()> {
+    let source = concat!(
+        "#### Executive Summary\n\n* A preserved summary. *\n\n",
+        "* *\n\n* <a id=\"more\"></a> <a id=\"intro\"></a>\n\n",
+        "## Introduction\n\nOriginal paragraph."
+    );
+    let rendered = reader::render(source, 80);
+    assert!(
+        !rendered
+            .lines
+            .iter()
+            .any(|line| line.to_string().trim() == "•")
+    );
+    assert!(rendered.text.contains("• A preserved summary. *"));
+    assert!(rendered.text.contains("Introduction"));
+    let visible = rendered
+        .text
+        .find("Original")
+        .context("Paragraph missing")?;
+    let original = source.find("Original").context("Source missing")?;
+    assert_eq!(
+        reader::to_source(&rendered.mappings, visible..visible + 8),
+        Some(original..original + 8)
+    );
+    Ok(())
+}
+
+#[test]
+fn mixed_nested_lists_keep_hierarchy_after_empty_items_and_container_parents() {
+    let source = concat!(
+        "3. Parent\n   - Child\n     1. Grandchild\n     2.\n     3. Next grandchild\n",
+        "   - <a id=\"child\"></a>\n   - Last child\n4. Next parent\n\n",
+        "-\n  - Child without parent text\n\nAfter the list."
+    );
+    let visible = rows(source)
+        .into_iter()
+        .filter(|row| !row.trim().is_empty())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        visible,
+        [
+            "3. Parent",
+            "   • Child",
+            "     1. Grandchild",
+            "     3. Next grandchild",
+            "   • Last child",
+            "4. Next parent",
+            "  • Child without parent text",
+            "After the list."
+        ]
+    );
+}
+
+#[test]
+fn empty_publisher_items_preserve_following_content_and_numbers() {
+    let source = content::article_text(
+        "<ol start='7'><li>Parent<ul><li><p>Child</p></li>\
+         <li> </li><li><a id='location'></a></li></ul></li>\
+         <li><script>hidden()</script></li><li>Next</li></ol>",
+        true,
+    );
+    let visible = rows(&source)
+        .into_iter()
+        .filter(|row| !row.trim().is_empty())
+        .collect::<Vec<_>>();
+    assert_eq!(visible, ["7. Parent", "   • Child", "9. Next"]);
+}

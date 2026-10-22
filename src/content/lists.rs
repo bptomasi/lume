@@ -46,10 +46,13 @@ impl Lists {
         }
     }
 
-    pub(super) fn end_item(&mut self) {
-        if let Some(list) = self.stack.last_mut() {
-            list.content_start = None;
-        }
+    pub(super) fn end_item(&mut self, trimmed_end: usize) -> Option<usize> {
+        let list = self.stack.last_mut()?;
+        let start = list.content_start.take()?;
+        // Ordered spacers must remain in Markdown so CommonMark keeps the
+        // author's subsequent numbering. The reader hides their empty rows.
+        (list.next.is_none() && trimmed_end <= start)
+            .then(|| start.saturating_sub(list.content_indent))
     }
 
     pub(super) fn pending(&self, trimmed_end: usize) -> bool {

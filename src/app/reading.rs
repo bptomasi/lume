@@ -57,6 +57,7 @@ impl App {
                         | "reading-width"
                         | "fullscreen-width"
                         | "justify"
+                        | "latex-formulas"
                         | "quit"
                         | "q"
                         | "refresh"
@@ -95,7 +96,9 @@ impl App {
         let horizontal = self.horizontal;
         self.wrap_reader();
         self.horizontal = horizontal;
-        if !self.renderer.preparing(&self.body, self.reader_width) {
+        if !self.renderer.preparing(&self.body, self.reader_width)
+            && !self.restore_formula_position()
+        {
             self.restore_ready_viewport(anchor, cursor);
         }
         self.clamp_scroll();
@@ -290,7 +293,10 @@ impl App {
 
     fn prepare_reader_metadata(&mut self) {
         self.reader_tools.index =
-            crate::reader::index::DocumentIndex::parse(&self.body);
+            crate::reader::index::DocumentIndex::parse_with_options(
+                &self.body,
+                self.formula_options(),
+            );
         self.body_kind = content::body_kind(&self.body);
         self.article_warning =
             if self.content_source == crate::model::ContentSource::Full {
@@ -339,6 +345,7 @@ impl App {
     }
 
     pub(super) fn clear_current(&mut self) {
+        self.formula_position = None;
         self.pending_reflow = false;
         self.displayed_article = None;
         self.pending_anchor = None;
@@ -358,6 +365,8 @@ impl App {
     }
 
     pub(super) fn wrap_reader(&mut self) {
+        self.renderer
+            .set_latex_formulas(self.workspace.latex_formulas);
         let cursor = self.cursor_offset();
         let previous_article_end = self.article_text_end;
         let previous = std::mem::take(&mut self.reader_text);
@@ -687,6 +696,7 @@ impl App {
     }
 
     pub(super) fn persist_preferences(&mut self) -> Result<()> {
+        self.remember_appearance_write();
         if self.persist_notebook_layout()? {
             return Ok(());
         }

@@ -38,7 +38,8 @@ fn welcome_scenes_match_reviewed_pixels_and_captions() -> Result<()> {
 fn layouts_guide_selection_and_drag_match_reviewed_cells() -> Result<()> {
     for theme in ["lume", "nord", "gruvbox"] {
         for (width, height) in [(144, 44), (80, 28), (40, 18)] {
-            for scene in ["split", "guide", "selection", "drag"] {
+            for scene in ["split", "guide", "help-search", "selection", "drag"]
+            {
                 let buffer = scenario(theme, width, height, scene)?;
                 let actual = snapshot(&buffer)?;
                 let name = format!("{theme}-{width}x{height}-{scene}.txt");
@@ -96,6 +97,11 @@ fn configure(app: &mut App, area: Rect, scene: &str) -> Result<()> {
     match scene {
         "guide" => {
             app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
+        }
+        "help-search" => {
+            app.key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE))?;
+            app.key(KeyEvent::new(KeyCode::Char('/'), KeyModifiers::NONE))?;
+            app.paste("resize")?;
         }
         "selection" => {
             app.key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))?;

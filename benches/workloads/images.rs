@@ -39,9 +39,14 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         svg.len()
     );
     super::measure(
-        "bounded raster decode + halfblock encode",
+        "cached raster source + halfblock encode",
         iterations,
         || verify_raster(&mut decoder, &bytes, &key),
+    )?;
+    super::measure(
+        "cold raster decode + halfblock encode",
+        iterations,
+        || verify_raster(&mut Decoder::default(), &bytes, &key),
     )?;
     super::measure(
         "bounded SVG paths/text + halfblock encode",

@@ -38,6 +38,11 @@ impl App {
                     right,
                     column: event.column,
                     before: Widths::capture(&self.workspace),
+                    visible: Widths::visible(
+                        &self.workspace,
+                        areas,
+                        [left, right],
+                    ),
                 }));
             return true;
         }
@@ -81,7 +86,7 @@ impl App {
                 grab,
                 before,
             } => {
-                self.drag_split(&boundary, grab, &before, event);
+                self.drag_split(&boundary, grab, event);
                 Some(Gesture::SplitResize {
                     boundary,
                     grab,
@@ -89,13 +94,7 @@ impl App {
                 })
             }
             Gesture::Resize(capture) => {
-                self.drag_divider(
-                    capture.left,
-                    capture.right,
-                    capture.column,
-                    capture.before,
-                    event.column,
-                );
+                self.drag_divider(&capture, event.column);
                 Some(Gesture::Resize(capture))
             }
             Gesture::Reorder(mut capture) => {
@@ -114,14 +113,17 @@ impl App {
 
     fn drag_divider(
         &mut self,
-        left: Pane,
-        right: Pane,
-        column: u16,
-        before: Widths,
+        capture: &super::ResizeCapture,
         next_column: u16,
     ) {
-        before.restore(&mut self.workspace);
-        let requested = i32::from(next_column) - i32::from(column);
+        let requested = i32::from(next_column) - i32::from(capture.column);
+        let widths = if requested == 0 {
+            capture.before
+        } else {
+            capture.visible
+        };
+        widths.restore(&mut self.workspace);
+        let (left, right) = (capture.left, capture.right);
         let delta = divider_delta(&self.workspace, left, right, requested);
         self.workspace.resize_pane(left, delta);
         self.workspace.resize_pane(right, -delta);

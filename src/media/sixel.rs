@@ -1,10 +1,15 @@
 //! Worker-prepared Sixel strips make arbitrary terminal-row clipping bounded.
 //!
-//! ratatui-image owns quantization, encoding and fixed-widget placement. Each
+//! icy_sixel owns shared-palette quantization and encoding; ratatui-image
+//! owns fixed-widget placement. Each
 //! fitted image is split once at cell-height boundaries so drawing can select
 //! complete cached strips in either direction without decoding or resizing.
 
 use anyhow::{Result, ensure};
+use icy_sixel::{
+    DiffusionMethod, MethodForLargest, MethodForRep, PixelFormat, Quality,
+    dither::sixel_dither, output::sixel_output,
+};
 use image::DynamicImage;
 use ratatui::{
     buffer::{Buffer, Cell},
@@ -34,6 +39,16 @@ impl SixelRows {
         area: Rect,
         cell_height: u16,
     ) -> Result<Self> {
+        let rgb = image.to_rgb8();
+        let mut palette = palette(rgb.as_raw(), image.width(), image.height())?;
+        let indexed = palette
+            .apply_palette(
+                rgb.as_raw(),
+                image.width() as i32,
+                image.height() as i32,
+            )
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        palette.set_pixelformat(PixelFormat::PAL8);
         let strip_area = Rect::new(0, 0, area.width, 1);
         let mut scratch = Buffer::empty(strip_area);
         let mut rows = Vec::with_capacity(usize::from(area.height));
@@ -41,8 +56,16 @@ impl SixelRows {
         for row in 0..area.height {
             let y = u32::from(row) * u32::from(cell_height);
             let height = u32::from(cell_height).min(image.height() - y);
-            let strip = image.crop_imm(0, y, image.width(), height);
-            let sixel = Sixel::new(strip, strip_area, false)?;
+            let start = (y * image.width()) as usize;
+            let end = start + (height * image.width()) as usize;
+            let mut strip = indexed[start..end].to_vec();
+            let sixel = encode(
+                &mut strip,
+                image.width(),
+                height,
+                strip_area,
+                &mut palette,
+            )?;
             bytes += sixel.data.len();
             ensure!(bytes <= MAX_ENCODED_BYTES, "Inline pixels exceed 8 MiB");
             Image::new(&Protocol::Sixel(sixel))
@@ -97,4 +120,43 @@ impl SixelRows {
             }
         }
     }
+}
+
+fn palette(rgb: &[u8], width: u32, height: u32) -> Result<sixel_dither> {
+    let mut palette =
+        sixel_dither::new(256).map_err(|e| anyhow::anyhow!("{e}"))?;
+    palette
+        .initialize(
+            rgb,
+            width as i32,
+            height as i32,
+            PixelFormat::RGB888,
+            MethodForLargest::Auto,
+            MethodForRep::Pixels,
+            Quality::HIGH,
+        )
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    palette.set_diffusion_type(DiffusionMethod::Stucki);
+    // Keep one palette and continuous diffusion for the whole image, so
+    // separately clipped rows never develop different colors or seams.
+    palette.set_optimize_palette(false);
+    Ok(palette)
+}
+
+fn encode(
+    pixels: &mut [u8],
+    width: u32,
+    height: u32,
+    area: Rect,
+    palette: &mut sixel_dither,
+) -> Result<Sixel> {
+    let mut bytes = Vec::new();
+    sixel_output::new(&mut bytes)
+        .encode(pixels, width as i32, height as i32, 0, palette)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    Ok(Sixel {
+        data: String::from_utf8(bytes)?,
+        area,
+        is_tmux: false,
+    })
 }

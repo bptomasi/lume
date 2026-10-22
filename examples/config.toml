@@ -25,6 +25,7 @@ query = "type:question status:open"
 theme = "lume"
 mouse = true
 justify = false
+latex_formulas = true
 
 [ui.keybindings]
 "ctrl-t" = "toc"

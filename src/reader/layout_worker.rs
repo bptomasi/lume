@@ -7,7 +7,7 @@ use ratatui::text::Line;
 
 use crate::latest::Latest;
 
-use super::{Rendered, live::CodeKey};
+use super::{RenderOptions, Rendered, live::CodeKey};
 
 type Styles = Vec<(CodeKey, Vec<Line<'static>>)>;
 
@@ -15,6 +15,7 @@ struct Request {
     body: Arc<str>,
     width: usize,
     styles: Styles,
+    options: RenderOptions,
 }
 
 struct Completed {
@@ -22,6 +23,7 @@ struct Completed {
     width: usize,
     rendered: Rendered,
     blocks: Vec<CodeKey>,
+    options: RenderOptions,
 }
 
 pub(super) struct LayoutWorker {
@@ -29,18 +31,27 @@ pub(super) struct LayoutWorker {
     requested: Option<(Arc<str>, usize, u64)>,
     ready: Option<Completed>,
     revision: u64,
+    options: RenderOptions,
     pub(super) error: Option<String>,
 }
 
 impl LayoutWorker {
-    pub(super) fn start() -> Result<Self> {
+    pub(super) fn start(options: RenderOptions) -> Result<Self> {
         Ok(Self {
             worker: Latest::start("lume-layout", prepare)?,
             requested: None,
             ready: None,
             revision: 0,
+            options,
             error: None,
         })
+    }
+
+    pub(super) fn set_options(&mut self, options: RenderOptions) {
+        self.options = options;
+        self.worker.cancel();
+        self.requested = None;
+        self.revision = self.revision.wrapping_add(1);
     }
 
     pub(super) fn render(
@@ -57,6 +68,7 @@ impl LayoutWorker {
                 body,
                 width,
                 styles,
+                options: self.options,
             });
         }
         self.ready
@@ -105,6 +117,7 @@ impl LayoutWorker {
             width,
             rendered: rendered.clone(),
             blocks: Vec::new(),
+            options: self.options,
         });
     }
 
@@ -113,14 +126,16 @@ impl LayoutWorker {
     }
 
     pub(super) fn source_ready(&self, body: &str) -> bool {
-        self.ready
-            .as_ref()
-            .is_some_and(|ready| ready.body.as_ref() == body)
+        self.ready.as_ref().is_some_and(|ready| {
+            ready.body.as_ref() == body && ready.options == self.options
+        })
     }
 
     pub(super) fn preparing(&self, body: &str, width: usize) -> bool {
         !self.ready.as_ref().is_some_and(|ready| {
-            ready.body.as_ref() == body && ready.width == width
+            ready.body.as_ref() == body
+                && ready.width == width
+                && ready.options == self.options
         })
     }
 
@@ -134,6 +149,7 @@ fn prepare(request: Request) -> Result<Completed> {
     let rendered = super::render_with(
         &request.body,
         request.width,
+        request.options,
         &mut |text, language| {
             let key = CodeKey {
                 text: Arc::from(text),
@@ -160,5 +176,6 @@ fn prepare(request: Request) -> Result<Completed> {
         width: request.width,
         rendered,
         blocks,
+        options: request.options,
     })
 }

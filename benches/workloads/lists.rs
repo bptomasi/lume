@@ -4,7 +4,8 @@ use anyhow::{Context, Result, ensure};
 use lume::{content, reader};
 
 pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
-    let count = if stress { 1024 } else { 128 };
+    // Keep the stress fixture below the normalizer's explicit 256 KiB cap.
+    let count = if stress { 768 } else { 128 };
     legacy_cache(iterations, count)?;
     let html = fixture(count);
     let source = content::article_text(&html, true);
@@ -70,7 +71,8 @@ fn fixture(count: usize) -> String {
              current usage, borrowing limits and admission conditions.</p>\
              <ul><li>Check reservations using \
              <a href='https://example.org/{index}'>reservation-{index}</a>\
-             </li></ul></li>"
+             </li><li> </li><li><a id='empty-{index}'></a></li>\
+             <li><ul><li>Nested capacity</li></ul></li></ul></li>"
         ));
     }
     html.push_str("</ol>");

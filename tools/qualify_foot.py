@@ -36,6 +36,8 @@ def seed(directory):
     library.mkdir(parents=True)
     body = (
         "# Request ownership\n\nEach boundary owns a responsibility.\n\n"
+        r"$R{\mathcal{I}}=\text{Combine}\circ\text{Disintegrate}$"
+        "\n\n"
         f"![Request path]({ADDRESS})\n\n"
         + "Read the mechanism and question the tradeoff.\n\n" * 80
     )
@@ -145,6 +147,8 @@ def verify_pixels(directory, initial, cell_height):
         offset += image.height
     canvas.save(directory / "native-reader-pixels.png")
     verify_colors(canvas)
+    write_json(directory / "native-color-uniformity.json",
+               verify_uniform_regions(canvas))
     return results
 
 
@@ -162,6 +166,31 @@ def verify_colors(image):
         actual = image.getpixel(point)
         if any(abs(left - right) > 1 for left, right in zip(actual, expected)):
             raise RuntimeError(f"Known Sixel color changed: {point}: {actual}")
+
+
+def verify_uniform_regions(image):
+    """Flat fixture fills must not acquire different colors between strips.
+
+    Average small regions to permit continuous diffusion while detecting the
+    horizontal bands caused by independent adaptive palettes on each row.
+    """
+    result = []
+    for x in (20, 320, 620):
+        means = []
+        for y in range(60, 180, 20):
+            left, right = round(x * image.width / 800), round((x + 16) * image.width / 800)
+            top, bottom = round(y * image.height / 240), round((y + 20) * image.height / 240)
+            pixels = [image.getpixel((column, row))
+                      for row in range(top, bottom)
+                      for column in range(left, right)]
+            means.append([sum(pixel[c] for pixel in pixels) / len(pixels)
+                          for c in range(3)])
+        spread = [max(mean[c] for mean in means) - min(mean[c] for mean in means)
+                  for c in range(3)]
+        if max(spread) > 2:
+            raise RuntimeError(f"Flat image fill has color bands: x={x}, spread={spread}")
+        result.append({"source_x": x, "strip_mean_rgb": means, "channel_spread": spread})
+    return result
 
 
 def scrolling(directory, process, initial):
@@ -298,10 +327,12 @@ def qualify(directory, process):
         "help covers native rows",
         lambda: newer_plain_frame(directory, before), process,
     )
+    guide = guide_search(directory, process)
     send(directory, b"\x1b")
     wait_for("reader returns", lambda: native_frame(directory, before), process)
     inspector = inspect(directory, process, initial, geometry["cell_pixels"][1])
     services = reading_services(directory, process)
+    preference_edits = preferences(directory, process)
     command(directory, "quit")
     process.wait(timeout=10)
     cleanup = json.loads((directory / "exit.json").read_text())
@@ -309,7 +340,68 @@ def qualify(directory, process):
         raise RuntimeError(f"Foot terminal cleanup failed: {cleanup}")
     return {"geometry": geometry, "welcome": welcome, "decoded_strips": pixels,
             "scroll_rows": samples, "selection": selections, "reader_aliases": aliases,
-            "inspector": inspector, "reading_services": services, "cleanup": cleanup}
+            "help_search": guide, "inspector": inspector,
+            "reading_services": services, "preferences": preference_edits,
+            "cleanup": cleanup}
+
+
+def wire_contains(raw, text):
+    raw = SIXEL.sub(b"", raw)
+    raw = re.sub(rb"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)", b"", raw)
+    raw = re.sub(rb"\x1b\[[0-?]*[ -/]*[@-~]", b"", raw)
+    # Ratatui may emit spaces as cursor advances and split text at highlights.
+    visible = "".join(raw.decode("utf-8", errors="replace").split())
+    return "".join(text.split()) in visible
+
+
+def preferences(directory, process):
+    output = directory / "terminal-output.bin"
+    results = []
+    source = r"$R{\mathcal{I}}=\text{Combine}\circ\text{Disintegrate}$"
+    for enabled, visible in [(False, source), (True, "Rℐ = Combine ∘ Disintegrate")]:
+        start = output.stat().st_size
+        command(directory, "latex-formulas " + ("on" if enabled else "off"))
+        command(directory, "find Combine")
+        wait_for("formula display policy", lambda: wire_contains(output.read_bytes()[start:], visible), process)
+        time.sleep(0.1)
+        start = output.stat().st_size
+        send(directory, b"IVvAy")
+        request = b"\x1b]52;c;" + base64.b64encode(visible.encode()) + b"\x1b\\"
+        wait_for("formula visible-text copy", lambda: request in output.read_bytes()[start:], process)
+        results.append({"enabled": enabled, "visible": visible, "copied": visible})
+        send(directory, b"\x1b")
+        time.sleep(0.1)
+    before = frame(directory)["offset"]
+    command(directory, "settings")
+    wait_for("editable settings", lambda: service_frame(directory, before, b"Ctrl-s"), process)
+    send(directory, b"j\r")
+    time.sleep(0.1)
+    send(directory, b"\x1b[200~96\x1b[201~\r")
+    time.sleep(0.1)
+    send(directory, b"\x13")
+    wait_for("settings return to reader", lambda: native_frame(directory, before), process)
+    return {"formula_policies": results, "settings_enter_edit_ctrl_s_save": True}
+
+
+def guide_search(directory, process):
+    output = directory / "terminal-output.bin"
+    start = output.stat().st_size
+    send(directory, b"/")
+    time.sleep(0.1)
+    send(directory, b"\x1b[200~resize\x1b[201~")
+    wait_for("live guide search", lambda: b"matches" in output.read_bytes()[start:]
+             and b"resize" in output.read_bytes()[start:], process)
+    send(directory, b"\r")
+    time.sleep(0.1)
+    for key in (b"n", b"N", b"\x1b"):
+        previous = frame(directory)["offset"]
+        send(directory, key)
+        wait_for("guide search navigation", lambda: service_frame(directory, previous, b""), process)
+    raw = output.read_bytes()
+    if "Rℐ = Combine ∘ Disintegrate".encode() not in raw or b"\\mathcal" in raw:
+        raise RuntimeError("Terminal formula projection did not match the source fixture")
+    return {"live_query": "resize", "next_previous": True,
+            "escape_clears_first": True, "unicode_formula": True}
 
 
 def reading_services(directory, process):
@@ -409,6 +501,11 @@ def launch(binary, directory):
             report = qualify(directory, process)
             with sqlite3.connect(directory / "data/lume/library.sqlite3") as db:
                 actual = db.execute("SELECT body FROM articles").fetchall()
+                saved = json.loads(db.execute(
+                    "SELECT value FROM settings WHERE key = 'workspace'",
+                ).fetchone()[0])
+                if saved["reading_width"] != 96 or not saved["latex_formulas"]:
+                    raise RuntimeError("Entered preferences were not persisted")
             if not actual or any(row[0] != body for row in actual):
                 raise RuntimeError("Image interaction changed publisher text")
             report["publisher_content_preserved"] = True

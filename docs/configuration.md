@@ -104,6 +104,7 @@ Annotation collections use the Notebook search grammar.
 theme = "lume"
 mouse = true
 justify = true
+latex_formulas = true
 
 [ui.keybindings]
 "ctrl-t" = "toc"
@@ -258,3 +259,9 @@ Only nonfinal prose rows expand existing word gaps, by at most three extra
 cells per gap. Code blocks, tables, headings, lists and quotations keep their
 original alignment. Readable text, clipboard contents, links and annotation
 source ranges retain their original bytes.
+
+Formula rendering defaults to `latex_formulas = true` under `[ui]`.
+`:latex-formulas on|off|toggle` changes and saves the same preference;
+`:settings` offers a reversible preview. With rendering off, `$...$` and
+`$$...$$` retain their original source. Changes apply to articles, table
+inspection and temporary linked pages, including back/forward history.

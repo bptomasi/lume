@@ -104,7 +104,12 @@ impl Store {
             include_str!("sql/configuration/update_publication.sql"),
             (path.to_str(), serde_json::to_string(&merged)?),
         )?;
-        let update = publication_update(path, merged, published)?;
+        let update = publication_update(
+            path,
+            merged,
+            published,
+            self.workspace()?.appearance_revision,
+        )?;
         transaction.commit()?;
         Ok(update)
     }
@@ -153,6 +158,7 @@ fn publication_update(
     path: &Path,
     config: Configuration,
     document: String,
+    appearance_revision: u64,
 ) -> Result<Update> {
     let catalog = serde_json::to_vec(&(
         &config.feeds,
@@ -162,6 +168,7 @@ fn publication_update(
         &config.recommendations,
     ))?;
     Ok(Update {
+        appearance_revision,
         ui: config.ui,
         workspaces: config.workspaces,
         catalog_fingerprint: sha2::Sha256::digest(catalog).into(),

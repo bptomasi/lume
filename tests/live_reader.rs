@@ -148,3 +148,123 @@ fn background_markdown_and_syntax_keep_the_same_selected_code() -> Result<()> {
     app.end_session()?;
     Ok(())
 }
+
+fn formula_application() -> Result<(tempfile::TempDir, App)> {
+    let (directory, mut store, feed) = common::seeded_store()?;
+    let mut incoming =
+        source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
+    incoming.articles[0].body = "# $x^2$\n\nBefore $x^2$.\n\nAnchor target after the formula.\n\nLast paragraph.".into();
+    store.ingest(&feed, "Formula", &incoming.articles)?;
+    let mut app = App::new(store, false)?;
+    app.focus = Focus::Reader;
+    app.resize_reader(60, 8);
+    app.reader_cursor = app
+        .reader_lines
+        .iter()
+        .position(|row| row.contains("Anchor target"))
+        .ok_or_else(|| anyhow::anyhow!("Source marker"))?;
+    app.reader_column = 0;
+    Ok((directory, app))
+}
+
+fn formula_command(app: &mut App, command: &str) -> Result<()> {
+    app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
+    app.paste(command)?;
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    Ok(())
+}
+
+#[test]
+fn formula_switch_reprojects_cached_text_and_preserves_source_cursor()
+-> Result<()> {
+    for background in [false, true] {
+        let (directory, mut app) = formula_application()?;
+        if background {
+            app.enable_background_navigation(
+                &directory.path().join("library.sqlite3"),
+            )?;
+        }
+        let source = app.body.clone();
+        for command in [
+            "latex-formulas off",
+            "latex-formulas on",
+            "latex-formulas off",
+        ] {
+            formula_command(&mut app, command)?;
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while app.reader_pending() {
+                app.poll_reader();
+                ensure!(Instant::now() < deadline, "Formula reflow timed out");
+                thread::sleep(Duration::from_millis(1));
+            }
+            assert_eq!(app.body, source);
+            assert!(
+                app.reader_lines[app.reader_cursor].contains("Anchor target")
+            );
+            assert_eq!(
+                app.reader_text.contains("x²"),
+                app.workspace.latex_formulas
+            );
+            assert_eq!(
+                app.reader_text.contains("$x^2$"),
+                !app.workspace.latex_formulas
+            );
+        }
+        app.end_session()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn rapid_formula_toggles_discard_obsolete_background_layouts() -> Result<()> {
+    let (directory, mut app) = formula_application()?;
+    app.enable_background_navigation(
+        &directory.path().join("library.sqlite3"),
+    )?;
+    for command in [
+        "latex-formulas off",
+        "latex-formulas on",
+        "latex-formulas off",
+    ] {
+        formula_command(&mut app, command)?;
+    }
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while app.reader_pending() {
+        app.poll_reader();
+        ensure!(
+            Instant::now() < deadline,
+            "Latest formula policy not published"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert!(app.reader_text.contains("$x^2$"));
+    assert!(!app.reader_text.contains("x²"));
+    Ok(())
+}
+
+#[test]
+fn invalid_formula_policy_preserves_the_previous_setting_and_source()
+-> Result<()> {
+    let (_directory, mut app) = formula_application()?;
+    let text = app.reader_text.clone();
+    assert!(formula_command(&mut app, "latex-formulas nonsense").is_err());
+    assert!(app.workspace.latex_formulas);
+    assert_eq!(app.reader_text, text);
+    Ok(())
+}
+
+#[test]
+fn formula_setting_has_a_reversible_live_preview() -> Result<()> {
+    let (_directory, mut app) = formula_application()?;
+    formula_command(&mut app, "settings")?;
+    for _ in 0..13 {
+        app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE))?;
+    }
+    app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE))?;
+    assert!(!app.workspace.latex_formulas);
+    assert!(app.reader_text.contains("$x^2$"));
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
+    assert!(app.workspace.latex_formulas);
+    assert!(app.reader_text.contains("x²"));
+    Ok(())
+}

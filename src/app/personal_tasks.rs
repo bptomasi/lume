@@ -97,6 +97,7 @@ pub(super) enum Outcome {
     Articles,
     Checkpoint,
     Collections,
+    Definitions,
     SearchHistory(Vec<String>),
     Exported(crate::exchange::incremental::ExportReport),
 }

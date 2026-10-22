@@ -15,6 +15,7 @@ mod legacy_lists;
 mod links;
 mod lists;
 mod live;
+mod math;
 pub mod motion;
 mod projection;
 mod syntax;
@@ -39,6 +40,21 @@ use ratatui::{
 const TEXT: Color = Color::Rgb(224, 219, 208);
 const AMBER: Color = Color::Rgb(225, 179, 109);
 const BLUE: Color = Color::Rgb(145, 180, 218);
+
+/// Source presentation policy shared by synchronous and background readers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RenderOptions {
+    /// Convert supported LaTeX to selectable Unicode; otherwise keep raw source.
+    pub latex_formulas: bool,
+}
+
+impl Default for RenderOptions {
+    fn default() -> Self {
+        Self {
+            latex_formulas: true,
+        }
+    }
+}
 
 /// Immutable, width-specific presentation consumed without parsing during draw.
 #[derive(Clone, Default)]
@@ -88,17 +104,29 @@ struct Builder<'a> {
     image: Option<images::PendingImage>,
     table: Option<tables::Pending>,
     table_bytes: usize,
+    math: math::Math,
+    options: RenderOptions,
     highlight: &'a mut dyn FnMut(&str, &str) -> Vec<Line<'static>>,
 }
 
 /// Parse and lay out bounded stored Markdown for a terminal width.
 pub fn render(body: &str, width: usize) -> Rendered {
-    render_with(body, width, &mut syntax::highlight)
+    render_with_options(body, width, RenderOptions::default())
+}
+
+/// Lay out source using an explicit formula policy, preserving original anchors.
+pub fn render_with_options(
+    body: &str,
+    width: usize,
+    options: RenderOptions,
+) -> Rendered {
+    render_with(body, width, options, &mut syntax::highlight)
 }
 
 pub(super) fn render_with(
     body: &str,
     width: usize,
+    options: RenderOptions,
     highlight: &mut dyn FnMut(&str, &str) -> Vec<Line<'static>>,
 ) -> Rendered {
     let input = legacy_lists::Input::new(body);
@@ -121,10 +149,15 @@ pub(super) fn render_with(
         image: None,
         table: None,
         table_bytes: 0,
+        math: math::Math::default(),
+        options,
         highlight,
     };
-    for (event, range) in
-        Parser::new_ext(input.text(), Options::ENABLE_TABLES).into_offset_iter()
+    for (event, range) in Parser::new_ext(
+        input.text(),
+        Options::ENABLE_TABLES | Options::ENABLE_MATH,
+    )
+    .into_offset_iter()
     {
         builder.event(event, input.source_range(range));
     }
@@ -158,6 +191,8 @@ impl Builder<'_> {
                     Style::new().fg(AMBER).bg(Color::Rgb(34, 32, 30)),
                 ));
             }
+            Event::InlineMath(text) => self.append_math(&text, range, false),
+            Event::DisplayMath(text) => self.append_math(&text, range, true),
             Event::SoftBreak => self.append(" ".into(), range),
             Event::HardBreak => {
                 self.links.text(" ");
@@ -168,6 +203,24 @@ impl Builder<'_> {
                 self.append(if done { "☑ " } else { "☐ " }.into(), range);
             }
             _ => {}
+        }
+    }
+
+    fn append_math(&mut self, latex: &str, range: Range<usize>, block: bool) {
+        if block {
+            self.flush();
+        }
+        let text = self
+            .options
+            .latex_formulas
+            .then(|| self.math.render(latex, block))
+            .flatten()
+            .unwrap_or_else(|| {
+                self.source.get(range.clone()).unwrap_or(latex).to_owned()
+            });
+        self.append(text, range);
+        if block {
+            self.flush();
         }
     }
 
@@ -219,7 +272,9 @@ impl Builder<'_> {
                 self.start_block(tag, range);
             }
             Tag::List(start) => {
-                self.flush_list_content();
+                // An empty parent only supplies indentation for its children.
+                self.flush();
+                self.lists.discard_marker();
                 self.lists.begin(start);
             }
             Tag::Item => {
@@ -313,7 +368,13 @@ impl Builder<'_> {
                 }
             }
             TagEnd::BlockQuote(_) => self.quote = self.quote.saturating_sub(1),
-            TagEnd::Item => self.flush_list_content(),
+            TagEnd::Item => {
+                // Publisher spacer items and anchor-only items have no visible
+                // content. Keep source bytes authoritative without painting a
+                // dangling marker. Blocks emit their marker when they begin.
+                self.flush();
+                self.lists.discard_marker();
+            }
             _ => {}
         }
     }
@@ -324,6 +385,12 @@ impl Builder<'_> {
     }
 
     fn append(&mut self, text: String, range: Range<usize>) {
+        if self.spans.is_empty()
+            && self.lists.pending()
+            && text.trim().is_empty()
+        {
+            return;
+        }
         self.text_prefix();
         if self.spans.is_empty() {
             self.start = range.start;
@@ -495,7 +562,7 @@ fn code_paragraph(spans: &mut [Span<'static>]) -> bool {
 
 /// Read reference-feed links without executing syntax grammars.
 pub(crate) fn render_with_plain_links(body: &str) -> Vec<(String, String)> {
-    render_with(body, 80, &mut |text, _| {
+    render_with(body, 80, RenderOptions::default(), &mut |text, _| {
         text.lines()
             .map(|line| Line::raw(line.to_owned()))
             .collect()

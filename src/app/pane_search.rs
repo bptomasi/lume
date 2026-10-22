@@ -47,23 +47,32 @@ impl App {
             .iter()
             .map(|item| format!("{} {}", item.group, item.title).to_lowercase())
             .collect();
-        self.filter_library_search();
+        self.filter_library_search(false);
     }
 
-    fn filter_library_search(&mut self) {
+    fn filter_library_search(&mut self, narrowing: bool) {
         if self.library_search.query.is_empty() {
             self.library_search.matches.clear();
             return;
         }
         let query = self.library_search.query.to_lowercase();
-        self.library_search.matches = self
+        if narrowing {
+            self.library_search.matches.retain(|index| {
+                self.library_search.names[*index].contains(&query)
+            });
+        } else {
+            self.library_search.matches.clear();
+            self.library_search.matches.extend(
+                self.library_search.names.iter().enumerate().filter_map(
+                    |(index, name)| name.contains(&query).then_some(index),
+                ),
+            );
+        }
+        if self
             .library_search
-            .names
-            .iter()
-            .enumerate()
-            .filter_map(|(index, name)| name.contains(&query).then_some(index))
-            .collect();
-        if !self.library_search.matches.contains(&self.nav_selected)
+            .matches
+            .binary_search(&self.nav_selected)
+            .is_err()
             && let Some(first) = self.library_search.matches.first()
         {
             self.nav_selected = *first;
@@ -87,8 +96,11 @@ impl App {
         if self.library_search.query == query {
             return;
         }
+        let previous = self.library_search.query.to_lowercase();
+        let narrowing =
+            !previous.is_empty() && query.to_lowercase().starts_with(&previous);
         self.library_search.query = query.to_owned();
-        self.filter_library_search();
+        self.filter_library_search(narrowing);
     }
 
     pub(super) fn cancel_library_search(&mut self) {

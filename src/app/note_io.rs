@@ -139,14 +139,13 @@ impl App {
             }
             Outcome::Articles | Outcome::Checkpoint => {}
             Outcome::Collections => self.invalidate_notebook(),
+            Outcome::Definitions => self.finish_definition_removal()?,
             Outcome::SearchHistory(history) => {
                 if let Some(notebook) = &mut self.notebook {
                     notebook.install_recent(history);
                 }
             }
-            Outcome::Exported(report) => {
-                self.show_note_export(report);
-            }
+            Outcome::Exported(report) => self.show_note_export(report),
         }
         Ok(Action::None)
     }

@@ -1,9 +1,7 @@
 //! Qualified decoders own formats; local budgets precede pixel allocation.
 
-use std::io::Cursor;
-
-use anyhow::{Context, Result, ensure};
-use image::{DynamicImage, ImageFormat, ImageReader, Limits, Rgba, RgbaImage};
+use anyhow::{Result, ensure};
+use image::{DynamicImage, Rgba, RgbaImage};
 use ratatui::{buffer::Buffer, layout::Rect, widgets::Widget};
 use ratatui_image::{
     Image, Resize,
@@ -13,10 +11,11 @@ use ratatui_image::{
 
 use super::{ImageKey, ImageProtocol, MAX_BYTES, Thumbnail, geometry};
 
-/// Reuses the SVG font database across images; used only outside UI drawing.
+/// Reuses fonts and one bounded raster source outside UI drawing.
 #[derive(Default)]
 pub struct Decoder {
     svg: super::svg::SvgDecoder,
+    raster: super::raster::RasterDecoder,
 }
 
 impl Decoder {
@@ -32,8 +31,9 @@ impl Decoder {
         ensure!(bytes.len() <= MAX_BYTES, "Image exceeds 8 MiB");
         geometry::validate(key)?;
         let (image, dimensions) = if image::guess_format(bytes).is_ok() {
-            raster(bytes, key)?
+            self.raster.render(bytes, key)?
         } else {
+            self.raster.clear();
             self.svg.render(bytes, key)?
         };
         prepare(image, dimensions, key)
@@ -133,75 +133,6 @@ fn slice(image: DynamicImage, key: &ImageKey) -> DynamicImage {
     let height = (u32::from(slice.rows) * u32::from(cell_height))
         .min(image.height() - start);
     image.crop_imm(0, start, image.width(), height)
-}
-
-fn raster(bytes: &[u8], key: &ImageKey) -> Result<(DynamicImage, (u32, u32))> {
-    let dimensions = reader(bytes)?.into_dimensions()?;
-    ensure!(dimensions.0 > 0 && dimensions.1 > 0, "Image has no pixels");
-    ensure!(
-        u64::from(dimensions.0) * u64::from(dimensions.1) <= 8_000_000,
-        "Image exceeds 8 million pixels"
-    );
-    let image = reader(bytes)?.decode().context("Invalid image data")?;
-    if key.detail.is_some() {
-        return Ok((crop_raster(image, key), dimensions));
-    }
-    let thumbnail = image.resize(
-        u32::from(key.width),
-        u32::from(key.height) * 2,
-        image::imageops::FilterType::Triangle,
-    );
-    Ok((thumbnail, dimensions))
-}
-
-fn crop_raster(image: DynamicImage, key: &ImageKey) -> DynamicImage {
-    let geometry = geometry::Geometry::new(
-        (image.width() as f32, image.height() as f32),
-        key,
-    );
-    let x = (geometry.offset[0] / geometry.scale).floor() as u32;
-    let y = (geometry.offset[1] / geometry.scale).floor() as u32;
-    let width = (geometry.width as f32 / geometry.scale).ceil() as u32;
-    let height = (geometry.height as f32 / geometry.scale).ceil() as u32;
-    let x = x.min(image.width() - 1);
-    let y = y.min(image.height() - 1);
-    // Crop before resizing: zoom cannot allocate an entire enlarged source.
-    image
-        .crop_imm(
-            x,
-            y,
-            width.max(1).min(image.width() - x),
-            height.max(1).min(image.height() - y),
-        )
-        .resize_exact(
-            geometry.width,
-            geometry.height,
-            image::imageops::FilterType::Lanczos3,
-        )
-}
-
-fn reader(bytes: &[u8]) -> Result<ImageReader<Cursor<&[u8]>>> {
-    let mut reader = ImageReader::new(Cursor::new(bytes))
-        .with_guessed_format()
-        .context("Could not inspect image format")?;
-    ensure!(
-        matches!(
-            reader.format(),
-            Some(
-                ImageFormat::Png
-                    | ImageFormat::Jpeg
-                    | ImageFormat::WebP
-                    | ImageFormat::Gif
-            )
-        ),
-        "Supported images: PNG, JPEG, WebP, GIF and SVG"
-    );
-    let mut limits = Limits::default();
-    limits.max_image_width = Some(8192);
-    limits.max_image_height = Some(8192);
-    limits.max_alloc = Some(64 * 1024 * 1024);
-    reader.limits(limits);
-    Ok(reader)
 }
 
 fn composite(image: DynamicImage, key: &ImageKey) -> DynamicImage {

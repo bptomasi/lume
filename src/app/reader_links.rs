@@ -48,11 +48,14 @@ impl App {
             .map(|link| link.destination.as_str())
     }
 
-    fn follow_reader_link(&mut self, destination: &str) -> Result<Action> {
+    pub(super) fn follow_reader_link(
+        &mut self,
+        destination: &str,
+    ) -> Result<Action> {
         let fragment = if let Some(fragment) = destination.strip_prefix('#') {
             fragment.to_owned()
         } else {
-            let url = crate::source::link_url(destination)?;
+            let url = self.resolve_reader_link(destination)?;
             if !self.link_is_current_page(&url) || url.fragment().is_none() {
                 self.open_web_page(url.as_str())?;
                 return Ok(Action::None);
@@ -72,6 +75,21 @@ impl App {
         self.apply_reader_location(location)?;
         self.status = "Section opened · Ctrl-o back · Ctrl-i forward".into();
         Ok(Action::None)
+    }
+
+    fn resolve_reader_link(&self, destination: &str) -> Result<url::Url> {
+        let article = self.current().context("Select an article first")?;
+        let base = self
+            .document
+            .as_ref()
+            .filter(|document| {
+                document.url == article.url
+                    && self.content_source == crate::model::ContentSource::Full
+            })
+            .map_or(article.url.as_str(), |document| {
+                document.final_url.as_str()
+            });
+        crate::source::resolve_link(base, destination)
     }
 
     fn link_is_current_page(&self, url: &url::Url) -> bool {

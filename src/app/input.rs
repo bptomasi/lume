@@ -13,9 +13,7 @@ impl App {
         if self.ignored_key(key) {
             return Ok(Action::None);
         }
-        if !matches!(key.code, KeyCode::Char('d') | KeyCode::Esc) {
-            self.note_marks.delete = None;
-        }
+        self.cancel_delete_prefix(key);
         self.cancel_pointer();
         if self.stale_reader_key(key) {
             return Ok(Action::None);
@@ -46,6 +44,17 @@ impl App {
         };
         self.restore_web_mode();
         action
+    }
+
+    fn cancel_delete_prefix(&mut self, key: KeyEvent) {
+        if !matches!(key.code, KeyCode::Char('d') | KeyCode::Esc)
+            || key
+                .modifiers
+                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+        {
+            self.note_marks.delete = None;
+            self.pending_destination_delete = None;
+        }
     }
 
     fn stale_reader_key(&mut self, key: KeyEvent) -> bool {
@@ -100,6 +109,9 @@ impl App {
     fn normal_key(&mut self, key: KeyEvent) -> Result<Action> {
         if let Some(action) = self.normal_prefix_action(key)? {
             return Ok(action);
+        }
+        if self.library_delete_key(key)? {
+            return Ok(Action::None);
         }
         if key.modifiers.contains(KeyModifiers::CONTROL) {
             self.note_marks.delete = None;
@@ -183,6 +195,7 @@ impl App {
             if self.focus != Focus::Articles {
                 self.focus_pane(Focus::Articles)?;
             }
+            self.save_reading_position()?;
             self.begin_input(InputKind::Search, self.search.clone());
         }
         Ok(())
@@ -361,6 +374,9 @@ impl App {
     }
 
     fn help_key(&mut self, key: KeyEvent) {
+        if self.help_search_key(key) {
+            return;
+        }
         match key.code {
             KeyCode::Char('q' | '?') | KeyCode::Esc => self.mode = Mode::Normal,
             KeyCode::Char('j') | KeyCode::Down => {

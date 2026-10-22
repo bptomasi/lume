@@ -1,5 +1,7 @@
 //! Live visual previews and normal-mode command bindings, separate from drafts.
 
+mod editing;
+
 use anyhow::{Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -7,17 +9,19 @@ use crate::model::Workspace;
 
 use super::{Action, App, Mode};
 
-/// Visual preferences are provisional until Enter; Esc restores the snapshot.
+/// Visual preferences are provisional until Ctrl-s; Esc restores the snapshot.
 #[derive(Clone, Debug)]
 pub struct SettingsDraft {
     /// Complete preferences observed before opening this modal.
     pub before: Workspace,
     /// Visual preference row; additions retain the original seven field indices.
     pub field: usize,
+    /// Editor for the selected theme or numeric value; Enter applies its preview.
+    pub(crate) editor: Option<tui_textarea::TextArea<'static>>,
 }
 
 impl SettingsDraft {
-    pub(crate) const FIELD_COUNT: usize = 13;
+    pub(crate) const FIELD_COUNT: usize = 14;
 }
 
 /// Stable key spelling accepted by `:bind`; no draft/editor key is remapped.
@@ -60,6 +64,7 @@ impl App {
                 self.mode = Mode::Settings(Box::new(SettingsDraft {
                     before: self.workspace.clone(),
                     field: 0,
+                    editor: None,
                 }))
             }
             "theme" => {
@@ -71,6 +76,7 @@ impl App {
                 self.persist_preferences()?;
             }
             "justify" => self.set_justification(argument)?,
+            "latex-formulas" => self.set_formula_rendering(argument)?,
             "bind" => self.bind_command(argument)?,
             "unbind" => {
                 self.workspace.keybindings.remove(argument);
@@ -122,8 +128,30 @@ impl App {
 
     pub(super) fn settings_key(&mut self, key: KeyEvent) -> Result<Action> {
         let justify = self.workspace.justify;
+        if key.modifiers.contains(KeyModifiers::CONTROL)
+            && key.code == KeyCode::Char('s')
+        {
+            self.confirm_setting_value()?;
+            self.persist_preferences()?;
+            self.mode = Mode::Normal;
+            self.ensure_visible_focus();
+            self.status = "Visual preferences saved".into();
+        } else if matches!(&self.mode, Mode::Settings(draft) if draft.editor.is_some())
+        {
+            self.edit_setting_key(key)?;
+        } else {
+            self.preview_setting_key(key)?;
+        }
+        self.apply_formula_preferences();
+        if self.workspace.justify != justify {
+            self.cache_reader_rows();
+        }
+        Ok(Action::None)
+    }
+
+    fn preview_setting_key(&mut self, key: KeyEvent) -> Result<()> {
         let Mode::Settings(draft) = &mut self.mode else {
-            return Ok(Action::None);
+            return Ok(());
         };
         match key.code {
             KeyCode::Esc => {
@@ -131,18 +159,13 @@ impl App {
                 self.mode = Mode::Normal;
                 self.status = "Visual preview discarded".into();
             }
-            KeyCode::Enter => {
-                self.persist_preferences()?;
-                self.mode = Mode::Normal;
-                self.ensure_visible_focus();
-                self.status = "Visual preferences saved".into();
-            }
+            KeyCode::Enter => self.begin_setting_edit(),
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Tab => {
-                draft.field = (draft.field + 1) % SettingsDraft::FIELD_COUNT
+                draft.field = (draft.field + 1) % SettingsDraft::FIELD_COUNT;
             }
             KeyCode::Up | KeyCode::Char('k') | KeyCode::BackTab => {
                 draft.field = (draft.field + SettingsDraft::FIELD_COUNT - 1)
-                    % SettingsDraft::FIELD_COUNT
+                    % SettingsDraft::FIELD_COUNT;
             }
             KeyCode::Left | KeyCode::Char('h') => {
                 change_visual(&mut self.workspace, draft.field, false)
@@ -152,10 +175,7 @@ impl App {
             }
             _ => {}
         }
-        if self.workspace.justify != justify {
-            self.cache_reader_rows();
-        }
-        Ok(Action::None)
+        Ok(())
     }
 }
 
@@ -197,6 +217,7 @@ fn change_visual(workspace: &mut Workspace, field: usize, forward: bool) {
                 resize(workspace.fullscreen_width, forward, 40, 140)
         }
         12 => workspace.justify = !workspace.justify,
+        13 => workspace.latex_formulas = !workspace.latex_formulas,
         _ => {}
     }
 }

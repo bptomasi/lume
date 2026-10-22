@@ -155,6 +155,10 @@ pub struct Workspace {
     pub images: ImageSettings,
     /// Expand prose word gaps visually, preserving copied text and quotations.
     pub justify: bool,
+    /// Render supported LaTeX as selectable Unicode instead of raw source.
+    pub latex_formulas: bool,
+    /// Durable local preference generation; excluded from portable configuration.
+    pub appearance_revision: u64,
     /// Maximum prose width in terminal columns.
     pub reading_width: u16,
     /// Centered prose width in fullscreen, independent of the panel layout.
@@ -203,6 +207,8 @@ impl Default for Workspace {
             mouse: true,
             images: ImageSettings::default(),
             justify: false,
+            latex_formulas: true,
+            appearance_revision: 0,
             reading_width: 82,
             fullscreen_width: 80,
             library_width: 23,
@@ -261,7 +267,9 @@ impl Workspace {
             Pane::Annotations => (&mut self.annotation_width, 24, 80),
             Pane::Reader => return,
         };
-        *width = (i32::from(*width) + delta).clamp(minimum, maximum) as u16;
+        *width = i32::from(*width)
+            .saturating_add(delta)
+            .clamp(minimum, maximum) as u16;
     }
 
     /// Every pane must occur once so hit testing and rendering stay aligned.

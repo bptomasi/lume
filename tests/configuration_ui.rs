@@ -225,3 +225,70 @@ fn external_preferences_wait_for_a_polled_barrier_without_blocking_input()
     app.end_session()?;
     Ok(())
 }
+
+#[test]
+fn formula_only_edits_publish_and_survive_external_edits_and_restart()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let database = directory.path().join("library.sqlite3");
+    let store = Store::open(&database)?;
+    let path = directory.path().join("config.toml");
+    let session = Session::open(&store, &path)?;
+    let mut app = App::new(store, false)?;
+    app.configure_document(session.initial().clone());
+    app.save_session()?;
+    session.flush()?;
+    assert!(app.workspace.latex_formulas);
+    command(&mut app, "latex-formulas off")?;
+    session.flush()?;
+    assert!(!config::read_document(&path)?.ui.latex_formulas);
+    assert!(
+        !App::new(Store::open(&database)?, false)?
+            .workspace
+            .latex_formulas
+    );
+    command(&mut app, "latex-formulas toggle")?;
+    session.flush()?;
+    assert!(config::read_document(&path)?.ui.latex_formulas);
+    fs::write(&path, "[ui]\nlatex_formulas = false\n")?;
+    let external = Session::open(&Store::open(&database)?, &path)?;
+    app.configuration_updated(external.initial().clone())?;
+    assert!(!app.workspace.latex_formulas);
+    assert!(
+        !App::new(Store::open(&database)?, false)?
+            .workspace
+            .latex_formulas
+    );
+    Ok(())
+}
+
+#[test]
+fn an_older_publication_cannot_undo_a_local_return_to_the_initial_value()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let database = directory.path().join("library.sqlite3");
+    let store = Store::open(&database)?;
+    let path = directory.path().join("config.toml");
+    let session = Session::open(&store, &path)?;
+    let mut app = App::new(store, false)?;
+    app.configure_document(session.initial().clone());
+    command(&mut app, "latex-formulas off")?;
+    session.flush()?;
+    let old = Session::open(&Store::open(&database)?, &path)?;
+    command(&mut app, "latex-formulas on")?;
+    app.configuration_updated(old.initial().clone())?;
+    assert!(app.workspace.latex_formulas);
+    session.flush()?;
+    let latest = Session::open(&Store::open(&database)?, &path)?;
+    app.configuration_updated(latest.initial().clone())?;
+    assert!(app.workspace.latex_formulas);
+    fs::write(
+        &path,
+        fs::read_to_string(&path)?
+            .replace("latex_formulas = true", "latex_formulas = false"),
+    )?;
+    let external = Session::open(&Store::open(&database)?, &path)?;
+    app.configuration_updated(external.initial().clone())?;
+    assert!(!app.workspace.latex_formulas);
+    Ok(())
+}

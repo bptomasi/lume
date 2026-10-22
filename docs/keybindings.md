@@ -92,6 +92,13 @@ Other terminals fall back to blocks; the Kitty graphics protocol is not
 integrated. `:images on` enables loading, `:images` inspects failures and
 `:images retry` retries them. `:image-protocol auto` restores automatic choice.
 
+Publisher `srcset` and lazy `data-srcset` images prefer the highest valid
+candidate up to 2560 pixels wide or 3× density, falling back to `data-src`/`src`.
+Downloads and decoded pixels retain their existing limits. Zoom and pan reuse
+one decoded raster (at most 32 MiB); SVGs render again at the requested size.
+Native inspection scales from the source with Lanczos filtering. Character
+previews remain limited by terminal cells; they cannot reproduce pixel detail.
+
 ## Linked pages, offline reading and sessions
 
 `Enter` on a reader link opens a temporary page inside Lume. Same-page links
@@ -99,10 +106,14 @@ jump directly to their section. `Ctrl-o` goes back, `Ctrl-i` goes forward, and
 `Esc` returns to the original article. Linked readings preserve that article's
 cursor and personal data. They are text views with explicit image links;
 `o` opens the original in a browser. `:open-page URL` opens an address directly.
+`:open-link` follows the cursor just like `Enter`, including relative links and
+local sections. Missing sections on external pages show the page start with a
+notice; opening the original preserves the requested fragment.
 `:save-page` explicitly adds it to **Saved pages**, without subscribing to a
 site. Saving an existing article preserves its identity and publisher text.
 PDFs, other non-HTML responses and explicit download attachments open through
-the system browser instead. The reader does not decode their full bodies;
+the system browser instead. HTML with unsupported text encoding also opens in
+the browser. The reader does not decode non-HTML resource bodies;
 redirect targets and fragments such as `#page=7` are preserved. The current
 reading and cursor remain intact. Cancelled or superseded loads never launch
 the browser. `:save-page` waits until the new linked page is ready.
@@ -140,3 +151,38 @@ batches. SQLite can reuse pages without shrinking its file.
 work; `off` stops sampling and `reset` clears it. Frame times include terminal
 flush, but exclude compositor presentation. These are not physical key-to-pixel
 measurements. Diagnostics send no telemetry and are disabled by default.
+
+The field guide (`?`) has its own live search: `/` opens the query, Enter
+keeps it, and `n` / `N` cycle matching rows. All query words must occur in
+the same row. Esc cancels an edit, clears a kept query, then closes the guide.
+This never filters the library or the article. Article search publishes matching
+headlines independently of Reader preparation; Enter loads the chosen result.
+
+Inline `$LaTeX$` and display `$$LaTeX$$` use a bounded Unicode projection,
+including fractions, roots and super/subscripts. Formulas remain searchable,
+selectable and anchored to their original source. This is terminal text rather
+than TeX page typesetting; unsupported or excessive expressions stay verbatim.
+
+Visible images use two download lanes and one shared decoder with a 32 MiB
+source cache. Sixel clipping uses one palette and continuous diffusion per image,
+avoiding color differences between independently encoded terminal rows.
+
+`:latex-formulas on|off|toggle` saves `[ui] latex_formulas` (default `true`).
+The same preference appears in `:settings`, including preview/cancel behavior.
+Disabling keeps original delimiters and source; toggling retains source-based
+cursor/selection positions and invalidates obsolete background layouts.
+Unicode formulas include extended super/subscripts, sums/products and integral
+bounds, function application, accents, binomial coefficients and compact matrix
+rows. Missing script glyphs use grouped `^(...)` / `_(...)` notation. This is
+portable terminal text, with unsupported layouts preserved as original LaTeX.
+
+In Library, `dd` removes the selected feed subscription or smart list.
+The two presses must refer to the same destination; Esc, another action or
+moving to another item cancels the pending removal. Autorepeat never confirms
+it. Cached articles and annotations stay saved. `:unfeed` and `:delete-smart`
+use the same definition-removal operations.
+
+In `:settings`, Enter edits the selected theme or numeric value and toggles
+boolean switches. Enter applies a typed value to the live preview; Esc cancels
+only that value edit. Ctrl-s saves the complete preview and closes Settings;
+Esc outside a value editor discards the preview. Arrow adjustments still work.

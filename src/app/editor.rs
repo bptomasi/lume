@@ -50,6 +50,14 @@ impl App {
     /// # Errors
     /// Returns storage errors while updating a live search.
     pub fn paste(&mut self, text: &str) -> Result<()> {
+        if self.paste_setting_value(text) {
+            return Ok(());
+        }
+        if matches!(self.mode, Mode::Help) && self.help_search.editor.is_some()
+        {
+            self.paste_help_search(text);
+            return Ok(());
+        }
         if let Mode::Picker(picker) = &mut self.mode {
             let remaining = 4096_usize.saturating_sub(picker.query.len());
             let mut available = remaining;
@@ -174,7 +182,7 @@ impl App {
             self.search.clone_from(&input.text);
             self.page_offset = 0;
             self.selected = 0;
-            self.filter()?;
+            self.filter_preview()?;
         }
         Ok(())
     }
@@ -202,7 +210,12 @@ impl App {
             self.page_offset = 0;
             self.filter()?;
         }
+        let search = matches!(&self.mode, Mode::Input(input)
+            if matches!(input.kind, InputKind::Search));
         self.mode = Mode::Normal;
+        if search && self.reader_stale() && !self.navigation_loading {
+            self.load_current_deferred()?;
+        }
         Ok(Action::None)
     }
 

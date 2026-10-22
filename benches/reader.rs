@@ -23,6 +23,10 @@ mod dense_annotations;
 mod expansion;
 #[path = "workloads/feed_content.rs"]
 mod feed_content;
+#[path = "workloads/fluency.rs"]
+mod fluency;
+#[path = "workloads/formulas.rs"]
+mod formulas;
 #[path = "workloads/full_article.rs"]
 mod full_article;
 #[path = "workloads/geometry.rs"]
@@ -134,6 +138,8 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
     smoothness::run(iterations, stress)?;
     panes::run(iterations, stress)?;
     pane_search::run(iterations, stress)?;
+    fluency::run(iterations, stress)?;
+    formulas::run(iterations, stress)?;
     query_editing::run(iterations, stress)?;
     search_relevance::run(iterations, stress)?;
     workspaces::run(iterations, stress)?;
@@ -162,6 +168,8 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--workspaces-only", workspaces::run),
     ("--panes-only", panes::run),
     ("--pane-search-only", pane_search::run),
+    ("--fluency-only", fluency::run),
+    ("--formulas-only", formulas::run),
     ("--query-editing-only", query_editing::run),
     ("--search-relevance-only", search_relevance::run),
     ("--smoothness-only", smoothness::run),

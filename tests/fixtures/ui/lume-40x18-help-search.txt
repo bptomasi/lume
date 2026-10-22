@@ -1,0 +1,92 @@
+  ◉ lume  /  a quiet place for curious m
+ ╭─ Lume · field guide · / search ────╮ 
+╭│/ resize                            │╮
+││1/5 matches · n/N next/previous · Es││
+││  Ctrl-w +/-      Resize by two     ││
+││columns; custom splits use two      ││
+││percentage points                   ││
+││                  Also >/<.         ││
+││Collapsed siblings never absorb the ││
+││resize.                             ││
+││                  Nested minimum    ││
+││sizes keep Articles visible when    ││
+││space permits.                      ││
+││  Ctrl-w c / a    Collapse focused  ││
+││panel / expand article notes        ││
+╰│  :panel NAME     Toggle library,   │╯
+ ╰────────────────────────────────────╯r
+  w/W/e word · / find · n note · :annota
+0:0..4 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+0:4..8 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26)).bold()
+0:8..40 Style::new().fg(Color::Rgb(155, 151, 144)).bg(Color::Rgb(23, 23, 26))
+1:0..1 Style::new().fg(Color::Rgb(155, 151, 144)).bg(Color::Rgb(23, 23, 26))
+1:1..39 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+1:39..40 Style::new().fg(Color::Rgb(155, 151, 144)).bg(Color::Rgb(23, 23, 26))
+2:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+2:1..4 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+2:4..10 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+2:10..11 Style::new().fg(Color::Rgb(18, 18, 20)).bg(Color::Rgb(225, 179, 109))
+2:11..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+2:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+3:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+3:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+3:2..38 Style::new().fg(Color::Rgb(155, 151, 144)).bg(Color::Rgb(23, 23, 26))
+3:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+4:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+4:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+4:2..33 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26)).bold().underlined()
+4:33..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+4:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+5:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+5:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+5:2..32 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26)).bold().underlined()
+5:32..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+5:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+6:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+6:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+6:2..19 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26)).bold().underlined()
+6:19..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+6:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+7:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+7:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+7:2..29 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26)).bold().underlined()
+7:29..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+7:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+8:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+8:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+8:2..37 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26)).bold().underlined()
+8:37..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+8:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+9:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+9:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+9:2..9 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26)).bold().underlined()
+9:9..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+9:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+10:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+10:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+10:2..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+10:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+11:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+11:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+11:2..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+11:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+12:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+12:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+12:2..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+12:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+13:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+13:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+13:2..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+13:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+14:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+14:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+14:2..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+14:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+15:0..1 Style::new().fg(Color::Rgb(54, 52, 51)).bg(Color::Rgb(23, 23, 26))
+15:1..2 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+15:2..38 Style::new().fg(Color::Rgb(224, 219, 208)).bg(Color::Rgb(23, 23, 26))
+15:38..40 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+16:0..1 Style::new().fg(Color::Rgb(18, 18, 20)).bg(Color::Rgb(145, 180, 218)).bold()
+16:1..39 Style::new().fg(Color::Rgb(225, 179, 109)).bg(Color::Rgb(23, 23, 26))
+16:39..40 Style::new().fg(Color::Rgb(155, 151, 144)).bg(Color::Rgb(23, 23, 26))
+17:0..40 Style::new().fg(Color::Rgb(121, 120, 117)).bg(Color::Rgb(23, 23, 26))

@@ -3,7 +3,7 @@
 use crossterm::event::MouseEvent;
 use ratatui::layout::Position;
 
-use crate::{model::PaneLayout, ui};
+use crate::ui;
 
 use super::{App, Gesture};
 
@@ -37,28 +37,20 @@ impl App {
         &mut self,
         boundary: &ui::SplitBoundary,
         grab: Position,
-        before: &PaneLayout,
         event: MouseEvent,
     ) {
-        let (initial, extent, delta) = if boundary.horizontal {
-            (
-                boundary.first.width,
-                boundary.first.width + boundary.second.width,
-                i32::from(event.column) - i32::from(grab.x),
-            )
+        let delta = if boundary.horizontal {
+            i32::from(event.column) - i32::from(grab.x)
         } else {
-            (
-                boundary.first.height,
-                boundary.first.height + boundary.second.height,
-                i32::from(event.row) - i32::from(grab.y),
-            )
+            i32::from(event.row) - i32::from(grab.y)
         };
-        let share = ((i32::from(initial) + delta) * 100
-            / i32::from(extent.max(1)))
-        .clamp(15, 85) as u16;
-        let mut tree = before.clone();
-        tree.resize_path(&boundary.path, share);
-        self.workspace.layout = Some(tree);
+        let share = boundary.dragged_percent(delta);
+        let Some(tree) = &mut self.workspace.layout else {
+            return;
+        };
+        if !tree.resize_path(&boundary.path, share) {
+            return;
+        }
         self.resize_workspace(self.screen);
         self.status = "Resizing split · release saves · Esc cancels".into();
     }

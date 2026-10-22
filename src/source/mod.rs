@@ -77,18 +77,7 @@ pub struct ParsedFeed {
 /// # Errors
 /// Rejects relative URLs, credentials and schemes other than HTTP(S).
 pub fn feed_url(address: &str) -> Result<Url> {
-    ensure!(address.len() <= 8192, "Feed URL exceeds 8 KiB");
-    let mut url =
-        Url::parse(address.trim()).context("Enter a full feed URL")?;
-    ensure!(
-        matches!(url.scheme(), "http" | "https"),
-        "Use HTTP or HTTPS"
-    );
-    ensure!(url.host_str().is_some(), "Feed URL needs a host");
-    ensure!(
-        url.username().is_empty() && url.password().is_none(),
-        "Credentials in feed URLs are not supported"
-    );
+    let mut url = link_url(address)?;
     url.set_fragment(None);
     Ok(url)
 }
@@ -98,9 +87,41 @@ pub fn feed_url(address: &str) -> Result<Url> {
 /// # Errors
 /// Returns invalid URL, credentials or unsupported scheme errors.
 pub fn link_url(address: &str) -> Result<Url> {
-    let mut url = feed_url(address)?;
-    let original = Url::parse(address.trim())?;
-    url.set_fragment(original.fragment());
+    ensure!(address.len() <= 8192, "Feed URL exceeds 8 KiB");
+    let url = Url::parse(address.trim()).context("Enter a full feed URL")?;
+    validate_url(url)
+}
+
+/// Resolve a publisher link against its page, retaining queries and fragments.
+///
+/// # Errors
+/// Rejects invalid destinations, credentials and non-HTTP(S) schemes.
+pub fn resolve_link(base: &str, destination: &str) -> Result<Url> {
+    ensure!(destination.len() <= 8192, "Link URL exceeds 8 KiB");
+    ensure!(
+        !destination.is_empty() && !destination.chars().any(char::is_control),
+        "Invalid link destination"
+    );
+    let url = match Url::parse(destination) {
+        Ok(url) => url,
+        Err(url::ParseError::RelativeUrlWithoutBase) => {
+            link_url(base)?.join(destination)?
+        }
+        Err(error) => return Err(error.into()),
+    };
+    validate_url(url)
+}
+
+fn validate_url(url: Url) -> Result<Url> {
+    ensure!(
+        matches!(url.scheme(), "http" | "https"),
+        "Use HTTP or HTTPS"
+    );
+    ensure!(url.host_str().is_some(), "Feed URL needs a host");
+    ensure!(
+        url.username().is_empty() && url.password().is_none(),
+        "Credentials in feed URLs are not supported"
+    );
     Ok(url)
 }
 

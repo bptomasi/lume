@@ -31,11 +31,26 @@ fn settings(
     app: &App,
     draft: &crate::app::SettingsDraft,
 ) {
-    let inner = modal(
+    let mut inner = modal(
         frame,
-        "Visual preview · ↑↓ field · ←→ change · Enter save · Esc discard",
+        "Settings · Enter edit · Ctrl-s save · Esc discard",
         Popup::Settings,
     );
+    if let Some(editor) = &draft.editor {
+        let height = inner.height.min(2);
+        let y = inner.bottom().saturating_sub(height);
+        frame.render_widget(
+            editor,
+            Rect::new(inner.x, y, inner.width, height.min(1)),
+        );
+        if height > 1 {
+            frame.render_widget(
+                Paragraph::new("Enter applies value · Esc cancels edit"),
+                Rect::new(inner.x, y + 1, inner.width, 1),
+            );
+        }
+        inner.height = inner.height.saturating_sub(height);
+    }
     let lines = visual_preferences(app)
         .into_iter()
         .enumerate()
@@ -74,6 +89,7 @@ fn visual_preferences(
         format!("Mouse reporting: {}", app.workspace.mouse),
         format!("Fullscreen: {} cols", app.workspace.fullscreen_width),
         format!("Justify prose: {}", app.workspace.justify),
+        format!("LaTeX formulas: {}", app.workspace.latex_formulas),
     ]
 }
 
@@ -117,19 +133,32 @@ fn clip_columns(text: &str, skip: usize, width: usize) -> String {
 }
 
 fn help(frame: &mut Frame<'_>, app: &App) {
-    let inner = modal(
+    let mut inner = modal(
         frame,
-        "Lume · field guide · j/k scroll · Esc close",
+        "Lume · field guide · / search · j/k scroll · Esc close",
         Popup::Help,
     );
+    if app.help_search.editor.is_some() || !app.help_search.query.is_empty() {
+        inner = help_search_field(frame, app, inner);
+    }
     let capacity = inner.height as usize;
     let offset = app.help_scroll.min(HELP.lines().count().saturating_sub(1));
     let lines = HELP
         .lines()
         .skip(offset)
         .take(capacity)
-        .map(|line| {
-            let style = if line.starts_with("  ─") {
+        .enumerate()
+        .map(|(row, line)| {
+            let style = if app
+                .help_search
+                .hits
+                .binary_search(&(offset + row))
+                .is_ok()
+            {
+                Style::new()
+                    .fg(AMBER)
+                    .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
+            } else if line.starts_with("  ─") {
                 Style::new().fg(AMBER).add_modifier(Modifier::BOLD)
             } else {
                 Style::new().fg(TEXT)
@@ -141,6 +170,45 @@ fn help(frame: &mut Frame<'_>, app: &App) {
         Paragraph::new(lines).wrap(ratatui::widgets::Wrap { trim: false }),
         inner,
     );
+}
+
+fn help_search_field(frame: &mut Frame<'_>, app: &App, inner: Rect) -> Rect {
+    let field = Rect::new(inner.x, inner.y, inner.width, inner.height.min(1));
+    frame.render_widget(
+        Paragraph::new("/ ").style(Style::new().fg(AMBER)),
+        field,
+    );
+    let editor = Rect::new(
+        field.x + field.width.min(2),
+        field.y,
+        field.width.saturating_sub(2),
+        field.height,
+    );
+    if let Some(input) = &app.help_search.editor {
+        frame.render_widget(input, editor);
+    } else {
+        frame.render_widget(
+            Paragraph::new(app.help_search.query.as_str()),
+            editor,
+        );
+    }
+    if inner.height > 1 {
+        let count = app.help_search.hits.len();
+        let current = if count == 0 {
+            0
+        } else {
+            app.help_search.selected + 1
+        };
+        frame.render_widget(
+            Paragraph::new(format!(
+                "{current}/{count} matches · n/N next/previous · Esc clear"
+            ))
+            .style(Style::new().fg(MUTED)),
+            Rect::new(inner.x, inner.y + 1, inner.width, 1),
+        );
+    }
+    let used = inner.height.min(2);
+    Rect::new(inner.x, inner.y + used, inner.width, inner.height - used)
 }
 
 fn editor(frame: &mut Frame<'_>, app: &App, input: &Input) {

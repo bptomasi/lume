@@ -156,7 +156,7 @@ fn visual_preview_cancels_or_commits_with_actual_themed_cells() -> Result<()> {
     key(&mut app, KeyCode::Right)?;
     key(&mut app, KeyCode::Down)?;
     key(&mut app, KeyCode::Right)?;
-    key(&mut app, KeyCode::Enter)?;
+    app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
     let saved =
         Store::open(&directory.path().join("library.sqlite3"))?.workspace()?;
     assert_eq!((saved.theme.as_str(), saved.reading_width), ("nord", 83));
@@ -220,7 +220,7 @@ fn hiding_a_focused_panel_in_settings_returns_focus_to_the_reader() -> Result<()
         key(&mut app, KeyCode::Down)?;
     }
     key(&mut app, KeyCode::Right)?;
-    key(&mut app, KeyCode::Enter)?;
+    app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
     assert!(!app.workspace.show_library);
     assert_eq!(app.focus, Focus::Reader);
     Ok(())

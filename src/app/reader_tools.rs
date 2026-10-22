@@ -418,7 +418,10 @@ impl App {
                     .filter_map(|range| self.body.get(range.clone()))
                     .collect::<Vec<_>>()
                     .join("\n\n");
-                crate::reader::table_view::render(&source)
+                crate::reader::table_view::render_with_options(
+                    &source,
+                    self.formula_options(),
+                )
             };
         self.show_document(
             "Tables · j/k vertical · h/l horizontal · Esc close",

@@ -27,8 +27,8 @@ def measure(binary, stress, index, directory):
                 "total_ms": float(match[3]),
                 "mean_ms": float(match[4]),
             }
-    if len(metrics) != 11:
-        raise RuntimeError("Expected all eleven checked image workloads")
+    if len(metrics) != 12:
+        raise RuntimeError("Expected all twelve checked image workloads")
     return {
         "stress": stress,
         "run": index,
@@ -59,6 +59,7 @@ def main():
             "Retained reports describe their measured revision only.",
             "Native encoders are measured; physical emulator/display time is not.",
             "Inspector zoom and pan use original bytes or re-rendered SVG paths.",
+            "Cold and reused raster sources are timed separately; one source is retained.",
             "Bidirectional scrolling checks 24 clips without new image work.",
             "Sixel clips copy cached cell-height strips without decoding again.",
         ],

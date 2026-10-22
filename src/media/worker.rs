@@ -1,8 +1,12 @@
-//! One bounded image lane; drop disconnects queues without waiting for HTTP.
+//! Two bounded downloads share one memory-bounded decoder.
+//! Dropping the worker disconnects queues without waiting for HTTP.
 
 use std::{
     path::PathBuf,
-    sync::mpsc::{self, Receiver, SyncSender},
+    sync::{
+        Arc, Mutex,
+        mpsc::{self, Receiver, SyncSender},
+    },
     thread,
     time::Duration,
 };
@@ -23,27 +27,19 @@ pub(crate) struct Worker {
 
 impl Worker {
     pub(crate) fn start(directory: PathBuf, offline: bool) -> Result<Self> {
-        let (requests, receiver) = mpsc::sync_channel::<ImageKey>(1);
-        let (sender, results) = mpsc::sync_channel(1);
-        thread::Builder::new()
-            .name("lume-images".into())
-            .spawn(move || {
-                let mut client = None;
-                let mut decoder = Decoder::default();
-                while let Ok(key) = receiver.recv() {
-                    let result = load(
-                        &directory,
-                        offline,
-                        &mut client,
-                        &mut decoder,
-                        &key,
-                    )
-                    .map_err(|error| format!("{error:#}"));
-                    if sender.send(Completion { key, result }).is_err() {
-                        break;
-                    }
-                }
-            })?;
+        let (requests, receiver) = mpsc::sync_channel::<ImageKey>(2);
+        let (sender, results) = mpsc::sync_channel(2);
+        let receiver = Arc::new(Mutex::new(receiver));
+        let decoder = Arc::new(Mutex::new(Decoder::default()));
+        for lane in 0..2 {
+            let (receiver, decoder) = (receiver.clone(), decoder.clone());
+            let (directory, sender) = (directory.clone(), sender.clone());
+            thread::Builder::new()
+                .name(format!("lume-images-{lane}"))
+                .spawn(move || {
+                    run(directory, offline, receiver, sender, decoder)
+                })?;
+        }
         Ok(Self { requests, results })
     }
 
@@ -64,16 +60,49 @@ impl Worker {
     }
 }
 
+fn run(
+    directory: PathBuf,
+    offline: bool,
+    receiver: Arc<Mutex<Receiver<ImageKey>>>,
+    sender: SyncSender<Completion>,
+    decoder: Arc<Mutex<Decoder>>,
+) {
+    let mut client = None;
+    loop {
+        let key = match receiver.lock() {
+            Ok(receiver) => receiver.recv(),
+            Err(_) => break,
+        };
+        let Ok(key) = key else { break };
+        let result = load(&directory, offline, &mut client, &decoder, &key)
+            .map_err(|error| format!("{error:#}"));
+        if sender.send(Completion { key, result }).is_err() {
+            break;
+        }
+    }
+}
+
+fn render(
+    decoder: &Mutex<Decoder>,
+    bytes: &[u8],
+    key: &ImageKey,
+) -> Result<Thumbnail> {
+    let mut decoder = decoder
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Image decoder stopped"))?;
+    decoder.render(bytes, key)
+}
+
 fn load(
     directory: &std::path::Path,
     offline: bool,
     client: &mut Option<ureq::Agent>,
-    decoder: &mut Decoder,
+    decoder: &Mutex<Decoder>,
     key: &ImageKey,
 ) -> Result<Thumbnail> {
     crate::source::feed_url(&key.url)?;
     let cached = cache::read(directory, &key.url).and_then(|bytes| {
-        bytes.map(|bytes| decoder.render(&bytes, key)).transpose()
+        bytes.map(|bytes| render(decoder, &bytes, key)).transpose()
     });
     match cached {
         Ok(Some(image)) => return Ok(image),
@@ -85,7 +114,7 @@ fn load(
     ensure!(!offline, "Image unavailable in offline cache");
     let client = client.get_or_insert_with(crate::source::agent);
     let bytes = download(client, &key.url)?;
-    let mut image = decoder.render(&bytes, key)?;
+    let mut image = render(decoder, &bytes, key)?;
     image.cache_warning = cache::write(directory, &key.url, &bytes)
         .err()
         .map(|error| error.to_string());

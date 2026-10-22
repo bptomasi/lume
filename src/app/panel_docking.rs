@@ -56,10 +56,10 @@ impl App {
         let signed = if boundary.first.intersection(focus) == focus {
             delta
         } else {
-            -delta
+            delta.saturating_neg()
         };
         if let Some(tree) = &mut self.workspace.layout {
-            tree.adjust_split(&boundary.path, signed);
+            tree.resize_path(&boundary.path, boundary.adjusted_percent(signed));
         }
         self.commit_panel_layout()
     }

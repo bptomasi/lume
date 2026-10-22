@@ -43,6 +43,12 @@ impl Lists {
         self.stack.last().is_some_and(|list| list.marker.is_some())
     }
 
+    pub(super) fn discard_marker(&mut self) {
+        if let Some(list) = self.stack.last_mut() {
+            list.marker = None;
+        }
+    }
+
     pub(super) fn prefix(&mut self) -> String {
         let Some(list) = self.stack.last_mut() else {
             return String::new();

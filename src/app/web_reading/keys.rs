@@ -2,7 +2,7 @@
 
 use super::super::{Action, App, InputKind, Mode};
 use crate::reader::{cursor, motion::WordMotion};
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 impl App {
@@ -119,9 +119,10 @@ impl App {
     }
 
     fn web_browser(&self) -> Action {
-        self.web.current.as_ref().map_or(Action::None, |page| {
-            Action::Open(page.document.url.clone())
-        })
+        self.web
+            .current
+            .as_ref()
+            .map_or(Action::None, |page| Action::Open(page.browser_url.clone()))
     }
 
     pub(in crate::app) fn web_move_rows(
@@ -200,14 +201,18 @@ impl App {
         page.reveal(height);
     }
 
-    fn web_follow_link(&mut self) -> Result<Action> {
+    pub(in crate::app) fn web_follow_link(&mut self) -> Result<Action> {
+        ensure!(
+            !self.web.opening,
+            "Wait for the linked page before following a link"
+        );
         let page = self.web.current.as_mut().context("Wait for the page")?;
         let address = page
             .cursor_link()
             .context("Place the cursor on a link")?
             .to_owned();
         let destination =
-            url::Url::parse(&page.document.url)?.join(&address)?;
+            crate::source::resolve_link(&page.document.url, &address)?;
         let mut base = destination.clone();
         base.set_fragment(None);
         if base.as_str() == page.document.url
@@ -251,6 +256,7 @@ impl App {
             return;
         };
         self.web.requested_width = target.width;
+        self.web.requested_options = target.options;
         if let Some(page) = self.web.current.replace(target) {
             if forward {
                 self.web.back.push_back(page);
@@ -271,6 +277,7 @@ impl App {
         }
         if let Some(page) = &self.web.current {
             self.web.requested_width = page.width;
+            self.web.requested_options = page.options;
             self.status =
                 "Pending page discarded · previous reading retained".into();
         } else {

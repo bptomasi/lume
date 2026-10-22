@@ -255,4 +255,49 @@ pub struct SplitBoundary {
     pub horizontal: bool,
     /// False traverses first, true traverses second.
     pub path: Vec<bool>,
+    /// Requested share before minimum pane sizes constrain the rectangles.
+    pub percent: u16,
+}
+
+impl SplitBoundary {
+    /// Adjust from the visible seam when minimum dimensions constrain it.
+    /// Otherwise preserve percentage changes smaller than a terminal cell.
+    pub fn adjusted_percent(&self, delta: i32) -> u16 {
+        if delta == 0 {
+            return self.percent;
+        }
+        let (first, extent) = self.extents();
+        let requested = extent * u32::from(self.percent) / 100;
+        let base = if requested == first {
+            self.percent
+        } else {
+            (first * 100).div_ceil(extent.max(1)) as u16
+        };
+        i32::from(base).saturating_add(delta).clamp(15, 85) as u16
+    }
+
+    /// A stationary pointer retains the saved ratio exactly, including clamps.
+    pub fn dragged_percent(&self, delta: i32) -> u16 {
+        if delta == 0 {
+            return self.percent;
+        }
+        let (_, extent) = self.extents();
+        let extent = i32::try_from(extent.max(1)).unwrap_or(1);
+        let rounded = (delta * 100 + delta.signum() * (extent / 2)) / extent;
+        self.adjusted_percent(rounded)
+    }
+
+    fn extents(&self) -> (u32, u32) {
+        if self.horizontal {
+            (
+                u32::from(self.first.width),
+                u32::from(self.first.width) + u32::from(self.second.width),
+            )
+        } else {
+            (
+                u32::from(self.first.height),
+                u32::from(self.first.height) + u32::from(self.second.height),
+            )
+        }
+    }
 }

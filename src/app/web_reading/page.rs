@@ -20,6 +20,10 @@ pub(super) enum Loaded {
 pub struct WebPage {
     /// Captured source.
     pub document: Arc<WebDocument>,
+    /// Original navigation target, including fragments omitted from cache keys.
+    pub(super) browser_url: String,
+    /// Recoverable navigation issue; readable page content remains available.
+    pub(super) notice: Option<String>,
     /// Cached styled text and original byte correspondence.
     pub rendered: Rendered,
     /// Current readable-text cursor byte.
@@ -31,6 +35,7 @@ pub struct WebPage {
     pub(super) linewise: bool,
     /// Width used for cached layout.
     pub width: usize,
+    pub(super) options: crate::reader::RenderOptions,
     pub(crate) columns: Vec<crate::reader::viewport::RowIndex>,
     pub(crate) rows: Vec<String>,
     horizontal: std::collections::BTreeMap<usize, usize>,
@@ -46,10 +51,12 @@ impl WebPage {
         document: Arc<WebDocument>,
         width: usize,
         anchor: usize,
+        options: crate::reader::RenderOptions,
     ) -> Self {
         let source = text_images(&document.body);
-        let rendered = crate::reader::render(&source, width);
-        let index = DocumentIndex::parse(&source);
+        let rendered =
+            crate::reader::render_with_options(&source, width, options);
+        let index = DocumentIndex::parse_with_options(&source, options);
         let cursor = crate::reader::to_display(
             &rendered.mappings,
             anchor..anchor.saturating_add(1),
@@ -62,15 +69,10 @@ impl WebPage {
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<_>>();
-        let columns = rows
-            .iter()
-            .zip(&rendered.lines)
-            .zip(&rendered.insets)
-            .map(|((text, line), inset)| {
-                crate::reader::viewport::RowIndex::inset(text, line, *inset)
-            })
-            .collect();
+        let columns = index_rows(&rows, &rendered);
         Self {
+            browser_url: document.url.clone(),
+            notice: None,
             document,
             rendered,
             cursor,
@@ -83,6 +85,7 @@ impl WebPage {
             back: Vec::new(),
             forward: Vec::new(),
             width,
+            options,
             rows,
             columns,
             horizontal: std::collections::BTreeMap::new(),
@@ -143,6 +146,8 @@ impl WebPage {
     }
 
     pub(super) fn inherit_view(&mut self, previous: &mut Self) {
+        self.browser_url.clone_from(&previous.browser_url);
+        self.notice.clone_from(&previous.notice);
         self.seek_source(previous.source_anchor());
         self.selection = previous.selection.and_then(|anchor| {
             let source = crate::reader::to_source(
@@ -227,6 +232,19 @@ impl WebPage {
     }
 }
 
+fn index_rows(
+    rows: &[String],
+    rendered: &Rendered,
+) -> Vec<crate::reader::viewport::RowIndex> {
+    rows.iter()
+        .zip(&rendered.lines)
+        .zip(&rendered.insets)
+        .map(|((text, line), inset)| {
+            crate::reader::viewport::RowIndex::inset(text, line, *inset)
+        })
+        .collect()
+}
+
 pub(super) fn load(
     connection: &mut Option<Store>,
     path: &std::path::Path,
@@ -234,6 +252,7 @@ pub(super) fn load(
     online: bool,
     width: usize,
     fragment: Option<String>,
+    options: crate::reader::RenderOptions,
 ) -> Result<Loaded> {
     let document = match fetch(connection, path, address, online)? {
         crate::source::article::FetchedPage::Article(document) => document,
@@ -245,16 +264,29 @@ pub(super) fn load(
             return Ok(Loaded::Browser(url.to_string()));
         }
     };
-    let url = document.final_url;
+    let mut target = crate::source::link_url(&document.final_url)?;
+    if fragment.is_some() {
+        target.set_fragment(fragment.as_deref());
+    }
+    let fragment = target.fragment().map(str::to_owned);
+    let browser_url = target.to_string();
+    target.set_fragment(None);
+    let url = target.to_string();
     let body = document.body;
     let title = body
         .lines()
         .find_map(|line| line.strip_prefix("# "))
         .map_or_else(|| url.clone(), |title| crate::content::label(title, 160));
     let document = Arc::new(WebDocument { url, title, body });
-    let mut page = WebPage::prepare(document, width, 0);
-    if let Some(fragment) = fragment {
-        page.jump_fragment(&fragment)?;
+    let mut page = WebPage::prepare(document, width, 0, options);
+    page.browser_url = browser_url;
+    if let Some(fragment) = fragment
+        && page.jump_fragment(&fragment).is_err()
+    {
+        page.notice = Some(
+            "Section unavailable · showing page start · o opens the original"
+                .into(),
+        );
     }
     Ok(Loaded::Page(Box::new(page)))
 }

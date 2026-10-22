@@ -23,7 +23,7 @@ pub struct ReaderImages {
     /// Permit loading new images; cached thumbnails remain visible when paused.
     pub enabled: bool,
     worker: Option<Worker>,
-    pending: Option<ImageKey>,
+    pending: Vec<ImageKey>,
     cache: VecDeque<(ImageKey, Result<Thumbnail, String>)>,
     configuration: Option<(PathBuf, bool)>,
     protocol: ImageProtocol,
@@ -37,7 +37,7 @@ impl Default for ReaderImages {
             slots: Vec::new(),
             enabled: true,
             worker: None,
-            pending: None,
+            pending: Vec::new(),
             cache: VecDeque::new(),
             configuration: None,
             protocol: ImageProtocol::Blocks,
@@ -135,7 +135,7 @@ impl App {
     ) -> Result<()> {
         self.images.configuration = Some((directory.clone(), offline));
         self.images.worker = Some(Worker::start(directory, offline)?);
-        self.images.pending = None;
+        self.images.pending.clear();
         Ok(())
     }
 
@@ -207,14 +207,14 @@ impl App {
         self.images.protocol == ImageProtocol::Sixel
     }
 
-    /// Poll prepared cells and submit at most one currently visible image.
+    /// Poll prepared cells and admit visible images into two bounded lanes.
     pub fn poll_images(&mut self) -> bool {
         let result = self.images.worker.as_ref().map(Worker::poll);
         let completed = match result {
             Some(Ok(completed)) => completed,
             Some(Err(error)) => {
                 self.images.worker = None;
-                if let Some(key) = self.images.pending.take() {
+                for key in std::mem::take(&mut self.images.pending) {
                     self.images.remember(key, Err(error.to_string()));
                 }
                 self.status = error.to_string();
@@ -233,7 +233,7 @@ impl App {
     }
 
     fn can_request_images(&self) -> bool {
-        if self.images.pending.is_some()
+        if self.images.pending.len() >= 2
             || self.notebook.is_some()
             || self.navigation_loading
         {
@@ -261,7 +261,7 @@ impl App {
                 crate::content::label(warning, 200)
             );
         }
-        self.images.pending = None;
+        self.images.pending.retain(|key| *key != completed.key);
         self.images.remember(completed.key, completed.result);
     }
 
@@ -271,14 +271,24 @@ impl App {
                 .visible_slots(self.scroll, self.reader_height)
                 .iter()
                 .filter_map(|slot| self.image_key(slot))
-                .find(|key| self.images.cached(key).is_none())
+                .find(|key| {
+                    self.images.cached(key).is_none()
+                        && !self
+                            .images
+                            .pending
+                            .iter()
+                            .any(|old| old.url == key.url)
+                })
         });
-        let next = next.filter(|key| self.images.cached(key).is_none());
+        let next = next.filter(|key| {
+            self.images.cached(key).is_none()
+                && !self.images.pending.iter().any(|old| old.url == key.url)
+        });
         if let Some(key) = next
             && let Some(worker) = &self.images.worker
         {
             match worker.submit(key.clone()) {
-                Ok(()) => self.images.pending = Some(key),
+                Ok(()) => self.images.pending.push(key),
                 Err(error) => {
                     self.images.remember(key, Err(error.to_string()));
                     return true;
@@ -290,7 +300,7 @@ impl App {
 
     /// Whether image I/O or preparation is admitted in the background.
     pub fn images_pending(&self) -> bool {
-        self.images.pending.is_some()
+        !self.images.pending.is_empty()
     }
 
     pub(super) fn image_command(

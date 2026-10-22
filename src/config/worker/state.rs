@@ -149,6 +149,7 @@ mod tests {
 
     fn update(document: &str) -> Update {
         Update {
+            appearance_revision: 0,
             ui: crate::config::Ui::default(),
             workspaces: Default::default(),
             catalog_fingerprint: [0; 32],

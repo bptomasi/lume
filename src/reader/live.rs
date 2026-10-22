@@ -16,7 +16,7 @@ use std::{
 use anyhow::Result;
 use ratatui::text::{Line, Span};
 
-use super::Rendered;
+use super::{RenderOptions, Rendered};
 
 const CACHE_BUDGET: usize = 4 * 1024 * 1024;
 
@@ -54,6 +54,7 @@ pub struct LiveRenderer {
     stopped: bool,
     layout: Option<super::layout_worker::LayoutWorker>,
     immediate: Option<ImmediateLayout>,
+    options: RenderOptions,
 }
 
 impl LiveRenderer {
@@ -91,7 +92,22 @@ impl LiveRenderer {
             stopped: false,
             layout: None,
             immediate: None,
+            options: RenderOptions::default(),
         })
+    }
+
+    /// Change formula presentation without reusing layouts from the old policy.
+    /// Returns whether the policy changed; syntax caches remain reusable.
+    pub fn set_latex_formulas(&mut self, enabled: bool) -> bool {
+        if self.options.latex_formulas == enabled {
+            return false;
+        }
+        self.options.latex_formulas = enabled;
+        self.immediate = None;
+        if let Some(layout) = &mut self.layout {
+            layout.set_options(self.options);
+        }
+        true
     }
 
     /// Move Markdown parsing/wrapping onto a separate bounded worker.
@@ -99,7 +115,8 @@ impl LiveRenderer {
     /// # Errors
     /// Returns thread creation failures without changing synchronous operation.
     pub fn enable_background_layout(&mut self) -> Result<()> {
-        let mut layout = super::layout_worker::LayoutWorker::start()?;
+        let mut layout =
+            super::layout_worker::LayoutWorker::start(self.options)?;
         if let Some(cached) = &self.immediate {
             layout.seed(&cached.body, cached.width, &cached.rendered);
         }
@@ -148,10 +165,12 @@ impl LiveRenderer {
             self.document = body.to_owned();
             self.submitted.clear();
         }
-        let rendered =
-            super::render_with(body, width, &mut |text, language| {
-                self.code(text, language)
-            });
+        let rendered = super::render_with(
+            body,
+            width,
+            self.options,
+            &mut |text, language| self.code(text, language),
+        );
         if let Some(layout) = &mut self.layout {
             layout.seed(body, width, &rendered);
         }

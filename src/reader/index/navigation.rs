@@ -9,7 +9,7 @@ use pulldown_cmark::{Event, Tag};
 pub struct Link {
     /// Original Markdown link range, including its label and destination.
     pub range: Range<usize>,
-    /// A local fragment or validated HTTP(S) address.
+    /// A local fragment, HTTP(S) address or relative publisher link.
     pub destination: String,
 }
 
@@ -110,5 +110,11 @@ fn supported(destination: &str) -> bool {
     if destination.len() > 8192 || destination.chars().any(char::is_control) {
         return false;
     }
-    destination.starts_with('#') || crate::source::link_url(destination).is_ok()
+    !destination.is_empty()
+        && (destination.starts_with('#')
+            || crate::source::link_url(destination).is_ok()
+            || matches!(
+                url::Url::parse(destination),
+                Err(url::ParseError::RelativeUrlWithoutBase)
+            ))
 }

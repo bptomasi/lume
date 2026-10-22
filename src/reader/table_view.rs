@@ -11,10 +11,18 @@ const LIMIT_NOTICE: &str =
 /// Oversized or sparse tables fall back to their original Markdown rather than
 /// expanding padding or discarding cells. The article itself is never changed.
 pub fn render(source: &str) -> String {
+    render_with_options(source, super::RenderOptions::default())
+}
+
+/// Inspect tables using the same formula policy as the source reader.
+pub fn render_with_options(
+    source: &str,
+    options: super::RenderOptions,
+) -> String {
     if source.len() > MAX_BYTES {
         return limited(source);
     }
-    let rendered = super::render_with(source, 4096, &mut |text, _| {
+    let rendered = super::render_with(source, 4096, options, &mut |text, _| {
         text.lines()
             .map(|line| Line::raw(line.to_owned()))
             .collect()

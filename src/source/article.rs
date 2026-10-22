@@ -157,8 +157,9 @@ pub(crate) fn fetch_page(
         return Ok(FetchedPage::Browser(address));
     }
     let bytes = crate::http_body::read(response.body_mut(), MAX_PAGE_BYTES)?;
-    let html = std::str::from_utf8(&bytes)
-        .context("Article encoding is not UTF-8; open it in a browser")?;
+    let Ok(html) = std::str::from_utf8(&bytes) else {
+        return Ok(FetchedPage::Browser(address));
+    };
     extract_with_selector(html, &address, selector).map(FetchedPage::Article)
 }
 

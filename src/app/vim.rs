@@ -56,6 +56,7 @@ impl App {
             || self.vim.count > 0
             || self.vim.prefix.is_some()
             || self.note_marks.delete.is_some()
+            || self.pending_destination_delete.is_some()
     }
 
     pub(super) fn reader_vim_key(&mut self, code: KeyCode) -> Result<bool> {

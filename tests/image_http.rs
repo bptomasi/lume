@@ -183,7 +183,11 @@ fn delayed_inspection_discards_old_crops_without_blocking_zoom_or_close()
     server.release.send(())?;
     settle(&mut app)?;
 
-    assert!(app.images.thumbnail(&newest).is_some());
+    assert!(
+        app.images.thumbnail(&newest).is_some(),
+        "{:?}",
+        app.images.error(&newest)
+    );
     assert_eq!(app.image_inspector_key(), Some(newest));
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     assert!(app.image_inspector_key().is_none());
@@ -255,6 +259,48 @@ fn decoded_image_limit_applies_after_gzip_and_rejects_invalid_streams()
                 .is_some(),
             accepted
         );
+        server
+            .finished
+            .recv_timeout(Duration::from_secs(5))?
+            .map_err(anyhow::Error::msg)?;
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn slow_first_download_does_not_block_a_second_visible_image() -> Result<()> {
+    let first = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
+    let second = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
+    let (directory, mut app) = reading(&first.url)?;
+    let mut store = Store::open(&directory.path().join("library.sqlite3"))?;
+    let feed = store.feeds()?.remove(0);
+    let mut incoming =
+        source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
+    incoming.articles[0].body =
+        format!("![First]({})\n\n![Second]({})", first.url, second.url);
+    store.ingest(&feed, &incoming.title, &incoming.articles)?;
+    app.reload()?;
+    app.resize_reader(70, 40);
+    app.poll_images();
+    app.poll_images();
+    first.request.recv_timeout(Duration::from_secs(5))?;
+    second.request.recv_timeout(Duration::from_secs(5))?;
+    // Receiving both requests before releasing either response proves that
+    // HTTP work overlaps, without depending on machine-speed thresholds.
+    second.release.send(())?;
+    let key = app.image_key(&app.images.slots[1]).context("Second key")?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while app.images.thumbnail(&key).is_none() {
+        app.poll_images();
+        ensure!(Instant::now() < deadline, "Second image blocked by first");
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert!(app.images_pending());
+    app.key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))?;
+    first.release.send(())?;
+    settle(&mut app)?;
+    for server in [first, second] {
         server
             .finished
             .recv_timeout(Duration::from_secs(5))?

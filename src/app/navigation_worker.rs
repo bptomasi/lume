@@ -14,6 +14,10 @@ use super::{App, Mode, reading_data::ReadingData};
 
 #[derive(Clone)]
 pub(super) enum Request {
+    Search {
+        query: ArticleQuery,
+        selected: usize,
+    },
     Page {
         query: ArticleQuery,
         selected: usize,
@@ -87,23 +91,16 @@ impl NavigationWorker {
 
 fn read(store: &Store, request: Request) -> Result<Completed> {
     match request {
+        Request::Search { query, selected } => {
+            read_search(store, query, selected)
+        }
         Request::Article { id, feed } => Ok(Completed {
             page: None,
             article: Some(id),
             reading: Some(ReadingData::load(store, id, feed)?),
         }),
         Request::Page { query, selected } => read_page(store, query, selected),
-        Request::Jump { query, article } => {
-            let (offset, page) = store
-                .page_containing(&query, article)?
-                .context("Article no longer belongs to this destination")?;
-            let selected = page
-                .articles
-                .iter()
-                .position(|item| item.id == article)
-                .context("Jump target missing from its page")?;
-            complete_page(store, offset, page, selected)
-        }
+        Request::Jump { query, article } => read_jump(store, query, article),
         Request::Refresh {
             query,
             selected,
@@ -126,17 +123,56 @@ fn read(store: &Store, request: Request) -> Result<Completed> {
     }
 }
 
-fn read_page(
+fn read_jump(
     store: &Store,
-    mut query: ArticleQuery,
+    query: ArticleQuery,
+    article: i64,
+) -> Result<Completed> {
+    let (offset, page) = store
+        .page_containing(&query, article)?
+        .context("Article no longer belongs to this destination")?;
+    let selected = page
+        .articles
+        .iter()
+        .position(|item| item.id == article)
+        .context("Jump target missing from its page")?;
+    complete_page(store, offset, page, selected)
+}
+
+// Preview metadata is published independently of source loading and reflow.
+fn read_search(
+    store: &Store,
+    query: ArticleQuery,
     selected: usize,
 ) -> Result<Completed> {
+    let (offset, page) = query_page(store, query)?;
+    let selected = selected.min(page.articles.len().saturating_sub(1));
+    Ok(Completed {
+        article: page.articles.get(selected).map(|article| article.id),
+        page: Some((offset, page, selected)),
+        reading: None,
+    })
+}
+
+fn read_page(
+    store: &Store,
+    query: ArticleQuery,
+    selected: usize,
+) -> Result<Completed> {
+    let (offset, page) = query_page(store, query)?;
+    complete_page(store, offset, page, selected)
+}
+
+fn query_page(
+    store: &Store,
+    mut query: ArticleQuery,
+) -> Result<(usize, ArticlePage)> {
     let mut page = store.query_articles(&query)?;
     if page.articles.is_empty() && page.total > 0 {
         query.offset = (page.total - 1) / query.limit * query.limit;
         page = store.query_articles(&query)?;
     }
-    complete_page(store, query.offset, page, selected)
+    Ok((query.offset, page))
 }
 
 fn complete_page(
@@ -434,7 +470,7 @@ impl App {
     }
 
     fn apply_navigation(&mut self, result: Completed) -> Result<()> {
-        let snapshot = self.capture_reader();
+        let snapshot = result.reading.as_ref().map(|_| self.capture_reader());
         if let Some((offset, page, selected)) = result.page {
             self.article_edits.reconcile_required = false;
             self.page_offset = offset;
@@ -447,8 +483,10 @@ impl App {
         if self.current().map(|article| article.id) == result.article {
             if let Some(reading) = result.reading {
                 self.install_reading_data(reading)?;
-                self.restore_reader(snapshot);
-            } else {
+                if let Some(snapshot) = snapshot {
+                    self.restore_reader(snapshot);
+                }
+            } else if result.article.is_none() {
                 self.clear_current();
             }
         }

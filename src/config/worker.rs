@@ -17,6 +17,8 @@ use super::Ui;
 /// Complete publication snapshot; catalog fingerprints bound UI refreshes.
 #[derive(Clone)]
 pub struct Update {
+    /// Local preference generation observed in the publication transaction.
+    pub appearance_revision: u64,
     /// Complete appearance, permitting safe coalescing of notifications.
     pub ui: Ui,
     /// Complete named workspace definitions, excluding undo history.
@@ -163,6 +165,7 @@ mod tests {
         let (send, events) = mpsc::sync_channel(2);
         for name in ["First", "Second"] {
             send.send(Ok(Update {
+                appearance_revision: 0,
                 ui: Default::default(),
                 workspaces: Default::default(),
                 catalog_fingerprint: [0; 32],

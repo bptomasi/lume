@@ -139,6 +139,8 @@ pub struct Ui {
     pub images: crate::model::ImageSettings,
     /// Visually justify eligible prose without altering readable text.
     pub justify: bool,
+    /// Render supported LaTeX as selectable Unicode instead of raw source.
+    pub latex_formulas: bool,
     /// Normal-mode key names mapped to ex commands.
     pub keybindings: BTreeMap<String, String>,
     /// Pane arrangement and prose widths, without article identities.
@@ -158,6 +160,7 @@ impl Ui {
             mouse: workspace.mouse,
             images: workspace.images.clone(),
             justify: workspace.justify,
+            latex_formulas: workspace.latex_formulas,
             keybindings: workspace.keybindings.clone(),
             layout: PanelLayout::capture(workspace),
         }
@@ -170,6 +173,7 @@ impl Ui {
         workspace.mouse = self.mouse;
         workspace.images = self.images.clone();
         workspace.justify = self.justify;
+        workspace.latex_formulas = self.latex_formulas;
         workspace.keybindings = self.keybindings.clone();
     }
 }

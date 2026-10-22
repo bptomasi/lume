@@ -3,6 +3,18 @@
 use anyhow::Result;
 
 #[test]
+fn readability_keeps_responsive_images_for_high_resolution_selection()
+-> Result<()> {
+    let html = include_str!("../../../tests/fixtures/article.html")
+        .replace("</article>", "<img src='tiny.png' srcset='preview.png 320w, sharp.png 1920w' alt='Diagram'></article>");
+    let document = super::extract(&html, "https://journal.example/report")?;
+    let rendered = crate::reader::render(&document.body, 80);
+    assert_eq!(rendered.images.len(), 1);
+    assert_eq!(rendered.images[0].url, "https://journal.example/sharp.png");
+    Ok(())
+}
+
+#[test]
 fn semantic_main_recovers_a_quote_dominated_article() -> Result<()> {
     let html =
         include_str!("../../../tests/fixtures/extraction/quote-main.html");

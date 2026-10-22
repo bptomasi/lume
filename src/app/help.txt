@@ -1,7 +1,9 @@
   ── LAYOUT AND APPEARANCE ───────────────────────────────────────────
   :settings       Live preview of themes, widths and visible panels
                   j/k choose a field; h/l change its value
-                  Enter saves; Esc discards the preview
+                  Enter edits a value or toggles a switch; Ctrl-s saves
+                  In a value editor: Enter applies, Esc cancels that edit.
+                  Outside the editor: Esc discards the entire preview.
   :theme lume     Default charcoal, ivory and amber
   :theme nord / :theme gruvbox    Alternative dark palettes
   Tab / Shift-Tab Move focus between expanded panels in saved order
@@ -15,6 +17,8 @@
   Ctrl-w J / K    Move focused pane below / above a neighbor
   Ctrl-w u / r    Undo / redo layout changes (separate from article undo)
   Ctrl-w =        Restore Library / Articles / Reader with standard widths
+  dd in Library   Remove the selected feed or smart list; Esc cancels first d
+                  Cached articles and private notes stay in the library.
   :layout-reset   Same reset; preserves article, notes and prose preferences
   :panel-dock annotations reader below   Dock using either axis
   :layout-columns Flatten splits, retaining pane order and sizes
@@ -399,3 +403,14 @@ DECLARATIVE CONFIGURATION
   :performance on|off|reset|status
                   Opt-in p50/p95/p99/max processing times and pending work.
                   Samples stay in memory; no physical display latency claim.
+
+  ── SEARCH THIS GUIDE ──────────────────────────────────────────────
+  /               Search the guide live; words match the same help row
+  Enter           Keep the query; n / N visit next / previous matching row
+  Esc             Cancel query editing; then clear matches; then close help
+  :latex-formulas on|off|toggle   Persistent Unicode formulas / raw LaTeX
+                  Also [ui] latex_formulas = true in config.toml.
+  Formulas        Inline $LaTeX$ and display $$LaTeX$$ render as Unicode
+                  Fractions, roots, scripts, sums, products, integrals, accents
+                  and compact matrices stay selectable and searchable.
+                  Unsupported or excessive formulas keep their original source.

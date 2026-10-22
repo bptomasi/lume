@@ -58,7 +58,11 @@ impl App {
         self.workspace.zen = false;
         self.ensure_visible_focus();
         self.resize_workspace(self.screen);
-        self.save_session()?;
+        if self.layouts.current
+            != crate::model::PanelLayout::capture(&self.workspace)
+        {
+            self.save_session()?;
+        }
         self.status =
             "Layout saved · Ctrl-w: focus, resize, move or collapse".into();
         Ok(())

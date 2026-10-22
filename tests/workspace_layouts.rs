@@ -34,6 +34,146 @@ fn mouse(app: &mut App, kind: MouseEventKind, x: u16, y: u16) -> Result<()> {
 }
 
 #[test]
+fn split_click_and_drag_round_trip_preserve_the_exact_saved_share() -> Result<()>
+{
+    let (_directory, store, _) = common::seeded_store()?;
+    let mut app = App::new(store, false)?;
+    let screen = Rect::new(0, 0, 161, 50);
+    app.resize_workspace(screen);
+    command(&mut app, "workspace load Study")?;
+    let before = PanelLayout::capture(&app.workspace);
+    let seam = ui::workspace_areas(screen, app.focus, &app.workspace)
+        .boundaries
+        .into_iter()
+        .find(|seam| seam.horizontal)
+        .context("Missing horizontal split")?;
+    let x = seam.second.x;
+    let y = seam.first.y + 3;
+    mouse(&mut app, MouseEventKind::Down(MouseButton::Left), x, y)?;
+    mouse(&mut app, MouseEventKind::Drag(MouseButton::Left), x, y)?;
+    mouse(&mut app, MouseEventKind::Up(MouseButton::Left), x, y)?;
+    assert_eq!(PanelLayout::capture(&app.workspace), before);
+    mouse(&mut app, MouseEventKind::Down(MouseButton::Left), x, y)?;
+    mouse(&mut app, MouseEventKind::Drag(MouseButton::Left), x + 5, y)?;
+    assert_ne!(PanelLayout::capture(&app.workspace), before);
+    mouse(&mut app, MouseEventKind::Up(MouseButton::Left), x, y)?;
+    assert_eq!(PanelLayout::capture(&app.workspace), before);
+    Ok(())
+}
+
+#[test]
+fn keyboard_resize_reverses_a_clamped_split_without_invisible_steps()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    let mut app = App::new(store, false)?;
+    let screen = Rect::new(0, 0, 100, 50);
+    app.workspace.layout = Some(PaneLayout::columns(&Pane::ALL));
+    app.workspace
+        .layout
+        .as_mut()
+        .context("Layout")?
+        .resize_path(&[], 85);
+    app.focus = Pane::Library;
+    app.resize_workspace(screen);
+    app.save_session()?;
+    let before = ui::workspace_areas(screen, app.focus, &app.workspace)
+        .library
+        .context("Library hidden")?
+        .width;
+    command(&mut app, "panel-resize -2")?;
+    let after = ui::workspace_areas(screen, app.focus, &app.workspace)
+        .library
+        .context("Library hidden")?
+        .width;
+    assert!(after < before, "Saved percentage hid the first resize step");
+    command(&mut app, "layout-undo")?;
+    assert_eq!(
+        ui::workspace_areas(screen, app.focus, &app.workspace)
+            .library
+            .context("Library hidden")?
+            .width,
+        before
+    );
+    let original = PanelLayout::capture(&app.workspace);
+    command(&mut app, "panel-resize 0")?;
+    assert_eq!(PanelLayout::capture(&app.workspace), original);
+    command(&mut app, "panel-focus reader")?;
+    command(&mut app, "panel-resize -32768")?;
+    command(&mut app, "panel-resize 32767")?;
+    assert!(app.workspace.layout.as_ref().is_some_and(PaneLayout::valid));
+    Ok(())
+}
+
+#[test]
+fn focusing_an_already_visible_pane_does_not_write_layout_history() -> Result<()>
+{
+    let (directory, store, _) = common::seeded_store()?;
+    let mut app = App::new(store, false)?;
+    app.resize_workspace(SCREEN);
+    app.save_session()?;
+    let injector =
+        rusqlite::Connection::open(directory.path().join("library.sqlite3"))?;
+    injector.execute_batch(include_str!(
+        "../src/store/sql/test_create_reject_layout_history.sql"
+    ))?;
+    command(&mut app, "panel-focus reader")?;
+    command(&mut app, "panel-focus articles")?;
+    assert!(command(&mut app, "panel annotations").is_err());
+    Ok(())
+}
+
+#[test]
+fn classic_dividers_follow_the_pointer_when_preferred_widths_are_clamped()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    let mut app = App::new(store, false)?;
+    let screen = Rect::new(0, 0, 120, 40);
+    app.workspace.article_width = 80;
+    app.workspace.library_width = 48;
+    app.resize_workspace(screen);
+    app.save_session()?;
+    let before = PanelLayout::capture(&app.workspace);
+    let articles = ui::workspace_areas(screen, app.focus, &app.workspace)
+        .articles
+        .context("Articles hidden")?;
+    let x = articles.right();
+    let y = articles.y + 3;
+    mouse(&mut app, MouseEventKind::Down(MouseButton::Left), x, y)?;
+    mouse(&mut app, MouseEventKind::Drag(MouseButton::Left), x - 2, y)?;
+    let changed = ui::workspace_areas(screen, app.focus, &app.workspace)
+        .articles
+        .context("Articles hidden")?;
+    assert_eq!(changed.right(), x - 2);
+    mouse(&mut app, MouseEventKind::Up(MouseButton::Left), x, y)?;
+    assert_eq!(PanelLayout::capture(&app.workspace), before);
+    Ok(())
+}
+
+#[test]
+fn dragging_one_classic_divider_keeps_other_pane_width_preferences()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    let mut app = App::new(store, false)?;
+    let screen = Rect::new(0, 0, 120, 40);
+    app.workspace.show_annotations = true;
+    app.workspace.article_width = 80;
+    app.workspace.annotation_width = 80;
+    app.resize_workspace(screen);
+    app.save_session()?;
+    let reader = ui::workspace_areas(screen, app.focus, &app.workspace)
+        .reader
+        .context("Reader hidden")?;
+    let x = reader.right();
+    let y = reader.y + 3;
+    mouse(&mut app, MouseEventKind::Down(MouseButton::Left), x, y)?;
+    mouse(&mut app, MouseEventKind::Up(MouseButton::Left), x + 2, y)?;
+    assert_eq!(app.workspace.article_width, 80);
+    assert_eq!(app.workspace.library_width, 23);
+    assert!(app.workspace.annotation_width < 80);
+    Ok(())
+}
+
+#[test]
 fn docking_and_profiles_preserve_article_and_survive_reopen() -> Result<()> {
     let (directory, store, _) = common::seeded_store()?;
     let mut app = App::new(store, false)?;

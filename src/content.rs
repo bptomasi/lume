@@ -271,12 +271,14 @@ impl Fragment {
     fn list_item(&mut self, closing: bool) {
         self.close_link();
         self.text.truncate(self.text.trim_end().len());
+        if closing {
+            if let Some(start) = self.lists.end_item(self.text.len()) {
+                self.text.truncate(start);
+            }
+            return;
+        }
         if !self.text.is_empty() {
             self.text.push('\n');
-        }
-        if closing {
-            self.lists.end_item();
-            return;
         }
         self.text.push_str(&self.lists.item());
         self.lists.content(self.text.len());

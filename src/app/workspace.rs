@@ -401,9 +401,7 @@ impl App {
                 let View::Smart(id) = self.view else {
                     anyhow::bail!("Select a smart list first");
                 };
-                self.store.delete_smart_list(id)?;
-                self.set_view(View::All)?;
-                self.reload()?;
+                self.remove_destination(View::Smart(id))?;
                 return Ok(Some(Action::None));
             }
             _ => return Ok(None),

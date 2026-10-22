@@ -161,21 +161,16 @@ impl PaneLayout {
         }
     }
 
-    /// Resize a validated split selected by shared rendered geometry.
+    /// Resize a validated split; return whether its saved share changed.
     pub fn resize_path(&mut self, path: &[bool], percent: u16) -> bool {
         let Some(share) = self.split_share(path) else {
             return false;
         };
-        *share = percent.clamp(15, 85);
-        true
-    }
-
-    /// Adjust a visible split by percentage points, retaining sub-cell changes.
-    pub fn adjust_split(&mut self, path: &[bool], delta: i32) -> bool {
-        let Some(share) = self.split_share(path) else {
+        let next = percent.clamp(15, 85);
+        if *share == next {
             return false;
-        };
-        *share = (i32::from(*share) + delta).clamp(15, 85) as u16;
+        }
+        *share = next;
         true
     }
 

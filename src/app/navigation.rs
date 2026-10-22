@@ -10,6 +10,27 @@ use crate::model::{ArticlePage, ArticleQuery};
 use super::{App, Focus, NavItem, View};
 
 impl App {
+    pub(super) fn filter_preview(&mut self) -> Result<()> {
+        if self.navigation_worker.is_none() {
+            return self.filter_now();
+        }
+        self.defer_navigation(super::navigation_worker::Request::Search {
+            query: self.article_query(),
+            selected: self.selected,
+        });
+        Ok(())
+    }
+
+    pub(super) fn commit_article_search(&mut self) -> Result<()> {
+        if self.navigation_loading {
+            self.filter()
+        } else if self.reader_stale() {
+            self.load_current_deferred()
+        } else {
+            Ok(())
+        }
+    }
+
     pub(crate) fn rebuild_navigation(&mut self) -> Result<()> {
         let items = catalog_navigation(
             &self.store,
@@ -171,13 +192,24 @@ impl App {
         if position == previous {
             return Ok(());
         }
-        self.save_reading_position()?;
+        let preview = matches!(&self.mode, super::Mode::Input(input)
+            if matches!(input.kind, super::InputKind::Search));
+        if !preview {
+            self.save_reading_position()?;
+        }
         let page = position / self.page_limit() * self.page_limit();
         self.selected = position % self.page_limit();
-        if page != self.page_offset || self.library.articles.is_empty() {
+        if page != self.page_offset
+            || self.library.articles.is_empty()
+            || (preview && self.navigation_loading)
+        {
             self.page_offset = page;
-            self.filter()?;
-        } else {
+            if preview {
+                self.filter_preview()?;
+            } else {
+                self.filter()?;
+            }
+        } else if !preview {
             self.load_current_deferred()?;
         }
         Ok(())

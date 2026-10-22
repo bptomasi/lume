@@ -74,6 +74,7 @@ impl InputBatch {
             Event::FocusLost => {
                 app.cancel_pointer();
                 app.note_marks.delete = None;
+                app.pending_destination_delete = None;
                 Action::None
             }
             _ => Action::None,

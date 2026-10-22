@@ -45,16 +45,24 @@ pub struct DocumentIndex {
 
 impl DocumentIndex {
     /// Index bounded, already sanitized Markdown using the qualified parser.
+    pub fn parse(body: &str) -> Self {
+        Self::parse_with_options(body, super::RenderOptions::default())
+    }
+
+    /// Index using the same formula policy as the visible reader.
     #[expect(
         clippy::too_many_lines,
-        reason = "Keep paired parser start/text/end states visible in one structural scan"
+        reason = "Paired structural parser states share one bounded scan"
     )]
-    pub fn parse(body: &str) -> Self {
+    pub fn parse_with_options(
+        body: &str,
+        options: super::RenderOptions,
+    ) -> Self {
         let mut index = Self::default();
         let mut heading = None;
         let mut code = None;
         for (count, (event, range)) in
-            Parser::new_ext(body, Options::ENABLE_TABLES)
+            Parser::new_ext(body, Options::ENABLE_TABLES | Options::ENABLE_MATH)
                 .into_offset_iter()
                 .enumerate()
         {
@@ -91,6 +99,21 @@ impl DocumentIndex {
                 Event::Start(Tag::Table(_)) => index.tables.push(range),
                 Event::Text(text) | Event::Code(text) => {
                     append_text(&mut heading, &mut code, &text);
+                }
+                Event::InlineMath(text) | Event::DisplayMath(text)
+                    if heading.is_some() && options.latex_formulas =>
+                {
+                    let text = super::math::Math::default()
+                        .render(&text, false)
+                        .unwrap_or_else(|| text.into_string());
+                    append_text(&mut heading, &mut code, &text);
+                }
+                Event::InlineMath(_) | Event::DisplayMath(_) => {
+                    append_text(
+                        &mut heading,
+                        &mut code,
+                        body.get(range).unwrap_or_default(),
+                    );
                 }
                 Event::SoftBreak | Event::HardBreak => {
                     append_text(&mut heading, &mut code, " ");
