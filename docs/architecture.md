@@ -115,6 +115,12 @@ so loose-list paragraph boundaries cannot flush an isolated bullet. Wrapped
 continuations carry visual insets separate from readable bytes. The cached cell
 index applies those insets to drawing, mouse hits and cursor positions; copying
 and source-based annotation anchors retain their original byte correspondence.
+Previously saved caches can contain repeated empty list items followed by
+detached paragraphs. The reader recognizes only the early normalizer's exact
+whitespace signature using CommonMark events. It joins those markers in a
+temporary parser view and translates every event range back to the original
+bytes. This works offline and requires no database or note migration; ordinary
+empty items and code samples retain CommonMark semantics.
 
 Padded grid output has a shared 1 MiB budget per article, at most 64 columns,
 2,000 rows including the header, and 4,096 terminal cells per row. Exceeding a
@@ -188,6 +194,15 @@ long rows, resizing and libraries larger than the displayed metadata page.
 Library search caches normalized destination names when the catalog changes.
 Typing filters those names without SQLite work; article search reuses the
 bounded latest-request navigation worker and the existing destination query.
+An active article query ranks title starts, contiguous title phrases and other
+title matches ahead of body-only matches. SQLite FTS5 uses the same Unicode
+tokenizer for membership and ranking; weighted BM25 resolves relevance within
+each tier, followed by publication time and identity for stable ties. Ranking
+uses only positive text from the active query. Saved-list filters, exclusions
+and destination scopes remain membership constraints. Empty and metadata-only
+queries keep the destination's normal order. Count queries do not score, and
+only the requested page loads article metadata. Identity-based page jumps use
+the same relevance order as pagination, including in the background worker.
 Both fields reserve rows inside their own panes. Renderers and pointer hit
 testing share that geometry. Cancel restores the sidebar destination by identity,
 so a catalog refresh cannot retarget it. Reader Escape clears source-local search

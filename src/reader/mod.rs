@@ -11,6 +11,7 @@ pub mod index;
 mod justification;
 mod language;
 mod layout_worker;
+mod legacy_lists;
 mod links;
 mod lists;
 mod live;
@@ -100,6 +101,7 @@ pub(super) fn render_with(
     width: usize,
     highlight: &mut dyn FnMut(&str, &str) -> Vec<Line<'static>>,
 ) -> Rendered {
+    let input = legacy_lists::Input::new(body);
     let mut builder = Builder {
         source: body,
         rendered: Rendered::default(),
@@ -122,9 +124,9 @@ pub(super) fn render_with(
         highlight,
     };
     for (event, range) in
-        Parser::new_ext(body, Options::ENABLE_TABLES).into_offset_iter()
+        Parser::new_ext(input.text(), Options::ENABLE_TABLES).into_offset_iter()
     {
-        builder.event(event, range);
+        builder.event(event, input.source_range(range));
     }
     builder.flush();
     builder.rendered.links = builder.links.finish();

@@ -11,6 +11,8 @@ use crate::model::{ArticlePage, ArticleQuery, SmartFilter, View};
 
 use super::{Store, article_row};
 
+mod relevance;
+
 struct Criteria {
     scope: &'static str,
     identity: i64,
@@ -18,19 +20,27 @@ struct Criteria {
     since: i64,
     feeds: String,
     expression: crate::search::compile::Compiled,
+    ranking: Option<crate::search::ranking::Ranking>,
 }
 
 impl Criteria {
-    fn position_sql(&self) -> &'static str {
-        if self.scope == "recommended" {
-            return include_str!(
-                "sql/recommendations/select_cached_position.sql"
-            );
+    fn position_sql(&self) -> String {
+        let predicate = self.predicate();
+        if self.ranking.is_some() {
+            return relevance::position_sql(&predicate);
         }
-        include_str!("sql/select_matching_position.sql")
+        let position = if self.scope == "recommended" {
+            include_str!("sql/recommendations/select_cached_position.sql")
+        } else {
+            include_str!("sql/select_matching_position.sql")
+        };
+        format!("WITH matching AS ({predicate})\n{position}")
     }
 
     fn page_sql(&self, predicate: &str) -> String {
+        if self.ranking.is_some() {
+            return relevance::page_sql(predicate);
+        }
         if self.scope == "recommended" {
             return format!(
                 "WITH matching AS ({predicate})\n{}",
@@ -152,11 +162,7 @@ impl Store {
         article: i64,
     ) -> Result<Option<(usize, ArticlePage)>> {
         let criteria = self.criteria(query)?;
-        let sql = format!(
-            "WITH matching AS ({})\n{}",
-            criteria.predicate(),
-            criteria.position_sql(),
-        );
+        let sql = criteria.position_sql();
         let mut statement = self.connection.prepare_cached(&sql)?;
         bind(&mut statement, &criteria, query)?;
         let anchor = statement
@@ -229,9 +235,14 @@ impl Store {
         } else {
             SmartFilter::default()
         };
+        let interactive = crate::search::parse(&query.text)?;
+        let ranking = crate::search::ranking::Ranking::new(
+            &interactive,
+            scope == "recommended",
+        );
         let expression = crate::search::Expression::And(
             Box::new(crate::search::parse(&filter.text)?),
-            Box::new(crate::search::parse(&query.text)?),
+            Box::new(interactive),
         );
         let expression = if scope == "recommended" {
             crate::search::compile::compile_publisher(&expression)?
@@ -249,6 +260,7 @@ impl Store {
             since,
             feeds,
             expression,
+            ranking,
         })
     }
 }
@@ -321,6 +333,9 @@ fn bind(
         if let Some(parameter) = statement.parameter_index(&name)? {
             statement.raw_bind_parameter(parameter, value)?;
         }
+    }
+    if let Some(rank) = &criteria.ranking {
+        relevance::bind(statement, rank)?;
     }
     Ok(())
 }

@@ -57,6 +57,8 @@ mod recommendations;
 mod recovery_navigation;
 #[path = "workloads/rich_text.rs"]
 mod rich_text;
+#[path = "workloads/search_relevance.rs"]
+mod search_relevance;
 #[path = "workloads/service_interaction.rs"]
 mod service_interaction;
 #[path = "workloads/smoothness.rs"]
@@ -130,6 +132,7 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
     panes::run(iterations, stress)?;
     pane_search::run(iterations, stress)?;
     query_editing::run(iterations, stress)?;
+    search_relevance::run(iterations, stress)?;
     workspaces::run(iterations, stress)?;
     Ok(())
 }
@@ -156,6 +159,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--panes-only", panes::run),
     ("--pane-search-only", pane_search::run),
     ("--query-editing-only", query_editing::run),
+    ("--search-relevance-only", search_relevance::run),
     ("--smoothness-only", smoothness::run),
     ("--expansion-only", expansion::run),
     ("--full-article-only", full_article::run),

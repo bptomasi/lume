@@ -122,11 +122,7 @@ fn full_text(
     include_notes: bool,
     row_range: Option<(i64, i64)>,
 ) -> String {
-    let literal = format!(
-        "\"{}\"{}",
-        value.replace('"', "\"\""),
-        if phrase { "" } else { "*" }
-    );
+    let literal = fts_literal(value, phrase);
     let query = match field {
         "" | "topic" => literal.clone(),
         "source" => format!("feed : {literal}"),
@@ -150,6 +146,14 @@ fn full_text(
         );
     }
     article_match
+}
+
+pub(super) fn fts_literal(value: &str, phrase: bool) -> String {
+    format!(
+        "\"{}\"{}",
+        value.replace('"', "\"\""),
+        if phrase { "" } else { "*" }
+    )
 }
 
 fn matching_notes(values: &mut Vec<Value>, literal: &str) -> String {

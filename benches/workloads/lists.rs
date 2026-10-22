@@ -5,6 +5,7 @@ use lume::{content, reader};
 
 pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     let count = if stress { 1024 } else { 128 };
+    legacy_cache(iterations, count)?;
     let html = fixture(count);
     let source = content::article_text(&html, true);
     let last = format!("reservation-{}", count - 1);
@@ -35,6 +36,28 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
                 .context("Final source missing")?;
         ensure!(source[range] == last, "List source drifted");
         ensure!(rendered.links.len() == count, "List links changed");
+        Ok(())
+    })
+}
+
+fn legacy_cache(iterations: usize, count: usize) -> Result<()> {
+    let mut source = "Cached publisher list:\n\n".to_owned();
+    for index in 0..count {
+        source.push_str(&format!("\n-\n\nQueue-{index} capacity\n\n"));
+    }
+    let last = format!("Queue-{}", count - 1);
+    super::measure("legacy list layout + original anchors", iterations, || {
+        let rendered = reader::render(&source, 48);
+        ensure!(
+            rendered.text.matches("• Queue-").count() == count,
+            "Cached list markers remained detached"
+        );
+        let start = rendered.text.find(&last).context("Final item missing")?;
+        let original = source.find(&last).context("Original item missing")?;
+        let range =
+            reader::to_source(&rendered.mappings, start..start + last.len())
+                .context("Cached item source missing")?;
+        ensure!(range == (original..original + last.len()), "Anchor drifted");
         Ok(())
     })
 }

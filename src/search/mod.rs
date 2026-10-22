@@ -7,6 +7,7 @@
 pub(crate) mod compile;
 mod grammar;
 pub mod notes;
+pub(crate) mod ranking;
 
 pub(crate) use compile::compile;
 

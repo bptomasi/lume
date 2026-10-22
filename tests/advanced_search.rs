@@ -51,7 +51,7 @@ fn bounded_pages_keep_full_counts_order_and_their_own_annotation_metadata()
     store.save_comment(annotated.id, None, "Keep this explanation")?;
 
     for (offset, title) in
-        ["Kubernetes webinar", "eBPF internals", "Kubernetes Cilium"]
+        ["eBPF internals", "Kubernetes webinar", "Kubernetes Cilium"]
             .into_iter()
             .enumerate()
     {
