@@ -87,7 +87,7 @@ impl Builder<'_> {
     ) -> bool {
         match event {
             Event::Start(Tag::Table(alignments)) => {
-                self.flush();
+                self.flush_list_content();
                 self.table =
                     Some(Pending::new(range.clone(), alignments.clone()));
             }

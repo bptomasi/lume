@@ -321,3 +321,227 @@ fn coalesced_runtime_wheel_events_keep_their_exact_distance_in_linked_pages()
     assert_eq!(app.web_page().context("Page")?.scroll, 3);
     Ok(())
 }
+
+#[test]
+fn a_saved_page_acknowledgement_cannot_replace_a_newer_pending_navigation()
+-> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    cache_linked(&store, "first", "First page with retained content.")?;
+    cache_linked(&store, "second", "Second page with newer content.")?;
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(
+        &directory.path().join("library.sqlite3"),
+    )?;
+    command(&mut app, "open-page https://example.org/first")?;
+    settle(&mut app)?;
+
+    command(&mut app, "save-page")?;
+    command(&mut app, "open-page https://example.org/second")?;
+    acknowledge_personal_writes(&mut app)?;
+
+    assert!(app.web_active(), "Older save closed the new navigation");
+    assert!(app.web_pending());
+    settle(&mut app)?;
+    assert_eq!(
+        app.web_page().context("New page")?.document.url,
+        "https://example.org/second"
+    );
+    app.end_session()?;
+    Ok(())
+}
+
+#[test]
+fn mouse_selection_cannot_carry_an_old_byte_anchor_into_a_new_page()
+-> Result<()> {
+    use crossterm::event::{MouseButton, MouseEventKind};
+    let (_directory, store, _) = common::seeded_store()?;
+    cache_linked(&store, "first", "ASCII first page content.")?;
+    cache_linked(&store, "second", "界界界 Unicode destination.")?;
+    let mut app = App::new(store, false)?;
+    let screen = ratatui::layout::Rect::new(0, 0, 120, 40);
+    app.resize_workspace(screen);
+    command(&mut app, "open-page https://example.org/first")?;
+    settle(&mut app)?;
+    let area = lume::ui::web_content(
+        screen,
+        app.web_page().context("First page")?.width,
+    );
+    mouse(
+        &mut app,
+        MouseEventKind::Down(MouseButton::Left),
+        area.x + 1,
+        area.y,
+    )?;
+
+    command(&mut app, "open-page https://example.org/second")?;
+    settle(&mut app)?;
+    mouse(
+        &mut app,
+        MouseEventKind::Drag(MouseButton::Left),
+        area.x + 3,
+        area.y,
+    )?;
+
+    assert!(
+        app.web_page()
+            .context("New page")?
+            .selected_range()
+            .is_none()
+    );
+    assert!(key(&mut app, KeyCode::Char('y')).is_err());
+    Ok(())
+}
+
+#[test]
+fn back_during_page_loading_discards_the_pending_page_before_local_history()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    cache_linked(
+        &store,
+        "first",
+        "[Jump](#target)\n\n## Target\n\nOriginal destination.",
+    )?;
+    cache_linked(&store, "second", "New page that must remain cancelled.")?;
+    let mut app = App::new(store, false)?;
+    command(&mut app, "open-page https://example.org/first")?;
+    settle(&mut app)?;
+    key(&mut app, KeyCode::Enter)?;
+    let cursor = app.web_page().context("First page")?.cursor;
+
+    command(&mut app, "open-page https://example.org/second")?;
+    app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
+    settle(&mut app)?;
+
+    let page = app.web_page().context("Previous page stays open")?;
+    assert_eq!(page.document.url, "https://example.org/first");
+    assert_eq!(page.cursor, cursor);
+    app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
+    assert_eq!(app.web_page().context("Local jump")?.cursor, 0);
+    Ok(())
+}
+
+fn cache_linked(
+    store: &lume::store::Store,
+    name: &str,
+    body: &str,
+) -> Result<()> {
+    store.save_web_document(&WebDocument {
+        url: format!("https://example.org/{name}"),
+        title: format!("Page {name}"),
+        body: body.into(),
+    })?;
+    Ok(())
+}
+
+fn acknowledge_personal_writes(app: &mut App) -> Result<()> {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while app.notes_pending() {
+        app.poll_note_tasks()?;
+        ensure!(Instant::now() < deadline, "Personal writes did not finish");
+        std::thread::yield_now();
+    }
+    Ok(())
+}
+
+#[test]
+fn saving_a_page_cannot_close_a_later_visit_to_the_same_address() -> Result<()>
+{
+    let (directory, store, _) = common::seeded_store()?;
+    cache_linked(&store, "first", "Original content to save and revisit.")?;
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(
+        &directory.path().join("library.sqlite3"),
+    )?;
+    command(&mut app, "open-page https://example.org/first")?;
+    settle(&mut app)?;
+
+    command(&mut app, "save-page")?;
+    key(&mut app, KeyCode::Esc)?;
+    command(&mut app, "open-page https://example.org/first")?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while app.web_pending() {
+        app.poll_web()?;
+        ensure!(Instant::now() < deadline, "Revisited page did not load");
+        std::thread::yield_now();
+    }
+    acknowledge_personal_writes(&mut app)?;
+
+    assert!(app.web_active());
+    assert_eq!(
+        app.web_page().context("Revisited page")?.document.url,
+        "https://example.org/first"
+    );
+    app.end_session()?;
+    Ok(())
+}
+
+#[test]
+fn a_failed_page_open_preserves_reflow_of_the_previous_page() -> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    cache_linked(&store, "first", &"Readable previous content. ".repeat(100))?;
+    let mut app = App::new(store, false)?;
+    app.resize_workspace(ratatui::layout::Rect::new(0, 0, 120, 40));
+    command(&mut app, "open-page https://example.org/first")?;
+    settle(&mut app)?;
+
+    app.resize_workspace(ratatui::layout::Rect::new(0, 0, 50, 30));
+    command(&mut app, "open-page https://example.org/missing")?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if app.poll_web().is_err() {
+            break;
+        }
+        ensure!(Instant::now() < deadline, "Offline page did not fail");
+        std::thread::yield_now();
+    }
+    settle(&mut app)?;
+
+    let page = app.web_page().context("Previous page")?;
+    assert_eq!(page.document.url, "https://example.org/first");
+    assert_eq!(page.width, 44);
+    Ok(())
+}
+
+#[test]
+fn saving_during_navigation_cannot_capture_the_previous_visible_page()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    cache_linked(&store, "first", "Previous visible content.")?;
+    cache_linked(&store, "second", "New content that is still loading.")?;
+    let mut app = App::new(store, false)?;
+    command(&mut app, "open-page https://example.org/first")?;
+    settle(&mut app)?;
+
+    command(&mut app, "open-page https://example.org/second")?;
+
+    assert!(command(&mut app, "save-page").is_err());
+    assert!(app.web_active());
+    assert!(app.web_pending());
+    Ok(())
+}
+
+#[test]
+fn holding_enter_on_a_link_does_not_start_repeated_resource_opens() -> Result<()>
+{
+    let (_directory, store, _) = common::seeded_store()?;
+    cache_linked(
+        &store,
+        "first",
+        "[Resource](https://example.org/file.pdf)\n\nReadable context.",
+    )?;
+    let mut app = App::new(store, false)?;
+    command(&mut app, "open-page https://example.org/first")?;
+    settle(&mut app)?;
+
+    app.key(KeyEvent {
+        kind: crossterm::event::KeyEventKind::Repeat,
+        ..KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)
+    })?;
+
+    assert!(!app.web_pending(), "Repeated Enter started another request");
+    assert_eq!(
+        app.web_page().context("Current page")?.document.url,
+        "https://example.org/first"
+    );
+    Ok(())
+}

@@ -674,3 +674,121 @@ fn corrupt_image_caches(
     }
     Ok(())
 }
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn non_html_resources_and_attachments_request_the_system_browser() -> Result<()>
+{
+    for headers in [
+        "Content-Type: application/pdf\r\n",
+        "Content-Type: application/octet-stream\r\nContent-Encoding: gzip\r\n",
+        "Content-Type: application/zip\r\n",
+        "Content-Type: image/png\r\n",
+        "Content-Type: text/plain\r\n",
+        "Content-Type: text/html\r\nContent-Disposition: attachment; filename=page.html\r\n",
+    ] {
+        browser_resource_case(headers)?;
+    }
+    Ok(())
+}
+
+fn browser_resource_case(headers: &str) -> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    // Invalid gzip deliberately proves that external bodies are not decoded.
+    let (address, request) = server(200, b"unparsed resource body", headers)?;
+    let mut app = lume::app::App::new(store, false)?;
+    let article = app.current().context("Original")?.id;
+    let cursor = app.cursor_offset();
+    let notes = app.comments.len();
+    app.set_network_enabled(true);
+
+    open_linked(&mut app, &address)?;
+    settle_linked(&mut app)?;
+
+    let request = request.recv_timeout(Duration::from_secs(5))?;
+    assert!(request.contains("*/*;q=0.1"));
+    assert_eq!(app.take_web_browser_request(), Some(address));
+    assert!(app.take_web_browser_request().is_none());
+    assert!(!app.web_active());
+    assert_eq!(app.current().context("Original")?.id, article);
+    assert_eq!(app.cursor_offset(), cursor);
+    assert_eq!(app.comments.len(), notes);
+    assert_eq!(app.library.articles.len(), 1);
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn browser_resources_preserve_redirect_destinations_and_pdf_fragments()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    let (destination, final_request) =
+        server(200, b"%PDF", "Content-Type: application/pdf\r\n")?;
+    let (origin, origin_request) =
+        server(302, b"", &format!("Location: {destination}\r\n"))?;
+    let mut app = lume::app::App::new(store, false)?;
+    app.set_network_enabled(true);
+
+    open_linked(&mut app, &format!("{origin}#page=7"))?;
+    settle_linked(&mut app)?;
+
+    origin_request.recv_timeout(Duration::from_secs(5))?;
+    final_request.recv_timeout(Duration::from_secs(5))?;
+    assert_eq!(
+        app.take_web_browser_request(),
+        Some(format!("{destination}#page=7"))
+    );
+    assert!(!app.web_active());
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn external_resources_keep_the_current_linked_reading_and_cursor() -> Result<()>
+{
+    let (_directory, store, _) = common::seeded_store()?;
+    store.save_web_document(&lume::model::WebDocument {
+        url: "https://example.org/current".into(),
+        title: "Current reading".into(),
+        body: "Readable content with a cursor to preserve.".into(),
+    })?;
+    let mut app = lume::app::App::new(store, false)?;
+    app.set_network_enabled(true);
+    open_linked(&mut app, "https://example.org/current")?;
+    settle_linked(&mut app)?;
+    app.key(crossterm::event::KeyCode::Right.into())?;
+    let cursor = app.web_page().context("Current")?.cursor;
+    let (address, request) =
+        server(200, b"%PDF", "Content-Type: application/pdf\r\n")?;
+
+    open_linked(&mut app, &address)?;
+    settle_linked(&mut app)?;
+
+    request.recv_timeout(Duration::from_secs(5))?;
+    assert_eq!(app.take_web_browser_request(), Some(address));
+    let page = app.web_page().context("Retained linked reading")?;
+    assert_eq!(page.document.url, "https://example.org/current");
+    assert_eq!(page.cursor, cursor);
+    assert!(app.web_active());
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn a_cancelled_resource_navigation_cannot_request_a_browser_launch()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    let (address, request) =
+        server(200, b"%PDF", "Content-Type: application/pdf\r\n")?;
+    let mut app = lume::app::App::new(store, false)?;
+    app.set_network_enabled(true);
+    open_linked(&mut app, &address)?;
+    request.recv_timeout(Duration::from_secs(5))?;
+
+    app.key(crossterm::event::KeyCode::Esc.into())?;
+    app.poll_web()?;
+
+    assert!(app.take_web_browser_request().is_none());
+    assert!(!app.web_active());
+    Ok(())
+}

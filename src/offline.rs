@@ -84,6 +84,7 @@ pub fn prepare(
     state.validate()?;
     let _lock = lock(directory)?;
     let client = crate::source::agent();
+    let mut images = images::Preparation::open(directory, &client)?;
     state.running = true;
     state.cancelled = false;
     store.save_offline_state(&state)?;
@@ -102,8 +103,8 @@ pub fn prepare(
         let available = state.limits.bytes.saturating_sub(used);
         prepare_item(
             store,
-            directory,
             &client,
+            &mut images,
             &mut state.items[index],
             available,
             cancel,
@@ -119,8 +120,8 @@ pub fn prepare(
 
 fn prepare_item(
     store: &Store,
-    directory: &Path,
     client: &ureq::Agent,
+    images: &mut images::Preparation<'_>,
     item: &mut OfflineItem,
     available: u64,
     cancel: &AtomicBool,
@@ -134,9 +135,7 @@ fn prepare_item(
             item.bytes = body.len() as u64;
             item.status = OfflineStatus::Partial;
             let mut image_progress = images::Progress::default();
-            let images = images::prepare(
-                directory,
-                client,
+            let prepared = images.prepare(
                 &body,
                 available - item.bytes,
                 cancel,
@@ -144,7 +143,7 @@ fn prepare_item(
             );
             item.bytes += image_progress.bytes;
             item.images = image_progress.count;
-            images?;
+            prepared?;
             if complete {
                 item.status = OfflineStatus::Ready;
             }

@@ -226,6 +226,10 @@ fn poll_reading_workers(app: &mut App) -> bool {
             }
         }
     }
+    if let Some(address) = app.take_web_browser_request() {
+        launch_browser(app, &address);
+        changed = true;
+    }
     if !app.article_preparing() && !app.reader_stale() {
         app.finish_measurement(lume::app::Operation::Article);
     }

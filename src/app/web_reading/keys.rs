@@ -3,7 +3,7 @@
 use super::super::{Action, App, InputKind, Mode};
 use crate::reader::{cursor, motion::WordMotion};
 use anyhow::{Context, Result};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 impl App {
     pub(in crate::app) fn web_mouse(
@@ -76,6 +76,9 @@ impl App {
     }
 
     pub(in crate::app) fn web_key(&mut self, key: KeyEvent) -> Result<Action> {
+        if key.kind == KeyEventKind::Repeat && key.code == KeyCode::Enter {
+            return Ok(Action::None);
+        }
         if key.modifiers.contains(KeyModifiers::CONTROL) {
             match key.code {
                 KeyCode::Char('o') => self.web_history(false),
@@ -226,10 +229,13 @@ impl App {
     }
 
     fn web_history(&mut self, forward: bool) {
+        self.web.begin_navigation();
+        if self.cancel_web_open() {
+            return;
+        }
         if self.web_local_history(forward) {
             return;
         }
-        self.web.opening = false;
         if let Some(worker) = &mut self.web.worker {
             worker.cancel();
         }
@@ -253,6 +259,24 @@ impl App {
             }
         }
         self.mode = Mode::Web;
+    }
+
+    fn cancel_web_open(&mut self) -> bool {
+        if !self.web.opening {
+            return false;
+        }
+        self.web.opening = false;
+        if let Some(worker) = &mut self.web.worker {
+            worker.cancel();
+        }
+        if let Some(page) = &self.web.current {
+            self.web.requested_width = page.width;
+            self.status =
+                "Pending page discarded · previous reading retained".into();
+        } else {
+            self.close_web();
+        }
+        true
     }
 
     fn web_local_history(&mut self, forward: bool) -> bool {

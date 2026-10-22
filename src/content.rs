@@ -8,6 +8,7 @@ mod availability;
 mod code;
 mod code_context;
 mod images;
+mod lists;
 mod table;
 
 pub use availability::{BodyKind, MISSING_BODY, body_kind};
@@ -71,6 +72,7 @@ struct Fragment {
     preformatted: Option<CodeBlock>,
     code_context: code_context::CodeContext,
     quotes: usize,
+    lists: lists::Lists,
     link: Option<String>,
     table: Option<table::Table>,
     base: Option<url::Url>,
@@ -84,6 +86,7 @@ impl Fragment {
             preformatted: None,
             code_context: code_context::CodeContext::default(),
             quotes: 0,
+            lists: lists::Lists::default(),
             link: None,
             table: None,
             base: crate::source::feed_url(address).ok(),
@@ -151,7 +154,25 @@ impl Fragment {
             self.begin_code(&tag);
             return;
         }
+        if name == "ol" || name == "ul" {
+            self.begin_list(&tag, name == "ol");
+            return;
+        }
         self.tag(&name, false);
+    }
+
+    fn begin_list(&mut self, tag: &html5gum::StartTag<()>, ordered: bool) {
+        self.paragraph();
+        let start = ordered.then(|| {
+            tag.attributes
+                .get(b"start".as_slice())
+                .and_then(|value| {
+                    std::str::from_utf8(&value.value).ok()?.parse().ok()
+                })
+                .filter(|number| *number <= 999_999_999)
+                .unwrap_or(1)
+        });
+        self.lists.begin(start);
     }
 
     fn begin_link(&mut self, tag: &html5gum::StartTag<()>) {
@@ -180,7 +201,13 @@ impl Fragment {
 
     fn finish_code(&mut self) {
         if let Some(block) = self.preformatted.take() {
-            self.text.push_str(&block.markdown());
+            let padding = " ".repeat(self.lists.indent());
+            for line in block.markdown().split_inclusive('\n') {
+                if self.text.ends_with('\n') {
+                    self.text.push_str(&padding);
+                }
+                self.text.push_str(line);
+            }
         }
     }
 
@@ -208,7 +235,11 @@ impl Fragment {
             return;
         }
         match name {
-            "p" | "div" | "section" | "ul" | "ol" => self.paragraph(),
+            "p" | "div" | "section" => self.paragraph(),
+            "ul" | "ol" if closing => {
+                self.lists.end();
+                self.paragraph();
+            }
             "blockquote" => {
                 self.paragraph();
                 self.quotes = if closing {
@@ -230,11 +261,25 @@ impl Fragment {
             "em" | "i" => self.text.push('*'),
             "code" => self.text.push(char::from(96)),
             "br" | "tr" => self.text.push('\n'),
-            "li" if !closing => self.text.push_str("\n- "),
+            "li" => self.list_item(closing),
             "td" | "th" if closing => self.text.push_str("  "),
             "a" if closing => self.close_link(),
             _ => {}
         }
+    }
+
+    fn list_item(&mut self, closing: bool) {
+        self.close_link();
+        self.text.truncate(self.text.trim_end().len());
+        if !self.text.is_empty() {
+            self.text.push('\n');
+        }
+        if closing {
+            self.lists.end_item();
+            return;
+        }
+        self.text.push_str(&self.lists.item());
+        self.lists.content(self.text.len());
     }
 
     fn close_link(&mut self) {
@@ -260,6 +305,9 @@ impl Fragment {
                     self.text.push(' ');
                 }
             } else {
+                if self.text.ends_with('\n') {
+                    self.text.push_str(&" ".repeat(self.lists.indent()));
+                }
                 if self.quotes > 0
                     && (self.text.is_empty() || self.text.ends_with('\n'))
                 {
@@ -271,7 +319,11 @@ impl Fragment {
     }
 
     fn paragraph(&mut self) {
-        self.text.truncate(self.text.trim_end().len());
+        let end = self.text.trim_end().len();
+        if self.lists.pending(end) {
+            return;
+        }
+        self.text.truncate(end);
         if !self.text.is_empty() {
             self.text.push_str("\n\n");
         }

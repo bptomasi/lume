@@ -1,6 +1,6 @@
 //! Vim navigation and modal dispatch keep editing keys out of normal mode.
 
-use crate::model::View;
+use crate::model::{Dock, View};
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
@@ -265,12 +265,14 @@ impl App {
             KeyCode::Char('k') | KeyCode::Up => {
                 self.move_selection(false, 1)?
             }
-            KeyCode::Char('h') | KeyCode::Left | KeyCode::BackTab => {
-                self.change_focus(false)
+            KeyCode::Char('h') | KeyCode::Left => {
+                self.focus_spatially(Dock::Left)
             }
-            KeyCode::Char('l') | KeyCode::Right | KeyCode::Tab => {
-                self.change_focus(true)
+            KeyCode::Char('l') | KeyCode::Right => {
+                self.focus_spatially(Dock::Right)
             }
+            KeyCode::BackTab => self.change_focus(false),
+            KeyCode::Tab => self.change_focus(true),
             KeyCode::Enter => self.enter_navigation()?,
             KeyCode::Char('G') | KeyCode::End => {
                 self.move_selection(true, usize::MAX)?

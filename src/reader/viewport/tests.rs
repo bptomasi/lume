@@ -74,3 +74,35 @@ fn justification_expands_visual_gaps_without_changing_unicode_byte_identity() {
     assert_eq!(index.byte_at(text, 4), 2);
     assert_eq!(text, "A café 界 end");
 }
+
+#[test]
+fn list_insets_are_visual_and_use_the_same_mouse_and_cursor_coordinates() {
+    let text = "café 界";
+    let line = Line::raw(text);
+    let index = RowIndex::inset(text, &line, 3);
+
+    assert_eq!(index.column(text, 0), 3);
+    for column in 0..4 {
+        assert_eq!(index.byte_at(text, column), 0);
+    }
+    assert_eq!(index.column(text, 6), 8);
+    assert_eq!(index.byte_at(text, 9), 6);
+    assert_eq!(
+        index
+            .project(&line, text, 0, 10, |_, style| style)
+            .to_string(),
+        "   café 界"
+    );
+    assert_eq!(
+        index
+            .project(&line, text, 2, 5, |_, style| style)
+            .to_string(),
+        " café"
+    );
+    assert_eq!(
+        index
+            .project(&line, text, 0, 2, |_, style| style)
+            .to_string(),
+        "  "
+    );
+}

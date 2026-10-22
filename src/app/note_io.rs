@@ -123,8 +123,8 @@ impl App {
             return Ok(Action::None);
         }
         match completion.result? {
-            Outcome::SavedPage { article, url } => {
-                self.finish_web_save(article, &url)?
+            Outcome::SavedPage { article, visit } => {
+                self.finish_web_save(article, visit)?
             }
             Outcome::Written {
                 draft,

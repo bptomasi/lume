@@ -3,6 +3,8 @@
 //! Build once when a styled row changes. Checkpoints retain full Unicode and
 //! tab context; drawing visits only a short prefix and the visible graphemes.
 //! Span ends locate cached syntax/highlight styles without copying hidden text.
+//! List continuation insets shift only terminal cells, retaining exact readable
+//! bytes for cursor movement, mouse selection, copying and annotation anchors.
 
 use std::ops::Range;
 
@@ -23,6 +25,7 @@ struct Position {
 /// Width/byte and syntax-span index for one immutable display row.
 #[derive(Clone, Default)]
 pub(crate) struct RowIndex {
+    inset: usize,
     points: Vec<Position>,
     span_ends: Vec<usize>,
     gaps: Vec<(usize, usize)>,
@@ -31,16 +34,29 @@ pub(crate) struct RowIndex {
 impl RowIndex {
     /// Index the exact readable row and its concatenated styled spans.
     pub(crate) fn new(text: &str, line: &Line<'_>) -> Self {
-        Self::build(text, line, Vec::new())
+        Self::inset(text, line, 0)
+    }
+
+    /// Apply leading visual cells without inserting bytes into the source row.
+    pub(crate) fn inset(text: &str, line: &Line<'_>, inset: usize) -> Self {
+        Self::build(text, line, Vec::new(), inset)
     }
 
     pub(crate) fn justified(text: &str, line: &Line<'_>, width: usize) -> Self {
-        Self::build(text, line, super::justification::gaps(text, width))
+        Self::build(text, line, super::justification::gaps(text, width), 0)
     }
 
-    fn build(text: &str, line: &Line<'_>, gaps: Vec<(usize, usize)>) -> Self {
-        let mut points = vec![Position::default()];
-        let mut column = 0;
+    fn build(
+        text: &str,
+        line: &Line<'_>,
+        gaps: Vec<(usize, usize)>,
+        inset: usize,
+    ) -> Self {
+        let mut points = vec![Position {
+            byte: 0,
+            column: inset,
+        }];
+        let mut column = inset;
         let mut next = 256;
         for (byte, grapheme) in text.grapheme_indices(true) {
             if byte >= next {
@@ -59,6 +75,7 @@ impl RowIndex {
             })
             .collect();
         Self {
+            inset,
             points,
             span_ends,
             gaps,
@@ -120,6 +137,9 @@ impl RowIndex {
         let mut column = point.column;
         let end = skip.saturating_add(width);
         let mut spans = Vec::new();
+        if skip < self.inset {
+            spans.push(Span::raw(" ".repeat((self.inset - skip).min(width))));
+        }
         for (byte, grapheme) in text[point.byte..].grapheme_indices(true) {
             if column >= end {
                 break;

@@ -11,6 +11,11 @@ use crate::{
 
 pub use crate::model::WebDocument;
 
+pub(super) enum Loaded {
+    Page(Box<WebPage>),
+    Browser(String),
+}
+
 /// Width-specific linked reading; no article ID or mutation authority is present.
 pub struct WebPage {
     /// Captured source.
@@ -60,8 +65,9 @@ impl WebPage {
         let columns = rows
             .iter()
             .zip(&rendered.lines)
-            .map(|(text, line)| {
-                crate::reader::viewport::RowIndex::new(text, line)
+            .zip(&rendered.insets)
+            .map(|((text, line), inset)| {
+                crate::reader::viewport::RowIndex::inset(text, line, *inset)
             })
             .collect();
         Self {
@@ -226,7 +232,39 @@ pub(super) fn load(
     path: &std::path::Path,
     address: &str,
     online: bool,
-) -> Result<WebDocument> {
+    width: usize,
+    fragment: Option<String>,
+) -> Result<Loaded> {
+    let document = match fetch(connection, path, address, online)? {
+        crate::source::article::FetchedPage::Article(document) => document,
+        crate::source::article::FetchedPage::Browser(address) => {
+            let mut url = crate::source::link_url(&address)?;
+            if url.fragment().is_none() {
+                url.set_fragment(fragment.as_deref());
+            }
+            return Ok(Loaded::Browser(url.to_string()));
+        }
+    };
+    let url = document.final_url;
+    let body = document.body;
+    let title = body
+        .lines()
+        .find_map(|line| line.strip_prefix("# "))
+        .map_or_else(|| url.clone(), |title| crate::content::label(title, 160));
+    let document = Arc::new(WebDocument { url, title, body });
+    let mut page = WebPage::prepare(document, width, 0);
+    if let Some(fragment) = fragment {
+        page.jump_fragment(&fragment)?;
+    }
+    Ok(Loaded::Page(Box::new(page)))
+}
+
+fn fetch(
+    connection: &mut Option<Store>,
+    path: &std::path::Path,
+    address: &str,
+    online: bool,
+) -> Result<crate::source::article::FetchedPage> {
     if connection.is_none() {
         *connection = Some(Store::open(path)?);
     }
@@ -235,22 +273,20 @@ pub(super) fn load(
         .context("Linked-page connection unavailable")?;
     let url = crate::source::link_url(address)?;
     let cached = store.cached_page_body(url.as_str())?;
-    let (url, body) = if let Some(body) = cached {
-        (url.to_string(), body)
-    } else {
-        ensure!(online, "Page is not cached · network is disabled");
-        let document = crate::source::article::fetch_with_selector(
-            &crate::source::agent(),
-            url.as_str(),
-            "",
-        )?;
-        (document.final_url, document.body)
-    };
-    let title = body
-        .lines()
-        .find_map(|line| line.strip_prefix("# "))
-        .map_or_else(|| url.clone(), |title| crate::content::label(title, 160));
-    Ok(WebDocument { url, title, body })
+    if let Some(body) = cached {
+        return Ok(crate::source::article::FetchedPage::Article(
+            crate::model::ExtractedDocument {
+                final_url: url.to_string(),
+                body,
+            },
+        ));
+    }
+    ensure!(online, "Page is not cached · network is disabled");
+    crate::source::article::fetch_page(
+        &crate::source::agent(),
+        url.as_str(),
+        "",
+    )
 }
 
 fn text_images(body: &str) -> String {

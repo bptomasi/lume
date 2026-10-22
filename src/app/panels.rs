@@ -243,8 +243,7 @@ impl App {
             return Ok(());
         }
         match code {
-            KeyCode::Char('h' | 'k') => self.change_focus(false),
-            KeyCode::Char('l' | 'j' | 'w') => self.change_focus(true),
+            KeyCode::Char('w') => self.change_focus(true),
             KeyCode::Char('H') | KeyCode::Left => {
                 self.move_focused_pane(false)?;
             }
@@ -269,19 +268,18 @@ impl App {
         }
         Ok(())
     }
+
     fn split_layout_key(&mut self, code: KeyCode) -> Result<bool> {
-        if self.workspace.layout.is_some() {
-            let edge = match code {
-                KeyCode::Char('h') => Some(Dock::Left),
-                KeyCode::Char('j') => Some(Dock::Below),
-                KeyCode::Char('k') => Some(Dock::Above),
-                KeyCode::Char('l') => Some(Dock::Right),
-                _ => None,
-            };
-            if let Some(edge) = edge {
-                self.focus_spatially(edge);
-                return Ok(true);
-            }
+        let edge = match code {
+            KeyCode::Char('h') => Some(Dock::Left),
+            KeyCode::Char('j') => Some(Dock::Below),
+            KeyCode::Char('k') => Some(Dock::Above),
+            KeyCode::Char('l') => Some(Dock::Right),
+            _ => None,
+        };
+        if let Some(edge) = edge {
+            self.focus_spatially(edge);
+            return Ok(true);
         }
         match code {
             KeyCode::Char('J') | KeyCode::Down => {

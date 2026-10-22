@@ -44,6 +44,11 @@ blank and short rows. Code fragments inside prose retain compact styling.
 ## Arrange your workspace
 
 Press `Ctrl-w` to see the next available layout keys in the application.
+`Ctrl-w h/j/k/l` focuses the pane to the left/below/above/right in the current
+layout and stops at its edges. Outside the Reader, `h/l` and left/right arrows
+also follow panel geometry. `Tab` and `Shift-Tab` cycle the saved panel order.
+Collapsed panels are skipped; narrow terminals retain access to panels hidden
+by the responsive layout. Reader `h/l` still moves the text cursor.
 Use commands such as `:panel-focus reader`, `:panel-focus articles` followed by `:panel-close`,
 `:panel-focus annotations`, `:panel-move left` and
 `:panel-dock annotations reader below`. `:layout-undo` restores the preceding
@@ -74,6 +79,12 @@ to zoom, pan using the indicated controls and `Esc` to return. Selection,
 menus and panels clip native rows within their owned rectangles. Clipboard
 copy uses the terminal's OSC 52 support and follows terminal clipboard policy.
 
+Automatic detection selects Sixel for Foot and the iTerm2 protocol for native
+inspection in WezTerm/iTerm2. Inline iTerm2 images still use character previews.
+Other terminals fall back to blocks; the Kitty graphics protocol is not
+integrated. `:images on` enables loading, `:images` inspects failures and
+`:images retry` retries them. `:image-protocol auto` restores automatic choice.
+
 ## Linked pages, offline reading and sessions
 
 `Enter` on a reader link opens a temporary page inside Lume. Same-page links
@@ -83,6 +94,11 @@ cursor and personal data. They are text views with explicit image links;
 `o` opens the original in a browser. `:open-page URL` opens an address directly.
 `:save-page` explicitly adds it to **Saved pages**, without subscribing to a
 site. Saving an existing article preserves its identity and publisher text.
+PDFs, other non-HTML responses and explicit download attachments open through
+the system browser instead. The reader does not decode their full bodies;
+redirect targets and fragments such as `#page=7` are preserved. The current
+reading and cursor remain intact. Cancelled or superseded loads never launch
+the browser. `:save-page` waits until the new linked page is ready.
 
 `:offline queue` prepares **Read next**. Inside a personal folder,
 `:offline prepare` captures that folder instead. Both download full text and

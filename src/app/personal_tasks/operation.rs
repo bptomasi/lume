@@ -40,9 +40,9 @@ fn busy(error: &anyhow::Error) -> bool {
 
 pub(super) fn perform(store: &Store, task: Task) -> Result<Outcome> {
     match task {
-        Task::SavePage(document) => Ok(Outcome::SavedPage {
+        Task::SavePage { document, visit } => Ok(Outcome::SavedPage {
             article: store.save_web_document(&document)?,
-            url: document.url.clone(),
+            visit,
         }),
         Task::Write(draft) => write(store, draft),
         Task::Query(edit) => query_edit(store, edit),

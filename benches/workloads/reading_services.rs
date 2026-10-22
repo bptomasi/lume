@@ -126,6 +126,7 @@ fn packages(iterations: usize, stress: bool) -> Result<()> {
     let images = directory.path().join("images");
     let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"><rect width="160" height="90" fill="orange"/></svg>"#;
     lume::media::cache::write(&images, "https://example.org/diagram.svg", svg)?;
+    pinned_history(&images, svg, if stress { 2048 } else { 128 })?;
     let captured =
         lume::offline::capture(&store, View::Queue, OfflineLimits::default())?;
     super::measure(
@@ -156,6 +157,20 @@ fn packages(iterations: usize, stress: bool) -> Result<()> {
             Ok(())
         },
     )
+}
+
+fn pinned_history(
+    root: &std::path::Path,
+    svg: &[u8],
+    count: usize,
+) -> Result<()> {
+    let directory = root.join("offline");
+    std::fs::create_dir_all(&directory)?;
+    for index in 0..count {
+        let address = format!("https://example.org/history-{index}.svg");
+        std::fs::write(lume::media::cache::path(&directory, &address), svg)?;
+    }
+    Ok(())
 }
 
 fn cleanup(iterations: usize, stress: bool) -> Result<()> {

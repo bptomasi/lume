@@ -184,11 +184,7 @@ impl App {
     }
 
     pub(crate) fn change_focus(&mut self, forward: bool) {
-        self.workspace.zen = false;
-        self.workspace.fullscreen = false;
-        self.fullscreen_focus = None;
-        self.selection = None;
-        self.vim.clear_input();
+        self.prepare_panel_focus();
         let panes = self.expanded_panes();
         if panes.is_empty() {
             self.workspace.show_reader = true;
@@ -205,6 +201,14 @@ impl App {
             (index + panes.len() - 1) % panes.len()
         };
         self.focus = panes[next];
+    }
+
+    pub(super) fn prepare_panel_focus(&mut self) {
+        self.workspace.zen = false;
+        self.workspace.fullscreen = false;
+        self.fullscreen_focus = None;
+        self.selection = None;
+        self.vim.clear_input();
     }
 
     pub(crate) fn open_reader(&mut self) -> Result<()> {

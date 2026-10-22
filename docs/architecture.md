@@ -109,6 +109,13 @@ decorative borders and padding have no quotation mapping.
 HTML `thead`/`th` and fully bold first rows identify publisher headers. Plain or
 partly emphasized data rows do not become invented column labels.
 
+HTML lists retain paragraph ownership, numbering and nested indentation when
+normalized to Markdown. The reader defers each marker until item content begins,
+so loose-list paragraph boundaries cannot flush an isolated bullet. Wrapped
+continuations carry visual insets separate from readable bytes. The cached cell
+index applies those insets to drawing, mouse hits and cursor positions; copying
+and source-based annotation anchors retain their original byte correspondence.
+
 Padded grid output has a shared 1 MiB budget per article, at most 64 columns,
 2,000 rows including the header, and 4,096 terminal cells per row. Exceeding a
 limit displays an explicit notice and the original Markdown, preserving later
@@ -219,6 +226,11 @@ The workspace owns pane topology, visibility and widths. Keyboard and mouse use
 those same operations and hit regions. The reader's centered fullscreen column
 defaults to 80 terminal cells, independent of panel widths. Captured pane images
 support bounded pointer-following drag and settling; gestures persist on commit.
+Directional focus uses those rendered rectangles, preferring neighbors with
+overlapping rows or columns. It never wraps at an edge or treats a pane's center
+as proof that it lies in that direction. Responsive suppression falls back to
+the same topology at a size that fits every expanded pane; explicit collapse
+still excludes a pane. Tab cycling retains the saved panel order.
 
 Image workers enforce byte, dimension, pixel, encoding and cache budgets. SVG
 resource resolvers reject external and embedded resource loads. Native Foot
@@ -304,7 +316,18 @@ runtime's offline/demo modes. Images become explicit links in this text view;
 the original Markdown remains intact for an explicit save. Save creates a real
 article in a disabled, noncollecting manual source and an ordinary Saved pages
 folder. Existing article bodies and personal fields remain untouched. A delayed
-save cannot redirect a later linked reading or the underlying article.
+save carries its captured visit generation, so it cannot redirect a later
+navigation, including another visit to the same URL. Back during a pending open
+discards that response before consuming section history. Page/reflow delivery
+invalidates mouse drag anchors, whose byte offsets belong to the old layout.
+Failed opens retain the previous page and its ability to reflow.
+The HTTP owner distinguishes extracted HTML from browser resources before
+reading response bodies. Non-HTML types and explicit attachments return their
+final URL as a typed outcome. Only a current linked-page completion may publish
+a one-shot browser request; the terminal owns OS launching. Navigation cancels
+undelivered requests, and the previous reading is restored before dispatch.
+Background article extraction continues to reject these resources without
+modifying its last successful cache or launching applications.
 
 `app::maintenance` admits one explicit operation at a time on an ordered lane.
 Mutations are never superseded by new requests. Progress delivery is bounded
@@ -322,10 +345,15 @@ namespace, limited globally to 512 MiB and 4096 owned files. Ordinary image
 pruning never touches that namespace. Releasing a package removes only owned
 pinned files and its checkpoint, retaining article text. In-flight network work
 obeys existing HTTP deadlines; cancellation is observed between requests.
+The lock also owns a package-local image accounting/decoder lifetime. It scans
+the pinned namespace once per preparation, not once per article. Capacity is
+updated only after atomic publication succeeds, so rejected pins cannot consume
+the budget available to later items.
 
 `storage` inspects text and disk usage on the same maintenance lane. Full-cache
 reclamation uses small IMMEDIATE transactions, protecting current personal,
-offline and session context, including recoverable note drafts. Clearing body bytes retains cache identities and
+offline and session context, including recoverable note drafts. Clearing body
+bytes retains cache identities and
 fires the existing FTS/recommendation triggers. Image reclamation first scans
 remaining publisher bodies, then removes only unreferenced owned regular files
 older than that scan. It preserves symlinks, foreign files and pinned images.

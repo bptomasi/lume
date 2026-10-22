@@ -33,6 +33,8 @@ mod images;
 mod interaction;
 #[path = "workloads/links.rs"]
 mod links;
+#[path = "workloads/lists.rs"]
+mod lists;
 #[path = "workloads/note_interactions.rs"]
 mod note_interactions;
 #[path = "workloads/note_study.rs"]
@@ -113,6 +115,7 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
     annotation_projection::run(iterations, stress)?;
     dense_annotations::run(iterations, stress)?;
     rich_text::run(iterations, stress)?;
+    lists::run(iterations, stress)?;
     configuration::run(iterations, stress)?;
     tables::run(iterations, stress)?;
     links::run(iterations, stress)?;
@@ -140,6 +143,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--recovery-navigation-only", recovery_navigation::run),
     ("--dense-annotations-only", dense_annotations::run),
     ("--rich-text-only", rich_text::run),
+    ("--lists-only", lists::run),
     ("--configuration-only", configuration::run),
     ("--welcome-only", welcome::run),
     ("--interaction-only", interaction::run),

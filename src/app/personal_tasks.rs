@@ -18,7 +18,10 @@ use crate::model::{Comment, DraftTarget, NoteChange, NoteDraft, UndoEffect};
 
 #[derive(Clone)]
 pub(super) enum Task {
-    SavePage(std::sync::Arc<crate::model::WebDocument>),
+    SavePage {
+        document: std::sync::Arc<crate::model::WebDocument>,
+        visit: u64,
+    },
     Write(NoteDraft),
     Query(QueryEdit),
     Edit(Edit),
@@ -80,7 +83,7 @@ pub(super) enum Edit {
 pub(super) enum Outcome {
     SavedPage {
         article: i64,
-        url: String,
+        visit: u64,
     },
     Written {
         draft: NoteDraft,

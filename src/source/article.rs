@@ -20,6 +20,13 @@ use crate::{content, model::ExtractedDocument};
 
 const MAX_PAGE_BYTES: usize = 2 * 1024 * 1024;
 
+/// A readable page or a resource delegated to the system browser without reading
+/// its body. Ordinary article-cache callers still reject external resources.
+pub(crate) enum FetchedPage {
+    Article(ExtractedDocument),
+    Browser(String),
+}
+
 /// Fetch/cache one existing article through the same path as the TUI worker.
 ///
 /// # Errors
@@ -114,10 +121,30 @@ pub(crate) fn fetch_with_selector(
     address: &str,
     selector: &str,
 ) -> Result<ExtractedDocument> {
+    match fetch_page(client, address, selector)? {
+        FetchedPage::Article(document) => Ok(document),
+        FetchedPage::Browser(_) => {
+            anyhow::bail!(
+                "Original is not an HTML article; open it in a browser"
+            )
+        }
+    }
+}
+
+/// Classify successful HTTP responses before bounded HTML extraction.
+/// Non-HTML resources and explicit attachments retain their final redirect URL.
+pub(crate) fn fetch_page(
+    client: &ureq::Agent,
+    address: &str,
+    selector: &str,
+) -> Result<FetchedPage> {
     let url = super::link_url(address)?;
     let mut response = client
         .get(url.as_str())
-        .header("Accept", "text/html, application/xhtml+xml;q=0.9")
+        .header(
+            "Accept",
+            "text/html, application/xhtml+xml;q=0.9, */*;q=0.1",
+        )
         .call()
         .context("Could not download the original article")?;
     ensure!(
@@ -125,20 +152,28 @@ pub(crate) fn fetch_with_selector(
         "Article returned HTTP {}",
         response.status()
     );
-    let mime = response
-        .headers()
+    let address = response.get_uri().to_string();
+    if !inline_html(response.headers()) {
+        return Ok(FetchedPage::Browser(address));
+    }
+    let bytes = crate::http_body::read(response.body_mut(), MAX_PAGE_BYTES)?;
+    let html = std::str::from_utf8(&bytes)
+        .context("Article encoding is not UTF-8; open it in a browser")?;
+    extract_with_selector(html, &address, selector).map(FetchedPage::Article)
+}
+
+fn inline_html(headers: &ureq::http::HeaderMap) -> bool {
+    let attachment = headers
+        .get("content-disposition")
+        .and_then(|header| header.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .is_some_and(|value| value.trim().eq_ignore_ascii_case("attachment"));
+    let mime = headers
         .get("content-type")
         .and_then(|header| header.to_str().ok())
         .unwrap_or_default();
     let mime = mime.split(';').next().unwrap_or_default().trim();
-    ensure!(
-        mime.eq_ignore_ascii_case("text/html")
-            || mime.eq_ignore_ascii_case("application/xhtml+xml"),
-        "Original is not an HTML article; open it in a browser"
-    );
-    let address = response.get_uri().to_string();
-    let bytes = crate::http_body::read(response.body_mut(), MAX_PAGE_BYTES)?;
-    let html = std::str::from_utf8(&bytes)
-        .context("Article encoding is not UTF-8; open it in a browser")?;
-    extract_with_selector(html, &address, selector)
+    !attachment
+        && (mime.eq_ignore_ascii_case("text/html")
+            || mime.eq_ignore_ascii_case("application/xhtml+xml"))
 }

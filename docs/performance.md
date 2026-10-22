@@ -23,7 +23,7 @@ make bench-recommendations
 
 The native benchmark also accepts focused flags, including
 `--configuration-only`, `--welcome-only`, `--code-viewport-only`, `--images-only`,
-`--tables-only`, `--rich-text-only`, `--recommendations-only`,
+`--tables-only`, `--lists-only`, `--rich-text-only`, `--recommendations-only`,
 `--pane-search-only` and `--query-editing-only`. Add `--stress`
 for larger workloads.
 Setup precedes operation timers; resource reports identify process-wide
@@ -49,6 +49,7 @@ current hardware or a substitute for measuring later changes.
 | Dense article preparation | [Repeated reader comparison](performance/reader-review.json) |
 | Native welcome frame | [Representative/stress frames and interaction qualification](performance/welcome.json) |
 | Reading services | [Repeated checked workloads](performance/reading-services.json), [native Foot qualification](performance/reading-foot.json) |
+| Reading-state and offline review | [Before/after workloads and native Foot](performance/reading-review.json) |
 
 The reading-service workloads use three release processes per size with Rust
 1.99.1 on the recorded Core Ultra 7 environment. A selector movement pair plus
@@ -70,6 +71,22 @@ leakage, back navigation restoring cached image strips, opt-in diagnostics,
 selection, zoom and terminal restoration. The controlled fixture's publisher
 text remains unchanged. Startup waits for prepared article content before
 issuing source-bound commands; it does not rely on a fixed loading delay.
+
+The [offline review](performance/reading-review.json) applies the same expanded
+workload to `e885e22` and the revised implementation. With 10 cached articles and
+128 prior pinned images, median iteration means fall from 8.672 to 7.618 ms
+(12.15% less). With 100 articles and 2,048 prior images, they fall from 232.805
+to 29.887 ms (87.16% less). A package-local accounting/decoder lifetime removes
+repeated directory scans while retaining decoder checks and atomic publication.
+Each size uses three release processes on the same recorded machine/toolchain.
+These measure cached offline preparation, excluding HTTP and fixture creation;
+they do not establish a whole-application or physical display speedup.
+
+The same review qualifies late-save isolation across pending navigation and
+repeated URL visits, pending-page cancellation before local history, mouse
+anchor invalidation between pages, retained-page reflow after errors and byte
+accounting after rejected pins. Native Foot images, selection, zoom, linked
+history, diagnostics and terminal cleanup also pass on the recorded binary.
 
 Configuration measurements cover actual source/folder edits, stable portable
 identities, TOML publication, comment retention and verified rereads. Three

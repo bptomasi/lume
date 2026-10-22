@@ -383,6 +383,7 @@ pub struct App {
     horizontal_state: horizontal::Horizontal,
     horizontal_groups: Vec<Option<usize>>,
     prose_lines: Vec<bool>,
+    reader_insets: Vec<usize>,
     session_problem: Option<String>,
     /// Display rows that preserve columns, including code blocks and tables.
     pub code_lines: Vec<bool>,
@@ -533,6 +534,7 @@ impl App {
             horizontal_state: horizontal::Horizontal::default(),
             horizontal_groups: Vec::new(),
             prose_lines: Vec::new(),
+            reader_insets: Vec::new(),
             session_problem: None,
             code_lines: Vec::new(),
             table_rows: Vec::new(),

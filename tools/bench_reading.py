@@ -60,6 +60,7 @@ def main():
             "Release profile; three fresh processes per workload and size.",
             "Plans: 100/512 scored metadata candidates; 30 total minutes.",
             "Offline: 10/100 cached full articles and a decoded pinned SVG.",
+            "Pinned history: 128/2048 existing image files before preparation.",
             "Cleanup: 10/100 Full caches; fixture/cache refill excluded.",
             "Selector: 200/2000 articles, 50 choices, input pair plus two frames.",
             "Linked pages: 50/500 sections, worker layout and delivery; no HTTP.",

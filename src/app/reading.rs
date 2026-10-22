@@ -382,6 +382,7 @@ impl App {
         self.code_lines = rendered.code;
         self.horizontal_groups = rendered.horizontal_groups;
         self.prose_lines = rendered.justifiable;
+        self.reader_insets = rendered.insets;
         self.table_rows = rendered.table_rows;
         self.reader_text = rendered.text;
         self.reader_ranges = rendered.text_ranges;
@@ -407,6 +408,12 @@ impl App {
             .zip(&self.code_lines)
             .enumerate()
             .map(|(row, ((text, line), code))| {
+                let inset = self.reader_insets.get(row).copied().unwrap_or(0);
+                if inset > 0 {
+                    return Some(crate::reader::viewport::RowIndex::inset(
+                        text, line, inset,
+                    ));
+                }
                 if self.workspace.justify
                     && self.prose_lines.get(row) == Some(&true)
                 {

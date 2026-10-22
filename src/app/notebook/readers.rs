@@ -186,6 +186,12 @@ fn render_excerpt(
             }
         }
     }
+    for (line, inset) in rendered.lines.iter_mut().zip(&rendered.insets) {
+        if *inset > 0 {
+            line.spans
+                .insert(0, ratatui::text::Span::raw(" ".repeat(*inset)));
+        }
+    }
     rendered.lines
 }
 

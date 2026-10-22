@@ -12,6 +12,7 @@ mod justification;
 mod language;
 mod layout_worker;
 mod links;
+mod lists;
 mod live;
 pub mod motion;
 mod projection;
@@ -41,7 +42,7 @@ const BLUE: Color = Color::Rgb(145, 180, 218);
 /// Immutable, width-specific presentation consumed without parsing during draw.
 #[derive(Clone, Default)]
 pub struct Rendered {
-    /// Styled display rows.
+    /// Styled rows before applying the corresponding visual `insets`.
     pub lines: Vec<Line<'static>>,
     /// Original Markdown byte range for every row.
     pub ranges: Vec<Range<usize>>,
@@ -51,6 +52,8 @@ pub struct Rendered {
     pub horizontal_groups: Vec<Option<usize>>,
     /// Nonfinal prose rows eligible for visual justification.
     pub justifiable: Vec<bool>,
+    /// Visual continuation padding, excluded from readable/copied bytes.
+    pub insets: Vec<usize>,
     /// Display row ranges of terminal tables, sharing horizontal code navigation.
     pub table_rows: Vec<Range<usize>>,
     /// Readable text before soft wrapping; copied selections use these bytes.
@@ -78,7 +81,7 @@ struct Builder<'a> {
     code: Option<String>,
     paragraph: bool,
     quote: usize,
-    list_depth: usize,
+    lists: lists::Lists,
     horizontal_group: Option<usize>,
     links: links::Links,
     image: Option<images::PendingImage>,
@@ -110,7 +113,7 @@ pub(super) fn render_with(
         code: None,
         paragraph: false,
         quote: 0,
-        list_depth: 0,
+        lists: lists::Lists::default(),
         horizontal_group: None,
         links: links::Links::default(),
         image: None,
@@ -145,7 +148,7 @@ impl Builder<'_> {
                 self.append(text.into_string(), range);
             }
             Event::Code(text) => {
-                self.quote_prefix();
+                self.text_prefix();
                 let source = self.inline_code_source(&text, range);
                 self.map_text(&text, source);
                 self.spans.push(Span::styled(
@@ -167,7 +170,7 @@ impl Builder<'_> {
     }
 
     fn horizontal_rule(&mut self, range: Range<usize>) {
-        self.flush();
+        self.flush_list_content();
         self.generated(
             Line::styled(
                 "─".repeat(self.width.min(40)),
@@ -201,6 +204,9 @@ impl Builder<'_> {
                 range.clone()
             };
             self.push(line, source_range, true, base + offset..base + end);
+            if let Some(inset) = self.rendered.insets.last_mut() {
+                *inset = self.lists.indent().min(self.width.saturating_sub(1));
+            }
             offset += source.len();
         }
     }
@@ -208,29 +214,24 @@ impl Builder<'_> {
     fn start(&mut self, tag: Tag<'_>, range: Range<usize>) {
         match tag {
             Tag::Paragraph | Tag::Heading { .. } | Tag::CodeBlock(_) => {
-                self.flush();
-                self.paragraph = matches!(&tag, Tag::Paragraph);
-                self.start = range.start;
-                self.end = range.end;
-                if matches!(&tag, Tag::CodeBlock(_)) {
-                    self.horizontal_group = Some(range.start);
-                }
-                self.block_style(tag);
+                self.start_block(tag, range);
             }
-            Tag::List(_) => self.list_depth += 1,
+            Tag::List(start) => {
+                self.flush_list_content();
+                self.lists.begin(start);
+            }
             Tag::Item => {
                 self.flush();
                 self.start = range.start;
-                self.quote_prefix();
-                self.text_length += "• ".len();
-                self.spans.push(Span::raw("• "));
+                self.end = range.end;
+                self.lists.item();
             }
             Tag::BlockQuote(_) => self.quote += 1,
             Tag::Emphasis => self.push_style(Modifier::ITALIC),
             Tag::Strong => self.push_style(Modifier::BOLD),
             Tag::Link { dest_url, .. } => self.begin_link(&dest_url),
             Tag::Image { dest_url, .. } if self.rendered.images.len() < 32 => {
-                self.flush();
+                self.flush_list_content();
                 self.image = Some(images::PendingImage {
                     url: dest_url.into_string(),
                     alt: String::new(),
@@ -241,8 +242,23 @@ impl Builder<'_> {
         }
     }
 
+    fn start_block(&mut self, tag: Tag<'_>, range: Range<usize>) {
+        if matches!(&tag, Tag::CodeBlock(_)) {
+            self.flush_list_content();
+        } else {
+            self.flush();
+        }
+        self.paragraph = matches!(&tag, Tag::Paragraph);
+        self.start = range.start;
+        self.end = range.end;
+        if matches!(&tag, Tag::CodeBlock(_)) {
+            self.horizontal_group = Some(range.start);
+        }
+        self.block_style(tag);
+    }
+
     fn begin_link(&mut self, address: &str) {
-        self.quote_prefix();
+        self.text_prefix();
         self.links.begin(address);
         self.styles.push(Style::new().fg(BLUE).underlined());
     }
@@ -282,7 +298,8 @@ impl Builder<'_> {
                 }
             }
             TagEnd::List(_) => {
-                self.list_depth = self.list_depth.saturating_sub(1)
+                self.flush();
+                self.lists.end();
             }
             TagEnd::Link => {
                 self.links.end();
@@ -294,7 +311,7 @@ impl Builder<'_> {
                 }
             }
             TagEnd::BlockQuote(_) => self.quote = self.quote.saturating_sub(1),
-            TagEnd::Item => self.flush(),
+            TagEnd::Item => self.flush_list_content(),
             _ => {}
         }
     }
@@ -305,7 +322,7 @@ impl Builder<'_> {
     }
 
     fn append(&mut self, text: String, range: Range<usize>) {
-        self.quote_prefix();
+        self.text_prefix();
         if self.spans.is_empty() {
             self.start = range.start;
         }
@@ -315,11 +332,26 @@ impl Builder<'_> {
         self.spans.push(Span::styled(text, style));
     }
 
-    fn quote_prefix(&mut self) {
-        if self.spans.is_empty() && self.quote > 0 && self.table.is_none() {
+    fn text_prefix(&mut self) {
+        if !self.spans.is_empty() || self.table.is_some() {
+            return;
+        }
+        if self.quote > 0 {
             self.spans.push(Span::styled("│ ", Style::new().fg(AMBER)));
             self.text_length += "│ ".len();
         }
+        let prefix = self.lists.prefix();
+        if !prefix.is_empty() {
+            self.text_length += prefix.len();
+            self.spans.push(Span::raw(prefix));
+        }
+    }
+
+    fn flush_list_content(&mut self) {
+        if self.lists.pending() {
+            self.text_prefix();
+        }
+        self.flush();
     }
 
     fn inline_code_source(
@@ -380,10 +412,19 @@ impl Builder<'_> {
     ) {
         let mut consumed = 0;
         let mut paragraph = wrapping::Paragraph::new(spans, mappings);
-        let rows = textwrap::wrap(text, self.width);
+        let inset = self.lists.indent().min(self.width.saturating_sub(1));
+        let padding = " ".repeat(inset);
+        let options =
+            textwrap::Options::new(self.width).subsequent_indent(&padding);
+        let rows = textwrap::wrap(text, options);
         let count = rows.len();
         for (index, wrapped) in rows.into_iter().enumerate() {
-            let offset = text[consumed..].find(wrapped.as_ref()).unwrap_or(0);
+            let wrapped = if index == 0 {
+                wrapped.as_ref()
+            } else {
+                wrapped.strip_prefix(&padding).unwrap_or(&wrapped)
+            };
+            let offset = text[consumed..].find(wrapped).unwrap_or(0);
             let start = consumed + offset;
             let end = start + wrapped.len();
             let (line, source) = paragraph.row(start..end);
@@ -393,11 +434,16 @@ impl Builder<'_> {
                 code,
                 base + start..base + end,
             );
+            if index > 0
+                && let Some(value) = self.rendered.insets.last_mut()
+            {
+                *value = inset;
+            }
             if let Some(eligible) = self.rendered.justifiable.last_mut() {
                 *eligible = self.paragraph
                     && !code
                     && self.quote == 0
-                    && self.list_depth == 0
+                    && self.lists.is_empty()
                     && index + 1 < count;
             }
             consumed = end;
@@ -426,6 +472,7 @@ impl Builder<'_> {
             .horizontal_groups
             .push(code.then_some(self.horizontal_group.unwrap_or(self.start)));
         self.rendered.justifiable.push(false);
+        self.rendered.insets.push(0);
         self.rendered.text_ranges.push(text);
     }
 }

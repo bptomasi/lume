@@ -31,11 +31,13 @@ enum Request {
 #[derive(Default)]
 pub(super) struct WebReading {
     pub(super) active: bool,
-    worker: Option<Latest<Request, WebPage>>,
+    worker: Option<Latest<Request, page::Loaded>>,
+    browser_request: Option<String>,
     current: Option<WebPage>,
     back: VecDeque<WebPage>,
     forward: Vec<WebPage>,
     requested_width: usize,
+    visit: u64,
     opening: bool,
     mouse_anchor: Option<usize>,
 }
@@ -61,6 +63,7 @@ impl App {
         let fragment = url.fragment().map(str::to_owned);
         url.set_fragment(None);
         self.ensure_web_worker()?;
+        self.web.begin_navigation();
         let width = self.web_width();
         self.web.requested_width = width;
         self.web
@@ -94,21 +97,21 @@ impl App {
                     width,
                     online,
                     fragment,
-                } => {
-                    let document =
-                        page::load(&mut connection, &path, &address, online)?;
-                    let mut page =
-                        WebPage::prepare(Arc::new(document), width, 0);
-                    if let Some(fragment) = fragment {
-                        page.jump_fragment(&fragment)?;
-                    }
-                    Ok(page)
-                }
+                } => page::load(
+                    &mut connection,
+                    &path,
+                    &address,
+                    online,
+                    width,
+                    fragment,
+                ),
                 Request::Reflow {
                     document,
                     width,
                     anchor,
-                } => Ok(WebPage::prepare(document, width, anchor)),
+                } => Ok(page::Loaded::Page(Box::new(WebPage::prepare(
+                    document, width, anchor,
+                )))),
             },
         )?);
         Ok(())
@@ -133,26 +136,60 @@ impl App {
         if let Some(result) = result {
             let reflow = !self.web.opening;
             self.web.opening = false;
-            let mut page = result?;
-            if reflow && let Some(current) = &mut self.web.current {
-                page.inherit_view(current);
-            }
-            page.reveal(usize::from(self.screen.height.saturating_sub(6)));
-            if let Some(previous) = self.web.current.take()
-                && previous.document.url != page.document.url
-            {
-                self.web.back.push_back(previous);
-                self.web.forward.clear();
-                while self.web.back.len() > 8 {
-                    self.web.back.pop_front();
+            let loaded = result.inspect_err(|_| {
+                if !reflow {
+                    self.web.requested_width =
+                        self.web.current.as_ref().map_or(0, |page| page.width);
+                }
+            })?;
+            match loaded {
+                page::Loaded::Page(page) => {
+                    self.install_web_page(*page, reflow)
+                }
+                page::Loaded::Browser(address) => {
+                    self.delegate_web_resource(address);
+                    return Ok(true);
                 }
             }
-            self.web.current = Some(page);
-            self.status =
-                "Linked page · Ctrl-o back · :save-page keeps it".into();
         }
         self.reflow_web();
         Ok(changed)
+    }
+
+    fn install_web_page(&mut self, mut page: WebPage, reflow: bool) {
+        self.web.mouse_anchor = None;
+        if reflow && let Some(current) = &mut self.web.current {
+            page.inherit_view(current);
+        }
+        page.reveal(usize::from(self.screen.height.saturating_sub(6)));
+        if let Some(previous) = self.web.current.take()
+            && previous.document.url != page.document.url
+        {
+            self.web.back.push_back(previous);
+            self.web.forward.clear();
+            while self.web.back.len() > 8 {
+                self.web.back.pop_front();
+            }
+        }
+        self.web.current = Some(page);
+        self.status = "Linked page · Ctrl-o back · :save-page keeps it".into();
+    }
+
+    fn delegate_web_resource(&mut self, address: String) {
+        if let Some(page) = &self.web.current {
+            self.web.requested_width = page.width;
+        } else {
+            self.close_web();
+        }
+        self.web.browser_request = Some(address);
+        self.status = "Resource requires the system browser".into();
+    }
+
+    /// Take a current non-HTML navigation's one-shot browser request.
+    /// Linked navigation cancels undelivered requests. The runtime drains this
+    /// in the same poll cycle and owns OS launching.
+    pub fn take_web_browser_request(&mut self) -> Option<String> {
+        self.web.browser_request.take()
     }
 
     fn reflow_web(&mut self) {
@@ -202,12 +239,15 @@ impl App {
             }
             "open-page" => self.open_web_page(argument)?,
             "save-page" => {
+                ensure!(
+                    self.web.active && !self.web.opening,
+                    "Wait for the linked page before saving"
+                );
                 let page = self
                     .web
                     .current
                     .as_ref()
                     .context("Open a linked page first")?;
-                ensure!(self.web.active, "Open a linked page first");
                 let document = page.document.clone();
                 self.save_web_document(document)?;
             }
@@ -228,6 +268,7 @@ impl App {
     }
 
     pub(super) fn close_web(&mut self) {
+        self.web.begin_navigation();
         if let Some(worker) = &mut self.web.worker {
             worker.cancel();
         }
@@ -243,15 +284,9 @@ impl App {
     pub(super) fn finish_web_save(
         &mut self,
         article: i64,
-        url: &str,
+        visit: u64,
     ) -> Result<()> {
-        if self.web.active
-            && self
-                .web
-                .current
-                .as_ref()
-                .is_some_and(|page| page.document.url == url)
-        {
+        if self.web.active && !self.web.opening && self.web.visit == visit {
             self.close_web();
             self.reload()?;
             self.jump_article(article)?;
@@ -262,7 +297,10 @@ impl App {
 
     fn save_web_document(&mut self, document: Arc<WebDocument>) -> Result<()> {
         if let Some(writer) = &mut self.personal_writes {
-            writer.submit(super::personal_tasks::Task::SavePage(document))?;
+            writer.submit(super::personal_tasks::Task::SavePage {
+                document,
+                visit: self.web.visit,
+            })?;
             self.status = "Saving linked page…".into();
         } else {
             let article = self.store.save_web_document(&document)?;
@@ -271,5 +309,15 @@ impl App {
             self.jump_article(article)?;
         }
         Ok(())
+    }
+}
+
+impl WebReading {
+    fn begin_navigation(&mut self) {
+        // A late save may refresh only its captured visit, even for repeated
+        // URLs. Bounded admitted writes cannot survive 2^64 later visits.
+        self.visit = self.visit.wrapping_add(1);
+        self.mouse_anchor = None;
+        self.browser_request = None;
     }
 }
