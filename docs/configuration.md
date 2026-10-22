@@ -66,6 +66,40 @@ Removing folders, smart lists and annotation collections hides their definitions
 restoring the same ID restores them, including retained folder memberships.
 Explicit in-app folder deletion retains the existing undo contract.
 
+### Optional Miniflux servers
+
+An existing Miniflux account can supply subscriptions and articles. The
+connection is explicit and optional; local libraries never require it.
+
+```toml
+[[servers]]
+id = "home"
+url = "https://reader.example"
+token_env = "LUME_MINIFLUX_TOKEN"
+enabled = true
+```
+
+Create an API key in Miniflux under *Settings → API Keys*, then export the token
+in the named environment variable before starting Lume or running `lume sync`.
+The token is never written to TOML, printed in errors, or included in
+`lume config export`. `url` must be an absolute HTTP(S) root without
+credentials, a query or a fragment; a deployment below a path prefix is
+supported.
+
+Server-owned feeds do not appear as `[[feeds]]` records and are read-only in the
+configuration file. Their articles are cached locally like publisher content.
+On first observation, unread and starred state is copied from the server; after
+that, Lume's local state is authoritative in this read-only mirror. Local
+read/starred changes are not sent back to Miniflux yet, and remote changes to
+already cached articles do not overwrite local state.
+
+Disabling or removing a server stops collection but retains cached articles,
+notes and reading state. The first observation per feed reads up to 2,000 of the
+newest entries; later refreshes read changed entries in bounded pages. Missing
+or revoked tokens, an unreachable server and malformed responses leave the
+cached library readable and report the failure through collection status and
+`lume feeds --errors` for affected feeds.
+
 `selector` is a CSS full-article extraction override. Validate a rule with
 `:extract-preview SELECTOR` and confirm the inspected preview with `Enter`.
 Manual TOML rules are syntax-validated but do not imply that extraction from a

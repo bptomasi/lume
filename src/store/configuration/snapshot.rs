@@ -15,6 +15,11 @@ impl Store {
         self.connection.execute_batch(include_str!(
             "../sql/configuration/insert_bindings.sql"
         ))?;
+        if self.has_table("server_feeds")? {
+            self.connection.execute_batch(include_str!(
+                "../sql/configuration/delete_server_feed_bindings.sql"
+            ))?;
+        }
         let (workspace, layouts) = self.configuration_preferences()?;
         let profile = self.recommendation_profile()?;
         let feeds = self.configuration_feeds(&profile)?;
@@ -22,6 +27,7 @@ impl Store {
             schema_version: 1,
             ui: Ui::capture(&workspace),
             feeds,
+            servers: self.configuration_servers()?,
             folders: self.configuration_folders()?,
             smart_lists: self.configuration_lists()?,
             note_collections: self.configuration_note_collections()?,
@@ -64,6 +70,39 @@ impl Store {
             })?
             .collect::<rusqlite::Result<_>>()
             .map_err(Into::into)
+    }
+
+    fn configuration_servers(&self) -> Result<Vec<config::Server>> {
+        if !self.has_table("servers")? {
+            return Ok(Vec::new());
+        }
+        Ok(self
+            .connection
+            .prepare_cached(include_str!(
+                "../sql/configuration/select_servers.sql"
+            ))?
+            .query_map([], |row| {
+                Ok(config::Server {
+                    id: row.get(1)?,
+                    url: row.get(2)?,
+                    token_env: row.get(3)?,
+                    enabled: row.get(4)?,
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?)
+    }
+
+    fn has_table(&self, name: &str) -> Result<bool> {
+        Ok(self.connection.query_row(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM sqlite_master
+                WHERE type = 'table' AND name = ?1
+            )
+            "#,
+            [name],
+            |row| row.get(0),
+        )?)
     }
 
     fn configuration_preferences(

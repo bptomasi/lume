@@ -162,6 +162,7 @@ fn publication_update(
 ) -> Result<Update> {
     let catalog = serde_json::to_vec(&(
         &config.feeds,
+        &config.servers,
         &config.folders,
         &config.smart_lists,
         &config.note_collections,

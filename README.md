@@ -34,6 +34,7 @@ library and `lume --offline` to disable network access.
 - Vim navigation, syntax highlighting, centered reading and Foot inline images.
 - Movable panels with keyboard and mouse controls.
 - Folders, smart lists, favorites and local recommendations.
+- Optional Miniflux mirror for server-owned subscriptions.
 - Searchable notes, highlights, backlinks and Markdown export.
 
 Press `?` for help, `:` to discover commands and `Ctrl-w` for layout controls.

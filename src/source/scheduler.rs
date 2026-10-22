@@ -31,8 +31,17 @@ pub(super) fn refresh(
     progress: impl Fn(usize, usize),
 ) -> Result<Progress> {
     let mut store = Store::open(path)?;
-    collect(&mut store, stopped, progress, &|feed| {
+    let server_failures =
+        super::miniflux::sync_servers(&mut store, client, stopped)?;
+    let progress = collect(&mut store, stopped, progress, &|feed| {
         download::fetch(client, feed)
+    })?;
+    Ok(match progress {
+        Progress::Finished { feeds, failures } => Progress::Finished {
+            feeds,
+            failures: failures.saturating_add(server_failures),
+        },
+        progress => progress,
     })
 }
 
@@ -52,10 +61,7 @@ fn collect(
     let eligible = store
         .feeds()?
         .into_iter()
-        .filter(|feed| {
-            health.get(&feed.id).is_none_or(|retry_at| *retry_at <= now)
-                && !retries.contains_key(&domain(&feed.url))
-        })
+        .filter(|feed| due(feed, &health, &retries, now))
         .collect::<Vec<_>>();
     let total = eligible.len();
     let buckets = buckets(eligible);
@@ -104,6 +110,20 @@ fn domain(address: &str) -> String {
         .ok()
         .and_then(|url| url.host_str().map(str::to_owned))
         .unwrap_or_else(|| address.to_owned())
+}
+
+fn due(
+    feed: &Feed,
+    health: &BTreeMap<i64, i64>,
+    retries: &BTreeMap<String, i64>,
+    now: i64,
+) -> bool {
+    health.get(&feed.id).is_none_or(|retry_at| *retry_at <= now)
+        && !retries.contains_key(&domain(&feed.url))
+        && feed
+            .server
+            .as_ref()
+            .is_none_or(|server| server.enabled && server.present)
 }
 
 fn lane(
@@ -163,7 +183,11 @@ fn commit(store: &mut Store, downloaded: Download) -> Result<bool> {
             } else {
                 &parsed.title
             };
-            store.ingest(&feed, title, &parsed.articles)?;
+            if let Some(remote) = parsed.remote.as_ref() {
+                store.ingest_remote(&feed, title, &parsed.articles, remote)?;
+            } else {
+                store.ingest(&feed, title, &parsed.articles)?;
+            }
         }
         Ok(())
     });

@@ -62,6 +62,20 @@ impl Store {
         config: &Configuration,
         adoption: Adoption,
     ) -> Result<()> {
+        for server in &config.servers {
+            let url = crate::source::server_url(&server.url)?;
+            let id = self
+                .connection
+                .query_row(
+                    "SELECT id FROM servers WHERE url = ?1",
+                    [url.as_str()],
+                    |row| row.get::<_, i64>(0),
+                )
+                .optional()?;
+            if let Some(id) = id {
+                self.adopt_binding("server", id, &server.id, &adoption)?;
+            }
+        }
         for feed in &config.feeds {
             let url = crate::source::feed_url(&feed.url)?;
             let id = self

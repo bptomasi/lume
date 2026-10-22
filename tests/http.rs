@@ -425,6 +425,156 @@ fn read_request(stream: &mut std::net::TcpStream) -> Result<String> {
 
 #[test]
 #[ignore = "requires real loopback HTTP; required by make check-release"]
+fn miniflux_mirror_discovers_entries_and_preserves_local_flags() -> Result<()> {
+    let (_directory, config, data, requests) = mirror_setup()?;
+    let library = data.join("library.sqlite3");
+    first_mirror_sync(&config, &data)?;
+    let store = Store::open(&library)?;
+    let article = store
+        .library()?
+        .articles
+        .into_iter()
+        .next()
+        .context("Missing mirrored article")?;
+    assert_eq!(article.title, "Mirrored article");
+    assert!(!article.unread);
+    assert!(article.starred);
+    store.set_unread(article.id, true)?;
+    store.set_starred(article.id, false)?;
+    drop(store);
+    second_mirror_sync(&config, &data, &library)?;
+    assert_exported_config(&config, &data)?;
+    drain_mirror_requests(requests)?;
+    Ok(())
+}
+
+fn mirror_setup() -> Result<(
+    tempfile::TempDir,
+    std::path::PathBuf,
+    std::path::PathBuf,
+    mpsc::Receiver<String>,
+)> {
+    let directory = tempfile::tempdir()?;
+    let config = directory.path().join("config.toml");
+    let data = directory.path().join("data");
+    let (address, requests) = miniflux_server()?;
+    std::fs::write(
+        &config,
+        format!(
+            "schema_version = 1\n\n[[servers]]\nid = \"home\"\n\
+             url = \"{address}\"\ntoken_env = \"LUME_TEST_MINIFLUX_TOKEN\"\n"
+        ),
+    )?;
+    Ok((directory, config, data, requests))
+}
+
+fn run_mirror_cli(
+    config: &std::path::Path,
+    data: &std::path::Path,
+    arguments: &[&str],
+) -> Result<std::process::Output> {
+    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_lume"));
+    command
+        .arg("--config")
+        .arg(config)
+        .arg("--data-dir")
+        .arg(data)
+        .args(arguments)
+        .env("LUME_TEST_MINIFLUX_TOKEN", "test-token");
+    Ok(command.output()?)
+}
+
+fn first_mirror_sync(
+    config: &std::path::Path,
+    data: &std::path::Path,
+) -> Result<()> {
+    let output = run_mirror_cli(config, data, &["sync"])?;
+    ensure!(
+        output.status.success(),
+        "First sync failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    Ok(())
+}
+
+fn second_mirror_sync(
+    config: &std::path::Path,
+    data: &std::path::Path,
+    library: &std::path::Path,
+) -> Result<()> {
+    let output = run_mirror_cli(config, data, &["sync"])?;
+    ensure!(
+        output.status.success(),
+        "Second sync failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let store = Store::open(library)?;
+    let articles = store.library()?.articles;
+    assert_eq!(articles.len(), 1);
+    assert!(articles[0].unread);
+    assert!(!articles[0].starred);
+    Ok(())
+}
+
+fn assert_exported_config(
+    config: &std::path::Path,
+    data: &std::path::Path,
+) -> Result<()> {
+    let output = run_mirror_cli(config, data, &["config", "export"])?;
+    ensure!(output.status.success(), "Config export failed");
+    let text = String::from_utf8(output.stdout)?;
+    assert!(!text.contains("test-token"));
+    assert!(text.contains("token_env = \"LUME_TEST_MINIFLUX_TOKEN\""));
+    Ok(())
+}
+
+fn drain_mirror_requests(requests: mpsc::Receiver<String>) -> Result<()> {
+    for _ in 0..4 {
+        let request = requests.recv_timeout(Duration::from_secs(5))?;
+        assert!(
+            request.to_lowercase().contains("x-auth-token: test-token"),
+            "Missing API token header: {request}"
+        );
+    }
+    Ok(())
+}
+
+fn miniflux_server() -> Result<(String, mpsc::Receiver<String>)> {
+    let listener = TcpListener::bind("127.0.0.1:0").context(
+        "Real HTTP qualification requires loopback socket permission",
+    )?;
+    let address = format!("http://{}", listener.local_addr()?);
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || -> Result<()> {
+        for _ in 0..4 {
+            let (mut stream, _) = listener.accept()?;
+            stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+            let request = read_request(&mut stream)?;
+            let body = if request.starts_with("GET /v1/feeds ") {
+                br#"[{"id":7,"title":"Remote journal","feed_url":"https://publisher.example/feed"}]"#.as_slice()
+            } else {
+                ensure!(
+                    request.starts_with("GET /v1/feeds/7/entries?"),
+                    "Unexpected Miniflux request: {request}"
+                );
+                br#"{"total":1,"entries":[{"id":42,"title":"Mirrored article","url":"https://publisher.example/article","author":"Remote Author","content":"<p>Server supplied content.</p>","published_at":"2026-10-01T10:00:00Z","changed_at":"2026-10-01T10:01:00Z","status":"read","starred":true}]}"#.as_slice()
+            };
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+                 Content-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
+            stream.write_all(response.as_bytes())?;
+            stream.write_all(body)?;
+            sender.send(request)?;
+        }
+        Ok(())
+    });
+    Ok((address, receiver))
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
 fn decoded_article_boundaries_cover_gzip_and_preserve_a_good_cache()
 -> Result<()> {
     let exact = include_bytes!("fixtures/http/article-exact.gz");
