@@ -4,8 +4,10 @@
 //! terms imply AND. Quoted terms are exact FTS phrases; bare terms are prefixes.
 //! This module never interpolates a user value or identifier into SQL syntax.
 
+mod changes;
 pub(crate) mod compile;
 mod grammar;
+pub(crate) use changes::Changes;
 pub mod notes;
 pub(crate) mod ranking;
 
@@ -33,22 +35,6 @@ pub enum Expression {
     Or(Box<Expression>, Box<Expression>),
     /// Exclude the nested expression.
     Not(Box<Expression>),
-}
-
-impl Expression {
-    /// Whether changing read state can alter the expression's membership.
-    pub(crate) fn depends_on_read_state(&self) -> bool {
-        match self {
-            Self::All => false,
-            Self::Term { field, value, .. } => {
-                field == "is" && matches!(value.as_str(), "read" | "unread")
-            }
-            Self::And(left, right) | Self::Or(left, right) => {
-                left.depends_on_read_state() || right.depends_on_read_state()
-            }
-            Self::Not(inner) => inner.depends_on_read_state(),
-        }
-    }
 }
 
 /// Parse a bounded query; invalid expressions never become unrestricted searches.

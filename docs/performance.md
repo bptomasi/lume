@@ -1,599 +1,549 @@
-# Performance and qualification
+# Architecture
 
-Lume keeps expensive work away from navigation and rendering: bounded metadata
-pages, replaceable read projections, independent catalog counts, ordered personal
-writes, background content/image preparation and durable configuration
-publication. Algorithm choice alone is not evidence of a speed improvement.
+Lume is an independent, local terminal reader. The library is the product's
+persistence boundary; sources, terminal protocols and filesystem publication
+are adapters with explicit limits. No component requires a hosted service,
+container, external database or model runtime.
 
-## Reproduce
+## Ownership and flow
 
-`make check` runs correctness scenarios for every implemented benchmark. Full
-measurements are separate:
+- `main`, `cli`, `configuration` and `terminal` compose paths, configuration
+  adoption, noninteractive commands and terminal lifetime.
+- `config` owns the TOML schema, validation, structural merge, document editing,
+  file publication and bounded background reconciliation.
+- `store` owns schema evolution, transactions, stable local identities, search,
+  history, publisher caches and private reading state. Its configuration adapter
+  maps portable IDs onto local definitions.
+- `source` validates URLs, discovers and decodes feeds, collects with bounded
+  concurrency, and extracts original articles. It also mirrors optional
+  Miniflux subscriptions and entries with bounded pages. Publisher refreshes
+  preserve personal flags, memberships, notes and article deletion.
+- `app` owns focus, modes, selection and workflows, composing typed storage and
+  background contracts. `ui` reads cached presentation state and never runs SQL,
+  HTTP, Markdown parsing, syntax compilation or image encoding while drawing.
+- `reader` owns source offsets, wrapping, code styling and source-based motion.
+  `media` owns bounded image retrieval, decoding, SVG rasterization and caches.
+- `recommendation` owns explicit matching policy, transparent scores and bounded
+  diversity. Its default profile is empty. `catalog` is an opt-in preset adapter.
+- `exchange` owns OPML and private atomic Markdown export, including incremental
+  exports that retain local edits as conflicts.
 
-```sh
-make bench
-make bench-configuration
-make bench-code
-make bench-interaction
-make bench-reading
-make bench-images
-make bench-notes
-make bench-recommendations
-```
+## Declarative configuration and private state
 
-The native benchmark also accepts focused flags, including
-`--configuration-only`, `--welcome-only`, `--code-viewport-only`, `--images-only`,
-`--tables-only`, `--lists-only`, `--rich-text-only`, `--recommendations-only`,
-`--pane-search-only`, `--query-editing-only`, `--library-sections-only` and
-`--fluency-only`, `--server-refresh-only`, `--publisher-refresh-only`,
-`--retention-images-only`, `--retention-only`, `--media-review-only` and
-`--motion-review-only`.
-Deletion has its own `--article-deletion-only` workload.
-`--active-reading-only` checks cached and changing viewport observations in
-batches of 1,000 polls, with simulated monotonic time and durable unread-state
-verification. The formula workload also checks styled inline prose without
-requesting graphics. These timings exclude terminal presentation.
-`--read-catalog-only` exercises active-read commits with 46 distinct broad
-smart-list queries. `--image-priority-only` replaces two obsolete SVG sources
-and checks the newly visible source's pixels. Both accept `--stress`.
-Add `--stress`
-for larger workloads.
-Setup precedes operation timers; resource reports identify process-wide
-memory/I/O scope.
-Routine reports go to ignored `.local/benchmarks/`. Promote reviewed evidence
-here only when useful for a release or a specific comparison.
+Configuration contains subscriptions, extraction selectors, folder/query
+identities, explicit recommendation preferences, shortcuts and appearance.
+Articles, notes, highlights, feedback, favorites, memberships, progress and
+session/history data remain in SQLite. Exporting configuration never exports
+article bodies or annotation text.
 
-The section workload measures Enter through a full interactive TestBackend
-frame with 13,000 articles, 200 feeds and 46 smart lists. Its stress variant
-keeps 13,000 articles and widens the sidebar to 2,000 feeds. It verifies that
-folding retains every destination, keeps focus on the header and queues no
-catalog or article read. Fixture creation and the initial catalog counts are
-outside the operation timer. TestBackend timings exclude terminal presentation.
+`configuration_bindings` maps stable portable keys onto local row IDs. These
+bindings prevent renames from creating new folders or detaching source groups.
+Generated keys use SQLite random identifiers; they are identifiers, not access
+credentials. Local and file definitions normalize by key for deterministic
+comparison, while the TOML document preserves existing record order.
 
-Section counts and grouping are prepared when a catalog arrives. Folding only
-projects this cache; pinning and reordering rebuild its presentation without
-reading article counts. Refreshes still replace counts from a current database
-snapshot. Native failure scenarios make catalog queries unavailable and verify
-that keyboard and pointer folding remain usable.
+Definition triggers increment a durable revision. Workspace triggers compare
+only appearance fields; selection, progress and last-visit updates do not
+schedule configuration publication. Publisher titles, validators, source health,
+article ingestion and annotation writes are outside this revision boundary.
 
-## Retained evidence
+The last successful configuration snapshot and revision form a publication base.
+Reconciliation merges that base, current library definitions and the edited file.
+Unrelated fields and keyed records compose; incompatible edits to the same field
+return a conflict instead of overwriting either input. Unknown keys, versions,
+queries, selectors, references and dimensions fail before application.
 
-These reports retain their original binary hashes, dates and measurement scope.
-They describe those revisions and environments, not a blanket guarantee for all
-current hardware or a substitute for measuring later changes.
+A reconciler acquires the adjacent file lock before a SQLite IMMEDIATE
+transaction. It captures state, merges definitions, applies only changed records,
+archives removed definitions, publishes a same-directory temporary file and
+acknowledges the new base. It never deletes article or annotation rows. Soft
+archival of folders preserves memberships for restoration by the same ID.
 
-| Contract | Evidence |
+Filesystem replacement and SQLite commit are not one atomic transaction. If
+publication succeeds and database acknowledgement fails, the complete file and
+pending SQLite edit survive. On replay, still-unbound existing definitions adopt
+matching portable keys from that file before the merge, avoiding duplicate
+identities after a crash. Explicit recovery backs up both competing inputs
+before choosing file or library authority.
+
+Lume's writers share an advisory file lock. Its guard explicitly unlocks before
+closing, so a child spawn's briefly inherited file description cannot retain a
+completed writer's lock until exec. Publication compares current bytes
+before replacement to detect an external editor's intervening save. An editor
+need not honor advisory locks, so the final comparison/rename window cannot
+provide a universal external-writer transaction guarantee. Temporary files are
+private by default; existing configuration permissions and symlinks are retained.
+
+`config::formatting` applies layout to the existing `toml_edit` tree: generated
+records become table arrays and long scalar arrays become multiline values.
+Explicit formatting validates typed equivalence before atomic publication and
+does not open SQLite. Commented inline containers retain their layout because
+the library's table conversion clears child decoration. Definition publication
+patches either representation by portable identity, preserving comments when a
+source is changed or disabled. Formatting runs outside the input/render lane.
+
+## Responsive interactive work
+
+Within a paragraph, `reader::wrapping` consumes ordered display/source spans
+as wrapped rows advance. It retires completed prefixes instead of rescanning
+all formatting for every row. `reader::links` separately collects bounded labels
+from parser events, including hard breaks and image alternatives. Destination
+lookup preserves first-seen order without copying the preceding paragraph.
+Eligible prose rows can use cached word-gap expansion. `reader::viewport`
+projects these extra cells back to the original byte of the word separator,
+so mouse hits, Vim motion, search, yanks and note anchors share one text identity.
+Each unwrapped code/table row also retains its source block key; horizontal
+positions belong to that key and survive reflow without moving sibling blocks.
+`reader::index::Navigation` separately retains each link's source range, so
+Enter follows the occurrence under the cursor even when labels repeat or wrap.
+HTTP(S) destinations open as temporary read-only linked readings. Same-page fragments use
+preserved HTML IDs or heading slugs and the reader's bounded jump history;
+missing sections report their absence without guessing a different passage.
+
+The reader enables pulldown-cmark's table events and captures styled cells with
+their original byte mappings. `reader::tables` owns Unicode column widths,
+alignment and rounded borders; Ratatui still owns terminal rendering. Prepared
+grid rows share the indexed horizontal viewport used by code, with separate
+row ranges retaining the ordinary panel background. The inspector reuses cached
+rows when available. Selection and annotation project cell text back to source;
+decorative borders and padding have no quotation mapping.
+HTML `thead`/`th` and fully bold first rows identify publisher headers. Plain or
+partly emphasized data rows do not become invented column labels.
+
+HTML lists retain paragraph ownership, numbering and nested indentation when
+normalized to Markdown. The reader defers each marker until item content begins,
+so loose-list paragraph boundaries cannot flush an isolated bullet. Wrapped
+continuations carry visual insets separate from readable bytes. The cached cell
+index applies those insets to drawing, mouse hits and cursor positions; copying
+and source-based annotation anchors retain their original byte correspondence.
+Previously saved caches can contain repeated empty list items followed by
+detached paragraphs. The reader recognizes only the early normalizer's exact
+whitespace signature using CommonMark events. It joins those markers in a
+temporary parser view and translates every event range back to the original
+bytes. This works offline and requires no database or note migration; ordinary
+empty items and code samples retain CommonMark semantics.
+
+Padded grid output has a shared 1 MiB budget per article, at most 64 columns,
+2,000 rows including the header, and 4,096 terminal cells per row. Exceeding a
+limit displays an explicit notice and the original Markdown, preserving later
+article content. The inspector has its own total 1 MiB preview bound. Code
+backgrounds are painted across visible rows before token and selection styles;
+this never pads the stored or copied code text. Table preparation stays on the
+existing layout worker, and drawing only projects cached visible cells.
+
+The terminal initializes an application from reconciled state, then presents the
+native-cell lighthouse. The first actual key press is consumed. Focus, modifier,
+release and resize events cannot accidentally activate a library operation;
+resize redraws the scene. Collection can continue behind the welcome screen.
+
+Catalog snapshots batch ordinary totals and feed/server/folder groups;
+identical saved filters share one count within that snapshot. Personal mutation
+masks invalidate only predicates observing the changed read/favorite/queue flag,
+article tags or annotations, including nested boolean expressions. Annotation
+count/page results carry the library revision and retain folded children.
+Other counts survive, including children hidden by section folding. Repeated
+requests at the same revision reuse an active/prepared snapshot; a stronger
+full-library refresh upgrades it. Unknown edits, failures, deletion, undo and
+publisher updates retain full reconciliation.
+
+Interactive navigation uses a replaceable read lane and a separate catalog/count
+lane, each with its own SQLite connection. Pages hydrate only a bounded set of
+ordered identities; count and page share a read snapshot. Epochs reject obsolete
+successes and failures after navigation or mutation. Previous readable content
+remains visible while replacement Markdown and syntax work finish. Stale source
+presentation cannot authorize article mutations.
+
+Personal edits use ordered bounded writes. They are not replaced by later edits
+or acknowledged before their completions reach the UI. Progress and layout writes
+have their own ordered admission and explicit flush boundary. Where a workflow
+reads mutable state before writing, an IMMEDIATE transaction acquires write
+authority first, avoiding WAL read-to-write snapshot upgrade failures.
+
+Note completions update catalog counts independently of the reader. Replacing
+visible annotations also requires the selected and displayed article identities
+to match the completion; retained content from another article is left intact
+until navigation delivers its matching snapshot. Cursor offsets falling within
+whitespace omitted by wrapping clamp to the preceding visible row.
+
+The configuration lane owns file observation, parsing and publication. It polls
+only the owner/revision fields and file metadata while idle; the publication
+snapshot is excluded from this hot query. It does not reread TOML on each
+key or frame. Startup always validates the current file. Successful observations
+retain the input timestamp so an edit made during reconciliation is retried.
+Single-writer merges reuse validated definitions without building a JSON tree;
+only concurrent structural merges need that representation. Complete bounded
+notifications allow safe coalescing. Definitions
+wait for ordinary reading mode without selections or active gestures. UI
+installation compares the last presented appearance against current edits so
+an old completion cannot overwrite newer in-memory choices. Catalog fingerprints
+avoid reloading metadata for appearance-only publications.
+
+Shutdown flushes recommendation, personal and session writers before stopping
+configuration reconciliation. Publication errors remain visible and pending
+SQLite edits survive restart. Worker failures are reported rather than silently
+turning the file and library into unrelated configuration authorities.
+
+## Reading, layout and images
+
+Normalized Markdown retains source offsets for cursor motion, Unicode selections,
+search, links and annotations. Highlights retain their original quotations and
+source identity; unmatched positions remain explicit rather than guessing a new
+anchor. Feed and full-article provenance remain distinguishable. Full-article
+extraction uses the qualified Readability/CSS libraries and reports short,
+obstructed or failed extraction without replacing a good cached document.
+Clear copyright-only results are rejected even when wrapped in invisible anchor
+markup. If automatic extraction fails, unique `article`, `main` or `role=main`
+containers are tried under the same size/element limits. Explicit CSS rules
+remain authoritative. Previously cached obstructions fall back to the original
+feed in the reader; neither source nor its annotations are deleted.
+
+Sparse row checkpoints bound Unicode work for long code rows. Drawing projects
+only visible cells and preserves syntax, search, selection and cursor offsets.
+Layout and wrapping run outside input where they are expensive; tests cover
+long rows, resizing and libraries larger than the displayed metadata page.
+
+Headline presentation retains at most 64 wrapped title/date entries. Identity,
+exact title, publication time and pane width determine reuse; metadata larger
+than 4 KiB is displayed without retention. Reader motion can reuse this work
+without caching live selection, favorite/read flags or feed labels. Images
+skip workspace geometry/admission when their visible-slot interval is empty.
+
+Article deletion acknowledges a committed visibility change separately from
+generic library edits. In ordinary reading mode, acknowledgement removes its
+bounded metadata row immediately and preserves the selected surviving identity.
+The next page/source and sidebar counts refresh independently. The count result
+does not enqueue a second page load. Generation checks reject earlier snapshots;
+source-bound editors and selections defer publication through the existing
+navigation guards. Failed writes never remove a row. Grouped-page counts come
+from the authoritative query because another occurrence can replace a deleted
+representative. The synchronous adapter performs one catalog reload.
+
+`ui::layout` computes fixed columns and binary splits with bounded rectangle
+arithmetic. Rendering, focus and pointer hit testing share that geometry.
+Each split reserves the combined minimum dimensions of its expanded children;
+resizing cannot suppress Articles while the terminal can fit the whole tree.
+Focus cycling retains the saved pane order independently of spatial focus.
+Standard reset restores canonical pane order, visibility and widths as one undoable
+change, retaining source selection and prose preferences. Notebook layout
+remains independent. Built-in profiles start from canonical dimensions rather
+than inheriting a rearranged active workspace; saved profiles are preserved.
+
+Library search caches normalized destination names when the catalog changes.
+Typing filters those names without SQLite work; article search reuses the
+bounded latest-request navigation worker and the existing destination query.
+An active article query ranks title starts, contiguous title phrases and other
+title matches ahead of body-only matches. SQLite FTS5 uses the same Unicode
+tokenizer for membership and ranking; weighted BM25 resolves relevance within
+each tier, followed by publication time and identity for stable ties. Ranking
+uses only positive text from the active query. Saved-list filters, exclusions
+and destination scopes remain membership constraints. Empty and metadata-only
+queries keep the destination's normal order. Count queries do not score, and
+only the requested page loads article metadata. Identity-based page jumps use
+the same relevance order as pagination, including in the background worker.
+Both fields reserve rows inside their own panes. Renderers and pointer hit
+testing share that geometry. Cancel restores the sidebar destination by identity,
+so a catalog refresh cannot retarget it. Reader Escape clears source-local search
+marks before changing fullscreen or library state. Subsequent Escape restores
+the layout and returns focus to Articles, revealing that pane if collapsed.
+Leaving Reader with an empty search does not cause a redundant article reload.
+
+Query editors reuse results while only their caret moves. Native editor change
+signals avoid rebuilding draft text on those motions; article and notebook
+queries only refresh when their text changes. Sidebar refreshes preserve an
+uncommitted match by destination identity. Its row window walks backward from
+the selected match only far enough to fill the viewport, then streams visible
+rows. Drawing and pointer hits share that projection without a separate cache
+that could become stale when the catalog changes. Title truncation and count
+alignment use grapheme widths in terminal cells.
+
+### Terminal frame map
+
+| Surface | Frame owner |
 | --- | --- |
-| Long Unicode/code rows | [Checked frame comparison](performance/code-viewport.json) |
-| Large-library navigation | [Repeated measurements](performance/navigation.json), [samples](performance/navigation-samples.csv), [Foot qualification](performance/navigation-foot.json) |
-| Notebook search/context | [Representative and stress workloads](performance/notebook.json) |
-| Native image interaction | [Preparation/scroll evidence](performance/images.json), [real Foot](performance/images-foot.json) |
-| Declarative configuration | [Publication and verified rereads](performance/configuration.json), [real Foot interaction](performance/configuration-terminal.json) |
-| Full-history feeds | [Large archive decode and content checks](performance/archive-feeds.json) |
-| Reader tables and code backgrounds | [Unicode layout, cached frames and inspection](performance/tables.json) |
-| Dense article preparation | [Repeated reader comparison](performance/reader-review.json) |
-| Native welcome frame | [Representative/stress frames and interaction qualification](performance/welcome.json) |
-| Reading services | [Repeated checked workloads](performance/reading-services.json), [native Foot qualification](performance/reading-foot.json) |
-| Reading-state and offline review | [Before/after workloads and native Foot](performance/reading-review.json) |
-| Image source reuse and formula fallback | [Checked before/after measurements](performance/media-review.json) |
-| Scroll frames and empty-cache cleanup | [Checked comparison](performance/motion-retention-review.json) |
-| Article deletion feedback | [Committed deletion/frame comparison](performance/article-deletion.json) |
-| Active read policy and inline LaTeX | [Checked representative/stress costs](performance/active-inline-reading.json) |
-| Catalog invalidation, visible images and server pacing | [Paired checked workloads](performance/priority-review.json) |
-
-The priority review compares `0cd095b` with the revised working tree, using
-three optimized processes per workload/size and Rust 1.99.1. Its standalone
-native drivers use identical workload code against each optimized application
-library and its exact Cargo runtime dependencies. Setup and undo are excluded
-from native operation timers. Active time is simulated; writes and final
-database state are real. Terminal/compositor presentation is not measured.
-
-| Operation | Before | After |
-| --- | ---: | ---: |
-| Automatic read + counts, 2,000 articles / 46 distinct lists | 23.325 ms | 1.099 ms |
-| Automatic read + counts, 13,000 articles / 46 distinct lists | 151.446 ms | 3.081 ms |
-| Visible image after two obsolete 800-path SVG sources | 3.409 ms | 1.144 ms |
-| Visible image after two obsolete 3,000-path SVG sources | 11.431 ms | 2.937 ms |
-| Local Miniflux sync, 8 feeds / 9 requests | 3,527.526 ms | 42.870 ms |
-| Local Miniflux sync, 16 feeds / 17 requests | 7,525.756 ms | 45.292 ms |
-
-Values are medians of process iteration means; server values are medians of
-whole CLI calls, including fresh database/config initialization and discovery.
-The HTTP fixture returns empty entry pages immediately. It measures scheduler
-pacing rather than publisher/server throughput on a real network. Image
-results use offline source files and verify the visible blue cell color.
-An already-started decode/encoding is not preempted, and an image HTTP request
-waiting for response headers can still occupy a lane until its six-second
-deadline. Real Foot qualification remains pending in this environment.
-
-The active-read/inline-LaTeX report uses three optimized processes per workload
-and size with Rust 1.99.1. Observing a cached viewport costs median 0.042/0.044 ms
-per 1,000 polls with 200/2,000 paragraphs; changing the viewport costs
-0.189/0.198 ms. Checks retain the same selected article and durable unread
-state without reaching the configured time threshold. Styled inline TeX with
-20/120 sentence copies costs 0.027/0.127 ms per parse/layout and requests zero
-graphics. These are absolute local costs without a prior-version comparison.
-The release executable builds successfully; real Foot qualification for this
-revision remains pending because this environment lacks Xvfb and Weston.
-
-The reading-service workloads use three release processes per size with Rust
-1.99.1 on the recorded Core Ultra 7 environment. A selector movement pair plus
-two cached TestBackend frames takes median iteration means of 0.799/0.802 ms
-with 200/2,000 library articles and 50 displayed choices. Cached linked-page
-admission, background layout and delivery takes 2.061/16.103 ms for 50/500
-sections. Neither measurement includes HTTP or physical presentation.
-
-Planning from 100/512 scored candidates takes 0.042/0.181 ms. Preparing
-10/100 cached full articles with a decoded, pinned SVG takes 7.169/24.900 ms;
-reclaiming the same number of eligible Full caches takes 1.084/10.050 ms.
-Operation timers exclude fixture creation and cache refill. Process-wide peak
-RSS across these workloads ranges from 16,328 to 36,228 KiB, including setup.
-The retained report contains repeated wall time, CPU and filesystem I/O counts;
-it establishes current costs, without an equivalent previous speedup baseline.
-
-Native Foot qualification covers linked text views without parent-image
-leakage, back navigation restoring cached image strips, opt-in diagnostics,
-selection, zoom and terminal restoration. The controlled fixture's publisher
-text remains unchanged. Startup waits for prepared article content before
-issuing source-bound commands; it does not rely on a fixed loading delay.
-
-The [offline review](performance/reading-review.json) applies the same expanded
-workload to `e885e22` and the revised implementation. With 10 cached articles and
-128 prior pinned images, median iteration means fall from 8.672 to 7.618 ms
-(12.15% less). With 100 articles and 2,048 prior images, they fall from 232.805
-to 29.887 ms (87.16% less). A package-local accounting/decoder lifetime removes
-repeated directory scans while retaining decoder checks and atomic publication.
-Each size uses three release processes on the same recorded machine/toolchain.
-These measure cached offline preparation, excluding HTTP and fixture creation;
-they do not establish a whole-application or physical display speedup.
-
-The same review qualifies late-save isolation across pending navigation and
-repeated URL visits, pending-page cancellation before local history, mouse
-anchor invalidation between pages, retained-page reflow after errors and byte
-accounting after rejected pins. Native Foot images, selection, zoom, linked
-history, diagnostics and terminal cleanup also pass on the recorded binary.
-
-Configuration measurements cover actual source/folder edits, stable portable
-identities, TOML publication, comment retention and verified rereads. Three
-release processes measured median iteration means of 14.660 ms at 250 sources
-and 275.152 ms at 5,000 sources on the recorded Core Ultra 7 environment.
-Publication runs on its own lane; these are not frame latency measurements or
-comparisons against an earlier implementation. The source workloads and resource runner remain executable even
-when a previous raw report is no longer retained.
-
-The archive workload uses full-content RSS documents of 5,253,056 bytes with
-200 entries and 13,365,856 bytes with 2,000 entries. Three release processes per
-scenario, each with 40 iterations, measured median iteration means of 73.473 ms
-and 192.036 ms respectively. Every article's identity, title and complete body
-is checked. These describe bounded background parsing, not UI latency or a
-speedup over the former 4 MiB rejection. Repeat with
-`cargo bench --locked --bench reader -- --archive-feeds-only`, adding `--stress`
-for the larger input; resource measurements include setup.
-
-The table workload checks Unicode alignment and exact source correspondence at
-64 rows/four columns and 1,000 rows/12 columns. Three release processes per
-scenario measured median iteration means of 0.375/10.826 ms for preparation,
-0.511/0.753 ms for cursor movement plus a selected cached frame, and
-0.021/0.738 ms for opening and closing the cached inspector. Each process runs
-40 layout/inspector iterations and 1,000 frames, including a fenced code block
-with short and blank rows. Process RSS, including grammar and fixture setup,
-ranges from 20,976–21,492 KiB and 42,892–44,216 KiB respectively. These measure
-the implemented behavior without a speedup baseline. Repeat with
-`cargo bench --locked --bench reader -- --tables-only`, adding `--stress` for
-the larger input.
-
-The [reader review](performance/reader-review.json) compares the same checked
-workloads against `102c4e7`, using the pinned toolchain and machine. With 200
-links, median paragraph preparation fell from 2.261 to 0.938 ms; at 2,000 links,
-from 100.435 to 7.505 ms (92.53% less). Each scenario uses three release
-processes and 40 iterations, checking complete readable text, all link labels
-and destinations, and the final source anchor. Source sizes are 14,985 and
-153,785 bytes. These measure layout preparation, not whole-application latency.
-
-Five alternating processes per revision also checked 1,000 cached code frames
-each. Median iteration means were 0.253/0.249 ms for the smaller row and
-0.238/0.255 ms for the larger row, before/after respectively. Results are mixed;
-no frame speedup is established. The proposed projection allocation change was
-removed, and the retained viewport projection code is unchanged. Resource
-records include process-wide setup, memory and I/O.
-
-The [retention measurements](performance/retention.json) use 1,000 and 10,000
-articles with 290-byte feed summaries and 9,280-byte Full caches. Three local
-unoptimized test processes per scenario measured median previews of 8.120 and
-77.109 ms, and complete applications of 162.637 and 1,812.783 ms. Application
-removes 497/4,997 old read articles and clears 498/4,998 unread Full caches;
-five articles with a favorite, queue item, folder, note or smart-list match
-retain their caches and personal state. Transactions contain at most 32 article
-actions. The stress workload explicitly raises the per-run limit to 10,000;
-the default remains 1,000. Setup and post-application checks are outside timers.
-Images, network, terminal presentation and resource consumption are not timed.
-This is a new capability with no speedup baseline, and the unoptimized figures
-are not release latency claims. Reproduce with
-`cargo test --locked --bench reader -- --test --retention-only`, adding
-`--stress` for 10,000 articles. The report records the executable hash and
-local qualification results, including the graphics-tool substitutions used
-for real Foot and the uncommitted-source package status.
-
-The server-refresh report also retains a revalidation after the retention and
-credential changes: median unchanged discovery was 2.193 ms and a 2,000-entry
-unchanged ingest was 23.888 ms, using the same unoptimized fixture and three
-processes. Native regression tests separately assert zero SQLite changes for
-identical publisher content and redundant personal flag writes.
-
-The [refresh and checkpoint review](performance/refresh-noops.json) compares
-identical checked workloads against `ca220f6`. Three sequential local test
-processes per scenario, with two timed iterations each, measured the following
-median iteration means. These unoptimized timings exclude fixture setup and
-include each workload's independent state assertions.
-
-| Operation | Before | After |
-| --- | ---: | ---: |
-| Unchanged publisher refresh, 200 articles | 43.000 ms | 1.730 ms |
-| Unchanged publisher refresh, 2,000 articles | 478.115 ms | 16.539 ms |
-| One publisher correction among 2,000 articles | 477.345 ms | 16.185 ms |
-| 100 identical reading checkpoints, 2,000-article fixture | 31.460 ms | 27.414 ms |
-| Fresh-image retention preview, 2,000 articles/32 files | 495.698 ms | 5.005 ms |
-
-Publisher equality is checked before Markdown duration estimation and canonical
-URL derivation; conditional updates also avoid unchanged validator/error writes.
-Native tests verify zero SQLite changes and no other-connection `data_version`
-advance for unchanged refreshes and reading checkpoints. Checkpoint elapsed-time
-gains are modest: layout validation/serialization still runs, while redundant
-logical writes are removed. Saves still observe intervening external changes.
-
-Image retention filters files using the shortest configured lifetime before
-loading historical bodies. When older files exist, reference bookkeeping retains
-only paths actually present in that candidate cache. It visits long galleries
-without applying the offline package's 64-download limit; shared protected or
-unlimited sources still keep their files. Timed images are fresh owned files;
-expired deletion and decoding are excluded. Memory and physical I/O are not
-measured, and these figures do not establish production or end-to-end latency.
-
-The [media review](performance/media-review.json) compares the same checked
-workloads against `4a6cb89`. Three sequential local unoptimized test processes
-per size each run two timed iterations. Sources are prepared before timing;
-each image iteration alternates both sources and verifies the resulting
-dimensions and visible output. Formula iterations verify every raw fallback.
-
-| Operation | Before | After |
-| --- | ---: | ---: |
-| Alternate two 1200×600 PNG sources and fit | 163.013 ms | 138.975 ms |
-| Alternate two 2400×1200 PNG sources and fit | 641.792 ms | 538.031 ms |
-| Alternate two SVG sources, 150 paths each | 5.929 ms | 3.518 ms |
-| Alternate two SVG sources, 900 paths each | 33.197 ms | 19.348 ms |
-| Prepare 20 repeated unsupported formulas | 1.886 ms | 0.439 ms |
-| Prepare 120 repeated unsupported formulas | 9.175 ms | 0.936 ms |
-
-These measure bounded decoded-source/tree reuse and cached failed conversions,
-including fitting and output checks. They exclude downloads, physical terminal
-presentation and process memory/I/O accounting. They do not establish release
-or whole-application latency. JPEG orientation, UHD admission, 16-bit alpha
-composition and switching theme backgrounds have separate native correctness
-tests; these timings do not measure those cases. Reproduce with
-`cargo test --locked --bench reader -- --test --media-review-only`, adding
-`--stress` for the larger inputs. The report preserves raw samples, executable
-hashes and qualification details, including local graphics-tool substitutions.
-
-The [motion and storage review](performance/motion-retention-review.json)
-compares identical checked workloads against the preceding headline and cleanup
-implementations in `3ceade2`. Each size uses three sequential unoptimized local
-test processes. Fixture setup precedes timing; each process checks two empty
-image-cleanup passes and 60 reader motion pairs with two complete pane frames.
-
-| Operation | Before | After |
-| --- | ---: | ---: |
-| Motion pair + two frames, 200 articles/260-byte longest headline | 6.101 ms | 5.405 ms |
-| Motion pair + two frames, 2,000 articles/943-byte longest headline | 7.239 ms | 5.883 ms |
-| Empty image-cache cleanup, 200 articles | 33.786 ms | 0.044 ms |
-| Empty image-cache cleanup, 2,000 articles | 326.888 ms | 0.048 ms |
-
-Headline reuse avoids repeated title wrapping/date formatting during reader
-motion; live status/styles and metadata corrections remain current. Empty image
-cleanup returns before loading bodies. Other cases still inspect references,
-including long galleries, and skip files replaced after inventory. Separate
-native scenarios verify storage units/totals, preset publication/protections,
-cancelled automatic scheduling, source-preserving spatial inline formulas and
-two-press article deletion/undo.
-
-These measurements include state/output assertions and exclude HTTP, source
-preparation, native Sixel encoding and physical terminal presentation. Memory
-and I/O accounting are not measured. They do not establish release latency,
-expired-image deletion speed or a whole-application speedup. Reproduce with
-`cargo test --locked --bench reader -- --test --motion-review-only`, adding
-`--stress` for the larger fixture. The report retains raw samples, executable
-hashes and local qualification details.
-
-The [article deletion comparison](performance/article-deletion.json) uses
-2,000/13,000 articles and 46 populated smart lists. Three sequential local
-unoptimized processes per size each perform two deletions through the real `dd`
-key path. Undo restores the captured identity outside each operation timer.
-
-| Operation | Before | After |
-| --- | ---: | ---: |
-| Background `dd` to first committed frame, 2,000 articles | 61.093 ms | 5.377 ms |
-| Background `dd` to first committed frame, 13,000 articles | 340.278 ms | 5.164 ms |
-| Background `dd`, page/source/counts settled, 13,000 articles | 340.344 ms | 317.636 ms |
-| Synchronous `dd` and committed frame, 13,000 articles | 673.501 ms | 330.049 ms |
-
-Commit acknowledgement updates the bounded metadata page before recounting
-smart lists or preparing the next source. Counts and source/page reads proceed
-independently; count publication does not repeat that page load. No row is
-hidden before its write commits, and failed writes retain the existing row.
-The synchronous path no longer reloads the whole library twice.
-
-First-frame timings mean the updated Articles list is drawn; reader preparation
-and sidebar counts can still be pending. Complete reconciliation remains much
-more expensive than this initial feedback. Timers include a 1 ms poll cadence
-and TestBackend drawing; setup, undo, network and physical presentation are
-excluded. Process RSS and I/O are not measured. Native regressions separately
-cover rejected writes, source-bound editors, successive deletions, grouped
-representatives, last-page refill, restoration and undo. Reproduce with
-`cargo test --locked --bench reader -- --test --article-deletion-only`, adding
-`--stress` for 13,000 articles. These measurements do not establish release or
-physical-display latency.
-
-## Boundaries
-
-The [server refresh comparison](performance/server-refresh.json) checks 100
-remote feeds and 2,000 cached articles across three independent processes per
-version. Median unchanged discovery fell from 173.224 ms to 2.184 ms; applying
-an unchanged 2,000-entry batch fell from 715.703 ms to 24.775 ms. These are
-unoptimized local store measurements with two iterations per process, excluding
-network parsing and terminal work. They do not establish production latency.
-Fixture setup precedes each timer, and each operation checks identities,
-counts and preservation of personal state.
-
-Unchanged discovery now avoids title-triggered FTS rebuilding and marking every
-remote feed absent before restoring it. Repeated entries compare publisher
-fields before normalization metadata or index updates, reuse prepared SQL and
-retain all local flags. Native regressions verify zero SQLite changes for an
-identical repeat and correct search-index replacement for changed bodies.
-
-TestBackend timings measure checked application work, not terminal transport or
-physical display latency. The real Foot latency observer measures injected input
-through a correlated synchronized frame and terminal DSR acknowledgement. It
-excludes the compositor and physical key-to-photon time. At least 100 samples
-per workload are required for its reported p99; compare repeated independent runs
-before claiming an improvement.
-
-Actual Foot qualification uses owned windows and temporary libraries,
-checks cleanup and never changes terminal preferences or the host clipboard.
-Desktop-dependent checks remain separate from ordinary local verification and
-must be reported as unavailable if their environment cannot be provided.
-See [development](development.md).
-
-## Configuration and installer review
-
-The [repeated before/after workloads](performance/review.json) compare the same
-pinned toolchain and machine, with exact result, identity and comment checks.
-At 5,000 subscriptions, median publication-plus-reread time fell from 269.069
-ms to 187.792 ms (30% less). The actual revision-query SQL and row mapping fell
-from 163.680 microseconds to 1.535 microseconds per check. At 250 subscriptions,
-publication fell from 14.712 ms to 11.088 ms; revision checks fell from 9.400 to
-1.705 microseconds. These are scoped operations, not whole-application speedups.
-
-The revision query excludes the serialized snapshot and reuses its statement.
-Single-writer merges avoid an intermediate JSON tree, projection reuses validated
-definitions, and document patching reuses the validated input. Configuration
-publication remains outside the input/render lane. Process RSS includes fixtures;
-benchmarks are not physical key-to-photon measurements.
-
-The same report qualifies exact-byte executable upgrades at 16/64 MiB and SQLite
-snapshot migration at 1,000/10,000 articles. Upgrades verify that library and
-configuration bytes remain unchanged. These new installer workloads have no
-speedup baseline.
-
-The [table-layout measurements](performance/configuration-format.json) record
-current publication-plus-reread medians of 12.517 ms at 250 sources and
-213.455 ms at 5,000 sources. Rewriting compact input, formatting atomically and
-verifying a reread takes 7.064 ms and 168.330 ms respectively. Idle revision
-checks take 1.525 and 1.550 microseconds. Each scenario uses three release
-processes with 40 iterations; process RSS, including setup and all workloads,
-ranges from 17,148–18,120 KiB and 83,096–88,716 KiB. These characterize the new
-document representation, including its publication cost; they do not establish
-a speedup. Explicit formatting and publication remain outside input/render work.
-
-Real Foot qualification of the reviewed application used 50,002 articles,
-16 sources and 64 smart lists, with 100 correlated samples per scenario. The
-input-to-terminal-acknowledgement p99 was 5.464 ms during collection, 6.141 ms
-with cached images and 22.174 ms for article switching. This excludes physical
-presentation; it is not a before/after terminal speedup comparison. Native image
-scroll, selection, welcome entry and terminal cleanup also passed.
-
-See the [durability and navigation qualification](performance/audit-remediation.md)
-for dense annotations, startup phases and validated snapshot measurements.
-
-The [reader presentation measurements](performance/reader-presentation.json)
-qualify cached justification, Vim selection and exact copying at 200 and 1,200
-paragraphs. Across three release processes, the median checked cycle took
-0.250 ms and 0.259 ms respectively. Each process performed 800 cycles; source
-layout and justification indexes preceded operation timers. Peak process RSS,
-including setup, ranged from 16,512 to 20,872 KiB. These are TestBackend work
-measurements, without a baseline speedup or physical terminal latency claim.
-
-The [inline sidebar search measurements](performance/pane-search.json) cover
-200 and 5,000 sources. A cycle types ten query characters, selects the exact
-next matching destination, renders a cached frame and cancels the filter.
-Across three release processes of 800 cycles each, median cycle times were
-0.287 ms and 0.796 ms respectively. Setup and normalized-name indexing precede
-the operation timer. Peak process RSS, including setup, ranged from 14,412 to
-17,084 KiB. This characterizes the new feature; it is neither a before/after
-speedup comparison nor physical terminal latency.
-
-## Query editing and navigation review
-
-The [checked comparison](performance/interaction-review.json) uses production
-code from `2e03a8a` as the baseline, with the same new query workload applied to
-both builds. Three alternating process pairs per size measure 800 cycles of
-two query-caret motions and a full cached TestBackend frame. Setup precedes
-the operation timer; process resource records include setup.
-
-At 2,000 matching articles, the median iteration mean fell from 5.528 to
-0.301 ms (94.55% less); at 20,000 articles, from 47.598 to 0.329 ms
-(99.31% less). Unchanged query text no longer reissues a database query,
-replaces results or reloads the selected article. Native editor change signals
-also avoid reconstructing unchanged draft text on caret motions.
-
-Sidebar projection now bounds work by visible rows and preserves Unicode count
-alignment. This does not establish a frame speedup: full sidebar-frame medians
-were 0.312/0.339 ms before/after at 128 destinations and 0.344/0.353 ms at
-4,096 destinations. Selected reader-frame results were also slightly slower.
-These differences remain visible in the report; the query improvement is not
-a claim that all interactions became faster. Peak process RSS across workloads
-was 15,188–25,984 KiB before and 15,128–26,020 KiB after.
-
-Repeat with `cargo bench --locked --bench reader -- --query-editing-only` and
-`--interaction-only`, adding `--stress` for larger fixtures. These measurements
-cover application work, excluding terminal transport and physical display
-latency.
-
-## Live search and formula preparation
-
-`--fluency-only` checks incremental article metadata publication and frames with
-2,000 articles (20,000 under stress), a 140,600-byte selected source, help
-search and Unicode formula preparation. Article preview does not fetch or reflow a new
-Reader source until committed. Existing results remain visible while replacement
-queries run, and generation checks discard obsolete replies. Sidebar matching
-narrows its existing in-memory identities for extending queries and rebuilds the
-candidate set when a query broadens. These workloads exclude fixture setup.
-
-The Foot qualifier additionally decodes Sixel strips independently and measures
-mean RGB spread across six strips in three known flat regions. A two-level
-channel budget permits continuous diffusion while rejecting per-row palette
-bands; this supplements the independently known fixture color checks. Two real
-HTTP image lanes are qualified by observing both requests before either response
-is released; crops of the same URL share one download. No physical display or
-whole-application speed claim follows from preparation benchmarks alone.
-
-`--formulas-only` qualifies sums, integrals, accents, matrices and function
-application across 40 formulas (250 under stress). It separately measures
-rendered and raw-source layout, then checks repeated policy/cache transitions.
-Formula-off layouts never invoke the LaTeX converter. Background layout keys
-include formula policy; pending replies from previous policies are discarded.
-
-Nested list workloads include mixed ordered/unordered levels, empty publisher
-items and invisible anchor-only entries. Empty entries do not paint markers;
-ordered entries retain their numbering authority. Rendering does not rewrite
-cached publisher bytes or invalidate annotation offsets.
-
-## Optional typesetting and image color review
-
-Formula preparation caches up to 32 successful text projections and 32 shared
-vector sources per document layout; input count/byte limits still apply to cache
-hits. The `--formulas-only` workload checks text, raw and graphic preparation,
-including bounded slots and exact source identity. Graphic font parsing is lazy
-and excluded from lightweight mode. Complex and display equations occupy compact
-blocks while short inline expressions retain paragraph flow. The arXiv abstract
-workload checks compact layout and its two complex formula slots.
-
-The image worker retains one bounded parsed SVG tree for repeated zoom/pan,
-while retaining the original raster precision. Transparent raster pixels are
-composited against their actual matte before filtering, including a separate
-16-bit path. Native Sixel inspection and inline strips share Quantette's Oklab
-palette preparation; one continuous index image avoids per-row palette seams.
-Sixel still quantizes to at most 256 colors and integer color percentages.
-These limits do not permit claiming lossless photographs or recovering detail
-absent from a publisher's source. All preparation remains outside drawing.
-
-On 2026-10-22, three alternating optimized process pairs compared this review
-with `79e54c5`, using Rust 1.99.1 and the same fixtures. Median milliseconds per
-iteration are below. Image preparation uses 40 iterations per process; cached
-Sixel scrolling uses 200, and other cached frames use 2,000. Formula preparation
-uses 40 expressions with five distinct sources, including repeated cache hits.
-
-| Workload | Before | After |
-| --- | ---: | ---: |
-| Repeated SVG paths/text, block preparation | 9.965 | 0.982 |
-| Repeated SVG zoom, block preparation | 9.653 | 0.480 |
-| SVG source and Sixel inspector encoding | 93.059 | 48.222 |
-| SVG source and inline Sixel strips | 22.038 | 9.305 |
-| Cached Sixel scroll and two clipped frames | 5.510 | 5.495 |
-| Cold raster decode and block preparation | 4.438 | 4.553 |
-| Repeated text formula layout | 0.391 | 0.106 |
-| Graphic formula layout and vector sources | — | 1.075 |
-
-The SVG gains reflect retained parsing and improved color preparation. Cached
-scrolling is effectively unchanged; cold raster preparation shows a small cost
-in this sample. Graphic layout excludes pixel encoding and costs more than
-text, so it remains opt-in. These controlled workloads establish neither
-physical display latency nor uniform improvements for every article.
-
-Foot 1.21.0 qualification additionally decoded the native formula pixels,
-checked zoom and original-TeX copying, then returned to persisted text mode.
-Its diagram fixture had zero inter-strip channel spread in all three sampled
-flat regions, within two RGB levels of the original source colors. Selection,
-bidirectional scroll, popup restoration and terminal cleanup also passed.
-
-The subsequent compact-layout review corrects two separate presentation bugs:
-fitting every equation to its slot enlarged even single variables, and the
-four-publisher-image native budget also downgraded later formulas to blocks.
-Graphic canvases now use font-relative rows with bounded padding. Formula
-slots always use native Sixel when selected, independently of the four native
-publisher images. A 40-entry cache admits all 32 formula slots, four native
-publisher images and two inspector crops without visible-slot churn; the
-32 MiB encoded-strip budget remains enforced. Pending or failed formulas
-retain selectable text instead of covering it with image-loading messages.
-
-Library windows retain a transient origin and scroll minimally to reveal an
-offscreen selection. Clicking an already visible destination preserves every
-pointer target; clicking the active destination avoids reloading its articles.
-Full-row reference tests cover forward/reverse navigation, repeated group
-headers and filtered identities at multiple heights. Drawing never mutates the
-viewport state or scans the entire catalog to find a visible row.
-
-Viewport capture belongs to destination changes, filtered-selection movement
-and resize, not every query keystroke. During a formula policy change, later
-keyboard or mouse movement retargets the pending source anchor. A completed
-layout therefore preserves the user's newer position instead of restoring the
-cursor captured before the policy change. This path remains inactive when no
-formula projection is pending.
-
-The progress footer follows the reader cursor over the article's display rows.
-It advances while reading the first screen, before the viewport scrolls, and
-works the same way for articles fitting entirely in one screen. The first row
-reports 0% and the final row 100%; empty documents report 0% and a single row
-reports 100%. Saved reading anchors remain source-based. Boundary and runtime
-frame tests cover forward/reverse movement independently of persistence.
-
-Article cards retain a transient viewport origin. Clicking a visible card
-preserves every pointer target; keyboard motion scrolls only enough to reveal
-an offscreen selection. Drawing and pointer lookup share the same bounded
-window, including compact cards and the inline search field.
-
-The `--panes-only` workload checks those pointer identities through actual
-clicks, background delivery and runtime frames. One release process with
-2,000 articles measured 0.566 ms per pair of clicks/frames with regular cards
-and 0.614 ms with compact cards, across 800 iterations each. Setup precedes
-timing; these TestBackend observations establish no before/after speedup.
-
-The [syntax-cache review](performance/syntax-cache-review.json) compares three
-alternating release processes against `eeb0297`. After visiting 12 code blocks
-of 48 rows each, admission of a small article's resize fell from a median
-0.355494 to 0.002343 ms across 2,000 admissions per process. Immutable syntax
-rows are shared with admitted layout jobs; unchanged requests do not build
-another snapshot. Polling a completed layout also avoids constructing code
-rows that would immediately be discarded. The approximate 4 MiB retained
-syntax budget and bounded worker queues remain in place.
-
-Each admission checks retained readable text; revisiting the code checks
-source preservation and syntax colors. The final workload verifies all 576
-nonempty code rows before and after. Unit tests cover snapshot reuse across
-source/width/style changes and ownership after releasing the original cache.
-Existing blocked/disconnected-worker tests continue to qualify readable
-fallbacks and nonblocking navigation.
-
-Checked cached frames remained close to baseline: median iteration means were
-0.310459/0.313051 ms for justified selection, 0.301427/0.293017 ms for deep
-Unicode code, and 0.394765/0.394268 ms for sidebar search, before/after. A
-speculative viewport allocation change was removed after failing to improve
-frames. These results establish a syntax-cache admission gain, not a uniform
-speedup or a physical display latency improvement.
-
-One final Foot run with 10,002 articles, 16 feeds and 64 smart lists collected
-100 samples per scenario. Input-to-terminal-ack p95 was 3.887 ms for scrolling
-during collection, 3.636 ms for cached-image scrolling and 20.881 ms for article
-switches. Native image/formula qualification and terminal cleanup also passed.
-The shared startup driver now accepts each fixture's own article marker, so
-the latency test does not wait for text belonging to the image fixture.
-These final-runtime observations provide no before/after latency comparison
-and exclude compositor and physical presentation time.
+| Library, Articles, Reader, Annotations and Notebook panes | `ui::theme::panel` |
+| Help, commands, note/card editors, forms, pickers and documents | `ui::popup::draw_frame` |
+| Settings, Space actions, Ctrl-w guide and hovered notes | `ui::popup::draw_frame` |
+| Floating and compact dragged panes | Captured panel or `ui::drag_picture` |
+| Reader tables and their text inspections | `reader::tables` |
+
+Frames retain the Unicode arcs `╭ ╮ ╰ ╯`. Popup titles leave connected border
+segments beside both upper corners, even with wide Unicode text. The terminal
+owns glyph rasterization; these character-cell outlines have no pixel radius
+setting. Fullscreen image views, welcome art and split insertion markers are
+not framed windows. Native image occlusion uses the same popup footprints.
+Hovered note previews bound cleaning and row allocation rather than preparing
+an entire long note on every frame.
+
+The workspace owns pane topology, visibility and widths. Keyboard and mouse use
+those same operations and hit regions. The reader's centered fullscreen column
+defaults to 80 terminal cells, independent of panel widths. Captured pane images
+support bounded pointer-following drag and settling; gestures persist on commit.
+Directional focus uses those rendered rectangles, preferring neighbors with
+overlapping rows or columns. It never wraps at an edge or treats a pane's center
+as proof that it lies in that direction. Responsive suppression falls back to
+the same topology at a size that fits every expanded pane; explicit collapse
+still excludes a pane. Tab cycling retains the saved panel order.
+
+Image workers enforce byte, dimension, pixel, encoding and cache budgets. SVG
+resource resolvers reject external and embedded resource loads. Native Foot
+rendering uses prepared cell-height Sixel strips from the qualified encoder,
+not a custom protocol implementation. Scrolling reuses those strips; menus and
+selections clip only intersecting regions. The inspector fits or zooms from
+source bytes/paths. Portable halfblock previews remain available independently
+of native protocols.
+
+Two download lanes own replaceable source requests: crop/zoom changes for the
+same URL retarget the existing download, while sources outside the current
+viewport stop before cache access or decoding when observed in time. The latest
+crop is captured after acquiring the shared decoder lock. Obsolete completions
+do not enter the presentation cache or request a frame. Queue saturation is
+retryable rather than a permanent image error. Dropping the worker cancels its
+remaining intentions without joining HTTP. The existing ureq connector now polls response/body reads in bounded 50 ms
+slices to observe cancellation without extra download threads. TLS/proxy setup,
+framing and global deadlines remain with ureq; connecting/resolving still uses
+its existing deadline. Terminal encoding happens after releasing the shared
+source decoder lock, with at most two bounded fitted canvases in flight.
+
+Image source reuse is bounded independently from prepared terminal cells. Two
+raster entries share 32 MiB, with eviction before allocating a new decoded
+source; format headers and pixel/allocation admission are checked before that
+allocation. Opaque-source classification is retained instead of rescanning
+alpha on every fit. Two SVG trees share a 512 KiB raw-input budget and preserve
+shared font setup. Raster sources survive intervening vector preparations.
+SVG paints directly onto an opaque theme canvas, avoiding an unpremultiply/
+recomposite round trip; fitted opaque pixels need only the optional odd-row
+padding used by halfblocks. Native encoders and their existing bounds own wire
+format and color quantization.
+
+Unicode formula projection admits explicit enclosures, braces, tensor indices
+and wide/lower accents from the existing parser. Browser-specific MathML
+restrictions are irrelevant to that bounded Unicode projection; macro state
+remains local and unknown commands still fail closed to raw source. Positive
+and negative text/vector results share the existing bounded per-document
+caches; repeated failures still consume the document admission budget.
+Generated MathML text-style wrappers project transparently, normalizing mtext
+nonbreaking spaces for paragraph wrapping and preserving uniform text modifiers.
+Graphic admission follows spatial MathML structure instead of source length:
+styled prose and linear expressions do not request image work. Display math
+and two-dimensional notation retain vector outlines and exact source mappings.
+
+Automatic read intent is owned by `app::auto_read`, independently of selection
+and saved position. A bounded union of at most 1,024 displayed byte intervals
+tracks publisher coverage, excluding appended notes and horizontally hidden
+code. Cached viewport keys avoid recording unchanged rows on idle polls. A
+monotonic clock counts only eligible focused Reader time; dialogs, gestures,
+selection and lost terminal focus pause it, and gaps over one second are not
+credited. Source changes reset coverage; unchanged publisher text survives
+reflow. Explicit read/unread intent blocks automation for that article visit.
+One qualifying observation admits the existing ordered personal write; there
+are no database reads/writes, new timers or frames on ordinary idle polls.
+
+Server credential entry is a distinct masked mode, outside general command
+and draft editors. The modal owns only a transient bounded value; the store
+validates the API-token type and atomically reconnects the existing portable
+connection. Publication/redaction uses the ordinary configuration worker.
+
+## Verification and evolution
+
+Refinery owns immutable, contiguous migration history and checksum validation.
+The bootstrap and executed migrations are not renamed or rewritten. V11 adds
+configuration revision/binding state and reversible definition archival. Older
+populated libraries retain the former implicit recommendation profile explicitly;
+new libraries start neutral. Migration tests exercise real owned SQLite files.
+V13 observes justification-only appearance changes and admits previously enabled
+preferences for configuration publication without replacing personal data.
+V19 replaces unstable remote page offsets with entry IDs and retains multiple
+remote identities for one canonical article. Incomplete legacy passes restart
+from their retained timestamp watermark; cached articles and notes are preserved.
+
+Native tests cover public behavior and credible failures. Visual snapshots cover
+reviewed terminal cells, styles, themes and sizes. Real HTTP fixtures qualify
+network boundaries. Owned Foot windows complement buffer tests;
+protocol acknowledgement is not physical key-to-photon measurement.
+See [development](development.md), [performance](performance.md),
+[configuration](configuration.md) and [dependency policy](dependency-security.md).
+
+## Interactive work and durability
+
+The terminal paints the lighthouse before constructing article projections.
+Interactive construction restores metadata/preferences; separate latest-result
+workers count destinations and load the saved page/document. Migration and
+initial configuration adoption precede the interactive runtime; those phases
+remain explicit startup work. Navigation requests carry captured identities,
+library revisions and optional reader-location/synthesis arrivals. An obsolete
+completion cannot install source text or run the arrival action against a newer
+selection. `ReaderIdentity` combines displayed article/source/revision; storage
+reading snapshots carry their article identity and installation verifies it.
+Rendered parser mappings form the prepared reader projection consumed by UI.
+
+One bounded ordered personal writer owns notes, read/favorite/queue flags,
+trash, tags, folders, memberships and undo. Admission happens before optimistic
+flag presentation. Captured flags overlay older database pages until their
+acknowledgements; failures request an authoritative reconciliation. Folder
+creation/membership commits atomically with one inverse history entry. The
+folder selector stages names until Enter instead of inventing SQLite IDs or
+writing from cursor input. A disconnected writer acknowledges each outstanding
+ticket as uncertain failure; it cannot leave an endless pending indicator.
+
+Appearance/progress use a separate ordered session writer because they do not
+share personal undo. Only these idempotent writes retry transient SQLite locks,
+with three attempts and bounded worker-side backoff. Failed latest values remain
+per-key in a bounded recovery backlog. An explicit flush retries them; a newer
+successful value clears only its own key. `:save-status` retains the last error
+in the session, and `:w` retries without reporting unresolved writes as saved.
+External configuration publication uses a nonblocking
+barrier plus a local-edit guard before replacing cached appearance. Drafts,
+ranking edits, session saves and configuration publication have independently
+attempted shutdown boundaries, including drawing/input/setup errors. Errors are
+aggregated, terminal restoration still runs, and a failed unrelated edit cannot
+suppress dirty-note recovery. Shutdown may wait for admitted durable work;
+ordinary input never waits for the configuration barrier.
+
+Dense note markers build one source interval index per projection, preserving
+original display order even for reordered/overlapping mappings. Exact saved
+anchors are checked first; repeated unresolved quotations share one relocation
+result during annotation reconstruction. Rendering never writes note state.
+These indexes retain domain-specific ambiguity rules; no universal task
+executor, parser or cache framework is introduced.
+
+## Explicit reading services
+
+Article selectors use independent lazy `Latest` lanes for queries and previews.
+Each connection belongs to its thread. Query edits cancel old preview generations;
+reopening a selector resets both lanes. Sixteen bounded previews are retained
+only while that selector is open. Moving a generic selector does not refilter
+its unchanged candidate query. Rendering consumes prepared rows only.
+
+Linked readings own an independent `WebPage`, not a fabricated article identity.
+The existing HTTP extractor, Markdown parser and cursor/projection contracts
+prepare text on a worker. Page history retains at most eight prepared pages.
+Resizing requests replacement layout by source anchor. HTTP is disabled by the
+runtime's offline/demo modes. Images become explicit links in this text view;
+the original Markdown remains intact for an explicit save. Save creates a real
+article in a disabled, noncollecting manual source and an ordinary Saved pages
+folder. Existing article bodies and personal fields remain untouched. A delayed
+save carries its captured visit generation, so it cannot redirect a later
+navigation, including another visit to the same URL. Back during a pending open
+discards that response before consuming section history. Page/reflow delivery
+invalidates mouse drag anchors, whose byte offsets belong to the old layout.
+Failed opens retain the previous page and its ability to reflow.
+The HTTP owner distinguishes extracted HTML from browser resources before
+reading response bodies. Non-HTML types and explicit attachments return their
+final URL as a typed outcome. Only a current linked-page completion may publish
+a one-shot browser request; the terminal owns OS launching. Navigation cancels
+undelivered requests, and the previous reading is restored before dispatch.
+Background article extraction continues to reject these resources without
+modifying its last successful cache or launching applications.
+
+`app::maintenance` admits one explicit operation at a time on an ordered lane.
+Mutations are never superseded by new requests. Progress delivery is bounded
+and may coalesce; final results are acknowledged. Closing a report does not
+reopen it when work finishes. Dropping requests cancellation without waiting
+for HTTP; already admitted SQLite transactions finish atomically.
+
+`offline` captures at most 100 article identities and URLs from Read next or a
+personal folder. The existing extractor/decoder validate every new body/image.
+An adjacent advisory file lock serializes preparations across processes.
+Checkpoints in SQLite retain per-item availability, errors and logical bytes;
+resume revalidates entries. A package defaults to 64 MiB and cannot exceed its
+explicit 1–512 MiB budget. Original images live in the separate `images/offline`
+namespace, limited globally to 512 MiB and 4096 owned files. Ordinary image
+pruning never touches that namespace. Releasing a package removes only owned
+pinned files and its checkpoint, retaining article text. In-flight network work
+obeys existing HTTP deadlines; cancellation is observed between requests.
+The lock also owns a package-local image accounting/decoder lifetime. It scans
+the pinned namespace once per preparation, not once per article. Capacity is
+updated only after atomic publication succeeds, so rejected pins cannot consume
+the budget available to later items.
+
+`storage` inspects text and disk usage on the same maintenance lane. Full-cache
+reclamation uses small IMMEDIATE transactions, protecting current personal,
+offline and session context, including recoverable note drafts. Clearing body
+bytes retains cache identities and
+fires the existing FTS/recommendation triggers. Image reclamation first scans
+remaining publisher bodies, then removes only unreferenced owned regular files
+older than that scan. It preserves symlinks, foreign files and pinned images.
+SQLite page reuse is reported separately from physical file shrinkage. A
+multi-batch operation can partially complete; it is never presented as one
+filesystem/database transaction.
+
+Retention has a separate declarative policy and a local preview acknowledgement.
+Its SQLite owner materializes source cutoffs, smart-list matches and candidate
+identities in temporary tables under a read snapshot; this stage never acquires
+an IMMEDIATE write lease or hydrates all bodies. Each bounded mutation batch
+then acquires that lease, checks `data_version` against the captured plan and
+rechecks mandatory personal protections. An external commit interrupts the pass
+before another batch. Full-cache clearing reuses existing document/FTS revision
+semantics; article deletion records original and remote-alias tombstones first.
+A monotonic article identity clock prevents deleted IDs from being reused by
+later news. A single adoption marker supplies legacy reading-state grace
+without rewriting the library during migration.
+
+Image planning is skipped when no image lifetime applies or the ordinary cache
+is empty. Otherwise shared body references resolve once to the strictest
+lifetime, with protection/unlimited taking precedence. Cleanup rechecks file
+type, size and modification time under a bounded write lease. It never treats
+filesystem and SQLite changes as an atomic unit. Automatic scheduling caches
+its policy/deadline in the UI and persists last-run time; input and drawing do
+not poll SQLite or parse TOML. The same maintenance domain serves CLI commands.
+
+Routine publisher refreshes compare stored publisher fields before deriving
+reading duration or canonical URLs. Unchanged article payloads, HTTP validators
+and failure strings do not write SQLite or touch FTS. An IMMEDIATE lease covers
+the comparison and any subsequent update, preserving validator rollback and
+avoiding read-to-write snapshot races. Feed/Full progress and workspace/layout
+checkpoints use conditional database writes, so idempotence also survives
+intervening changes from another connection.
+
+Retention filters young ordinary cache files before hydrating image references.
+It inventories only existing candidate paths, streams long galleries without
+offline download caps, and preserves shared protections and unlimited overrides.
+
+Inline server credentials use a redacting debug type. Only authenticated HTTP
+and private configuration storage expose bytes. Public configuration inspection
+uses a redacted document prepared on the publication worker; raw TOML and its
+SQLite snapshots intentionally retain the key. Environment references never
+persist expanded credentials.
+
+Reading sessions greedily select at most eight cached unread recommendations
+within a 1–240 minute total estimate. Repeated sources/interests have diminishing
+returns and canonical duplicates are excluded; this is not an optimal knapsack
+solver or a quality guarantee. Confirmation persists the captured order and
+current index. Advancing uses an IMMEDIATE transaction, skips unavailable or
+retargeted identities, and leaves read flags and feedback unchanged. Sessions,
+offline checkpoints and temporary pages are reading state, not portable TOML
+subscription definitions.
+
+Optional diagnostics retain at most 512 microsecond samples for each processing
+boundary. Percentiles sort only on inspection. Disabled diagnostics record no
+timestamps or samples. Timings cover input dispatch, frame/flush, article-ready
+navigation, selector search/preview and ordered save admission-to-delivery;
+they do not include compositor display latency or send telemetry.
+
+Notebook listing snapshots also capture the recent-search generation. A local
+history acknowledgement advances it, so an older list completion cannot erase
+newly saved searches. New list requests can still adopt a current snapshot.
+
+Recent Markdown layouts retain at most three prior exact source/width/options
+snapshots in addition to the current layout, under an estimated 8 MiB retained
+budget. Styles have a separate revision; invalidation discards cached old colors.
+Personal annotations and current article identity are reapplied by the app and
+never stored in the base layout cache. Oversized layouts are not retained.
+
+## Cancellable image transport
+
+Image workers use the pinned ureq 3.4.2 unversioned connector/transport boundary
+without changing dependencies. The default connector still owns proxies, TLS,
+OS trust, redirects and HTTP parsing. A forwarding wrapper limits individual
+response/body read waits to 50 ms while preserving the original overall deadline.
+A canceled request returns ConnectionAborted, so standard Read helpers cannot
+retry Interrupted indefinitely. DNS and connector setup retain provider bounds.
+The integration is tied to this exact ureq version and must be requalified on
+upgrade. Real loopback fixtures qualify both occupied lanes being released
+before obsolete servers reply; cache, limits and crop reuse are also exercised.
+
+The extended personal-invalidation/layout stage adds `--recent-layouts-only`.
+It checks three warm exact-source layouts without requesting Markdown work;
+its stress form retains 2,000 paragraphs per source. The ordinary unoptimized
+correctness run observed 0.236 ms per three-source round trip; this is an
+absolute local check, without terminal presentation or a release comparison.

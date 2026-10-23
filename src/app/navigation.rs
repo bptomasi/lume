@@ -377,19 +377,27 @@ fn shifted(
     position.saturating_sub(distance)
 }
 
-pub(super) fn read_sensitive(
+pub(super) fn sensitive(
     view: &View,
     lists: &[crate::model::SmartList],
+    changes: crate::search::Changes,
 ) -> Result<bool> {
+    use crate::search::Changes;
     match view {
-        View::Inbox | View::Read | View::Recommended => Ok(true),
+        View::Inbox | View::Read => Ok(changes.intersects(Changes::READ)),
+        View::Starred => Ok(changes.intersects(Changes::FAVORITE)),
+        View::Queue => Ok(changes.intersects(Changes::QUEUE)),
+        View::Annotated => Ok(changes.intersects(Changes::NOTES)),
+        View::Collection(_) => Ok(changes.intersects(Changes::MEMBERSHIPS)),
+        View::Recommended => Ok(true),
         View::Smart(id) => {
             let Some(list) = lists.iter().find(|list| list.id == *id) else {
                 return Ok(false);
             };
-            Ok(list.filter.unread
-                || crate::search::parse(&list.filter.text)?
-                    .depends_on_read_state())
+            Ok((list.filter.unread && changes.intersects(Changes::READ))
+                || (list.filter.starred
+                    && changes.intersects(Changes::FAVORITE))
+                || crate::search::parse(&list.filter.text)?.depends_on(changes))
         }
         _ => Ok(false),
     }

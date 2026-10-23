@@ -1,317 +1,543 @@
-# Dependency policy
+# Architecture
 
-Dependencies must meet the actual contract with explicit resource limits,
-compatible licenses and maintainable APIs. Prefer established libraries over
-custom protocol, parser, cryptography or generic infrastructure implementations.
-Popularity alone is insufficient evidence.
+Lume is an independent, local terminal reader. The library is the product's
+persistence boundary; sources, terminal protocols and filesystem publication
+are adapters with explicit limits. No component requires a hosted service,
+container, external database or model runtime.
 
-## Review and distribution
+## Ownership and flow
 
-Before adding or changing a dependency, review its maintainer/contributor
-breadth, community, release and security-response history, API stability,
-compatibility, resource costs, transitive footprint and free-software license
-obligations. Record the consequential selection and concrete integration limits
-here. Pin direct versions and commit the reviewed Cargo.lock. Keep updates
-intentional and test behavior, failure boundaries and representative workloads.
+- `main`, `cli`, `configuration` and `terminal` compose paths, configuration
+  adoption, noninteractive commands and terminal lifetime.
+- `config` owns the TOML schema, validation, structural merge, document editing,
+  file publication and bounded background reconciliation.
+- `store` owns schema evolution, transactions, stable local identities, search,
+  history, publisher caches and private reading state. Its configuration adapter
+  maps portable IDs onto local definitions.
+- `source` validates URLs, discovers and decodes feeds, collects with bounded
+  concurrency, and extracts original articles. It also mirrors optional
+  Miniflux subscriptions and entries with bounded pages. Publisher refreshes
+  preserve personal flags, memberships, notes and article deletion.
+- `app` owns focus, modes, selection and workflows, composing typed storage and
+  background contracts. `ui` reads cached presentation state and never runs SQL,
+  HTTP, Markdown parsing, syntax compilation or image encoding while drawing.
+- `reader` owns source offsets, wrapping, code styling and source-based motion.
+  `media` owns bounded image retrieval, decoding, SVG rasterization and caches.
+- `recommendation` owns explicit matching policy, transparent scores and bounded
+  diversity. Its default profile is empty. `catalog` is an opt-in preset adapter.
+- `exchange` owns OPML and private atomic Markdown export, including incremental
+  exports that retain local edits as conflicts.
 
-Permissive MIT, Apache-2.0, BSD and compatible free-software terms are preferred.
-The extraction integration specifically permits MPL-2.0 transitives
-`selectors`, `cssparser`, `cssparser-macros` and `dtoa-short`. Retain their
-notices and make covered dependency source available under MPL terms when
-distributing. This exception does not extend to unrelated copyleft additions.
+## Declarative configuration and private state
 
-Applicable notices are retained under `assets/licenses/full-article`,
-`assets/licenses/images`, `assets/licenses/configuration` and `assets/syntax`.
-Integration inventories retain their original scope; the complete locked
-graph inventory and current advisory gate are described below. No external security audit is claimed.
+Configuration contains subscriptions, extraction selectors, folder/query
+identities, explicit recommendation preferences, shortcuts and appearance.
+Articles, notes, highlights, feedback, favorites, memberships, progress and
+session/history data remain in SQLite. Exporting configuration never exports
+article bodies or annotation text.
 
-Our Rust code forbids unsafe. Native and transitive dependencies still require
-review. Types and a third-party library do not supply missing domain authority,
-transaction guarantees or input limits. Publisher content never selects code,
-local files, a shell command or executable configuration.
+`configuration_bindings` maps stable portable keys onto local row IDs. These
+bindings prevent renames from creating new folders or detaching source groups.
+Generated keys use SQLite random identifiers; they are identifiers, not access
+credentials. Local and file definitions normalize by key for deterministic
+comparison, while the TOML document preserves existing record order.
 
-## Qualified integrations
+Definition triggers increment a durable revision. Workspace triggers compare
+only appearance fields; selection, progress and last-visit updates do not
+schedule configuration publication. Publisher titles, validators, source health,
+article ingestion and annotation writes are outside this revision boundary.
 
-| Capability | Selection | Responsibility and limits |
-| --- | --- | --- |
-| Terminal | Ratatui 0.29.0, Crossterm 0.28.1, tui-textarea 0.7.0 | Qualified compatible pair/editor. Library-owned event parsing, cached buffer rendering and bounded drafts; no custom terminal parser. |
-| Feed and transport | feed-rs 3.0.0, ureq 3.4.2, Rustls 0.23.46, native-certs 0.8.4 | Multi-format decoding, bounded requests, redirects and verified OS trust. Offline policy and resource limits remain in Lume. |
-| SQLite | rusqlite 0.32.1 with bundled SQLite, Refinery 0.8.16 | Real transactions, WAL/FTS5 and immutable checksum-verified migrations; no external database. |
-| Extraction | dom_smoothie 0.18.2, dom_query 0.28.0 | Readability and CSS parsing, with explicit ambiguous/short/obstructed extraction handling. Qualified MPL scope applies. |
-| Rich text | html5gum 0.8.3, pulldown-cmark 0.13.0, Syntect 5.3.0, textwrap 0.16.4 | Bounded HTML normalization, Markdown structure and source offsets, reviewed text grammars and Unicode wrapping. |
-| Search | nom 8.0.0 and bundled SQLite FTS5 | Qualified grammar combinators and indexing. Lume owns fields, precedence, limits and parameterized compilation; queries are never raw user SQL. |
-| Images | image 0.25.10, ratatui-image 8.1.1 | Restricted PNG/JPEG/WebP/GIF decoding, fixed prepared widgets and qualified Sixel encoding; no custom quantizer or image protocol. |
-| SVG | resvg 0.48.1, roxmltree 0.21.1 | Bounded XML/vector rasterization, DTD disabled and resource resolvers rejecting linked/embedded resources. |
-| Source offsets | unicode-segmentation 1.13.3, unicode-width 0.2.0 | Grapheme/cell semantics and visible-row projection; no custom Unicode parser. |
-| File/CLI data | tempfile 3.27.0, shlex 2.0.1, SHA-2 0.11.1, Clap/Serde/Chrono/url | Private atomic exports, argument parsing without shell evaluation, cache/fingerprint identifiers and typed validated data. |
+The last successful configuration snapshot and revision form a publication base.
+Reconciliation merges that base, current library definitions and the edited file.
+Unrelated fields and keyed records compose; incompatible edits to the same field
+return a conflict instead of overwriting either input. Unknown keys, versions,
+queries, selectors, references and dimensions fail before application.
 
-Feed collection limits decompressed input to 16 MiB and 2,000 entries, with
-four download lanes and a bounded result channel. The decoded ureq reader is
-wrapped in standard `Read::take` with a one-byte overflow probe before parsing;
-ureq's configured body limit alone precedes gzip decoding in this pinned
-version. Invalid downloads never advance stored HTTP validators. Plain and
-gzip fixtures qualify the inclusive boundary and rejection above it. Parser
-allocations can exceed input bytes; these limits are not a memory sandbox.
+A reconciler acquires the adjacent file lock before a SQLite IMMEDIATE
+transaction. It captures state, merges definitions, applies only changed records,
+archives removed definitions, publishes a same-directory temporary file and
+acknowledges the new base. It never deletes article or annotation rows. Soft
+archival of folders preserves memberships for restoration by the same ID.
 
-Ratatui/Crossterm are maintained as a compatibility unit. Upgrade the terminal
-and editor stack together and requalify actual input/cleanup. Qualified versions
-are not assertions that every dependency is the newest available release.
+Filesystem replacement and SQLite commit are not one atomic transaction. If
+publication succeeds and database acknowledgement fails, the complete file and
+pending SQLite edit survive. On replay, still-unbound existing definitions adopt
+matching portable keys from that file before the merge, avoiding duplicate
+identities after a crash. Explicit recovery backs up both competing inputs
+before choosing file or library authority.
 
-Image preparation occurs on a bounded worker. Native Foot images use cached
-cell-height Sixel strips and synchronized updates, clipped to viewport and modal
-regions. Encoder quantization does not guarantee original 24-bit color precision.
-The source inspector reuses original bytes/paths for zoom rather than enlarging
-character previews. Decoder allocation settings are best effort, not a memory
-sandbox; Lume retains its own byte, dimension, pixel and cache budgets.
+Lume's writers share an advisory file lock. Its guard explicitly unlocks before
+closing, so a child spawn's briefly inherited file description cannot retain a
+completed writer's lock until exec. Publication compares current bytes
+before replacement to detect an external editor's intervening save. An editor
+need not honor advisory locks, so the final comparison/rename window cannot
+provide a universal external-writer transaction guarantee. Temporary files are
+private by default; existing configuration permissions and symlinks are retained.
 
-SVG has no system font scan or remote/local resource access selected by publisher
-strings. A bounded fallback font is loaded on demand for text. OS fonts are not
-bundled or copied into the cache. Syntect parses reviewed bundled grammars at
-build time; publisher text cannot load a grammar. Its trusted binary cache does
-not accept remote serialized objects.
+`config::formatting` applies layout to the existing `toml_edit` tree: generated
+records become table arrays and long scalar arrays become multiline values.
+Explicit formatting validates typed equivalence before atomic publication and
+does not open SQLite. Commented inline containers retain their layout because
+the library's table conversion clears child decoration. Definition publication
+patches either representation by portable identity, preserving comments when a
+source is changed or disabled. Formatting runs outside the input/render lane.
 
-Recommendation matching reuses the qualified search/SQLite boundary. It does not
-introduce a model, vector database, alternate tokenizer or hosted service. Scores
-use explicit interests and observed publisher evidence; they do not establish
-quality, factual correctness or personal relevance. Private annotation text is not
-publisher evidence.
+## Responsive interactive work
 
-Table layout reuses pulldown-cmark's GFM table events, Ratatui `Line`/`Span`
-styles and unicode-width measurements. A widget-only table would lose the
-reader's byte correspondence for selection and annotations, so prepared rows
-retain those mappings instead. No Markdown/HTML parser, ANSI formatter or new
-dependency is introduced. Column, row, width and padding budgets are enforced
-before publishing a grid; bounded inspection falls back to original Markdown.
+Within a paragraph, `reader::wrapping` consumes ordered display/source spans
+as wrapped rows advance. It retires completed prefixes instead of rescanning
+all formatting for every row. `reader::links` separately collects bounded labels
+from parser events, including hard breaks and image alternatives. Destination
+lookup preserves first-seen order without copying the preceding paragraph.
+Eligible prose rows can use cached word-gap expansion. `reader::viewport`
+projects these extra cells back to the original byte of the word separator,
+so mouse hits, Vim motion, search, yanks and note anchors share one text identity.
+Each unwrapped code/table row also retains its source block key; horizontal
+positions belong to that key and survive reflow without moving sibling blocks.
+`reader::index::Navigation` separately retains each link's source range, so
+Enter follows the occurrence under the cursor even when labels repeat or wrap.
+HTTP(S) destinations open as temporary read-only linked readings. Same-page fragments use
+preserved HTML IDs or heading slugs and the reader's bounded jump history;
+missing sections report their absence without guessing a different passage.
 
-## Declarative configuration
+The reader enables pulldown-cmark's table events and captures styled cells with
+their original byte mappings. `reader::tables` owns Unicode column widths,
+alignment and rounded borders; Ratatui still owns terminal rendering. Prepared
+grid rows share the indexed horizontal viewport used by code, with separate
+row ranges retaining the ordinary panel background. The inspector reuses cached
+rows when available. Selection and annotation project cell text back to source;
+decorative borders and padding have no quotation mapping.
+HTML `thead`/`th` and fully bold first rows identify publisher headers. Plain or
+partly emphasized data rows do not become invented column labels.
 
-Select `toml_edit` **0.25.15+spec-1.1.0**, pinned exactly, with only `parse`,
-`display` and `serde`. The multi-contributor toml-rs project owns the TOML
-grammar, typed decoding and comment-preserving document tree. The qualified
-integration uses its published API and MIT OR Apache-2.0 terms, with a locked
-transitive inventory and native round-trip, conflict and failure tests. Default parser recursion limits remain enabled;
-the `unbounded` feature is forbidden. Lume additionally limits configuration
-to 2 MiB, 5,000 feeds and bounded named definitions and validates all queries,
-references, selectors and layout dimensions before application.
+HTML lists retain paragraph ownership, numbering and nested indentation when
+normalized to Markdown. The reader defers each marker until item content begins,
+so loose-list paragraph boundaries cannot flush an isolated bullet. Wrapped
+continuations carry visual insets separate from readable bytes. The cached cell
+index applies those insets to drawing, mouse hits and cursor positions; copying
+and source-based annotation anchors retain their original byte correspondence.
+Previously saved caches can contain repeated empty list items followed by
+detached paragraphs. The reader recognizes only the early normalizer's exact
+whitespace signature using CommonMark events. It joins those markers in a
+temporary parser view and translates every event range back to the original
+bytes. This works offline and requires no database or note migration; ordinary
+empty items and code samples retain CommonMark semantics.
 
-The qualified footprint adds indexmap/hashbrown, serde_spanned, toml_datetime,
-toml_parser, toml_writer and winnow. They are permissively licensed MIT and/or
-Apache-2.0. No native codec, executable configuration, async runtime or network
-dependency is added. This is not a completed advisory audit. Preserve the
-configuration dependency notices with distribution artifacts.
+Padded grid output has a shared 1 MiB budget per article, at most 64 columns,
+2,000 rows including the header, and 4,096 terminal cells per row. Exceeding a
+limit displays an explicit notice and the original Markdown, preserving later
+article content. The inspector has its own total 1 MiB preview bound. Code
+backgrounds are painted across visible rows before token and selection styles;
+this never pads the stored or copied code text. Table preparation stays on the
+existing layout worker, and drawing only projects cached visible cells.
 
-Existing tempfile owns same-directory atomic replacement; standard-library
-File locks serialize Lume writers without another lock crate. External editors
-need not honor advisory locks, so publication compares the last read bytes
-before replacement; uncooperative edits in that final comparison/rename window
-remain an OS-level race. SQLite owns the durable publication base and pending
-revision, not a claim of a distributed filesystem/database transaction.
-Three-way conflicts stop publication and preserve both file and pending data.
-Documented formatting limitations include dotted-key ordering and final
-newlines. Behavioral round-trip and recovery tests qualify our supported form.
-The same parsed tree owns layout changes; no separate TOML parser or formatter
-dependency is added. Public table conversion is used only for inline containers
-without comments, since it clears child decoration. Explicit formatting checks
-typed equivalence, comment retention and idempotence with native tests.
+The terminal initializes an application from reconciled state, then presents the
+native-cell lighthouse. The first actual key press is consumed. Focus, modifier,
+release and resize events cannot accidentally activate a library operation;
+resize redraws the scene. Collection can continue behind the welcome screen.
 
-Sources: [toml_edit API](https://docs.rs/toml_edit/0.25.15+spec-1.1.0/toml_edit/),
-[toml-rs source and licenses](https://github.com/toml-rs/toml),
-[standard File locks](https://doc.rust-lang.org/std/fs/struct.File.html#method.try_lock).
+Catalog snapshots batch ordinary totals and feed/server/folder groups;
+identical saved filters share one count within that snapshot. Personal mutation
+masks invalidate only predicates observing the changed read/favorite/queue flag,
+article tags or annotations, including nested boolean expressions. Annotation
+count/page results carry the library revision and retain folded children.
+Other counts survive, including children hidden by section folding. Repeated
+requests at the same revision reuse an active/prepared snapshot; a stronger
+full-library refresh upgrades it. Unknown edits, failures, deletion, undo and
+publisher updates retain full reconciliation.
 
-## Authoritative references
+Interactive navigation uses a replaceable read lane and a separate catalog/count
+lane, each with its own SQLite connection. Pages hydrate only a bounded set of
+ordered identities; count and page share a read snapshot. Epochs reject obsolete
+successes and failures after navigation or mutation. Previous readable content
+remains visible while replacement Markdown and syntax work finish. Stale source
+presentation cannot authorize article mutations.
 
-[Ratatui](https://ratatui.rs/),
-[Crossterm](https://docs.rs/crossterm/0.28.1/crossterm/),
-[SQLite transactions](https://sqlite.org/lang_transaction.html),
-[SQLite FTS5](https://sqlite.org/fts5.html),
-[rusqlite](https://docs.rs/rusqlite/0.32.1/rusqlite/),
-[Refinery](https://docs.rs/refinery/0.8.16/refinery/),
-[dom_smoothie](https://docs.rs/dom_smoothie/0.18.2/dom_smoothie/),
-[dom_query](https://docs.rs/dom_query/0.28.0/dom_query/),
-[image-rs](https://github.com/image-rs/image),
-[resvg](https://github.com/linebender/resvg),
-[ratatui-image](https://github.com/ratatui/ratatui-image),
-[Foot](https://codeberg.org/dnkl/foot),
-[Syntect](https://github.com/trishume/syntect),
-[Pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark).
+Personal edits use ordered bounded writes. They are not replaced by later edits
+or acknowledged before their completions reach the UI. Progress and layout writes
+have their own ordered admission and explicit flush boundary. Where a workflow
+reads mutable state before writing, an IMMEDIATE transaction acquires write
+authority first, avoiding WAL read-to-write snapshot upgrade failures.
 
-## Distribution inventory and advisory gate
+Note completions update catalog counts independently of the reader. Replacing
+visible annotations also requires the selected and displayed article identities
+to match the completion; retained content from another article is left intact
+until navigation delivers its matching snapshot. Cursor offsets falling within
+whitespace omitted by wrapping clamp to the preceding visible row.
 
-`about.toml` qualifies cargo-about **0.9.2** (MIT OR Apache-2.0), maintained by
-Embark's multi-contributor tooling project, for SPDX resolution and collection
-of actual license texts. It is development tooling, not a runtime dependency.
-`make licenses` refreshes the complete active runtime/build graph under
-`assets/licenses`, records feature-inactive lock entries separately and retains
-exact MPL crate archives verified against Cargo.lock checksums. The installer
-and release package include this evidence and the separate grammar notices.
-`make check-licenses` verifies the committed inventory without network access.
-Do not replace this tool with a hand-written SPDX expression parser.
+The configuration lane owns file observation, parsing and publication. It polls
+only the owner/revision fields and file metadata while idle; the publication
+snapshot is excluded from this hot query. It does not reread TOML on each
+key or frame. Startup always validates the current file. Successful observations
+retain the input timestamp so an edit made during reconciliation is retried.
+Single-writer merges reuse validated definitions without building a JSON tree;
+only concurrent structural merges need that representation. Complete bounded
+notifications allow safe coalescing. Definitions
+wait for ordinary reading mode without selections or active gestures. UI
+installation compares the last presented appearance against current edits so
+an old completion cannot overwrite newer in-memory choices. Catalog fingerprints
+avoid reloading metadata for appearance-only publications.
 
-`make check-security` uses RustSec's **cargo-audit 0.22.2**, with its current
-advisory database, and records database revision, UTC date and lock fingerprint.
-It fails on every reported vulnerability and every new or changed informational
-warning. `tools/advisory-reviews.toml` contains expiring, checksum-specific
-reviews; obsolete exceptions also fail. RustSec and cargo-about are established,
-independently maintained tools with public issue/security histories and pinned
-APIs. Install/update them deliberately; ordinary checks never bootstrap tools.
+Shutdown flushes recommendation, personal and session writers before stopping
+configuration reconciliation. Publication errors remain visible and pending
+SQLite edits survive restart. Worker failures are reported rather than silently
+turning the file and library into unrelated configuration authorities.
 
-The 2026-10-21 qualification updates Rustls to **0.23.46** and WebPKI to
-**0.103.16**, addressing RUSTSEC-2026-0346 through 0349 and 0382. Features remain
-restricted to ring/std/TLS1.2 without Brotli or custom session stores. These
-are compatible patch releases with the same license and transport API;
-real plain/gzip HTTP failure and cache tests qualify integration. No vulnerability
-allow-list is used. Informational reviews currently cover:
+## Reading, layout and images
 
-| Dependency | Reachability and disposition |
+Normalized Markdown retains source offsets for cursor motion, Unicode selections,
+search, links and annotations. Highlights retain their original quotations and
+source identity; unmatched positions remain explicit rather than guessing a new
+anchor. Feed and full-article provenance remain distinguishable. Full-article
+extraction uses the qualified Readability/CSS libraries and reports short,
+obstructed or failed extraction without replacing a good cached document.
+Clear copyright-only results are rejected even when wrapped in invisible anchor
+markup. If automatic extraction fails, unique `article`, `main` or `role=main`
+containers are tried under the same size/element limits. Explicit CSS rules
+remain authoritative. Previously cached obstructions fall back to the original
+feed in the reader; neither source nor its annotations are deleted.
+
+Sparse row checkpoints bound Unicode work for long code rows. Drawing projects
+only visible cells and preserves syntax, search, selection and cursor offsets.
+Layout and wrapping run outside input where they are expensive; tests cover
+long rows, resizing and libraries larger than the displayed metadata page.
+
+Headline presentation retains at most 64 wrapped title/date entries. Identity,
+exact title, publication time and pane width determine reuse; metadata larger
+than 4 KiB is displayed without retention. Reader motion can reuse this work
+without caching live selection, favorite/read flags or feed labels. Images
+skip workspace geometry/admission when their visible-slot interval is empty.
+
+Article deletion acknowledges a committed visibility change separately from
+generic library edits. In ordinary reading mode, acknowledgement removes its
+bounded metadata row immediately and preserves the selected surviving identity.
+The next page/source and sidebar counts refresh independently. The count result
+does not enqueue a second page load. Generation checks reject earlier snapshots;
+source-bound editors and selections defer publication through the existing
+navigation guards. Failed writes never remove a row. Grouped-page counts come
+from the authoritative query because another occurrence can replace a deleted
+representative. The synchronous adapter performs one catalog reload.
+
+`ui::layout` computes fixed columns and binary splits with bounded rectangle
+arithmetic. Rendering, focus and pointer hit testing share that geometry.
+Each split reserves the combined minimum dimensions of its expanded children;
+resizing cannot suppress Articles while the terminal can fit the whole tree.
+Focus cycling retains the saved pane order independently of spatial focus.
+Standard reset restores canonical pane order, visibility and widths as one undoable
+change, retaining source selection and prose preferences. Notebook layout
+remains independent. Built-in profiles start from canonical dimensions rather
+than inheriting a rearranged active workspace; saved profiles are preserved.
+
+Library search caches normalized destination names when the catalog changes.
+Typing filters those names without SQLite work; article search reuses the
+bounded latest-request navigation worker and the existing destination query.
+An active article query ranks title starts, contiguous title phrases and other
+title matches ahead of body-only matches. SQLite FTS5 uses the same Unicode
+tokenizer for membership and ranking; weighted BM25 resolves relevance within
+each tier, followed by publication time and identity for stable ties. Ranking
+uses only positive text from the active query. Saved-list filters, exclusions
+and destination scopes remain membership constraints. Empty and metadata-only
+queries keep the destination's normal order. Count queries do not score, and
+only the requested page loads article metadata. Identity-based page jumps use
+the same relevance order as pagination, including in the background worker.
+Both fields reserve rows inside their own panes. Renderers and pointer hit
+testing share that geometry. Cancel restores the sidebar destination by identity,
+so a catalog refresh cannot retarget it. Reader Escape clears source-local search
+marks before changing fullscreen or library state. Subsequent Escape restores
+the layout and returns focus to Articles, revealing that pane if collapsed.
+Leaving Reader with an empty search does not cause a redundant article reload.
+
+Query editors reuse results while only their caret moves. Native editor change
+signals avoid rebuilding draft text on those motions; article and notebook
+queries only refresh when their text changes. Sidebar refreshes preserve an
+uncommitted match by destination identity. Its row window walks backward from
+the selected match only far enough to fill the viewport, then streams visible
+rows. Drawing and pointer hits share that projection without a separate cache
+that could become stale when the catalog changes. Title truncation and count
+alignment use grapheme widths in terminal cells.
+
+### Terminal frame map
+
+| Surface | Frame owner |
 | --- | --- |
-| lru 0.12.5 via Ratatui 0.29 | Ratatui's layout cache calls get_or_insert/resize, not the affected iter_mut/pop APIs; Rect/Layout keys have no panicking Drop. Preserve this call-site evidence when upgrading the terminal stack. |
-| bincode 1.3.3 via Syntect | Unmaintained; only trusted build-generated syntax objects are decoded. Publisher bytes cannot choose serialized syntax input. |
-| yaml-rust 0.4.5 via Syntect | Unmaintained; reviewed bundled grammars are compiled at build time. Publisher content cannot load YAML grammars. |
-| paste 1.0.15 via Ratatui | Unmaintained compile-time macro dependency. Track replacement with the compatible terminal/editor stack. |
+| Library, Articles, Reader, Annotations and Notebook panes | `ui::theme::panel` |
+| Help, commands, note/card editors, forms, pickers and documents | `ui::popup::draw_frame` |
+| Settings, Space actions, Ctrl-w guide and hovered notes | `ui::popup::draw_frame` |
+| Floating and compact dragged panes | Captured panel or `ui::drag_picture` |
+| Reader tables and their text inspections | `reader::tables` |
 
-This disposition does not make an affected library sound for arbitrary use.
-A feature, consumer, version or checksum change requires renewed review.
-Sources: [RustSec](https://github.com/rustsec/rustsec),
-[cargo-about](https://embarkstudios.github.io/cargo-about/),
-[Rustls patch release](https://github.com/rustls/rustls/releases/tag/v/0.23.46),
-[WebPKI fix](https://github.com/rustls/webpki/pull/546),
-[Ratatui layout cache](https://github.com/ratatui/ratatui/blob/v0.29.0/src/layout/layout.rs).
+Frames retain the Unicode arcs `╭ ╮ ╰ ╯`. Popup titles leave connected border
+segments beside both upper corners, even with wide Unicode text. The terminal
+owns glyph rasterization; these character-cell outlines have no pixel radius
+setting. Fullscreen image views, welcome art and split insertion markers are
+not framed windows. Native image occlusion uses the same popup footprints.
+Hovered note previews bound cleaning and row allocation rather than preparing
+an entire long note on every frame.
 
-Article and image downloads use the same decoded HTTP byte reader as feeds;
-limits remain 2 MiB for pages and 8 MiB for images. SVG additionally caps its
-XML input at 512 KiB. Gzip never raises those limits. Failures cannot publish
-partial cache entries or replace the last good extracted document.
+The workspace owns pane topology, visibility and widths. Keyboard and mouse use
+those same operations and hit regions. The reader's centered fullscreen column
+defaults to 80 terminal cells, independent of panel widths. Captured pane images
+support bounded pointer-following drag and settling; gestures persist on commit.
+Directional focus uses those rendered rectangles, preferring neighbors with
+overlapping rows or columns. It never wraps at an edge or treats a pane's center
+as proof that it lies in that direction. Responsive suppression falls back to
+the same topology at a size that fits every expanded pane; explicit collapse
+still excludes a pane. Tab cycling retains the saved panel order.
 
-The SQLite online backup API is enabled on the existing pinned rusqlite
-**0.32.1** dependency. This adds no library to the runtime graph. SQLite owns
-snapshot consistency; Lume owns deadline, private permissions, identity checks,
-non-overwrite publication and isolated restore validation. See
-[SQLite's backup contract](https://sqlite.org/backup.html).
+Image workers enforce byte, dimension, pixel, encoding and cache budgets. SVG
+resource resolvers reject external and embedded resource loads. Native Foot
+rendering uses prepared cell-height Sixel strips from the qualified encoder,
+not a custom protocol implementation. Scrolling reuses those strips; menus and
+selections clip only intersecting regions. The inspector fits or zooms from
+source bytes/paths. Portable halfblock previews remain available independently
+of native protocols.
 
-Pillow **13.0.0** is pinned in `tools/requirements-visual.txt` for optional visual
-qualification only. The mature multi-maintainer Pillow project supplies pixel
-inspection, under its permissive HPND-derived terms. It processes controlled
-qualification fixtures and captured cells, not runtime publisher images.
-It is installed in a development virtualenv and is not bundled in Lume.
+Two download lanes own replaceable source requests: crop/zoom changes for the
+same URL retarget the existing download, while sources outside the current
+viewport stop before cache access or decoding when observed in time. The latest
+crop is captured after acquiring the shared decoder lock. Obsolete completions
+do not enter the presentation cache or request a frame. Queue saturation is
+retryable rather than a permanent image error. Dropping the worker cancels its
+remaining intentions without joining HTTP. The existing ureq connector now polls response/body reads in bounded 50 ms
+slices to observe cancellation without extra download threads. TLS/proxy setup,
+framing and global deadlines remain with ureq; connecting/resolving still uses
+its existing deadline. Terminal encoding happens after releasing the shared
+source decoder lock, with at most two bounded fitted canvases in flight.
 
-The release workflow uses GitHub-maintained `actions/cache` v4 at
-`0057852bfaa89a56745cba8c7296529d2fc39830` and `actions/download-artifact` v4
-at `d3f86a106a0bac45b974a628896c90dbdf5c8093`, verified against their upstream
-tag refs. These MIT-licensed development actions add no runtime dependency.
-Cache restores include the runner OS, pinned Rust/security tool versions and
-lock hash; compilation and advisory checks still run after restoration.
-Release artifacts come from the successful prerequisite job in the same run.
-Only the publication job receives repository write permission. Updates require
-review of the upstream action code, permissions and release history.
+Image source reuse is bounded independently from prepared terminal cells. Two
+raster entries share 32 MiB, with eviction before allocating a new decoded
+source; format headers and pixel/allocation admission are checked before that
+allocation. Opaque-source classification is retained instead of rescanning
+alpha on every fit. Two SVG trees share a 512 KiB raw-input budget and preserve
+shared font setup. Raster sources survive intervening vector preparations.
+SVG paints directly onto an opaque theme canvas, avoiding an unpremultiply/
+recomposite round trip; fitted opaque pixels need only the optional odd-row
+padding used by halfblocks. Native encoders and their existing bounds own wire
+format and color quantization.
 
-Prose justification reuses textwrap's prepared line breaks and the qualified
-Unicode cell/grapheme contracts. Textwrap supplies no justified alignment API;
-Lume's presentation policy expands existing word gaps in eligible cached rows.
-The expansion maps back to original readable bytes, including mouse hits and
-selection. It introduces no parser, dependency or text rewrite.
+Unicode formula projection admits explicit enclosures, braces, tensor indices
+and wide/lower accents from the existing parser. Browser-specific MathML
+restrictions are irrelevant to that bounded Unicode projection; macro state
+remains local and unknown commands still fail closed to raw source. Positive
+and negative text/vector results share the existing bounded per-document
+caches; repeated failures still consume the document admission budget.
+Generated MathML text-style wrappers project transparently, normalizing mtext
+nonbreaking spaces for paragraph wrapping and preserving uniform text modifiers.
+Graphic admission follows spatial MathML structure instead of source length:
+styled prose and linear expressions do not request image work. Display math
+and two-dimensional notation retain vector outlines and exact source mappings.
 
-Unlabelled code hints inspect at most 16 KiB and 128 lines for strong SQL or
-shell evidence. Explicit languages, including plain text, take precedence.
-Syntect owns all grammar matching; `LumeSQL.sublime-syntax` is an MIT overlay
-including the unchanged reviewed SQL definition. Publisher wrapper hints are
-bounded to 128 tracked container levels and cannot select external grammars.
+Automatic read intent is owned by `app::auto_read`, independently of selection
+and saved position. A bounded union of at most 1,024 displayed byte intervals
+tracks publisher coverage, excluding appended notes and horizontally hidden
+code. Cached viewport keys avoid recording unchanged rows on idle polls. A
+monotonic clock counts only eligible focused Reader time; dialogs, gestures,
+selection and lost terminal focus pause it, and gaps over one second are not
+credited. Source changes reset coverage; unchanged publisher text survives
+reflow. Explicit read/unread intent blocks automation for that article visit.
+One qualifying observation admits the existing ordered personal write; there
+are no database reads/writes, new timers or frames on ordinary idle polls.
 
-Linked pages and offline preparation reuse the qualified `ureq`, `dom_smoothie`,
-`dom_query`, `pulldown-cmark`, image/Resvg and Rusqlite integrations above.
-No browser engine, model runtime, service or dependency feature is added.
-The existing HTTP deadlines and decoded-byte limits remain authoritative;
-original offline image bytes pass the same decoder before publication.
-The standard library's advisory file lock serializes offline package writers.
-SQLite's existing transaction/JSON/FTS contracts own checkpoint consistency and
-cache-index updates. Storage inspection uses the documented
-[page-count and free-list pragmas](https://www.sqlite.org/pragma.html);
-no implicit VACUUM or auto-vacuum migration is introduced. Behavioral, HTTP
-failure and representative workload checks qualify these integrations.
+Server credential entry is a distinct masked mode, outside general command
+and draft editors. The modal owns only a transient bounded value; the store
+validates the API-token type and atomically reconnects the existing portable
+connection. Publication/redaction uses the ordinary configuration worker.
 
-## Terminal formulas and shared image palettes
+## Verification and evolution
 
-`math-core` **0.9.0** (MIT), with default features disabled and only `std`,
-owns LaTeX-to-MathML conversion. The multi-contributor tmke8/math-core project
-has sustained parser and conformance work; the pre-1.0 API is pinned. Its ten
-additional locked packages are permissively licensed Rust libraries (PHF tables,
-macro/arena/string helpers); no TeX process, browser runtime or network renderer
-is added. `pulldown-latex` was considered, but its own production-testing caveat
-and lack of the same configurable macro-expansion boundary favored math-core.
-This selection does not assert an independent security audit.
+Refinery owns immutable, contiguous migration history and checksum validation.
+The bootstrap and executed migrations are not renamed or rewritten. V11 adds
+configuration revision/binding state and reversible definition archival. Older
+populated libraries retain the former implicit recommendation profile explicitly;
+new libraries start neutral. Migration tests exercise real owned SQLite files.
+V13 observes justification-only appearance changes and admits previously enabled
+preferences for configuration publication without replacing personal data.
+V19 replaces unstable remote page offsets with entry IDs and retains multiple
+remote identities for one canonical article. Incomplete legacy passes restart
+from their retained timestamp watermark; cached articles and notes are preserved.
 
-CommonMark owns inline/display delimiters. Lume limits each expression to
-4 KiB, 256 backslashes, 64 nested braces and 64 macro expansions; a document
-converts at most 256 expressions totaling 64 KiB. Generated MathML is capped at
-64 KiB, 4,096 XML nodes and 64 projection levels, with DTD disabled. The Unicode
-projection is limited to 8 KiB and runs during source preparation. Unknown,
-invalid or excessive expressions preserve raw source; conversion uses local
-macro state, never filesystem/remote resource resolution. These are admission
-budgets, not a memory sandbox.
+Native tests cover public behavior and credible failures. Visual snapshots cover
+reviewed terminal cells, styles, themes and sizes. Real HTTP fixtures qualify
+network boundaries. Owned Foot windows complement buffer tests;
+protocol acknowledgement is not physical key-to-photon measurement.
+See [development](development.md), [performance](performance.md),
+[configuration](configuration.md) and [dependency policy](dependency-security.md).
 
-`icy_sixel` **0.1.3** (MIT), already locked through ratatui-image, is now an
-explicit direct dependency for its public palette and encoder APIs. One palette
-and one diffusion pass cover each fitted image before independent cell-height
-encoding. This removes per-row palette seams and repeated quantizer setup;
-there is no new image codec or protocol implementation. Image dimensions,
-prepared-payload and shared decoder-cache budgets remain enforced. Two bounded
-HTTP lanes overlap downloads while serializing decoding through one cache.
+## Interactive work and durability
 
-## Graphic formulas and shared-palette color preparation
+The terminal paints the lighthouse before constructing article projections.
+Interactive construction restores metadata/preferences; separate latest-result
+workers count destinations and load the saved page/document. Migration and
+initial configuration adoption precede the interactive runtime; those phases
+remain explicit startup work. Navigation requests carry captured identities,
+library revisions and optional reader-location/synthesis arrivals. An obsolete
+completion cannot install source text or run the arrival action against a newer
+selection. `ReaderIdentity` combines displayed article/source/revision; storage
+reading snapshots carry their article identity and installation verifies it.
+Rendered parser mappings form the prepared reader projection consumed by UI.
 
-RaTeX 0.1.15 (`ratex-parser`, `ratex-layout`, `ratex-types`, `ratex-svg`)
-provides the optional runtime graphic presentation. It has a small upstream
-maintainer base and a pre-1.0 API; pinned versions, bounded publisher input,
-behavioral/golden checks and explicit fallback are required. Its parser has
-recursion and macro-expansion limits. Layout and SVG paths stay in worker
-preparation, without a browser, JavaScript runtime, shell or external service.
-Embedded KaTeX font outlines avoid system font discovery for admitted math.
-The font binaries are SIL OFL-1.1, separately from the MIT Rust code. Their
-unaltered notices are retained in `assets/licenses/images/ratex-fonts` and
-installed with the image integration notices. This scoped font redistribution
-uses OFL's bundling permission; it does not change the application's MIT license.
+One bounded ordered personal writer owns notes, read/favorite/queue flags,
+trash, tags, folders, memberships and undo. Admission happens before optimistic
+flag presentation. Captured flags overlay older database pages until their
+acknowledgements; failures request an authoritative reconciliation. Folder
+creation/membership commits atomically with one inverse history entry. The
+folder selector stages names until Enter instead of inventing SQLite IDs or
+writing from cursor input. A disconnected writer acknowledges each outstanding
+ticket as uncertain failure; it cannot leave an endless pending indicator.
 
-Quantette 0.6.0 (MIT OR Apache-2.0, Rust 1.90 minimum) owns Wu palette generation
-and continuous error diffusion in Oklab. Its upstream has a small maintainer
-base and is also used by newer icy_sixel releases. Only `std` is enabled;
-k-means, random generators, Rayon and image-loading adapters are disabled.
-Lume retains one palette/index buffer for the whole image and delegates PAL8
-wire encoding to the already qualified icy_sixel 0.1.3. Keeping that encoder
-avoids introducing a second protocol implementation or per-strip palettes.
-These choices require independent pixel checks and measured preparation costs;
-upstream benchmark claims do not establish Lume performance or security.
+Appearance/progress use a separate ordered session writer because they do not
+share personal undo. Only these idempotent writes retry transient SQLite locks,
+with three attempts and bounded worker-side backoff. Failed latest values remain
+per-key in a bounded recovery backlog. An explicit flush retries them; a newer
+successful value clears only its own key. `:save-status` retains the last error
+in the session, and `:w` retries without reporting unresolved writes as saved.
+External configuration publication uses a nonblocking
+barrier plus a local-edit guard before replacing cached appearance. Drafts,
+ranking edits, session saves and configuration publication have independently
+attempted shutdown boundaries, including drawing/input/setup errors. Errors are
+aggregated, terminal restoration still runs, and a failed unrelated edit cannot
+suppress dirty-note recovery. Shutdown may wait for admitted durable work;
+ordinary input never waits for the configuration barrier.
 
-The reviewed graphic formula path adds 51 active packages to the previous
-348-package feature graph, primarily the RaTeX font/layout stack and palette
-arithmetic. It does not load its font data in text mode. The complete lock and
-inventory qualify 399 active packages and four explicitly inactive entries.
-Responsive image selection admits width descriptors through 4096 pixels and
-densities through 4x; decoded image byte, dimension and pixel limits remain
-independent of the publisher's descriptor.
+Dense note markers build one source interval index per projection, preserving
+original display order even for reordered/overlapping mappings. Exact saved
+anchors are checked first; repeated unresolved quotations share one relocation
+result during annotation reconstruction. Rendering never writes note state.
+These indexes retain domain-specific ambiguity rules; no universal task
+executor, parser or cache framework is introduced.
 
-The optional RaTeX outline exporter introduces `ttf-parser 0.25.1` through
-`ab_glyph` and fallback font adapters. RUSTSEC-2026-0192 reports discontinued
-maintenance, with no patched version, rather than a reported vulnerability.
-The checksum-specific review expires on 2027-01-19. Only embedded, unmodified
-KaTeX font bytes reach the exporter: CJK and emoji fallback identifiers are
-rejected before export, and publisher input cannot select a font file, font
-bytes or a resource resolver. Unsupported text remains in the lightweight
-projection. A change to those consumers or authorities invalidates the review.
-Migration of the upstream exporter to a maintained font parser remains a
-maintenance requirement; the advisory gate retains and checks this finding.
+## Explicit reading services
 
-## Image and formula implementation review
+Article selectors use independent lazy `Latest` lanes for queries and previews.
+Each connection belongs to its thread. Query edits cancel old preview generations;
+reopening a selector resets both lanes. Sixteen bounded previews are retained
+only while that selector is open. Moving a generic selector does not refilter
+its unchanged candidate query. Rendering consumes prepared rows only.
 
-This review changes no dependencies. Raster decoding admits 8,388,608 pixels
-(including UHD 3840×2160) with the existing 64 MiB allocation bound. It reserves
-decoder output and evicts old sources before allocation; two retained entries
-share 32 MiB, with source precision preserved. Two SVG trees share a 512 KiB
-source-input budget; this does not claim a bound on parsed-tree memory. Existing
-XML/node limits and resource resolvers are unchanged. Opaque SVG preparation
-eliminates the unpremultiply/recomposite pass without changing allowed assets.
+Linked readings own an independent `WebPage`, not a fabricated article identity.
+The existing HTTP extractor, Markdown parser and cursor/projection contracts
+prepare text on a worker. Page history retains at most eight prepared pages.
+Resizing requests replacement layout by source anchor. HTTP is disabled by the
+runtime's offline/demo modes. Images become explicit links in this text view;
+the original Markdown remains intact for an explicit save. Save creates a real
+article in a disabled, noncollecting manual source and an ordinary Saved pages
+folder. Existing article bodies and personal fields remain untouched. A delayed
+save carries its captured visit generation, so it cannot redirect a later
+navigation, including another visit to the same URL. Back during a pending open
+discards that response before consuming section history. Page/reflow delivery
+invalidates mouse drag anchors, whose byte offsets belong to the old layout.
+Failed opens retain the previous page and its ability to reflow.
+The HTTP owner distinguishes extracted HTML from browser resources before
+reading response bodies. Non-HTML types and explicit attachments return their
+final URL as a typed outcome. Only a current linked-page completion may publish
+a one-shot browser request; the terminal owns OS launching. Navigation cancels
+undelivered requests, and the previous reading is restored before dispatch.
+Background article extraction continues to reject these resources without
+modifying its last successful cache or launching applications.
 
-The existing math-core parser admits its browser-layout-limited wide accents
-for Lume's explicit Unicode projection. This adds no parser, executable macros,
-font source or resource resolver. Projection adds enclosures, prescripts and
-brace/arrow annotations while retaining original source maps. Cached failures
-remain subject to document/expression budgets. Unknown or unrepresentable
-content stays raw rather than silently discarding mathematical material.
+`app::maintenance` admits one explicit operation at a time on an ordered lane.
+Mutations are never superseded by new requests. Progress delivery is bounded
+and may coalesce; final results are acknowledged. Closing a report does not
+reopen it when work finishes. Dropping requests cancellation without waiting
+for HTTP; already admitted SQLite transactions finish atomically.
+
+`offline` captures at most 100 article identities and URLs from Read next or a
+personal folder. The existing extractor/decoder validate every new body/image.
+An adjacent advisory file lock serializes preparations across processes.
+Checkpoints in SQLite retain per-item availability, errors and logical bytes;
+resume revalidates entries. A package defaults to 64 MiB and cannot exceed its
+explicit 1–512 MiB budget. Original images live in the separate `images/offline`
+namespace, limited globally to 512 MiB and 4096 owned files. Ordinary image
+pruning never touches that namespace. Releasing a package removes only owned
+pinned files and its checkpoint, retaining article text. In-flight network work
+obeys existing HTTP deadlines; cancellation is observed between requests.
+The lock also owns a package-local image accounting/decoder lifetime. It scans
+the pinned namespace once per preparation, not once per article. Capacity is
+updated only after atomic publication succeeds, so rejected pins cannot consume
+the budget available to later items.
+
+`storage` inspects text and disk usage on the same maintenance lane. Full-cache
+reclamation uses small IMMEDIATE transactions, protecting current personal,
+offline and session context, including recoverable note drafts. Clearing body
+bytes retains cache identities and
+fires the existing FTS/recommendation triggers. Image reclamation first scans
+remaining publisher bodies, then removes only unreferenced owned regular files
+older than that scan. It preserves symlinks, foreign files and pinned images.
+SQLite page reuse is reported separately from physical file shrinkage. A
+multi-batch operation can partially complete; it is never presented as one
+filesystem/database transaction.
+
+Retention has a separate declarative policy and a local preview acknowledgement.
+Its SQLite owner materializes source cutoffs, smart-list matches and candidate
+identities in temporary tables under a read snapshot; this stage never acquires
+an IMMEDIATE write lease or hydrates all bodies. Each bounded mutation batch
+then acquires that lease, checks `data_version` against the captured plan and
+rechecks mandatory personal protections. An external commit interrupts the pass
+before another batch. Full-cache clearing reuses existing document/FTS revision
+semantics; article deletion records original and remote-alias tombstones first.
+A monotonic article identity clock prevents deleted IDs from being reused by
+later news. A single adoption marker supplies legacy reading-state grace
+without rewriting the library during migration.
+
+Image planning is skipped when no image lifetime applies or the ordinary cache
+is empty. Otherwise shared body references resolve once to the strictest
+lifetime, with protection/unlimited taking precedence. Cleanup rechecks file
+type, size and modification time under a bounded write lease. It never treats
+filesystem and SQLite changes as an atomic unit. Automatic scheduling caches
+its policy/deadline in the UI and persists last-run time; input and drawing do
+not poll SQLite or parse TOML. The same maintenance domain serves CLI commands.
+
+Routine publisher refreshes compare stored publisher fields before deriving
+reading duration or canonical URLs. Unchanged article payloads, HTTP validators
+and failure strings do not write SQLite or touch FTS. An IMMEDIATE lease covers
+the comparison and any subsequent update, preserving validator rollback and
+avoiding read-to-write snapshot races. Feed/Full progress and workspace/layout
+checkpoints use conditional database writes, so idempotence also survives
+intervening changes from another connection.
+
+Retention filters young ordinary cache files before hydrating image references.
+It inventories only existing candidate paths, streams long galleries without
+offline download caps, and preserves shared protections and unlimited overrides.
+
+Inline server credentials use a redacting debug type. Only authenticated HTTP
+and private configuration storage expose bytes. Public configuration inspection
+uses a redacted document prepared on the publication worker; raw TOML and its
+SQLite snapshots intentionally retain the key. Environment references never
+persist expanded credentials.
+
+Reading sessions greedily select at most eight cached unread recommendations
+within a 1–240 minute total estimate. Repeated sources/interests have diminishing
+returns and canonical duplicates are excluded; this is not an optimal knapsack
+solver or a quality guarantee. Confirmation persists the captured order and
+current index. Advancing uses an IMMEDIATE transaction, skips unavailable or
+retargeted identities, and leaves read flags and feedback unchanged. Sessions,
+offline checkpoints and temporary pages are reading state, not portable TOML
+subscription definitions.
+
+Optional diagnostics retain at most 512 microsecond samples for each processing
+boundary. Percentiles sort only on inspection. Disabled diagnostics record no
+timestamps or samples. Timings cover input dispatch, frame/flush, article-ready
+navigation, selector search/preview and ordered save admission-to-delivery;
+they do not include compositor display latency or send telemetry.
+
+Notebook listing snapshots also capture the recent-search generation. A local
+history acknowledgement advances it, so an older list completion cannot erase
+newly saved searches. New list requests can still adopt a current snapshot.
+
+Recent Markdown layouts retain at most three prior exact source/width/options
+snapshots in addition to the current layout, under an estimated 8 MiB retained
+budget. Styles have a separate revision; invalidation discards cached old colors.
+Personal annotations and current article identity are reapplied by the app and
+never stored in the base layout cache. Oversized layouts are not retained.
+
+## Cancellable image transport
+
+Image workers use the pinned ureq 3.4.2 unversioned connector/transport boundary
+without changing dependencies. The default connector still owns proxies, TLS,
+OS trust, redirects and HTTP parsing. A forwarding wrapper limits individual
+response/body read waits to 50 ms while preserving the original overall deadline.
+A canceled request returns ConnectionAborted, so standard Read helpers cannot
+retry Interrupted indefinitely. DNS and connector setup retain provider bounds.
+The integration is tied to this exact ureq version and must be requalified on
+upgrade. Real loopback fixtures qualify both occupied lanes being released
+before obsolete servers reply; cache, limits and crop reuse are also exercised.

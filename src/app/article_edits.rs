@@ -12,6 +12,8 @@ use super::{App, personal_tasks::Task};
 #[derive(Default)]
 pub(super) struct ArticleEdits {
     pending: std::collections::BTreeMap<u64, CapturedEdit>,
+    changes: crate::search::Changes,
+    failed: bool,
     pub(super) reconcile_required: bool,
 }
 
@@ -90,18 +92,22 @@ impl App {
             return false;
         };
         self.library_revision = self.library_revision.wrapping_add(1);
-        self.article_edits.reconcile_required |= failed
-            || !matches!(pending.edit, crate::model::BulkEdit::Unread(_));
-        // Counts and flags come from one WAL snapshot, off the input thread.
-        // A later manual unread or undo uses this same ordered writer.
+        self.article_edits.reconcile_required |= failed;
+        self.article_edits.failed |= failed;
+        self.article_edits.changes = self
+            .article_edits
+            .changes
+            .union(crate::search::Changes::bulk(&pending.edit));
         if self.article_edits.pending.is_empty() {
-            let scope = if self.retained_article.is_some()
-                && !self.article_edits.reconcile_required
-            {
-                super::catalog_worker::Scope::Read
-            } else {
+            let scope = if self.article_edits.failed {
                 super::catalog_worker::Scope::Library
+            } else {
+                super::catalog_worker::Scope::Changes(
+                    self.article_edits.changes,
+                )
             };
+            self.article_edits.failed = false;
+            self.article_edits.changes = crate::search::Changes::default();
             self.request_catalog(scope);
         }
         true

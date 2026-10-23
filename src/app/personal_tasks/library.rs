@@ -45,17 +45,14 @@ pub(in crate::app) enum LibraryEdit {
 }
 
 pub(super) fn perform(store: &Store, edit: LibraryEdit) -> Result<Outcome> {
-    let definition = matches!(
-        &edit,
-        LibraryEdit::Unsubscribe(_)
-            | LibraryEdit::RemoveServer(_)
-            | LibraryEdit::DeleteSmart(_)
-    );
+    let definition = edit.is_definition();
     match edit {
         LibraryEdit::Deleted { article, deleted } => {
             return delete_article(store, article, deleted);
         }
-        LibraryEdit::Tags { target, tags } => store.set_tags(target, &tags)?,
+        LibraryEdit::Tags { target, tags } => {
+            return tag_edit(store, target, tags);
+        }
         LibraryEdit::CreateFolder { name, article } => {
             store.save_collection(&name, article)?;
         }
@@ -95,4 +92,25 @@ fn delete_article(
     // still shows the row. Confirm durable state and reconcile it either way.
     store.set_deleted(article, deleted)?;
     Ok(Outcome::Deleted { article, deleted })
+}
+
+fn tag_edit(
+    store: &Store,
+    target: TagTarget,
+    tags: Vec<String>,
+) -> Result<Outcome> {
+    store.set_tags(target, &tags)?;
+    Ok(Outcome::Personal(match target {
+        TagTarget::Article(_) => crate::search::Changes::TAGS,
+        TagTarget::Comment(_) => crate::search::Changes::NOTES,
+    }))
+}
+
+impl LibraryEdit {
+    fn is_definition(&self) -> bool {
+        matches!(
+            self,
+            Self::Unsubscribe(_) | Self::RemoveServer(_) | Self::DeleteSmart(_)
+        )
+    }
 }

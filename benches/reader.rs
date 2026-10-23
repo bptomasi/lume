@@ -73,6 +73,8 @@ mod read_catalog;
 mod reading_services;
 #[path = "workloads/reading_tools.rs"]
 mod reading_tools;
+#[path = "workloads/recent_layouts.rs"]
+mod recent_layouts;
 #[path = "workloads/recommendations.rs"]
 mod recommendations;
 #[path = "workloads/recovery_navigation.rs"]
@@ -144,6 +146,7 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
     active_reading::run(iterations, stress)?;
     image_priority::run(iterations, stress)?;
     read_catalog::run(iterations, stress)?;
+    recent_layouts::run(iterations, stress)?;
     article_deletion::run(iterations, stress)?;
     motion_review::run(iterations, stress)?;
     media_review::run(iterations, stress)?;
@@ -188,6 +191,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--active-reading-only", active_reading::run),
     ("--image-priority-only", image_priority::run),
     ("--read-catalog-only", read_catalog::run),
+    ("--recent-layouts-only", recent_layouts::run),
     ("--article-deletion-only", article_deletion::run),
     ("--media-review-only", media_review::run),
     ("--motion-review-only", motion_review::run),

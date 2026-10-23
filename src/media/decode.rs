@@ -28,6 +28,15 @@ impl Decoder {
         bytes: &[u8],
         key: &ImageKey,
     ) -> Result<Thumbnail> {
+        let (image, dimensions) = self.fit(bytes, key)?;
+        prepare(image, dimensions, key)
+    }
+
+    pub(crate) fn fit(
+        &mut self,
+        bytes: &[u8],
+        key: &ImageKey,
+    ) -> Result<(DynamicImage, (u32, u32))> {
         ensure!(bytes.len() <= MAX_BYTES, "Image exceeds 8 MiB");
         geometry::validate(key)?;
         let (image, dimensions) = if image::guess_format(bytes).is_ok() {
@@ -35,11 +44,11 @@ impl Decoder {
         } else {
             self.svg.render(bytes, key)?
         };
-        prepare(image, dimensions, key)
+        Ok((image, dimensions))
     }
 }
 
-fn prepare(
+pub(crate) fn prepare(
     image: DynamicImage,
     dimensions: (u32, u32),
     key: &ImageKey,

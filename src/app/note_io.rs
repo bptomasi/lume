@@ -146,6 +146,13 @@ impl App {
                 self.install_personal_effect(effect, comments?)?;
             }
             Outcome::Articles | Outcome::Checkpoint => {}
+            Outcome::Personal(changes) => {
+                self.library_revision = self.library_revision.wrapping_add(1);
+                self.invalidate_notebook();
+                self.request_catalog(super::catalog_worker::Scope::Changes(
+                    changes,
+                ));
+            }
             Outcome::Deleted { article, deleted } => {
                 self.finish_article_deletion(article, deleted)?;
             }

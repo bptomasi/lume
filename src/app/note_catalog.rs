@@ -25,6 +25,7 @@ struct Snapshot {
 pub(super) struct NoteCatalog {
     worker: Latest<Request, Snapshot>,
     ready: Option<Snapshot>,
+    revision: u64,
 }
 
 impl NoteCatalog {
@@ -34,13 +35,9 @@ impl NoteCatalog {
             worker: Latest::start(
                 "lume-note-catalog",
                 move |request: Request| {
-                    let counts = request
-                        .views
-                        .into_iter()
-                        .map(|view| {
-                            Ok((view.clone(), store.view_count(&view)?))
-                        })
-                        .collect::<Result<_>>()?;
+                    let values = store.view_counts(&request.views)?;
+                    let counts =
+                        request.views.into_iter().zip(values).collect();
                     let page = request
                         .query
                         .map(|query| {
@@ -52,17 +49,23 @@ impl NoteCatalog {
                 },
             )?,
             ready: None,
+            revision: 0,
         })
     }
 }
 
 impl App {
     pub(super) fn refresh_note_catalog(&mut self) {
-        let query = (matches!(
-            self.view,
-            View::Smart(_) | View::Annotated | View::Recommended
-        ) || !self.search.is_empty())
-        .then(|| ArticleQuery {
+        let affected = super::navigation::sensitive(
+            &self.view,
+            &self.library.smart_lists,
+            crate::search::Changes::NOTES,
+        )
+        .unwrap_or(true)
+            || crate::search::parse(&self.search)
+                .map(|query| query.depends_on(crate::search::Changes::NOTES))
+                .unwrap_or(true);
+        let query = affected.then(|| ArticleQuery {
             view: self.view.clone(),
             text: self.search.clone(),
             offset: self.page_offset,
@@ -71,10 +74,20 @@ impl App {
         });
         if let Some(catalog) = &mut self.note_catalog {
             catalog.ready = None;
+            catalog.revision = self.library_revision;
             catalog.worker.submit(Request {
                 views: self
-                    .navigation
+                    .navigation_sections
+                    .catalog()
                     .iter()
+                    .filter(|row| {
+                        super::navigation::sensitive(
+                            &row.view,
+                            &self.library.smart_lists,
+                            crate::search::Changes::NOTES,
+                        )
+                        .unwrap_or(true)
+                    })
                     .map(|row| row.view.clone())
                     .collect(),
                 query,
@@ -91,6 +104,10 @@ impl App {
             return Ok(false);
         };
         if let Some(result) = catalog.worker.poll() {
+            if catalog.revision != self.library_revision {
+                self.refresh_note_catalog();
+                return Ok(false);
+            }
             catalog.ready = Some(result?);
         }
         if !matches!(self.mode, Mode::Normal) || self.selection.is_some() {
@@ -99,13 +116,21 @@ impl App {
         let Some(snapshot) = catalog.ready.take() else {
             return Ok(false);
         };
-        for (view, count) in snapshot.counts {
-            if let Some(row) =
-                self.navigation.iter_mut().find(|row| row.view == view)
-            {
-                row.count = count;
+        if catalog.revision != self.library_revision {
+            self.refresh_note_catalog();
+            return Ok(false);
+        }
+        let counts = snapshot
+            .counts
+            .into_iter()
+            .collect::<std::collections::HashMap<_, _>>();
+        let mut navigation = self.navigation_sections.catalog().to_vec();
+        for row in &mut navigation {
+            if let Some(count) = counts.get(&row.view) {
+                row.count = *count;
             }
         }
+        self.install_navigation(navigation);
         if let Some((query, page)) = snapshot.page {
             self.install_metadata_page(query, page)?;
         }

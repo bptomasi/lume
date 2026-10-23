@@ -21,10 +21,10 @@ impl App {
         comments: Vec<crate::model::Comment>,
     ) {
         self.invalidate_notebook();
+        self.invalidate_reading_refresh();
         self.refresh_note_catalog();
         let count = comments.len();
         self.update_note_counts(article, count);
-        self.invalidate_reading_refresh();
         if self.current().is_none_or(|item| item.id != article)
             || self.reading_article() != Some(article)
         {

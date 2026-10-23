@@ -312,3 +312,59 @@ fn slow_first_download_does_not_block_a_second_visible_image() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn obsolete_header_waits_free_both_lanes_before_the_server_responds()
+-> Result<()> {
+    let first = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
+    let second = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
+    let latest = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
+    let (directory, mut app) = reading(&first.url)?;
+    let mut store = Store::open(&directory.path().join("library.sqlite3"))?;
+    let feed = store.feeds()?.remove(0);
+    let mut parsed =
+        source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
+    parsed.articles[0].body =
+        format!("![First]({})\n\n![Second]({})", first.url, second.url);
+    store.ingest(&feed, &parsed.title, &parsed.articles)?;
+    app.reload()?;
+    app.resize_reader(70, 40);
+    app.poll_images();
+    app.poll_images();
+    first.request.recv_timeout(Duration::from_secs(2))?;
+    second.request.recv_timeout(Duration::from_secs(2))?;
+    parsed.articles[0].body = format!("![Latest]({})", latest.url);
+    store.ingest(&feed, &parsed.title, &parsed.articles)?;
+    app.reload()?;
+    let start = Instant::now();
+    app.poll_images();
+    latest.request.recv_timeout(Duration::from_secs(2))?;
+    let canceled = start.elapsed();
+    assert!(canceled < Duration::from_secs(2));
+    latest.release.send(())?;
+    settle(&mut app)?;
+    let key = app.image_key(&app.images.slots[0]).context("Latest key")?;
+    assert!(app.images.thumbnail(&key).is_some());
+    // Obsolete responses can observe the client's intentional socket closure.
+    first.finish_canceled()?;
+    second.finish_canceled()?;
+    latest
+        .finished
+        .recv_timeout(Duration::from_secs(5))?
+        .map_err(anyhow::Error::msg)?;
+    println!(
+        "two obsolete header waits canceled in {:.3} ms",
+        canceled.as_secs_f64() * 1000.0
+    );
+    Ok(())
+}
+
+impl Server {
+    fn finish_canceled(&self) -> Result<()> {
+        self.release.send(())?;
+        // A canceled client can intentionally close before this obsolete reply.
+        let _reply = self.finished.recv_timeout(Duration::from_secs(5))?;
+        Ok(())
+    }
+}

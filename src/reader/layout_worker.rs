@@ -9,6 +9,8 @@ use crate::latest::Latest;
 
 use super::{RenderOptions, Rendered, live::CodeKey};
 
+mod cache;
+
 type Styles = Vec<(CodeKey, Arc<[Line<'static>]>)>;
 
 struct Request {
@@ -16,6 +18,7 @@ struct Request {
     width: usize,
     styles: Styles,
     options: RenderOptions,
+    revision: u64,
 }
 
 struct Completed {
@@ -24,12 +27,14 @@ struct Completed {
     rendered: Rendered,
     blocks: Vec<CodeKey>,
     options: RenderOptions,
+    revision: u64,
 }
 
 pub(super) struct LayoutWorker {
     worker: Latest<Request, Completed>,
     requested: Option<(Arc<str>, usize, u64)>,
     ready: Option<Completed>,
+    cache: cache::Cache,
     revision: u64,
     options: RenderOptions,
     pub(super) error: Option<String>,
@@ -41,6 +46,7 @@ impl LayoutWorker {
             worker: Latest::start("lume-layout", prepare)?,
             requested: None,
             ready: None,
+            cache: cache::Cache::default(),
             revision: 0,
             options,
             error: None,
@@ -48,6 +54,7 @@ impl LayoutWorker {
     }
 
     pub(super) fn set_options(&mut self, options: RenderOptions) {
+        self.cache.clear();
         self.options = options;
         self.worker.cancel();
         self.requested = None;
@@ -64,11 +71,23 @@ impl LayoutWorker {
         if !same {
             let body: Arc<str> = Arc::from(body);
             self.requested = Some((body.clone(), width, self.revision));
+            if let Some(cached) =
+                self.cache.take(&body, width, self.options, self.revision)
+            {
+                self.worker.cancel();
+                self.install(cached);
+                return self
+                    .ready
+                    .as_ref()
+                    .map(|ready| ready.rendered.clone())
+                    .unwrap_or_default();
+            }
             self.worker.submit(Request {
                 body,
                 width,
                 styles: styles(),
                 options: self.options,
+                revision: self.revision,
             });
         }
         self.ready
@@ -93,7 +112,7 @@ impl LayoutWorker {
         match completed {
             Ok(completed) => {
                 let blocks = completed.blocks.clone();
-                self.ready = Some(completed);
+                self.install(completed);
                 Some(blocks)
             }
             Err(error) => {
@@ -112,17 +131,27 @@ impl LayoutWorker {
         self.worker.cancel();
         let body: Arc<str> = Arc::from(body);
         self.requested = Some((body.clone(), width, self.revision));
-        self.ready = Some(Completed {
+        self.install(Completed {
             body,
             width,
             rendered: rendered.clone(),
             blocks: Vec::new(),
             options: self.options,
+            revision: self.revision,
         });
     }
 
     pub(super) fn invalidate_styles(&mut self) {
+        self.cache.clear();
         self.revision = self.revision.wrapping_add(1);
+    }
+
+    fn install(&mut self, completed: Completed) {
+        if let Some(previous) = self.ready.replace(completed)
+            && previous.revision == self.revision
+        {
+            self.cache.insert(previous);
+        }
     }
 
     pub(super) fn source_ready(&self, body: &str) -> bool {
@@ -177,6 +206,7 @@ fn prepare(request: Request) -> Result<Completed> {
         rendered,
         blocks,
         options: request.options,
+        revision: request.revision,
     })
 }
 
@@ -237,11 +267,67 @@ mod tests {
             width: 60,
             styles,
             options: RenderOptions::default(),
+            revision: 0,
         })?;
 
         assert!(completed.rendered.lines.contains(&colored));
         assert!(completed.rendered.text.contains(text.trim_end()));
         assert_eq!(completed.blocks.len(), 1);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod cache_tests {
+    use super::*;
+    #[test]
+    fn recent_layouts_return_without_parsing_or_capturing_styles() -> Result<()>
+    {
+        let mut worker = LayoutWorker::start(RenderOptions::default())?;
+        for body in ["First source.", "Second source.", "Third source."] {
+            let rendered = super::super::render(body, 80);
+            worker.seed(body, 80, &rendered);
+        }
+        let mut captures = 0;
+        let rendered = worker.render("First source.", 80, || {
+            captures += 1;
+            Vec::new()
+        });
+        assert_eq!(captures, 0);
+        assert!(rendered.text.contains("First source."));
+        assert!(!worker.pending());
+        worker.invalidate_styles();
+        worker.render("Second source.", 80, || {
+            captures += 1;
+            Vec::new()
+        });
+        assert_eq!(captures, 1);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod eviction_tests {
+    use super::*;
+    #[test]
+    fn old_layouts_are_evicted_and_width_is_part_of_the_identity() -> Result<()>
+    {
+        let mut worker = LayoutWorker::start(RenderOptions::default())?;
+        for index in 0..5 {
+            let body = format!("Source {index}.");
+            worker.seed(&body, 80, &super::super::render(&body, 80));
+        }
+        let mut captures = 0;
+        worker.render("Source 0.", 80, || {
+            captures += 1;
+            Vec::new()
+        });
+        assert_eq!(captures, 1);
+        worker.render("Source 3.", 40, || {
+            captures += 1;
+            Vec::new()
+        });
+        assert_eq!(captures, 2);
         Ok(())
     }
 }

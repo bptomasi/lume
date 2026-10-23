@@ -1,12 +1,16 @@
 //! A source download survives crop changes; obsolete sources stop before decode.
 use crate::media::ImageKey;
 use anyhow::{Result, anyhow};
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+};
 
 pub(super) struct Request {
     pub(super) url: String,
     pub(super) generated: Option<Arc<[u8]>>,
     state: Mutex<State>,
+    pub(super) canceled: Arc<AtomicBool>,
 }
 
 struct State {
@@ -19,6 +23,7 @@ impl Request {
         Self {
             url: key.url.clone(),
             generated,
+            canceled: Arc::new(AtomicBool::new(false)),
             state: Mutex::new(State {
                 key: Some(key),
                 finished: false,
@@ -40,8 +45,11 @@ impl Request {
             .state
             .lock()
             .map_err(|_| anyhow!("Image request stopped"))?;
-        if state.finished {
+        if state.finished || (state.key.is_none() && key.is_some()) {
             return Ok(false);
+        }
+        if key.is_none() {
+            self.canceled.store(true, Ordering::Release);
         }
         state.key = key;
         Ok(true)

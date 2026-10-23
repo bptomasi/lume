@@ -137,8 +137,10 @@ release and resize events cannot accidentally activate a library operation;
 resize redraws the scene. Collection can continue behind the welcome screen.
 
 Catalog snapshots batch ordinary totals and feed/server/folder groups;
-identical saved filters share one count within that snapshot. Read/unread flag
-changes invalidate Inbox, Read, recommendations and read-sensitive smart lists.
+identical saved filters share one count within that snapshot. Personal mutation
+masks invalidate only predicates observing the changed read/favorite/queue flag,
+article tags or annotations, including nested boolean expressions. Annotation
+count/page results carry the library revision and retain folded children.
 Other counts survive, including children hidden by section folding. Repeated
 requests at the same revision reuse an active/prepared snapshot; a stronger
 full-library refresh upgrades it. Unknown edits, failures, deletion, undo and
@@ -296,9 +298,11 @@ viewport stop before cache access or decoding when observed in time. The latest
 crop is captured after acquiring the shared decoder lock. Obsolete completions
 do not enter the presentation cache or request a frame. Queue saturation is
 retryable rather than a permanent image error. Dropping the worker cancels its
-remaining intentions without joining HTTP. An HTTP request already waiting for
-response headers still owns a lane until its existing six-second deadline;
-this change does not provide transport-level cancellation.
+remaining intentions without joining HTTP. The existing ureq connector now polls response/body reads in bounded 50 ms
+slices to observe cancellation without extra download threads. TLS/proxy setup,
+framing and global deadlines remain with ureq; connecting/resolving still uses
+its existing deadline. Terminal encoding happens after releasing the shared
+source decoder lock, with at most two bounded fitted canvases in flight.
 
 Image source reuse is bounded independently from prepared terminal cells. Two
 raster entries share 32 MiB, with eviction before allocating a new decoded
@@ -519,3 +523,9 @@ they do not include compositor display latency or send telemetry.
 Notebook listing snapshots also capture the recent-search generation. A local
 history acknowledgement advances it, so an older list completion cannot erase
 newly saved searches. New list requests can still adopt a current snapshot.
+
+Recent Markdown layouts retain at most three prior exact source/width/options
+snapshots in addition to the current layout, under an estimated 8 MiB retained
+budget. Styles have a separate revision; invalidation discards cached old colors.
+Personal annotations and current article identity are reapplied by the app and
+never stored in the base layout cache. Oversized layouts are not retained.

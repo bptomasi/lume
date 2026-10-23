@@ -14,6 +14,7 @@ use std::{
 use anyhow::{Context, Result, ensure};
 
 use super::{Decoder, ImageKey, MAX_BYTES, Thumbnail, cache};
+mod http;
 mod request;
 use request::Request;
 
@@ -143,20 +144,27 @@ fn render(
     bytes: &[u8],
     request: &Request,
 ) -> Result<Option<(ImageKey, Thumbnail)>> {
-    let mut decoder = decoder
-        .lock()
-        .map_err(|_| anyhow::anyhow!("Image decoder stopped"))?;
-    let Some(key) = request.key()? else {
-        return Ok(None);
+    let (key, image, dimensions) = {
+        let mut decoder = decoder
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Image decoder stopped"))?;
+        let Some(key) = request.key()? else {
+            return Ok(None);
+        };
+        let (image, dimensions) = decoder.fit(bytes, &key)?;
+        (key, image, dimensions)
     };
-    let image = decoder.render(bytes, &key)?;
-    Ok(Some((key, image)))
+    if request.key()?.is_none() {
+        return Ok(None);
+    }
+    let thumbnail = super::decode::prepare(image, dimensions, &key)?;
+    Ok(Some((key, thumbnail)))
 }
 
 fn load(
     directory: &std::path::Path,
     offline: bool,
-    client: &mut Option<ureq::Agent>,
+    client: &mut Option<http::Client>,
     decoder: &Mutex<Decoder>,
     request: &Request,
 ) -> Result<Option<(ImageKey, Thumbnail)>> {
@@ -183,8 +191,8 @@ fn load(
         return Ok(None);
     }
     ensure!(!offline, "Image unavailable in offline cache");
-    let client = client.get_or_insert_with(crate::source::agent);
-    let bytes = download(client, &request.url)?;
+    let client = client.get_or_insert_with(http::Client::new);
+    let bytes = client.download(request)?;
     let Some((key, mut image)) = render(decoder, &bytes, request)? else {
         return Ok(None);
     };

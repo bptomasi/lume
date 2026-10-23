@@ -8,11 +8,24 @@ use anyhow::{Context, Result};
 use super::{App, Mode, NavItem};
 use crate::{latest::Latest, model::Library, store::Store};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Scope {
-    Read,
+    Changes(crate::search::Changes),
     Counts,
     Library,
+}
+
+impl Scope {
+    fn covers(self, other: Self) -> bool {
+        self.merge(other) == self
+    }
+    fn merge(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Library, _) | (_, Self::Library) => Self::Library,
+            (Self::Counts, _) | (_, Self::Counts) => Self::Counts,
+            (Self::Changes(a), Self::Changes(b)) => Self::Changes(a.union(b)),
+        }
+    }
 }
 
 struct Catalog {
@@ -35,8 +48,14 @@ struct Request {
 
 fn read_catalog(store: &Store, request: Request) -> Result<Catalog> {
     let library = store.catalog()?;
-    let navigation = if request.scope == Scope::Read {
-        read_counts(store, &library, request.last_visit, &request.previous)?
+    let navigation = if let Scope::Changes(changes) = request.scope {
+        selective_counts(
+            store,
+            &library,
+            request.last_visit,
+            &request.previous,
+            changes,
+        )?
     } else {
         super::navigation::catalog_navigation(
             store,
@@ -56,6 +75,22 @@ pub(super) fn read_counts(
     last_visit: i64,
     previous: &[NavItem],
 ) -> Result<Vec<NavItem>> {
+    selective_counts(
+        store,
+        library,
+        last_visit,
+        previous,
+        crate::search::Changes::READ,
+    )
+}
+
+pub(super) fn selective_counts(
+    store: &Store,
+    library: &Library,
+    last_visit: i64,
+    previous: &[NavItem],
+    changes: crate::search::Changes,
+) -> Result<Vec<NavItem>> {
     let mut navigation =
         super::navigation::pending_navigation(library, last_visit);
     let previous = previous
@@ -65,8 +100,11 @@ pub(super) fn read_counts(
     let mut changed = Vec::new();
     for item in &mut navigation {
         let previous = previous.get(&item.view);
-        if super::navigation::read_sensitive(&item.view, &library.smart_lists)?
-            || previous.is_none()
+        if super::navigation::sensitive(
+            &item.view,
+            &library.smart_lists,
+            changes,
+        )? || previous.is_none()
         {
             changed.push(item.view.clone());
         } else if let Some(previous) = previous {
@@ -107,12 +145,12 @@ impl App {
             let pending = worker.worker.pending() || worker.ready.is_some();
             if pending
                 && worker.revision == self.library_revision
-                && scope <= worker.scope
+                && worker.scope.covers(scope)
             {
                 return;
             }
             worker.scope = if pending {
-                scope.max(worker.scope)
+                scope.merge(worker.scope)
             } else {
                 scope
             };
@@ -120,7 +158,7 @@ impl App {
             worker.revision = self.library_revision;
             worker.worker.submit(Request {
                 last_visit: self.workspace.last_visit,
-                previous: if worker.scope == Scope::Read {
+                previous: if matches!(worker.scope, Scope::Changes(_)) {
                     self.navigation_sections.catalog().to_vec()
                 } else {
                     Vec::new()
@@ -153,6 +191,22 @@ impl App {
         Ok(true)
     }
 
+    fn catalog_page_changed(&self, scope: Scope) -> Result<bool> {
+        let Scope::Changes(changes) = scope else {
+            return Ok(scope == Scope::Library);
+        };
+        if changes == crate::search::Changes::READ
+            && self.retained_article.is_some()
+        {
+            return Ok(false);
+        }
+        Ok(super::navigation::sensitive(
+            &self.view,
+            &self.library.smart_lists,
+            changes,
+        )? || crate::search::parse(&self.search)?.depends_on(changes))
+    }
+
     fn publish_catalog(
         &mut self,
         mut catalog: Catalog,
@@ -167,7 +221,9 @@ impl App {
             self.selected = 0;
             self.retained_article = None;
             self.filter()?;
-        } else if scope == Scope::Library && !self.navigation_loading {
+        } else if !self.navigation_loading
+            && self.catalog_page_changed(scope)?
+        {
             self.refresh_catalog_page();
         }
         Ok(())

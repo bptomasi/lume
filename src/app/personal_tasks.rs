@@ -95,6 +95,7 @@ pub(super) enum Outcome {
         comments: Result<Vec<Comment>>,
     },
     Articles,
+    Personal(crate::search::Changes),
     Deleted {
         article: i64,
         deleted: bool,

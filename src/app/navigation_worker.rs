@@ -465,7 +465,9 @@ impl App {
     pub(super) fn invalidate_reading_refresh(&mut self) {
         self.library_revision = self.library_revision.wrapping_add(1);
         if self.catalog_loading {
-            self.request_catalog(super::catalog_worker::Scope::Counts);
+            self.request_catalog(super::catalog_worker::Scope::Changes(
+                crate::search::Changes::NOTES,
+            ));
         }
         if self.projecting_navigation && !self.navigation_loading {
             self.refresh_catalog_page();
