@@ -42,6 +42,7 @@ impl Store {
             },
             workspaces: layouts.profiles,
             retention: self.retention_policy()?,
+            backups: self.backup_policy()?,
         };
         config.normalize();
         config.validate()?;

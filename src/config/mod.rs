@@ -6,6 +6,7 @@
 //! and atomically publishes before acknowledging the revision. A crash between
 //! filesystem publication and SQLite commit is recovered by the next merge.
 
+pub mod backups;
 pub(crate) mod document;
 mod formatting;
 pub(crate) mod merge;

@@ -110,6 +110,12 @@ pub(super) enum Command {
     Storage(storage::Arguments),
     /// Snapshot committed articles, annotations and declarative preferences.
     Backup {
+        /// Write a directory bundle with an integrity manifest.
+        #[arg(long)]
+        bundle: bool,
+        /// Include pinned offline images; implies a directory bundle.
+        #[arg(long)]
+        include_offline: bool,
         /// New SQLite snapshot file; never overwrites an existing file.
         output: PathBuf,
     },
@@ -154,9 +160,7 @@ pub(super) fn execute(
         }
         Command::Sync => {
             real_library(demo)?;
-            network_enabled(offline)?;
-            sync_subscriptions(&path)?;
-            retention::automatic(&store, &path)?;
+            sync_library(&store, &path, offline)?;
         }
         Command::Fetch { article } => {
             real_library(demo)?;
@@ -277,4 +281,15 @@ fn discover(url: &str, offline: bool) -> Result<()> {
         println!("{}\t{}", feed.title, feed.url);
     }
     Ok(())
+}
+
+fn sync_library(store: &Store, path: &Path, offline: bool) -> Result<()> {
+    network_enabled(offline)?;
+    sync_subscriptions(path)?;
+    lume::backups::automatic(
+        store,
+        chrono::Utc::now().timestamp(),
+        &std::sync::atomic::AtomicBool::new(false),
+    )?;
+    retention::automatic(store, path)
 }

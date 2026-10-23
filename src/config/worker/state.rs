@@ -151,6 +151,7 @@ mod tests {
         Update {
             appearance_revision: 0,
             retention: Default::default(),
+            backups: Default::default(),
             ui: crate::config::Ui::default(),
             workspaces: Default::default(),
             catalog_fingerprint: [0; 32],

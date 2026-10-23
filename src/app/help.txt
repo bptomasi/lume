@@ -407,6 +407,8 @@ DECLARATIVE CONFIGURATION
   :session end    Release the sequence without altering articles or notes
                   Plans use the cached unread recommendations, not a model.
                   Configure interests first; at most eight entries fit a plan.
+  :backup status|now|cancel
+                  Inspect or create a managed backup; configure [backups] in TOML
   :storage        Inspect feed, Full cache, notes, database/WAL and image usage
   :storage auto|MiB|GiB|bytes
                   Choose readable binary units or exact bytes; work stays off input

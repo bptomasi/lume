@@ -15,12 +15,26 @@ impl App {
     ) -> Result<Option<Action>> {
         match verb {
             "offline" => self.offline_command(argument)?,
+            "backup" => self.backup_command(argument)?,
             "storage" => self.storage_command(argument)?,
             "session" => self.reading_session_command(argument)?,
             "retention" => self.retention_command(argument)?,
             _ => return Ok(None),
         }
         Ok(Some(Action::None))
+    }
+
+    fn backup_command(&mut self, argument: &str) -> Result<()> {
+        let request = match argument {
+            "" | "status" => Request::BackupStatus,
+            "now" => Request::Backup { automatic: false },
+            "cancel" => {
+                self.cancel_maintenance();
+                return Ok(());
+            }
+            _ => bail!("Use :backup status|now|cancel"),
+        };
+        self.submit_maintenance(request)
     }
 
     fn offline_command(&mut self, argument: &str) -> Result<()> {

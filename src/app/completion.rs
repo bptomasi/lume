@@ -1020,6 +1020,12 @@ const COMMANDS: &[CommandSpec] = &[
         aliases: &[],
     },
     CommandSpec {
+        name: "backup",
+        usage: "backup [status|now|cancel]",
+        description: "Inspect or create a local snapshot with configured rotation",
+        aliases: &[],
+    },
+    CommandSpec {
         name: "storage",
         usage: "storage [auto|MiB|GiB|bytes|details [UNIT]|status|clean images|clean articles|clean all]",
         description: "Inspect storage; preview explicit recoverable-cache cleanup",

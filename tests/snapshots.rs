@@ -133,3 +133,66 @@ fn backup_cli_preserves_legacy_schema_and_original_file_bytes() -> Result<()> {
     assert_eq!(note, "A personal annotation that must survive migration.");
     Ok(())
 }
+
+#[test]
+fn bundled_backup_cli_includes_offline_files_even_with_invalid_active_toml()
+-> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let root = directory.path();
+    let bad_config = root.join("bad.toml");
+    std::fs::write(&bad_config, "invalid = [")?;
+    let address = "https://images.test/pin";
+    lume::media::cache::write(
+        &root.join("images/offline"),
+        address,
+        b"Pinned",
+    )?;
+    let bundle = root.join("bundle");
+    let backup = recovery_cli(root, &bad_config)
+        .args(["backup", "--include-offline"])
+        .arg(&bundle)
+        .output()?;
+    assert_cli_success(backup);
+    let output = root.join("restored");
+    let restored = recovery_cli(root, &bad_config)
+        .arg("restore")
+        .arg(&bundle)
+        .arg(&output)
+        .output()?;
+    assert_cli_success(restored);
+    assert_eq!(
+        std::fs::read(lume::media::cache::path(
+            &output.join("images/offline"),
+            address
+        ))?,
+        b"Pinned"
+    );
+    assert_eq!(
+        Store::open(&output.join("library.sqlite3"))?
+            .library()?
+            .articles[0]
+            .id,
+        store.library()?.articles[0].id
+    );
+    Ok(())
+}
+
+fn recovery_cli(
+    root: &std::path::Path,
+    config: &std::path::Path,
+) -> std::process::Command {
+    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_lume"));
+    command
+        .arg("--data-dir")
+        .arg(root)
+        .arg("--config")
+        .arg(config);
+    command
+}
+fn assert_cli_success(output: std::process::Output) {
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

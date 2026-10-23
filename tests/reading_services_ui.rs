@@ -742,3 +742,56 @@ fn retention_status_uses_its_own_report_title() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn backup_commands_use_the_ordered_background_lane_and_restore_the_document()
+-> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let session = lume::config::Session::open(
+        &store,
+        &directory.path().join("config.toml"),
+    )?;
+    let mut app = App::new(store, false)?;
+    app.configure_document(session.initial().clone());
+    command(&mut app, "backup status")?;
+    settle(&mut app)?;
+    let Mode::Document(view) = &app.mode else {
+        anyhow::bail!("Missing backup report");
+    };
+    assert!(view.lines.join("\n").contains("Automatic backups: false"));
+    key(&mut app, KeyCode::Esc)?;
+    command(&mut app, "backup now")?;
+    assert!(app.maintenance_pending());
+    settle(&mut app)?;
+    let Mode::Document(view) = &app.mode else {
+        anyhow::bail!("Missing completion report");
+    };
+    assert!(view.lines.join("\n").contains("Backup saved:"));
+    assert!(directory.path().join("backups").is_dir());
+    Ok(())
+}
+
+#[test]
+fn automatic_backup_keeps_normal_reading_and_does_not_repeat_on_each_poll()
+-> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let path = directory.path().join("config.toml");
+    let session = lume::config::Session::open(&store, &path)?;
+    let mut config = lume::config::decode(&session.initial().document)?;
+    config.backups.automatic = true;
+    std::fs::write(&path, lume::config::encode(&config)?)?;
+    let session = lume::config::Session::open(&store, &path)?;
+    let mut app = App::new(store, false)?;
+    app.configure_document(session.initial().clone());
+    let article = app.current().map(|article| article.id);
+    app.poll_maintenance()?;
+    settle(&mut app)?;
+    assert!(matches!(app.mode, Mode::Normal));
+    assert_eq!(app.current().map(|article| article.id), article);
+    assert!(app.status.starts_with("Backup saved:"));
+    let status = app.status.clone();
+    assert!(!app.poll_maintenance()?);
+    assert_eq!(app.status, status);
+    assert!(!app.maintenance_pending());
+    Ok(())
+}

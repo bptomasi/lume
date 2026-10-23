@@ -34,6 +34,8 @@ pub struct Update {
     pub path: PathBuf,
     /// Cached scheduling preferences; article scans stay on the maintenance lane.
     pub retention: super::retention::Retention,
+    /// Cached automatic-backup schedule; snapshots stay on maintenance workers.
+    pub backups: super::backups::Backups,
 }
 
 /// Bounded reconciliation notifications; pending edits themselves live in SQLite.
@@ -168,16 +170,7 @@ mod tests {
     -> Result<()> {
         let (send, events) = mpsc::sync_channel(2);
         for name in ["First", "Second"] {
-            send.send(Ok(Update {
-                appearance_revision: 0,
-                retention: Default::default(),
-                ui: Default::default(),
-                workspaces: Default::default(),
-                catalog_fingerprint: [0; 32],
-                document: name.into(),
-                redacted_document: None,
-                path: "config.toml".into(),
-            }))?;
+            send.send(Ok(notification(name)))?;
         }
         let failure =
             Arc::new(OnceLock::from("Storage became unavailable".to_owned()));
@@ -206,5 +199,18 @@ mod tests {
         assert!(error.to_string().contains("Storage became unavailable"));
         assert!(worker.poll().is_none());
         Ok(())
+    }
+    fn notification(name: &str) -> Update {
+        Update {
+            appearance_revision: 0,
+            retention: Default::default(),
+            backups: Default::default(),
+            ui: Default::default(),
+            workspaces: Default::default(),
+            catalog_fingerprint: [0; 32],
+            document: name.into(),
+            redacted_document: None,
+            path: "config.toml".into(),
+        }
     }
 }

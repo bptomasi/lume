@@ -227,7 +227,7 @@ fn feed_fallback(
     Ok((body, false))
 }
 
-fn lock(directory: &Path) -> Result<std::fs::File> {
+pub(crate) fn lock(directory: &Path) -> Result<std::fs::File> {
     std::fs::create_dir_all(directory)?;
     let file = std::fs::OpenOptions::new()
         .create(true)

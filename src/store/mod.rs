@@ -8,6 +8,7 @@
 
 mod annotations;
 mod backup;
+mod backups;
 mod collections;
 mod comments;
 mod configuration;

@@ -4,6 +4,7 @@
 //! the application owns navigation and delegates all terminal drawing to `ui`.
 
 pub mod app;
+pub mod backups;
 pub mod catalog;
 pub mod clipboard;
 pub mod config;

@@ -20,7 +20,7 @@ use std::{
 use anyhow::{Context, Result, ensure};
 
 use crate::{
-    model::{OfflineLimits, OfflineState, ReadingSession, View},
+    model::{OfflineLimits, ReadingSession, View},
     storage::Cleanup,
 };
 
@@ -37,6 +37,10 @@ pub(super) enum Request {
     OfflineStatus,
     Storage(crate::storage::Unit),
     StorageDetails(crate::storage::Unit),
+    Backup {
+        automatic: bool,
+    },
+    BackupStatus,
     Clean(Cleanup),
     Plan(u16),
     Start(ReadingSession),
@@ -60,9 +64,12 @@ pub(super) enum RetentionAction {
 }
 
 enum Outcome {
-    Text(String),
-    RetentionStatus(String),
-    Offline(OfflineState),
+    Report(&'static str, String),
+    Backup {
+        path: Option<PathBuf>,
+        delay: std::time::Duration,
+        automatic: bool,
+    },
     Plan(ReadingSession),
     Session(ReadingSession),
     Retention {
@@ -162,12 +169,7 @@ impl App {
     /// # Errors
     /// Returns an acknowledged background failure; committed batches are retained.
     pub fn poll_maintenance(&mut self) -> Result<bool> {
-        if self.retention_due() {
-            self.admit_maintenance(Request::Retention {
-                action: RetentionAction::Automatic,
-                article: self.current().map(|article| article.id),
-            })?;
-        }
+        self.admit_automatic_maintenance()?;
         let Some(worker) = &mut self.maintenance else {
             return Ok(false);
         };
@@ -192,10 +194,26 @@ impl App {
             Update::Finished(Ok(Outcome::AutomaticRetention {
                 report: None,
                 ..
+            } | Outcome::Backup {
+                path: None,
+                automatic: true,
+                ..
             }))
         );
         self.apply_maintenance_update(update)?;
         Ok(changed)
+    }
+
+    fn admit_automatic_maintenance(&mut self) -> Result<()> {
+        if self.backup_due() {
+            self.admit_maintenance(Request::Backup { automatic: true })?;
+        } else if self.retention_due() {
+            self.admit_maintenance(Request::Retention {
+                action: RetentionAction::Automatic,
+                article: self.current().map(|article| article.id),
+            })?;
+        }
+        Ok(())
     }
 
     fn apply_maintenance_update(&mut self, update: Update) -> Result<()> {
@@ -248,6 +266,13 @@ Inspect the current checkpoint before retrying."#
         visible: bool,
     ) -> Result<()> {
         match outcome {
+            Outcome::Backup {
+                path,
+                delay,
+                automatic,
+            } => {
+                self.finish_backup(path, delay, visible && !automatic);
+            }
             Outcome::AutomaticRetention { report, delay } => {
                 self.schedule_retention(delay);
                 if let Some(report) = report {
@@ -257,16 +282,10 @@ Inspect the current checkpoint before retrying."#
             Outcome::Retention { report, preview } => {
                 self.finish_retention(report, preview, visible)?;
             }
-            Outcome::RetentionStatus(text) if visible => {
-                self.show_document("Retention · Esc closes", &text, None)
-            }
-            Outcome::Text(text) if visible => {
-                self.show_document("Storage · Esc closes", &text, None)
-            }
-            Outcome::Offline(state) if visible => {
+            Outcome::Report(title, text) if visible => {
                 self.show_document(
-                    "Offline package · Esc closes",
-                    &report::offline(&state),
+                    &format!("{title} · Esc closes"),
+                    &text,
                     None,
                 );
             }
@@ -285,6 +304,27 @@ Inspect the current checkpoint before retrying."#
             }
         }
         Ok(())
+    }
+
+    fn finish_backup(
+        &mut self,
+        path: Option<PathBuf>,
+        delay: std::time::Duration,
+        visible: bool,
+    ) {
+        self.schedule_backup(delay);
+        let text = path
+            .map(|path| format!("Backup saved: {}", path.display()))
+            .or_else(|| {
+                visible.then(|| "Backup cancelled before publication".into())
+            });
+        let Some(text) = text else {
+            return;
+        };
+        if visible {
+            self.show_document("Backup · Esc closes", &text, None);
+        }
+        self.status = text;
     }
 
     fn show_reading_plan(&mut self, session: ReadingSession) {
@@ -307,7 +347,7 @@ Inspect the current checkpoint before retrying."#
             self.reload()?;
         }
         if visible {
-            let confirm = (preview && !report.interrupted)
+            let confirm = (preview && !report.interrupted && !report.cancelled)
                 .then_some(super::ChoiceAction::ApplyRetention);
             self.show_document(
                 if preview {

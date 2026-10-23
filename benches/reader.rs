@@ -15,6 +15,8 @@ mod annotation_notebook;
 mod annotation_projection;
 #[path = "workloads/article_deletion.rs"]
 mod article_deletion;
+#[path = "workloads/backups.rs"]
+mod backups;
 #[path = "workloads/catalog.rs"]
 mod catalog;
 #[path = "workloads/code_viewport.rs"]
@@ -143,51 +145,58 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
-    active_reading::run(iterations, stress)?;
-    image_priority::run(iterations, stress)?;
-    read_catalog::run(iterations, stress)?;
-    recent_layouts::run(iterations, stress)?;
-    article_deletion::run(iterations, stress)?;
-    motion_review::run(iterations, stress)?;
-    media_review::run(iterations, stress)?;
-    retention_images::run(iterations, stress)?;
-    publisher_refresh::run(iterations, stress)?;
-    retention::run(iterations, stress)?;
-    server_refresh::run(iterations, stress)?;
-    library_sections::run(iterations, stress)?;
-    servers::run(iterations, stress)?;
-    geometry::run(iterations, stress)?;
-    reading_services::run(iterations, stress)?;
-    service_interaction::run(iterations, stress)?;
-    recovery_navigation::run(iterations, stress)?;
-    annotation_projection::run(iterations, stress)?;
-    dense_annotations::run(iterations, stress)?;
-    rich_text::run(iterations, stress)?;
-    lists::run(iterations, stress)?;
-    configuration::run(iterations, stress)?;
-    tables::run(iterations, stress)?;
-    links::run(iterations, stress)?;
-    presentation::run(iterations, stress)?;
-    welcome::run(iterations, stress)?;
-    code_viewport::run(iterations, stress)?;
-    interaction::run(iterations, stress)?;
-    reading_selection(iterations)?;
-    catalog::run(iterations, stress)?;
-    reading_tools::run(iterations, stress)?;
-    smoothness::run(iterations, stress)?;
-    panes::run(iterations, stress)?;
-    pane_search::run(iterations, stress)?;
-    fluency::run(iterations, stress)?;
-    formulas::run(iterations, stress)?;
-    query_editing::run(iterations, stress)?;
-    search_relevance::run(iterations, stress)?;
-    workspaces::run(iterations, stress)?;
-    Ok(())
+    for workload in COMPONENT_WORKLOADS {
+        workload(iterations, stress)?;
+    }
+    reading_selection(iterations)
 }
+
+const COMPONENT_WORKLOADS: &[Workload] = &[
+    active_reading::run,
+    image_priority::run,
+    read_catalog::run,
+    recent_layouts::run,
+    article_deletion::run,
+    motion_review::run,
+    media_review::run,
+    retention_images::run,
+    backups::run,
+    publisher_refresh::run,
+    retention::run,
+    server_refresh::run,
+    library_sections::run,
+    servers::run,
+    geometry::run,
+    reading_services::run,
+    service_interaction::run,
+    recovery_navigation::run,
+    annotation_projection::run,
+    dense_annotations::run,
+    rich_text::run,
+    lists::run,
+    configuration::run,
+    tables::run,
+    links::run,
+    presentation::run,
+    welcome::run,
+    code_viewport::run,
+    interaction::run,
+    catalog::run,
+    reading_tools::run,
+    smoothness::run,
+    panes::run,
+    pane_search::run,
+    fluency::run,
+    formulas::run,
+    query_editing::run,
+    search_relevance::run,
+    workspaces::run,
+];
 
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--backups-only", backups::run),
     ("--active-reading-only", active_reading::run),
     ("--image-priority-only", image_priority::run),
     ("--read-catalog-only", read_catalog::run),

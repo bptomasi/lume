@@ -30,6 +30,9 @@ pub struct Configuration {
     pub recommendations: Recommendations,
     /// User-named layout profiles; excludes layout undo history.
     pub workspaces: BTreeMap<String, PanelLayout>,
+    /// Opt-in local snapshots and owned rotation.
+    #[serde(default, skip_serializing_if = "backups_default")]
+    pub backups: super::backups::Backups,
     /// Explicit cache and article lifetimes; unlimited and inactive by default.
     #[serde(default, skip_serializing_if = "retention_default")]
     pub retention: super::retention::Retention,
@@ -49,8 +52,13 @@ impl Default for Configuration {
             workspaces: crate::model::LayoutHistory::new(&Workspace::default())
                 .profiles,
             retention: super::retention::Retention::default(),
+            backups: super::backups::Backups::default(),
         }
     }
+}
+
+fn backups_default(value: &super::backups::Backups) -> bool {
+    *value == super::backups::Backups::default()
 }
 
 fn retention_default(value: &super::retention::Retention) -> bool {
@@ -265,6 +273,7 @@ impl Configuration {
         self.validate_servers()?;
         self.validate_queries()?;
         self.retention.validate()?;
+        self.backups.validate()?;
         self.ui.auto_read.validate()?;
         self.validate_retention_sources()?;
         let mut workspace = Workspace::default();

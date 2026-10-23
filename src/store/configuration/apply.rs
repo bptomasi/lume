@@ -267,6 +267,7 @@ impl Store {
         config: &Configuration,
     ) -> Result<()> {
         self.save_retention_policy(&config.retention)?;
+        self.save_backup_policy(&config.backups)?;
         let sources = config
             .feeds
             .iter()

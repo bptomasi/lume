@@ -181,6 +181,7 @@ fn publication_update(
     ))?;
     Ok(Update {
         retention: config.retention,
+        backups: config.backups,
         appearance_revision,
         ui: config.ui,
         workspaces: config.workspaces,

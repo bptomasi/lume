@@ -185,6 +185,31 @@ or revoked tokens, an unreachable server and malformed responses leave the
 cached library readable and report the failure through collection status and
 `lume feeds --errors` for affected feeds.
 
+Per-server history import is configurable:
+
+```toml
+[servers.sync]
+initial_entries = 2000 # per feed; 0 imports all available history
+entries_per_page = 200 # 1–200
+pages_per_sync = 10    # 1–10; bounds one refresh to at most 2,000 records/feed
+```
+
+Each completed refresh commits its articles and history cursor together.
+Incomplete imports resume on the next refresh, including after restart. Initial
+history uses descending entry IDs; newer arrivals do not shift pending pages.
+`lume servers` and `:servers` show durable per-feed progress. Failed/cancelled
+page sets can repeat the bounded current set, without losing committed work or
+changing personal read/favorite state. Limits affect first imports. To revisit
+history for an existing server, select it and use `:server-history`, or run
+`lume server history ID` followed by `lume sync`; cached articles are retained.
+
+The [Miniflux API](https://miniflux.app/docs/api.html#get-entries) also offers
+all-feed collection. Lume retains per-feed cursors so an initial import cannot
+consume a shared history cap on a few busy feeds. A global incremental cursor
+would need separate feed-initialization and removal semantics before replacing
+these requests. Requests to one server remain sequential without publisher
+spacing; other hosts can collect concurrently.
+
 `selector` is a CSS full-article extraction override. Validate a rule with
 `:extract-preview SELECTOR` and confirm the inspected preview with `Enter`.
 Manual TOML rules are syntax-validated but do not imply that extraction from a
@@ -215,6 +240,59 @@ boolean expression. Feed references use portable source IDs, including disabled
 sources. Remove references before removing their source definition, or retain
 the source with `enabled = false`. Ordinary folders have no query.
 Annotation collections use the Notebook search grammar.
+
+## Automatic backups and recovery bundles
+
+Automatic snapshots are disabled by default:
+
+```toml
+[backups]
+automatic = false
+interval_hours = 24 # 1–8760
+keep = 7            # 1–365 complete managed bundles
+include_offline = false
+# directory = "/absolute/path/to/backups" # default: DATA_DIR/backups
+```
+
+When enabled, backups run on the TUI maintenance worker while reading is idle,
+and after successful `lume sync`, before automatic retention. No process runs
+while Lume is closed. The last successful publication survives restart.
+`:backup status` shows the effective policy and location; `:backup now` creates
+a managed bundle immediately, using that policy and rotation; `:backup cancel`
+requests cancellation between SQLite page steps or file-copy chunks. A final
+publication already admitted may complete before cancellation is observed.
+
+Each bundle contains a consistent SQLite snapshot and a SHA-256 manifest.
+Articles, notes, highlights and the library's declarative projection share one
+WAL snapshot. Optional offline originals are captured while holding the same
+cross-process lock as offline prepare/release. Ordinary recoverable image caches
+are omitted. Checksums are computed as offline files stream to disk. Publication
+uses same-filesystem staging and hard links, with the manifest published last.
+Files/directories created by Lume are private; snapshots contain API tokens and
+personal data just like the source library.
+
+Rotation only considers complete managed bundles belonging to the source's
+canonical database path. Another library sharing the directory, extra user
+files, symlinks, and incomplete staging directories are preserved. Moving a
+library changes its rotation namespace; old-location backups remain untouched.
+A rotation failure keeps the new snapshot and reports the error. The newest
+snapshot is always retained. The configured count applies to eligible bundles;
+bundles with extra/modified-size files can leave more than `keep` directories.
+
+Explicit exports are independent of automatic rotation:
+
+```sh
+lume backup snapshot.sqlite3
+lume backup --bundle new-backup-directory
+lume backup --include-offline new-offline-backup-directory
+lume restore new-offline-backup-directory new-library-directory
+```
+
+`--include-offline` implies a directory bundle. All destinations must be new.
+Backup/restore remain available even if the active TOML is invalid. Restore
+validates bundle names, sizes and checksums in private staging before creating
+the final destination; migrations and configuration export apply only to its
+isolated database copy. Existing SQLite snapshot files remain supported.
 
 ## Retention and recoverable caches
 
@@ -323,31 +401,6 @@ reject stale publisher revisions. Existing libraries build the index lazily on
 the first cleanup that needs it. Cancellation keeps completed index batches and
 never acknowledges an incomplete preview. Planning checks cancellation between
 256-article batches and smart-list queries.
-
-Per-server history import is configurable:
-
-```toml
-[servers.sync]
-initial_entries = 2000 # per feed; 0 imports all available history
-entries_per_page = 200 # 1–200
-pages_per_sync = 10    # 1–10; bounds one refresh to at most 2,000 records/feed
-```
-
-Each completed refresh commits its articles and history cursor together.
-Incomplete imports resume on the next refresh, including after restart. Initial
-history uses descending entry IDs; newer arrivals do not shift pending pages.
-`lume servers` and `:servers` show durable per-feed progress. Failed/cancelled
-page sets can repeat the bounded current set, without losing committed work or
-changing personal read/favorite state. Limits affect first imports. To revisit
-history for an existing server, select it and use `:server-history`, or run
-`lume server history ID` followed by `lume sync`; cached articles are retained.
-
-The [Miniflux API](https://miniflux.app/docs/api.html#get-entries) also offers
-all-feed collection. Lume retains per-feed cursors so an initial import cannot
-consume a shared history cap on a few busy feeds. A global incremental cursor
-would need separate feed-initialization and removal semantics before replacing
-these requests. Requests to one server remain sequential without publisher
-spacing; other hosts can collect concurrently.
 
 ### Storage reports
 

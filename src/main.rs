@@ -40,18 +40,7 @@ struct Cli {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    if let Some(Command::Restore { snapshot, output }) = &cli.command {
-        Store::restore_snapshot(snapshot, output)?;
-        println!(
-            "Restored. Open with --data-dir {} --config {}",
-            output.display(),
-            output.join("config.toml").display()
-        );
-        return Ok(());
-    }
-    if let Some(Command::Backup { output }) = &cli.command {
-        Store::snapshot_existing(&library_path(&cli)?, output)?;
-        println!("Snapshot saved: {}", output.display());
+    if snapshots(&cli)? {
         return Ok(());
     }
     let config_path = if cli.demo {
@@ -68,6 +57,42 @@ fn main() -> Result<()> {
     }
     let (path, store) = open_library(&cli)?;
     run(cli, path, store, config_path)
+}
+
+// Recovery stays available even if the active TOML cannot be reconciled.
+fn snapshots(cli: &Cli) -> Result<bool> {
+    if let Some(Command::Restore { snapshot, output }) = &cli.command {
+        if snapshot.is_dir() {
+            lume::backups::restore(snapshot, output)?;
+        } else {
+            Store::restore_snapshot(snapshot, output)?;
+        }
+        println!(
+            "Restored. Open with --data-dir {} --config {}",
+            output.display(),
+            output.join("config.toml").display()
+        );
+        return Ok(true);
+    }
+    if let Some(Command::Backup {
+        output,
+        bundle,
+        include_offline,
+    }) = &cli.command
+    {
+        if *bundle || *include_offline {
+            lume::backups::snapshot_existing(
+                &library_path(cli)?,
+                output,
+                *include_offline,
+            )?;
+        } else {
+            Store::snapshot_existing(&library_path(cli)?, output)?;
+        }
+        println!("Snapshot saved: {}", output.display());
+        return Ok(true);
+    }
+    Ok(false)
 }
 
 fn open_library(cli: &Cli) -> Result<(PathBuf, Store)> {

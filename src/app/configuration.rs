@@ -10,6 +10,7 @@ pub(super) struct ConfigurationState {
     deferred: Option<Deferred>,
     written_ui: Option<crate::config::Ui>,
     next_retention: Option<std::time::Instant>,
+    next_backup: Option<std::time::Instant>,
 }
 
 struct Deferred {
@@ -28,7 +29,44 @@ impl App {
         {
             self.configuration.next_retention = None;
         }
+        if self
+            .configuration
+            .document
+            .as_ref()
+            .is_none_or(|previous| previous.backups != update.backups)
+        {
+            self.configuration.next_backup = None;
+        }
         self.configuration.document = Some(update);
+    }
+
+    pub(super) fn backup_due(&mut self) -> bool {
+        if !self
+            .configuration
+            .document
+            .as_ref()
+            .is_some_and(|update| update.backups.automatic)
+            || self.maintenance_pending()
+            || !self.configuration_idle()
+        {
+            return false;
+        }
+        let now = std::time::Instant::now();
+        if self
+            .configuration
+            .next_backup
+            .is_some_and(|next| next > now)
+        {
+            return false;
+        }
+        self.configuration.next_backup =
+            Some(now + std::time::Duration::from_secs(60));
+        true
+    }
+
+    pub(super) fn schedule_backup(&mut self, delay: std::time::Duration) {
+        self.configuration.next_backup =
+            Some(std::time::Instant::now() + delay);
     }
 
     pub(super) fn retention_due(&mut self) -> bool {
