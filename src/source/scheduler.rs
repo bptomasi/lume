@@ -1,7 +1,8 @@
 //! Four bounded download lanes, with one lane per domain and one SQLite writer.
 //!
-//! Domain groups never overlap across lanes. A lane spaces starts by 500 ms
-//! and carries Retry-After forward to its remaining feeds. Results cross a
+//! Domain groups never overlap across lanes. Ordinary feed starts are 500 ms apart;
+//! private reader API calls are sequential without artificial spacing. Each lane
+//! carries Retry-After forward to its remaining feeds. Results cross a
 //! four-slot channel; slow persistence cannot accumulate unbounded documents.
 
 use std::{
@@ -154,15 +155,6 @@ fn lane(
             return;
         }
         let host = domain(&feed.url);
-        if let Some(previous) = starts.get(&host) {
-            thread::sleep(
-                Duration::from_millis(500).saturating_sub(previous.elapsed()),
-            );
-        }
-        if stopped.load(Ordering::Relaxed) {
-            return;
-        }
-        starts.insert(host.clone(), Instant::now());
         let deadline = deadlines.get(&host).copied().unwrap_or(0);
         let downloaded = if deadline > chrono::Utc::now().timestamp() {
             Download {
@@ -173,6 +165,18 @@ fn lane(
                 retry_at: deadline,
             }
         } else {
+            if feed.server.is_none()
+                && let Some(previous) = starts.get(&host)
+            {
+                thread::sleep(
+                    Duration::from_millis(500)
+                        .saturating_sub(previous.elapsed()),
+                );
+            }
+            if stopped.load(Ordering::Relaxed) {
+                return;
+            }
+            starts.insert(host.clone(), Instant::now());
             fetch(&feed)
         };
         if downloaded.retry_at > 0 {

@@ -306,11 +306,13 @@ impl App {
     }
 
     pub(super) fn refresh_read_counts(&mut self) -> Result<()> {
-        for item in &mut self.navigation {
-            if read_sensitive(&item.view, &self.library.smart_lists)? {
-                item.count = self.store.view_count(&item.view)?;
-            }
-        }
+        let navigation = super::catalog_worker::read_counts(
+            &self.store,
+            &self.library,
+            self.workspace.last_visit,
+            self.navigation_sections.catalog(),
+        )?;
+        self.install_navigation(navigation);
         Ok(())
     }
 
@@ -375,7 +377,7 @@ fn shifted(
     position.saturating_sub(distance)
 }
 
-fn read_sensitive(
+pub(super) fn read_sensitive(
     view: &View,
     lists: &[crate::model::SmartList],
 ) -> Result<bool> {
@@ -444,17 +446,15 @@ pub(super) fn catalog_navigation(
     library: &crate::model::Library,
     last_visit: i64,
 ) -> Result<Vec<NavItem>> {
-    catalog_destinations(library, last_visit)
-        .into_iter()
-        .map(|(view, title, group)| {
-            Ok(NavItem {
-                count: store.view_count(&view)?,
-                view,
-                title,
-                group,
-            })
-        })
-        .collect()
+    let mut navigation = pending_navigation(library, last_visit);
+    let views = navigation
+        .iter()
+        .map(|item| item.view.clone())
+        .collect::<Vec<_>>();
+    for (item, count) in navigation.iter_mut().zip(store.view_counts(&views)?) {
+        item.count = count;
+    }
+    Ok(navigation)
 }
 
 fn catalog_destinations(

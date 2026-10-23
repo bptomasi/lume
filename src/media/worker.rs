@@ -14,26 +14,23 @@ use std::{
 use anyhow::{Context, Result, ensure};
 
 use super::{Decoder, ImageKey, MAX_BYTES, Thumbnail, cache};
+mod request;
+use request::Request;
 
 pub(crate) struct Completion {
     pub(crate) key: ImageKey,
     pub(crate) result: Result<Thumbnail, String>,
 }
 
-struct Request {
-    key: ImageKey,
-    // Only application-owned formula slots can submit local bytes.
-    generated: Option<Arc<[u8]>>,
-}
-
 pub(crate) struct Worker {
-    requests: SyncSender<Request>,
+    requests: SyncSender<Arc<Request>>,
     results: Receiver<Completion>,
+    jobs: Vec<Arc<Request>>,
 }
 
 impl Worker {
     pub(crate) fn start(directory: PathBuf, offline: bool) -> Result<Self> {
-        let (requests, receiver) = mpsc::sync_channel::<Request>(2);
+        let (requests, receiver) = mpsc::sync_channel::<Arc<Request>>(2);
         let (sender, results) = mpsc::sync_channel(2);
         let receiver = Arc::new(Mutex::new(receiver));
         let decoder = Arc::new(Mutex::new(Decoder::default()));
@@ -46,17 +43,50 @@ impl Worker {
                     run(directory, offline, receiver, sender, decoder)
                 })?;
         }
-        Ok(Self { requests, results })
+        Ok(Self {
+            requests,
+            results,
+            jobs: Vec::new(),
+        })
     }
 
     pub(crate) fn submit(
-        &self,
+        &mut self,
         key: ImageKey,
         generated: Option<Arc<[u8]>>,
-    ) -> Result<()> {
-        self.requests
-            .try_send(Request { key, generated })
-            .context("Image worker is busy or stopped")
+    ) -> Result<bool> {
+        for job in &self.jobs {
+            if job.url == key.url && job.retarget(Some(key.clone()))? {
+                return Ok(true);
+            }
+        }
+        let request = Arc::new(Request::new(key, generated));
+        match self.requests.try_send(request.clone()) {
+            Ok(()) => {
+                self.jobs.push(request);
+                Ok(true)
+            }
+            Err(mpsc::TrySendError::Full(_)) => Ok(false),
+            Err(mpsc::TrySendError::Disconnected(_)) => {
+                anyhow::bail!("Image worker stopped")
+            }
+        }
+    }
+
+    pub(crate) fn retain(&mut self, wanted: &[ImageKey]) -> Result<()> {
+        let mut retained = Vec::with_capacity(self.jobs.len());
+        for job in self.jobs.drain(..) {
+            let current = job.key()?;
+            let key =
+                current.filter(|key| wanted.contains(key)).or_else(|| {
+                    wanted.iter().find(|key| key.url == job.url).cloned()
+                });
+            if job.retarget(key)? {
+                retained.push(job);
+            }
+        }
+        self.jobs = retained;
+        Ok(())
     }
 
     pub(crate) fn poll(&self) -> Result<Option<Completion>> {
@@ -73,25 +103,36 @@ impl Worker {
 fn run(
     directory: PathBuf,
     offline: bool,
-    receiver: Arc<Mutex<Receiver<Request>>>,
+    receiver: Arc<Mutex<Receiver<Arc<Request>>>>,
     sender: SyncSender<Completion>,
     decoder: Arc<Mutex<Decoder>>,
 ) {
     let mut client = None;
     loop {
-        let key = match receiver.lock() {
+        let request = match receiver.lock() {
             Ok(receiver) => receiver.recv(),
             Err(_) => break,
         };
-        let Ok(Request { key, generated }) = key else {
+        let Ok(request) = request else {
             break;
         };
-        let result = match generated {
-            Some(bytes) => render(&decoder, &bytes, &key),
-            None => load(&directory, offline, &mut client, &decoder, &key),
-        }
-        .map_err(|error| format!("{error:#}"));
-        if sender.send(Completion { key, result }).is_err() {
+        let result = load(&directory, offline, &mut client, &decoder, &request);
+        let completion = match result {
+            Ok(Some((key, image))) => Some(Completion {
+                key,
+                result: Ok(image),
+            }),
+            Ok(None) => None,
+            Err(error) => request.key().ok().flatten().map(|key| Completion {
+                key,
+                result: Err(format!("{error:#}")),
+            }),
+        };
+        let wanted = request.finish().unwrap_or(false);
+        if wanted
+            && let Some(completion) = completion
+            && sender.send(completion).is_err()
+        {
             break;
         }
     }
@@ -100,12 +141,16 @@ fn run(
 fn render(
     decoder: &Mutex<Decoder>,
     bytes: &[u8],
-    key: &ImageKey,
-) -> Result<Thumbnail> {
+    request: &Request,
+) -> Result<Option<(ImageKey, Thumbnail)>> {
     let mut decoder = decoder
         .lock()
         .map_err(|_| anyhow::anyhow!("Image decoder stopped"))?;
-    decoder.render(bytes, key)
+    let Some(key) = request.key()? else {
+        return Ok(None);
+    };
+    let image = decoder.render(bytes, &key)?;
+    Ok(Some((key, image)))
 }
 
 fn load(
@@ -113,11 +158,19 @@ fn load(
     offline: bool,
     client: &mut Option<ureq::Agent>,
     decoder: &Mutex<Decoder>,
-    key: &ImageKey,
-) -> Result<Thumbnail> {
-    crate::source::feed_url(&key.url)?;
-    let cached = cache::read(directory, &key.url).and_then(|bytes| {
-        bytes.map(|bytes| render(decoder, &bytes, key)).transpose()
+    request: &Request,
+) -> Result<Option<(ImageKey, Thumbnail)>> {
+    if request.key()?.is_none() {
+        return Ok(None);
+    }
+    if let Some(bytes) = &request.generated {
+        return render(decoder, bytes, request);
+    }
+    crate::source::feed_url(&request.url)?;
+    let cached = cache::read(directory, &request.url).and_then(|bytes| {
+        bytes
+            .map(|bytes| render(decoder, &bytes, request))
+            .transpose()
     });
     match cached {
         Ok(Some(image)) => return Ok(image),
@@ -126,14 +179,19 @@ fn load(
         }
         _ => {}
     }
+    if request.key()?.is_none() {
+        return Ok(None);
+    }
     ensure!(!offline, "Image unavailable in offline cache");
     let client = client.get_or_insert_with(crate::source::agent);
-    let bytes = download(client, &key.url)?;
-    let mut image = render(decoder, &bytes, key)?;
+    let bytes = download(client, &request.url)?;
+    let Some((key, mut image)) = render(decoder, &bytes, request)? else {
+        return Ok(None);
+    };
     image.cache_warning = cache::write(directory, &key.url, &bytes)
         .err()
         .map(|error| error.to_string());
-    Ok(image)
+    Ok(Some((key, image)))
 }
 
 pub(crate) fn download(client: &ureq::Agent, address: &str) -> Result<Vec<u8>> {
@@ -157,18 +215,12 @@ pub(crate) fn download(client: &ureq::Agent, address: &str) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+mod tests;
 
-    #[test]
-    fn disconnected_worker_is_reported_instead_of_remaining_pending_forever() {
-        let (requests, _receiver) = mpsc::sync_channel(1);
-        let (sender, results) = mpsc::sync_channel(1);
-        let worker = Worker { requests, results };
-        assert!(matches!(worker.poll(), Ok(None)));
-
-        drop(sender);
-
-        assert!(worker.poll().is_err());
+impl Drop for Worker {
+    fn drop(&mut self) {
+        for request in &self.jobs {
+            let _ = request.retarget(None);
+        }
     }
 }

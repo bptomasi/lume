@@ -172,7 +172,10 @@ Disabling or removing a server stops collection but retains cached articles,
 notes and reading state. The first observation per feed reads up to 2,000 of the
 newest entries; later refreshes read changed entries in bounded pages and resume
 incomplete passes by remote entry ID, including timestamp ties. Deleting earlier
-entries does not shift the saved cursor. HTTP Retry-After pauses requests to
+entries does not shift the saved cursor. Miniflux requests on one hostname run
+sequentially without the 500 ms spacing used for publisher feeds. Collection
+retains four hostname lanes and the same bounded response/pagination limits.
+HTTP Retry-After pauses requests to
 that hostname, including discovery, and survives restart. Enabling or
 reconnecting a server clears stale feed failures while respecting that shared
 HTTP deadline. Miniflux 2.0.49 or

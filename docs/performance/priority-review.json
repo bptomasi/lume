@@ -1,0 +1,331 @@
+{
+  "measured_at_utc": "2026-10-23T15:41:49.182347+00:00",
+  "baseline_revision": "0cd095b",
+  "candidate_revision": "Uncommitted working tree based on 0cd095b",
+  "rust_toolchain": "1.99.1; no toolchain or application-source substitution",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "release_binary_sha256": "4480e98ca397bd278004c09351f15e1fb30b15656226faf6dce91819930ad3b4",
+  "validation": {
+    "rust_local_passed": 925,
+    "rust_real_http_passed": 31,
+    "python_passed": 44,
+    "make_check": true,
+    "release_build": true,
+    "real_foot": "Not rerun: Xvfb and Weston unavailable"
+  },
+  "samples": {
+    "images": {
+      "before": {
+        "method": "Identical standalone driver built with Rust 1.99.1 -C opt-level=3 against optimized baseline application library and exact Cargo runtime dependencies. No toolchain/source substitution; new fixtures exercise unchanged public application APIs. Setup excluded; no terminal/compositor presentation.",
+        "driver_sha256": "974d925e2a67fd904a58ea934ea6050a94b4790c008c17946ef2714c46963e04",
+        "workload_sha256": "e223d62eaec6f2d33689e89f8dcc4eae39f7757b7c6d2651bb8ef5cf4296ba03",
+        "runs": [
+          {
+            "stress": false,
+            "sample": 1,
+            "stdout": "visible image after replacing two sources: 8 iterations, 27.878 ms total, 3.485 ms/iteration\n"
+          },
+          {
+            "stress": false,
+            "sample": 2,
+            "stdout": "visible image after replacing two sources: 8 iterations, 27.271 ms total, 3.409 ms/iteration\n"
+          },
+          {
+            "stress": false,
+            "sample": 3,
+            "stdout": "visible image after replacing two sources: 8 iterations, 24.119 ms total, 3.015 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 1,
+            "stdout": "visible image after replacing two sources: 8 iterations, 93.476 ms total, 11.684 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 2,
+            "stdout": "visible image after replacing two sources: 8 iterations, 84.310 ms total, 10.539 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 3,
+            "stdout": "visible image after replacing two sources: 8 iterations, 91.446 ms total, 11.431 ms/iteration\n"
+          }
+        ]
+      },
+      "after": {
+        "driver_sha256": "7c6acbb099b869bd0d951ad84fa31b3a95e8337dc623c279b843de91345ddbf7",
+        "workload_sha256": "e223d62eaec6f2d33689e89f8dcc4eae39f7757b7c6d2651bb8ef5cf4296ba03",
+        "runs": [
+          {
+            "stress": false,
+            "sample": 1,
+            "stdout": "visible image after replacing two sources: 8 iterations, 8.571 ms total, 1.071 ms/iteration\n"
+          },
+          {
+            "stress": false,
+            "sample": 2,
+            "stdout": "visible image after replacing two sources: 8 iterations, 9.155 ms total, 1.144 ms/iteration\n"
+          },
+          {
+            "stress": false,
+            "sample": 3,
+            "stdout": "visible image after replacing two sources: 8 iterations, 13.182 ms total, 1.648 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 1,
+            "stdout": "visible image after replacing two sources: 8 iterations, 25.613 ms total, 3.202 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 2,
+            "stdout": "visible image after replacing two sources: 8 iterations, 23.496 ms total, 2.937 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 3,
+            "stdout": "visible image after replacing two sources: 8 iterations, 18.865 ms total, 2.358 ms/iteration\n"
+          }
+        ]
+      }
+    },
+    "reads": {
+      "before": {
+        "method": "Identical standalone driver built with Rust 1.99.1 -C opt-level=3 against optimized baseline application library and exact Cargo runtime dependencies. No toolchain/source substitution; new fixtures exercise unchanged public application APIs. Setup excluded; no terminal/compositor presentation.",
+        "driver_sha256": "974d925e2a67fd904a58ea934ea6050a94b4790c008c17946ef2714c46963e04",
+        "workload_sha256": "53f7fc653b059ad1f21aaba77e6c2b7a31d0746778565087b35a4d00c9d59e1a",
+        "runs": [
+          {
+            "stress": false,
+            "sample": 1,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 182.456 ms total, 22.807 ms/iteration\n"
+          },
+          {
+            "stress": false,
+            "sample": 2,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 186.601 ms total, 23.325 ms/iteration\n"
+          },
+          {
+            "stress": false,
+            "sample": 3,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 186.918 ms total, 23.365 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 1,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 1211.568 ms total, 151.446 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 2,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 1219.572 ms total, 152.447 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 3,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 1194.679 ms total, 149.335 ms/iteration\n"
+          }
+        ]
+      },
+      "after": {
+        "driver_sha256": "7c6acbb099b869bd0d951ad84fa31b3a95e8337dc623c279b843de91345ddbf7",
+        "workload_sha256": "53f7fc653b059ad1f21aaba77e6c2b7a31d0746778565087b35a4d00c9d59e1a",
+        "runs": [
+          {
+            "stress": false,
+            "sample": 1,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 8.788 ms total, 1.099 ms/iteration\n"
+          },
+          {
+            "stress": false,
+            "sample": 2,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 8.322 ms total, 1.040 ms/iteration\n"
+          },
+          {
+            "stress": false,
+            "sample": 3,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 8.869 ms total, 1.109 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 1,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 25.773 ms total, 3.222 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 2,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 23.867 ms total, 2.983 ms/iteration\n"
+          },
+          {
+            "stress": true,
+            "sample": 3,
+            "stdout": "automatic read + distinct catalog counts: 8 iterations, 24.651 ms total, 3.081 ms/iteration\n"
+          }
+        ]
+      }
+    },
+    "server": {
+      "before": {
+        "binary_sha256": "a788d82f40fc380941703affdb831de33abf166fb91e364511706f77cc0b6397",
+        "scope": "Local real HTTP including CLI startup, temporary database/config initialization and one discovery plus one empty entries page per feed; no publisher networking.",
+        "runs": [
+          {
+            "feeds": 8,
+            "sample": 1,
+            "elapsed_ms": 3527.525742974831,
+            "requests": 9,
+            "success": true,
+            "stdout": "Collected 8 feeds; 0 failures.\n"
+          },
+          {
+            "feeds": 8,
+            "sample": 2,
+            "elapsed_ms": 3525.8216520014685,
+            "requests": 9,
+            "success": true,
+            "stdout": "Collected 8 feeds; 0 failures.\n"
+          },
+          {
+            "feeds": 8,
+            "sample": 3,
+            "elapsed_ms": 3527.812628017273,
+            "requests": 9,
+            "success": true,
+            "stdout": "Collected 8 feeds; 0 failures.\n"
+          },
+          {
+            "feeds": 16,
+            "sample": 1,
+            "elapsed_ms": 7525.494706002064,
+            "requests": 17,
+            "success": true,
+            "stdout": "Collected 16 feeds; 0 failures.\n"
+          },
+          {
+            "feeds": 16,
+            "sample": 2,
+            "elapsed_ms": 7525.8814900007565,
+            "requests": 17,
+            "success": true,
+            "stdout": "Collected 16 feeds; 0 failures.\n"
+          },
+          {
+            "feeds": 16,
+            "sample": 3,
+            "elapsed_ms": 7525.755520997336,
+            "requests": 17,
+            "success": true,
+            "stdout": "Collected 16 feeds; 0 failures.\n"
+          }
+        ]
+      },
+      "after": {
+        "binary_sha256": "4480e98ca397bd278004c09351f15e1fb30b15656226faf6dce91819930ad3b4",
+        "scope": "Local real HTTP including CLI startup, temporary database/config initialization and one discovery plus one empty entries page per feed; no publisher networking.",
+        "runs": [
+          {
+            "feeds": 8,
+            "sample": 1,
+            "elapsed_ms": 42.612954013748094,
+            "requests": 9,
+            "success": true,
+            "stdout": "Collected 8 feeds; 0 failures.\n"
+          },
+          {
+            "feeds": 8,
+            "sample": 2,
+            "elapsed_ms": 42.87039200426079,
+            "requests": 9,
+            "success": true,
+            "stdout": "Collected 8 feeds; 0 failures.\n"
+          },
+          {
+            "feeds": 8,
+            "sample": 3,
+            "elapsed_ms": 46.67904999223538,
+            "requests": 9,
+            "success": true,
+            "stdout": "Collected 8 feeds; 0 failures.\n"
+          },
+          {
+            "feeds": 16,
+            "sample": 1,
+            "elapsed_ms": 45.29176600044593,
+            "requests": 17,
+            "success": true,
+            "stdout": "Collected 16 feeds; 0 failures.\n"
+          },
+          {
+            "feeds": 16,
+            "sample": 2,
+            "elapsed_ms": 45.049195003230125,
+            "requests": 17,
+            "success": true,
+            "stdout": "Collected 16 feeds; 0 failures.\n"
+          },
+          {
+            "feeds": 16,
+            "sample": 3,
+            "elapsed_ms": 45.6476749968715,
+            "requests": 17,
+            "success": true,
+            "stdout": "Collected 16 feeds; 0 failures.\n"
+          }
+        ]
+      }
+    }
+  },
+  "summary": [
+    {
+      "workload": "images",
+      "size": false,
+      "before_ms": 3.409,
+      "after_ms": 1.144,
+      "reduction_percent": 66.44177178058082
+    },
+    {
+      "workload": "images",
+      "size": true,
+      "before_ms": 11.431,
+      "after_ms": 2.937,
+      "reduction_percent": 74.30670982416237
+    },
+    {
+      "workload": "reads",
+      "size": false,
+      "before_ms": 23.325,
+      "after_ms": 1.099,
+      "reduction_percent": 95.28831725616291
+    },
+    {
+      "workload": "reads",
+      "size": true,
+      "before_ms": 151.446,
+      "after_ms": 3.081,
+      "reduction_percent": 97.96561150509092
+    },
+    {
+      "workload": "server",
+      "size": 8,
+      "before_ms": 3527.525742974831,
+      "after_ms": 42.87039200426079,
+      "reduction_percent": 98.78468946428985
+    },
+    {
+      "workload": "server",
+      "size": 16,
+      "before_ms": 7525.755520997336,
+      "after_ms": 45.29176600044593,
+      "reduction_percent": 99.39817649039915
+    }
+  ],
+  "scope": [
+    "Three fresh processes per workload size; eight native operation iterations per process. No native terminal/compositor presentation is measured.",
+    "Native drivers use identical code and Rust 1.99.1 -C opt-level=3 against each optimized application library and exact Cargo runtime dependencies, avoiding rebuilding unchanged full benchmark suites for the baseline.",
+    "Read-state fixture: 2,000/13,000 articles and 46 distinct broad FTS smart queries; simulated active Reader time, real WAL writes, counts, undo and durable state checks. Fixture setup and undo excluded from operation timers.",
+    "Image fixture: two obsolete 800/3,000-path SVG sources replaced by a visible blue source, real offline cache and the existing two download lanes/shared decoder; exact visible blue cell checks. Source setup excluded.",
+    "Server fixture: real loopback HTTP, 8/16 feeds, one discovery request and one empty entry page per feed. CLI startup and isolated database/config initialization included. Token and data are synthetic.",
+    "Already-started image encoding is cooperative; an HTTP call waiting for response headers retains its existing six-second deadline. No transport-level abort is claimed."
+  ]
+}

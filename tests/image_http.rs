@@ -137,6 +137,7 @@ fn delayed_http_images_leave_cursor_input_available_and_do_not_bleed_after_navig
     incoming.articles[0].body = "Independent article without images.".into();
     store.ingest(&feed, &incoming.title, &incoming.articles)?;
     app.reload()?;
+    let old_key = app.image_key(&app.images.slots[0]).context("Old key")?;
     app.poll_images();
     server.request.recv_timeout(Duration::from_secs(5))?;
 
@@ -148,12 +149,15 @@ fn delayed_http_images_leave_cursor_input_available_and_do_not_bleed_after_navig
     app.focus = Focus::Articles;
     app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
     let current = app.current().context("Next article")?.id;
+    app.poll_images();
+    assert!(!app.images_pending());
     server.release.send(())?;
     settle(&mut app)?;
 
     assert_eq!(app.current().map(|article| article.id), Some(current));
     assert_eq!(app.body, "Independent article without images.");
     assert!(app.images.slots.is_empty());
+    assert!(app.images.thumbnail(&old_key).is_none());
     server
         .finished
         .recv_timeout(Duration::from_secs(5))?

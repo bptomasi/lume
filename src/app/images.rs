@@ -24,6 +24,7 @@ pub struct ReaderImages {
     pub enabled: bool,
     worker: Option<Worker>,
     pending: Vec<ImageKey>,
+    waiting: bool,
     cache: VecDeque<(ImageKey, Result<Thumbnail, String>)>,
     configuration: Option<(PathBuf, bool)>,
     protocol: ImageProtocol,
@@ -38,6 +39,7 @@ impl Default for ReaderImages {
             enabled: true,
             worker: None,
             pending: Vec::new(),
+            waiting: false,
             cache: VecDeque::new(),
             configuration: None,
             protocol: ImageProtocol::Blocks,
@@ -217,59 +219,90 @@ impl App {
         self.images.protocol == ImageProtocol::Sixel
     }
 
-    /// Poll prepared cells and admit visible images into two bounded lanes.
+    /// Retarget source jobs to the visible viewport before admitting more work.
     pub fn poll_images(&mut self) -> bool {
+        self.images.waiting = false;
+        if self.images.worker.is_none() {
+            return false;
+        }
+        let wanted = self.wanted_image_keys();
+        if let Some(worker) = &mut self.images.worker
+            && let Err(error) = worker.retain(&wanted)
+        {
+            return self.image_worker_failed(error);
+        }
+        self.images.pending.retain_mut(|pending| {
+            let Some(key) = wanted
+                .iter()
+                .find(|key| *key == pending)
+                .or_else(|| wanted.iter().find(|key| key.url == pending.url))
+            else {
+                return false;
+            };
+            *pending = key.clone();
+            true
+        });
         let result = self.images.worker.as_ref().map(Worker::poll);
         let completed = match result {
             Some(Ok(completed)) => completed,
-            Some(Err(error)) => {
-                self.images.worker = None;
-                for key in std::mem::take(&mut self.images.pending) {
-                    self.images.remember(key, Err(error.to_string()));
-                }
-                self.status = error.to_string();
-                return true;
-            }
+            Some(Err(error)) => return self.image_worker_failed(error),
             None => return false,
         };
-        let changed = completed.is_some();
-        if let Some(completed) = completed {
-            self.install_thumbnail(completed);
+        let changed = completed.is_some_and(|completed| {
+            self.install_thumbnail(completed, &wanted)
+        });
+        if self.images.pending.len() < 2 {
+            return self.admit_visible_image(&wanted) || changed;
         }
-        if !self.can_request_images() {
-            return changed;
-        }
-        self.admit_visible_image() || changed
+        changed
     }
 
-    fn can_request_images(&self) -> bool {
-        if self.images.pending.len() >= 2
-            || self.notebook.is_some()
-            || self.navigation_loading
-        {
-            return false;
+    fn wanted_image_keys(&self) -> Vec<ImageKey> {
+        if self.notebook.is_some() || self.navigation_loading {
+            return Vec::new();
         }
         if matches!(self.mode, super::Mode::Image(_)) {
-            return true;
+            return self
+                .image_inspector_key()
+                .filter(|key| self.images.cached(key).is_none())
+                .into_iter()
+                .collect();
         }
-        if self
-            .images
-            .visible_slots(self.scroll, self.reader_height)
-            .is_empty()
-        {
-            return false;
-        }
-        (self.images.enabled || self.workspace.latex_graphics)
-            && crate::ui::workspace_areas(
-                self.screen,
-                self.focus,
-                &self.workspace,
-            )
+        if !crate::ui::workspace_areas(self.screen, self.focus, &self.workspace)
             .reader
             .is_some()
+        {
+            return Vec::new();
+        }
+        self.images
+            .visible_slots(self.scroll, self.reader_height)
+            .iter()
+            .filter(|slot| self.images.enabled || slot.formula.is_some())
+            .filter_map(|slot| self.image_key(slot))
+            .filter(|key| self.images.cached(key).is_none())
+            .collect()
     }
 
-    fn install_thumbnail(&mut self, completed: crate::media::Completion) {
+    fn image_worker_failed(&mut self, error: anyhow::Error) -> bool {
+        self.images.worker = None;
+        for key in std::mem::take(&mut self.images.pending) {
+            self.images.remember(key, Err(error.to_string()));
+        }
+        self.status = error.to_string();
+        true
+    }
+
+    fn install_thumbnail(
+        &mut self,
+        completed: crate::media::Completion,
+        wanted: &[ImageKey],
+    ) -> bool {
+        self.images
+            .pending
+            .retain(|key| key.url != completed.key.url);
+        if !wanted.contains(&completed.key) {
+            return false;
+        }
         if let Ok(image) = &completed.result
             && let Some(warning) = &image.cache_warning
         {
@@ -278,38 +311,28 @@ impl App {
                 crate::content::label(warning, 200)
             );
         }
-        self.images.pending.retain(|key| *key != completed.key);
         self.images.remember(completed.key, completed.result);
+        true
     }
 
-    fn admit_visible_image(&mut self) -> bool {
-        let next = self.image_inspector_key().or_else(|| {
-            self.images
-                .visible_slots(self.scroll, self.reader_height)
-                .iter()
-                .filter(|slot| self.images.enabled || slot.formula.is_some())
-                .filter_map(|slot| self.image_key(slot))
-                .find(|key| {
-                    self.images.cached(key).is_none()
-                        && !self
-                            .images
-                            .pending
-                            .iter()
-                            .any(|old| old.url == key.url)
-                })
-        });
-        let next = next.filter(|key| {
-            self.images.cached(key).is_none()
-                && !self.images.pending.iter().any(|old| old.url == key.url)
-        });
-        if let Some(key) = next
-            && let Some(worker) = &self.images.worker
-        {
-            match worker.submit(key.clone(), self.generated_image(&key)) {
-                Ok(()) => self.images.pending.push(key),
-                Err(error) => {
-                    self.images.remember(key, Err(error.to_string()));
-                    return true;
+    fn admit_visible_image(&mut self, wanted: &[ImageKey]) -> bool {
+        let next = wanted
+            .iter()
+            .find(|key| {
+                self.images.cached(key).is_none()
+                    && !self.images.pending.iter().any(|old| old.url == key.url)
+            })
+            .cloned();
+        if let Some(key) = next {
+            let generated = self.generated_image(&key);
+            if let Some(worker) = &mut self.images.worker {
+                match worker.submit(key.clone(), generated) {
+                    Ok(true) => self.images.pending.push(key),
+                    Ok(false) => self.images.waiting = true,
+                    Err(error) => {
+                        self.images.remember(key, Err(error.to_string()));
+                        return true;
+                    }
                 }
             }
         }
@@ -334,7 +357,7 @@ impl App {
 
     /// Whether image I/O or preparation is admitted in the background.
     pub fn images_pending(&self) -> bool {
-        !self.images.pending.is_empty()
+        !self.images.pending.is_empty() || self.images.waiting
     }
 
     pub(super) fn image_command(

@@ -136,6 +136,14 @@ native-cell lighthouse. The first actual key press is consumed. Focus, modifier,
 release and resize events cannot accidentally activate a library operation;
 resize redraws the scene. Collection can continue behind the welcome screen.
 
+Catalog snapshots batch ordinary totals and feed/server/folder groups;
+identical saved filters share one count within that snapshot. Read/unread flag
+changes invalidate Inbox, Read, recommendations and read-sensitive smart lists.
+Other counts survive, including children hidden by section folding. Repeated
+requests at the same revision reuse an active/prepared snapshot; a stronger
+full-library refresh upgrades it. Unknown edits, failures, deletion, undo and
+publisher updates retain full reconciliation.
+
 Interactive navigation uses a replaceable read lane and a separate catalog/count
 lane, each with its own SQLite connection. Pages hydrate only a bounded set of
 ordered identities; count and page share a read snapshot. Epochs reject obsolete
@@ -281,6 +289,16 @@ not a custom protocol implementation. Scrolling reuses those strips; menus and
 selections clip only intersecting regions. The inspector fits or zooms from
 source bytes/paths. Portable halfblock previews remain available independently
 of native protocols.
+
+Two download lanes own replaceable source requests: crop/zoom changes for the
+same URL retarget the existing download, while sources outside the current
+viewport stop before cache access or decoding when observed in time. The latest
+crop is captured after acquiring the shared decoder lock. Obsolete completions
+do not enter the presentation cache or request a frame. Queue saturation is
+retryable rather than a permanent image error. Dropping the worker cancels its
+remaining intentions without joining HTTP. An HTTP request already waiting for
+response headers still owns a lane until its existing six-second deadline;
+this change does not provide transport-level cancellation.
 
 Image source reuse is bounded independently from prepared terminal cells. Two
 raster entries share 32 MiB, with eviction before allocating a new decoded

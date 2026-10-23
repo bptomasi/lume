@@ -33,6 +33,9 @@ Deletion has its own `--article-deletion-only` workload.
 batches of 1,000 polls, with simulated monotonic time and durable unread-state
 verification. The formula workload also checks styled inline prose without
 requesting graphics. These timings exclude terminal presentation.
+`--read-catalog-only` exercises active-read commits with 46 distinct broad
+smart-list queries. `--image-priority-only` replaces two obsolete SVG sources
+and checks the newly visible source's pixels. Both accept `--stress`.
 Add `--stress`
 for larger workloads.
 Setup precedes operation timers; resource reports identify process-wide
@@ -76,6 +79,32 @@ current hardware or a substitute for measuring later changes.
 | Scroll frames and empty-cache cleanup | [Checked comparison](performance/motion-retention-review.json) |
 | Article deletion feedback | [Committed deletion/frame comparison](performance/article-deletion.json) |
 | Active read policy and inline LaTeX | [Checked representative/stress costs](performance/active-inline-reading.json) |
+| Catalog invalidation, visible images and server pacing | [Paired checked workloads](performance/priority-review.json) |
+
+The priority review compares `0cd095b` with the revised working tree, using
+three optimized processes per workload/size and Rust 1.99.1. Its standalone
+native drivers use identical workload code against each optimized application
+library and its exact Cargo runtime dependencies. Setup and undo are excluded
+from native operation timers. Active time is simulated; writes and final
+database state are real. Terminal/compositor presentation is not measured.
+
+| Operation | Before | After |
+| --- | ---: | ---: |
+| Automatic read + counts, 2,000 articles / 46 distinct lists | 23.325 ms | 1.099 ms |
+| Automatic read + counts, 13,000 articles / 46 distinct lists | 151.446 ms | 3.081 ms |
+| Visible image after two obsolete 800-path SVG sources | 3.409 ms | 1.144 ms |
+| Visible image after two obsolete 3,000-path SVG sources | 11.431 ms | 2.937 ms |
+| Local Miniflux sync, 8 feeds / 9 requests | 3,527.526 ms | 42.870 ms |
+| Local Miniflux sync, 16 feeds / 17 requests | 7,525.756 ms | 45.292 ms |
+
+Values are medians of process iteration means; server values are medians of
+whole CLI calls, including fresh database/config initialization and discovery.
+The HTTP fixture returns empty entry pages immediately. It measures scheduler
+pacing rather than publisher/server throughput on a real network. Image
+results use offline source files and verify the visible blue cell color.
+An already-started decode/encoding is not preempted, and an image HTTP request
+waiting for response headers can still occupy a lane until its six-second
+deadline. Real Foot qualification remains pending in this environment.
 
 The active-read/inline-LaTeX report uses three optimized processes per workload
 and size with Rust 1.99.1. Observing a cached viewport costs median 0.042/0.044 ms

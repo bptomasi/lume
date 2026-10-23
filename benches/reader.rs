@@ -37,6 +37,8 @@ mod full_article;
 mod geometry;
 #[path = "workloads/highlighting.rs"]
 mod highlighting;
+#[path = "workloads/image_priority.rs"]
+mod image_priority;
 #[path = "workloads/images.rs"]
 mod images;
 #[path = "workloads/interaction.rs"]
@@ -65,6 +67,8 @@ mod presentation;
 mod publisher_refresh;
 #[path = "workloads/query_editing.rs"]
 mod query_editing;
+#[path = "workloads/read_catalog.rs"]
+mod read_catalog;
 #[path = "workloads/reading_services.rs"]
 mod reading_services;
 #[path = "workloads/reading_tools.rs"]
@@ -138,6 +142,8 @@ fn main() -> Result<()> {
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
     active_reading::run(iterations, stress)?;
+    image_priority::run(iterations, stress)?;
+    read_catalog::run(iterations, stress)?;
     article_deletion::run(iterations, stress)?;
     motion_review::run(iterations, stress)?;
     media_review::run(iterations, stress)?;
@@ -180,6 +186,8 @@ type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--active-reading-only", active_reading::run),
+    ("--image-priority-only", image_priority::run),
+    ("--read-catalog-only", read_catalog::run),
     ("--article-deletion-only", article_deletion::run),
     ("--media-review-only", media_review::run),
     ("--motion-review-only", motion_review::run),

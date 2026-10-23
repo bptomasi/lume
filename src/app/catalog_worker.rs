@@ -8,8 +8,9 @@ use anyhow::{Context, Result};
 use super::{App, Mode, NavItem};
 use crate::{latest::Latest, model::Library, store::Store};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) enum Scope {
+    Read,
     Counts,
     Library,
 }
@@ -20,27 +21,77 @@ struct Catalog {
 }
 
 pub(super) struct CatalogWorker {
-    worker: Latest<i64, Catalog>,
+    worker: Latest<Request, Catalog>,
     ready: Option<Result<Catalog>>,
     revision: u64,
     scope: Scope,
+}
+
+struct Request {
+    last_visit: i64,
+    previous: Vec<NavItem>,
+    scope: Scope,
+}
+
+fn read_catalog(store: &Store, request: Request) -> Result<Catalog> {
+    let library = store.catalog()?;
+    let navigation = if request.scope == Scope::Read {
+        read_counts(store, &library, request.last_visit, &request.previous)?
+    } else {
+        super::navigation::catalog_navigation(
+            store,
+            &library,
+            request.last_visit,
+        )?
+    };
+    Ok(Catalog {
+        library,
+        navigation,
+    })
+}
+
+pub(super) fn read_counts(
+    store: &Store,
+    library: &Library,
+    last_visit: i64,
+    previous: &[NavItem],
+) -> Result<Vec<NavItem>> {
+    let mut navigation =
+        super::navigation::pending_navigation(library, last_visit);
+    let previous = previous
+        .iter()
+        .map(|item| (&item.view, item.count))
+        .collect::<std::collections::HashMap<_, _>>();
+    let mut changed = Vec::new();
+    for item in &mut navigation {
+        let previous = previous.get(&item.view);
+        if super::navigation::read_sensitive(&item.view, &library.smart_lists)?
+            || previous.is_none()
+        {
+            changed.push(item.view.clone());
+        } else if let Some(previous) = previous {
+            item.count = *previous;
+        }
+    }
+    let values = store.view_counts(&changed)?;
+    let counts = changed
+        .into_iter()
+        .zip(values)
+        .collect::<std::collections::HashMap<_, _>>();
+    for item in &mut navigation {
+        if let Some(count) = counts.get(&item.view) {
+            item.count = *count;
+        }
+    }
+    Ok(navigation)
 }
 
 impl CatalogWorker {
     pub(super) fn start(path: &Path) -> Result<Self> {
         let store = Store::open(path)?;
         Ok(Self {
-            worker: Latest::start("lume-catalog", move |last_visit| {
-                store.read_snapshot(|store| {
-                    let library = store.catalog()?;
-                    let navigation = super::navigation::catalog_navigation(
-                        store, &library, last_visit,
-                    )?;
-                    Ok(Catalog {
-                        library,
-                        navigation,
-                    })
-                })
+            worker: Latest::start("lume-catalog", move |request| {
+                store.read_snapshot(|store| read_catalog(store, request))
             })?,
             ready: None,
             revision: 0,
@@ -54,12 +105,28 @@ impl App {
         self.catalog_loading = true;
         if let Some(worker) = &mut self.catalog_worker {
             let pending = worker.worker.pending() || worker.ready.is_some();
-            if !pending || scope == Scope::Library {
-                worker.scope = scope;
+            if pending
+                && worker.revision == self.library_revision
+                && scope <= worker.scope
+            {
+                return;
             }
+            worker.scope = if pending {
+                scope.max(worker.scope)
+            } else {
+                scope
+            };
             worker.ready = None;
             worker.revision = self.library_revision;
-            worker.worker.submit(self.workspace.last_visit);
+            worker.worker.submit(Request {
+                last_visit: self.workspace.last_visit,
+                previous: if worker.scope == Scope::Read {
+                    self.navigation_sections.catalog().to_vec()
+                } else {
+                    Vec::new()
+                },
+                scope: worker.scope,
+            });
         }
     }
 
@@ -149,5 +216,144 @@ mod tests {
         );
         app.end_session()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod invalidation_tests {
+    use super::*;
+    use anyhow::{Context, Result};
+
+    #[test]
+    fn read_refresh_does_not_evaluate_unrelated_full_text_lists() -> Result<()>
+    {
+        let (_directory, path, store) = library()?;
+        let library = store.catalog()?;
+        let previous =
+            super::super::navigation::catalog_navigation(&store, &library, 0)?;
+        let id = store.library()?.articles[0].id;
+        store.set_unread(id, false)?;
+        rusqlite::Connection::open(&path)?.execute_batch(include_str!(
+            "../store/sql/test_drop_article_search.sql"
+        ))?;
+        let updated = read_counts(&store, &library, 0, &previous)?;
+        let list = library
+            .smart_lists
+            .iter()
+            .find(|list| list.name == "systems")
+            .context("System list")?;
+        assert_eq!(
+            updated
+                .iter()
+                .find(|item| item.view == crate::model::View::Smart(list.id))
+                .context("Count")?
+                .count,
+            1
+        );
+        assert_eq!(
+            updated
+                .iter()
+                .find(|item| item.view == crate::model::View::Inbox)
+                .context("Inbox")?
+                .count,
+            0
+        );
+        assert!(
+            super::super::navigation::catalog_navigation(&store, &library, 0)
+                .is_err()
+        );
+        Ok(())
+    }
+    #[test]
+    fn read_updates_refresh_counts_hidden_inside_collapsed_sections()
+    -> Result<()> {
+        let (_directory, _path, store) = library()?;
+        let mut app = App::new(store, false)?;
+        app.workspace.collapsed_groups.push("SMART LISTS".into());
+        app.project_navigation();
+        let id = app.current().context("Article")?.id;
+        app.store.set_unread(id, false)?;
+        app.refresh_read_counts()?;
+        let group = app
+            .navigation
+            .iter()
+            .find(|item| {
+                item.view == crate::model::View::Group("SMART LISTS".into())
+            })
+            .context("Collapsed group")?;
+        assert_eq!(group.count, 1);
+        app.workspace.collapsed_groups.clear();
+        app.project_navigation();
+        let unread = app
+            .library
+            .smart_lists
+            .iter()
+            .find(|list| list.name == "is:unread")
+            .context("Unread list")?
+            .id;
+        assert_eq!(
+            app.navigation
+                .iter()
+                .find(|item| item.view == crate::model::View::Smart(unread))
+                .context("Expanded count")?
+                .count,
+            0
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn identical_pending_refreshes_keep_the_already_prepared_snapshot()
+    -> Result<()> {
+        let (_directory, path, store) = library()?;
+        let mut app = App::new(store, false)?;
+        app.enable_background_navigation(&path)?;
+        let library = app.store.catalog()?;
+        app.catalog_worker.as_mut().context("Worker")?.ready =
+            Some(Ok(Catalog {
+                library,
+                navigation: app.navigation_sections.catalog().to_vec(),
+            }));
+        app.request_catalog(Scope::Counts);
+        assert!(
+            app.catalog_worker
+                .as_ref()
+                .context("Worker")?
+                .ready
+                .is_some()
+        );
+        app.request_catalog(Scope::Library);
+        assert!(
+            app.catalog_worker
+                .as_ref()
+                .context("Worker")?
+                .ready
+                .is_none()
+        );
+        app.end_session()
+    }
+
+    fn library() -> Result<(tempfile::TempDir, std::path::PathBuf, Store)> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("library.sqlite3");
+        let mut store = Store::open(&path)?;
+        store.subscribe("https://journal.test/feed")?;
+        let feed = store.feeds()?.remove(0);
+        let parsed = crate::source::parse(
+            include_bytes!("../../tests/fixtures/rss.xml"),
+            &feed.url,
+        )?;
+        store.ingest(&feed, &parsed.title, &parsed.articles)?;
+        for text in ["systems", "is:unread"] {
+            store.save_smart_list(
+                text,
+                &crate::model::SmartFilter {
+                    text: text.into(),
+                    ..Default::default()
+                },
+            )?;
+        }
+
+        Ok((directory, path, store))
     }
 }

@@ -23,6 +23,10 @@ struct Section {
 }
 
 impl Sections {
+    pub(super) fn catalog(&self) -> &[NavItem] {
+        &self.catalog
+    }
+
     pub(super) fn install(
         &mut self,
         catalog: Vec<NavItem>,

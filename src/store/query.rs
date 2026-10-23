@@ -11,6 +11,7 @@ use crate::model::{ArticlePage, ArticleQuery, SmartFilter, View};
 
 use super::{Store, article_row};
 
+mod counts;
 mod relevance;
 
 struct Criteria {

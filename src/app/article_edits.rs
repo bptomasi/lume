@@ -98,7 +98,7 @@ impl App {
             let scope = if self.retained_article.is_some()
                 && !self.article_edits.reconcile_required
             {
-                super::catalog_worker::Scope::Counts
+                super::catalog_worker::Scope::Read
             } else {
                 super::catalog_worker::Scope::Library
             };

@@ -342,3 +342,76 @@ fn a_server_discovery_failure_does_not_retry_each_remote_feed() -> Result<()> {
     assert_eq!(eligible_feeds(&store)?.len(), 2);
     Ok(())
 }
+
+fn remote_library(count: usize) -> Result<(tempfile::TempDir, Store)> {
+    let (directory, mut store) = library(&[])?;
+    let server = store.add_server("https://reader.example", "TOKEN")?;
+    let candidates = (1..=count)
+        .map(|id| crate::model::RemoteFeedCandidate {
+            remote_id: id as i64,
+            title: format!("Feed {id:04}"),
+            remote_url: format!("https://publisher.example/{id}"),
+            local_url: format!("https://reader.example/v1/feeds/{id}"),
+        })
+        .collect::<Vec<_>>();
+    store.sync_server_feeds(server, &candidates)?;
+    Ok((directory, store))
+}
+
+#[test]
+fn private_server_requests_are_serial_without_publisher_spacing() -> Result<()>
+{
+    let (_directory, mut store) = remote_library(8)?;
+    let starts = Mutex::new(Vec::new());
+    let result =
+        collect(&mut store, &AtomicBool::new(false), |_, _| {}, &|feed| {
+            let result = (|| -> Result<_> {
+                starts
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("Starts lock"))?
+                    .push(Instant::now());
+                Ok(None)
+            })();
+            Download {
+                feed: feed.clone(),
+                result,
+                retry_at: 0,
+            }
+        })?;
+    assert!(matches!(
+        result,
+        Progress::Finished {
+            feeds: 8,
+            failures: 0
+        }
+    ));
+    let starts = starts.lock().map_err(|_| anyhow::anyhow!("Starts lock"))?;
+    assert_eq!(starts.len(), 8);
+    // A stale publisher delay would require at least 3.5 seconds.
+    assert!(starts[7].duration_since(starts[0]) < Duration::from_secs(2));
+    Ok(())
+}
+
+#[test]
+fn remote_retry_after_skips_remaining_network_calls_and_pacing() -> Result<()> {
+    let (_directory, mut store) = remote_library(8)?;
+    let calls = AtomicUsize::new(0);
+    let deadline = chrono::Utc::now().timestamp() + 3600;
+    collect(&mut store, &AtomicBool::new(false), |_, _| {}, &|feed| {
+        calls.fetch_add(1, Ordering::SeqCst);
+        Download {
+            feed: feed.clone(),
+            result: Err(anyhow::anyhow!("HTTP 429")),
+            retry_at: deadline,
+        }
+    })?;
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(eligible_feeds(&store)?.is_empty());
+    assert!(
+        store
+            .source_health()?
+            .iter()
+            .all(|source| source.retry_at >= deadline)
+    );
+    Ok(())
+}
