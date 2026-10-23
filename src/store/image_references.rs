@@ -3,6 +3,7 @@
 use super::Store;
 use anyhow::{Result, ensure};
 use pulldown_cmark::{Event, Parser, Tag};
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
     sync::atomic::{AtomicBool, Ordering},
@@ -88,7 +89,12 @@ impl Store {
                 "sql/image_references/insert.sql"
             ))?;
             for (source, url) in entry.urls {
-                insert.execute((entry.article, source, url))?;
+                let bucket = Sha256::digest(url.as_bytes())
+                    .iter()
+                    .take(8)
+                    .map(|byte| format!("{byte:02x}"))
+                    .collect::<String>();
+                insert.execute((entry.article, source, url, bucket))?;
             }
         }
         transaction.commit()?;

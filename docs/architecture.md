@@ -480,8 +480,9 @@ later news. A single adoption marker supplies legacy reading-state grace
 without rewriting the library during migration.
 
 Image planning is skipped when no image lifetime applies or the ordinary cache
-is empty. Otherwise shared body references resolve once to the strictest
-lifetime, with protection/unlimited taking precedence. Cleanup rechecks file
+is empty or wholly newer than the earliest possible expiry. Otherwise durable
+Feed/Full image references resolve to the strictest lifetime, with protection
+and unlimited age taking precedence. Cleanup rechecks file
 type, size and modification time under a bounded write lease. It never treats
 filesystem and SQLite changes as an atomic unit. Automatic scheduling caches
 its policy/deadline in the UI and persists last-run time; input and drawing do
@@ -495,9 +496,38 @@ avoiding read-to-write snapshot races. Feed/Full progress and workspace/layout
 checkpoints use conditional database writes, so idempotence also survives
 intervening changes from another connection.
 
-Retention filters young ordinary cache files before hydrating image references.
-It inventories only existing candidate paths, streams long galleries without
-offline download caps, and preserves shared protections and unlimited overrides.
+Image reference ownership lives in `store/image_references`: publisher and Full
+revisions dirty a durable queue. Maintenance reads bounded batches, parses
+outside the write lease and publishes only when the captured generation still
+matches. Completed queue rows retain their generation, preventing an ABA race
+with another indexer. Unchanged history needs no body parsing. A 64-bit URL-digest prefix index selects
+only potential matches for files present in the ordinary cache; complete SHA-256
+paths still decide ownership, so prefix collisions cannot affect expiry. Shared
+URLs aggregate to their strictest cutoff in SQLite. Retention plans
+check cancellation between 256-article batches and deduplicated smart queries;
+incomplete previews never acknowledge the policy or offer application.
+Protection explanations share the mutation owner's canonical predicates.
+Explicit storage diagnostics read logical source bytes, physical SQLite objects
+and internal-content FTS copies under one snapshot; they do not run per frame.
+
+Per-server history settings bound both API response size and work per refresh.
+Initial imports persist descending entry-ID checkpoints together with their
+articles, independently of incremental changed-time/ascending-ID cursors. A
+failed page set cannot publish a partial cursor. Explicit history restart keeps
+article identity, personal flags and notes. Global entry collection remains an
+investigation: a shared initial cap cannot replace independent feed coverage.
+
+`backups` owns optional snapshot bundles and rotation; `store/backup` owns the
+SQLite online-copy and isolated restore contracts. The maintenance lane caches
+due deadlines and checks durable successful-publication time after admission.
+Its cross-process lock precedes the optional offline-package lock and the read
+snapshot; the offline lock is released before recording the successful run.
+Private same-filesystem staging, streamed SHA-256 and hard-link publication
+avoid whole-file buffers and a second publication copy. A manifest is published
+last. Restore verifies copied bytes in private staging before exposing a new
+destination. Rotation rechecks an exact file inventory and removes only listed
+files from complete bundles in the source path's namespace. Extra files and
+other libraries are preserved; publication survives a later rotation failure.
 
 Inline server credentials use a redacting debug type. Only authenticated HTTP
 and private configuration storage expose bytes. Public configuration inspection

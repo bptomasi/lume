@@ -400,7 +400,10 @@ Only changed bodies are parsed in bounded background batches; generation checks
 reject stale publisher revisions. Existing libraries build the index lazily on
 the first cleanup that needs it. Cancellation keeps completed index batches and
 never acknowledges an incomplete preview. Planning checks cancellation between
-256-article batches and smart-list queries.
+256-article batches and smart-list queries. A compact digest-prefix index limits
+image lookup to files actually present; complete digest paths are still checked
+before applying shared protections or expiry. The first cleanup after an index
+upgrade can rebuild references lazily; later plans reuse them.
 
 ### Storage reports
 

@@ -34,10 +34,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         },
     )?;
     age_images(&images)?;
-    ensure!(
-        retention::preview(&store, &images, now)?.images == 32,
-        "Index lost expired references"
-    );
+    initial_index(&store, &images, now, count)?;
     super::measure(
         &format!("indexed old image retention ({count} articles, 32 files)"),
         iterations,
@@ -103,5 +100,23 @@ fn age_images(images: &Path) -> Result<()> {
             )?;
         }
     }
+    Ok(())
+}
+
+fn initial_index(
+    store: &Store,
+    images: &Path,
+    now: i64,
+    count: usize,
+) -> Result<()> {
+    let started = std::time::Instant::now();
+    ensure!(
+        retention::preview(store, images, now)?.images == 32,
+        "Index lost expired references"
+    );
+    println!(
+        "first expired-image preview + lazy index ({count} articles): {:.3} ms",
+        started.elapsed().as_secs_f64() * 1000.0
+    );
     Ok(())
 }

@@ -854,3 +854,38 @@ fn cancelled_planning_preserves_data_and_does_not_arm_policy() -> Result<()> {
     assert_eq!(fixture.preview()?.articles, 24);
     Ok(())
 }
+
+#[test]
+fn short_digest_collisions_do_not_change_complete_image_path_ownership()
+-> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.policy(Policy {
+        image_days: Age(Some(30)),
+        ..Default::default()
+    })?;
+    let target = "https://images.example/expired-target";
+    let other = "https://images.example/protected-collision";
+    for (article, address) in [(1, target), (2, other)] {
+        fixture.store.connection.execute(
+            include_str!("../sql/test_set_retention_body.sql"),
+            (article, format!("![Image]({address})")),
+        )?;
+    }
+    fixture.store.set_starred(2, true)?;
+    fixture.store.clear_history()?;
+    let file = fixture.image(target, true)?;
+    assert_eq!(fixture.preview()?.images, 1);
+    let name = file
+        .file_name()
+        .and_then(|name| name.to_str())
+        .context("Cache digest")?;
+    fixture.store.connection.execute(
+        include_str!("../sql/test_collide_image_bucket.sql"),
+        (other, &name[..16]),
+    )?;
+    assert_eq!(fixture.preview()?.images, 1);
+    assert_eq!(fixture.apply()?.images, 1);
+    assert!(!file.exists());
+    assert!(fixture.store.article(2)?.starred);
+    Ok(())
+}

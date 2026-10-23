@@ -331,3 +331,60 @@ fn v20_retention_library(path: &std::path::Path) -> Result<()> {
     ))?;
     Ok(())
 }
+
+#[test]
+fn image_bucket_upgrade_preserves_personal_data_and_rebuilds_only_in_maintenance()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("image-upgrade.sqlite3");
+    indexed_v23_library(&path)?;
+    let store = Store::open(&path)?;
+    let before: (String, bool, i64) = store.connection.query_row(
+        include_str!("../sql/test_select_image_bucket_upgrade.sql"),
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )?;
+    assert_eq!(before, (String::new(), true, 6));
+    assert!(store.refresh_image_references(
+        &std::sync::atomic::AtomicBool::new(false)
+    )?);
+    let cache = crate::media::cache::path(
+        std::path::Path::new(""),
+        "https://images.example/upgrade",
+    );
+    let name = cache.to_string_lossy();
+    for _ in 0..2 {
+        let reopened = Store::open(&path)?;
+        let indexed: (String, bool, i64) = reopened.connection.query_row(
+            include_str!("../sql/test_select_image_bucket_upgrade.sql"),
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+        assert_eq!(indexed, (name[..16].into(), false, 6));
+        assert!(reopened.article(1)?.starred);
+        assert_eq!(reopened.comments(1)?[0].body, "Keep this private note");
+        assert!(reopened.article_memberships(1)?.contains(&1));
+        assert_eq!(
+            reopened.body(1)?,
+            "![Kept](https://images.example/upgrade)"
+        );
+    }
+    Ok(())
+}
+
+fn indexed_v23_library(path: &std::path::Path) -> Result<()> {
+    v7_library(path)?;
+    let mut connection = Connection::open(path)?;
+    let migrations = MIGRATIONS
+        .iter()
+        .take(23)
+        .map(|(name, sql)| Migration::unapplied(name, sql))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Runner::new(&migrations)
+        .set_grouped(true)
+        .run(&mut connection)?;
+    connection.execute_batch(include_str!(
+        "../sql/test_setup_image_bucket_upgrade.sql"
+    ))?;
+    Ok(())
+}

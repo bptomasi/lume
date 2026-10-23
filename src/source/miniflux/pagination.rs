@@ -1,7 +1,7 @@
 //! Identity pagination remains stable when newer entries arrive or older ones vanish.
 use super::{EntryPage, RemoteEntry, ServerFeed};
 use crate::model::ServerHistory;
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use std::{
     collections::BTreeMap,
     sync::atomic::{AtomicBool, Ordering},
@@ -79,7 +79,11 @@ impl Cursor {
                 .history
                 .total
                 .max(self.history.loaded.saturating_add(page.total as u64));
-            self.history.loaded += count as u64;
+            self.history.loaded = self
+                .history
+                .loaded
+                .checked_add(count as u64)
+                .context("Remote history count overflow")?;
         }
         for entry in page.entries {
             ensure!(entry.id > 0, "Remote entry needs a positive ID");

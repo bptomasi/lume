@@ -173,13 +173,16 @@ impl Store {
 
     pub(crate) fn visit_retention_images(
         &self,
+        buckets: &std::collections::BTreeSet<String>,
         mut visit: impl FnMut(&str, i64) -> Result<()>,
     ) -> Result<()> {
-        let sql = protected_query(include_str!(
-            "sql/retention/select_image_urls.sql"
-        ));
+        let sql = format!(
+            "{}\n{}",
+            include_str!("sql/retention/with_planned_protections.sql"),
+            include_str!("sql/retention/select_image_urls.sql")
+        );
         let mut statement = self.connection.prepare_cached(&sql)?;
-        let mut rows = statement.query([])?;
+        let mut rows = statement.query([serde_json::to_string(buckets)?])?;
         while let Some(row) = rows.next()? {
             let url: String = row.get(0)?;
             let cutoff: i64 = row.get(1)?;

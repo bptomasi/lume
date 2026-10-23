@@ -4,7 +4,7 @@ use crate::{
     retention::Report,
     store::{RetentionPlan, Store},
 };
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
@@ -103,23 +103,26 @@ fn references(
     if !store.refresh_image_references(cancel)? {
         return Err(super::Canceled.into());
     }
-    store.visit_retention_images(|address, cutoff| {
-        super::check_cancel(cancel)?;
-        let path = crate::media::cache::path(directory, address);
-        if cached.contains(&path) {
-            references
-                .entry(path)
-                .and_modify(|existing: &mut i64| {
-                    *existing = (*existing).min(cutoff)
-                })
-                .or_insert(cutoff);
-        }
-        ensure!(
-            references.len() <= 100_000,
-            "Image reference limit reached; retention removed no files"
-        );
-        Ok(())
-    })?;
+    store.visit_retention_images(
+        &cache_buckets(cached)?,
+        |address, cutoff| {
+            super::check_cancel(cancel)?;
+            let path = crate::media::cache::path(directory, address);
+            if cached.contains(&path) {
+                references
+                    .entry(path)
+                    .and_modify(|existing: &mut i64| {
+                        *existing = (*existing).min(cutoff)
+                    })
+                    .or_insert(cutoff);
+            }
+            ensure!(
+                references.len() <= 100_000,
+                "Image reference limit reached; retention removed no files"
+            );
+            Ok(())
+        },
+    )?;
     Ok(references)
 }
 
@@ -169,4 +172,20 @@ pub(super) fn remove(
         std::thread::yield_now();
     }
     Ok(())
+}
+
+fn cache_buckets(cached: &BTreeSet<PathBuf>) -> Result<BTreeSet<String>> {
+    cached
+        .iter()
+        .map(|path| {
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .context("Invalid cached image filename")?;
+            Ok(name
+                .get(..16)
+                .context("Incomplete cached image digest")?
+                .to_owned())
+        })
+        .collect()
 }
