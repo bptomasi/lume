@@ -603,3 +603,48 @@ It checks three warm exact-source layouts without requesting Markdown work;
 its stress form retains 2,000 paragraphs per source. The ordinary unoptimized
 correctness run observed 0.236 ms per three-source round trip; this is an
 absolute local check, without terminal presentation or a release comparison.
+
+## Eight-upgrade qualification · 2026-10-23
+
+Source revision `d9d568d`, exact Rust 1.99.1, optimized release profile. Builds
+used two jobs; benchmarks ran sequentially without concurrent compilation/tests.
+`make check` passed 952 native tests and 44 Python tests, plus the representative
+benchmark correctness scenarios. The separate real-HTTP gate passed 33 tests.
+These CPU/SQLite/filesystem measurements exclude terminal/compositor latency.
+
+An initial release measurement at `3951d54` found that expired-image planning
+still hashed historical URLs despite indexing their references. A compact
+64-bit digest-prefix index now selects potential matches for actual cache files;
+complete SHA-256 paths decide ownership, including forced-collision tests.
+SQLite aggregates shared URL cutoffs before returning them. Matched fixtures
+have 20 image references/article and 32 old ordinary cache files:
+
+| Warm expired-image preview | Before (ms) | After (ms) | Reduction |
+|---|---:|---:|---:|
+| 200 articles / 4,000 references | 7.917 | 0.474 | 94.0% |
+| 2,000 articles / 40,000 references | 79.369 | 2.557 | 96.8% |
+
+Both sides use 40 iterations of the same correctness-checked workload on this
+host. The warm operation excludes the first expired-image preview, which also
+builds the lazy reference index. That cold cost is reported independently by
+the workload: 152.477 ms for the 2,000-article fixture in this run. Reference
+extraction uses bounded, resumable maintenance batches. Startup applies the
+schema migration but leaves body parsing queued for maintenance.
+
+Other final absolute measurements (not before/after comparisons):
+
+| Scenario | Iterations | Mean ms/iteration |
+|---|---:|---:|
+| Three recent cached layout roundtrips | 40 | 0.067 |
+| Automatic read + distinct catalog counts | 8 | 0.882 |
+| Visible image after replacing two obsolete sources | 8 | 1.352 |
+| Unchanged server discovery projection, 2,000 cached articles | 40 | 0.363 |
+| Unchanged remote page ingestion, 2,000 entries | 40 | 6.709 |
+| Checked backup + isolated restore, 1,000 articles | 40 | 56.377 |
+
+Server projection/ingestion timings exclude network requests. Backup timing
+includes consistency checks, streamed hashes, filesystem publication, rotation
+and isolated restoration. Filesystem results depend on the host/cache/device.
+Reproduce with the focused `--recent-layouts-only`, `--read-catalog-only`,
+`--image-priority-only`, `--retention-images-only`, `--server-refresh-only` and
+`--backups-only` flags; add `--stress` for the larger retention fixture.
