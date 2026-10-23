@@ -45,6 +45,8 @@ mod links;
 mod lists;
 #[path = "workloads/media_review.rs"]
 mod media_review;
+#[path = "workloads/motion_review.rs"]
+mod motion_review;
 #[path = "workloads/note_interactions.rs"]
 mod note_interactions;
 #[path = "workloads/note_study.rs"]
@@ -131,6 +133,7 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    motion_review::run(iterations, stress)?;
     media_review::run(iterations, stress)?;
     retention_images::run(iterations, stress)?;
     publisher_refresh::run(iterations, stress)?;
@@ -171,6 +174,7 @@ type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--media-review-only", media_review::run),
+    ("--motion-review-only", motion_review::run),
     ("--retention-images-only", retention_images::run),
     ("--publisher-refresh-only", publisher_refresh::run),
     ("--retention-only", retention::run),

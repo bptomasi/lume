@@ -36,9 +36,9 @@ pub(super) fn perform(
                 .offline_state()?
                 .context("No offline package; use :offline queue")?,
         )),
-        Request::Storage => {
-            Ok(Outcome::Text(crate::storage::inspect(&store, &images)?))
-        }
+        Request::Storage(unit) => Ok(Outcome::Text(
+            crate::storage::inspect_with_unit(&store, &images, unit)?,
+        )),
         Request::Clean(scope) => Ok(Outcome::Text(crate::storage::clean(
             &store, &images, scope, cancel,
         )?)),

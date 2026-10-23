@@ -201,6 +201,7 @@
   m / :mark-read / :mark-unread    Change read state
   :read           Automatic Read folder; unread articles leave it
   s / :queue      Toggle queue membership / open Read next
+  dd              In Articles: move the selected article to Trash; u undoes
   D / Delete      Move article to Trash; :restore-article restores it
   :trash          Deleted articles remain recoverable with u
   :pin            Pin/unpin selected sidebar destination
@@ -403,7 +404,12 @@ DECLARATIVE CONFIGURATION
                   Plans use the cached unread recommendations, not a model.
                   Configure interests first; at most eight entries fit a plan.
   :storage        Inspect feed, Full cache, notes, database/WAL and image usage
+  :storage auto|MiB|GiB|bytes
+                  Choose readable binary units or exact bytes; work stays off input
   :retention      Inspect opt-in retention; unlimited and inactive by default
+  :retention preset [archive|cache-only|balanced|compact]
+                  Compare presets or save editable global ages; automatic pauses
+                  Source overrides and personal protections remain unchanged
   :retention preview
                   Count eligible content without deleting; Enter applies once
   :retention apply

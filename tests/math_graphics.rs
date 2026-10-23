@@ -14,6 +14,29 @@ fn options() -> reader::RenderOptions {
 }
 
 #[test]
+fn short_spatial_inline_formulas_get_outlines_and_keep_original_source()
+-> Result<()> {
+    for latex in [
+        r"\boxed{x}",
+        r"\cancel{x}",
+        r"\underbrace{x}",
+        r"\widehat{xy}",
+    ] {
+        let source = format!("Before ${latex}$ after.");
+        let rendered = reader::render_with_options(&source, 80, options());
+        let slot = rendered.images.first().context("Missing inline outline")?;
+        let formula = slot.formula.as_ref().context("Not local formula")?;
+        assert_eq!(&*formula.latex, latex);
+        assert_eq!(&source[slot.source.clone()], format!("${latex}$"));
+        assert!(formula.svg.windows(5).any(|text| text == b"<path"));
+    }
+    let inline =
+        reader::render_with_options("Before $x+y$ after.", 80, options());
+    assert!(inline.images.is_empty());
+    Ok(())
+}
+
+#[test]
 fn vector_formulas_typeset_real_scripts_and_fractions_without_external_fonts()
 -> Result<()> {
     for latex in [

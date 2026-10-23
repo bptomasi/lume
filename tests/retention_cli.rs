@@ -18,6 +18,40 @@ fn run(root: &Path, arguments: &[&str]) -> Result<Output> {
 }
 
 #[test]
+fn presets_publish_editable_ages_without_deleting_or_enabling_automatic_cleanup()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let root = directory.path();
+    let list = run(root, &["retention", "preset"])?;
+    assert!(list.status.success());
+    assert!(String::from_utf8(list.stdout)?.contains("cache-only"));
+    for (name, read) in [
+        ("balanced", Some(90)),
+        ("compact", Some(30)),
+        ("archive", None),
+    ] {
+        let output = run(root, &["retention", "preset", name])?;
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let saved = config::read_document(&root.join("config.toml"))?;
+        assert_eq!(saved.retention.defaults.read_days.0, read);
+        assert_eq!(saved.retention.defaults.unread_days.0, None);
+        assert!(!saved.retention.automatic);
+    }
+    let original = std::fs::read(root.join("config.toml"))?;
+    assert!(
+        !run(root, &["retention", "preset", "missing"])?
+            .status
+            .success()
+    );
+    assert_eq!(std::fs::read(root.join("config.toml"))?, original);
+    Ok(())
+}
+
+#[test]
 fn retention_requires_preview_applies_limits_and_rejects_changed_policies()
 -> Result<()> {
     let directory = tempfile::tempdir()?;

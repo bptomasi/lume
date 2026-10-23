@@ -35,7 +35,7 @@ pub(super) enum Request {
     Resume,
     Release,
     OfflineStatus,
-    Storage,
+    Storage(crate::storage::Unit),
     Clean(Cleanup),
     Plan(u16),
     Start(ReadingSession),

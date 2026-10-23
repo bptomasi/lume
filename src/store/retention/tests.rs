@@ -4,10 +4,26 @@ use crate::{
     retention,
     store::Store,
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::sync::atomic::AtomicBool;
 
 const NOW: i64 = 1_800_000_000;
+
+#[test]
+fn presets_need_a_fresh_preview_and_repeated_selection_performs_no_writes()
+-> Result<()> {
+    use crate::config::retention::presets::Preset;
+    let fixture = Fixture::new()?;
+    fixture.store.set_retention_preset(Preset::Balanced)?;
+    fixture.preview()?;
+    fixture.store.set_retention_preset(Preset::Compact)?;
+    assert!(fixture.apply().is_err());
+    assert_eq!(fixture.store.view_count(&View::All)?, 24);
+    let changes = fixture.store.connection.total_changes();
+    fixture.store.set_retention_preset(Preset::Compact)?;
+    assert_eq!(fixture.store.connection.total_changes(), changes);
+    Ok(())
+}
 
 struct Fixture {
     directory: tempfile::TempDir,
@@ -513,6 +529,41 @@ fn automatic_retention_requires_preview_and_obeys_persisted_intervals()
             .map(|report| report.articles),
         Some(2)
     );
+    Ok(())
+}
+
+#[test]
+fn cancelled_automatic_pass_does_not_postpone_the_next_attempt() -> Result<()> {
+    let fixture = Fixture::new()?;
+    let policy = Retention {
+        automatic: true,
+        defaults: Policy {
+            read_days: Age(Some(90)),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    fixture.store.save_retention_policy(&policy)?;
+    fixture.preview()?;
+    let report = retention::automatic(
+        &fixture.store,
+        fixture.directory.path(),
+        NOW,
+        &AtomicBool::new(true),
+        None,
+    )?
+    .context("Cancelled pass")?;
+    assert!(report.cancelled);
+    assert_eq!(fixture.store.retention_state("retention_last_run")?, None);
+    let retry = retention::automatic(
+        &fixture.store,
+        fixture.directory.path(),
+        NOW,
+        &AtomicBool::new(false),
+        None,
+    )?
+    .context("Immediate retry")?;
+    assert_eq!(retry.articles, 24);
     Ok(())
 }
 

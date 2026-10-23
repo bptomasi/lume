@@ -2,9 +2,46 @@
 
 use anyhow::{Result, anyhow};
 
-use super::{Action, App, Choice, ChoiceAction, View};
+use super::{Action, App, Choice, ChoiceAction, Focus, View};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 impl App {
+    pub(super) fn article_delete_key(&mut self, key: KeyEvent) -> Result<bool> {
+        if self.focus != Focus::Articles
+            || self.selection.is_some()
+            || !key.modifiers.difference(KeyModifiers::SHIFT).is_empty()
+        {
+            return Ok(false);
+        }
+        if key.code == KeyCode::Esc
+            && self.pending_article_delete.take().is_some()
+        {
+            self.status = "Article deletion canceled".into();
+            return Ok(true);
+        }
+        if key.code != KeyCode::Char('d') {
+            return Ok(false);
+        }
+        if key.kind == KeyEventKind::Repeat {
+            return Ok(true);
+        }
+        let Some(article) = self.current().map(|article| article.id) else {
+            self.status = "Select an article first".into();
+            return Ok(true);
+        };
+        if self.view == View::Trash {
+            self.status =
+                "Already in Trash · :restore-article restores it".into();
+        } else if self.pending_article_delete.take() == Some(article) {
+            self.change_article_deleted(article, true)?;
+        } else {
+            self.pending_article_delete = Some(article);
+            self.status =
+                "d again moves this article to Trash · Esc cancels".into();
+        }
+        Ok(true)
+    }
+
     pub(super) fn article_command(
         &mut self,
         verb: &str,

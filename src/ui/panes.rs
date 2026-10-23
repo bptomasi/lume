@@ -1,6 +1,5 @@
 //! Visible-row rendering for navigation, headlines and reading.
 
-use chrono::{DateTime, Utc};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -61,7 +60,8 @@ fn headline(frame: &mut Frame<'_>, app: &App, position: usize, area: Rect) {
     if selected {
         frame.render_widget(Block::new().style(Style::new().bg(RAISED)), area);
     }
-    let mut lines = headline_lines(article, area.width, color);
+    let labels = app.headline_labels(article, area.width);
+    let mut lines = headline_lines(article, labels, color);
     if app.marked.contains(&article.id) {
         lines[0]
             .spans
@@ -76,7 +76,7 @@ fn headline(frame: &mut Frame<'_>, app: &App, position: usize, area: Rect) {
 
 fn headline_lines(
     article: &crate::model::Article,
-    width: u16,
+    labels: crate::app::HeadlineLabels,
     color: ratatui::style::Color,
 ) -> Vec<Line<'static>> {
     let marker = if article.starred {
@@ -86,37 +86,23 @@ fn headline_lines(
     } else {
         "·"
     };
-    let wrapped =
-        textwrap::wrap(&article.title, width.saturating_sub(4).max(1) as usize);
-    let first = wrapped.first().map_or("", |line| line.as_ref());
-    let second = wrapped.get(1).map_or("", |line| line.as_ref());
     let title = Line::from(vec![
         Span::styled(
             format!(" {marker} "),
             Style::new().fg(if article.starred { AMBER } else { color }),
         ),
         Span::styled(
-            first.to_owned(),
+            labels.first,
             Style::new().fg(color).add_modifier(Modifier::BOLD),
         ),
     ]);
-    let meta =
-        format!("   {}  ·  {}", article.feed, date_label(article.published));
+    let meta = format!("   {}  ·  {}", article.feed, labels.date);
     vec![
         title,
-        Line::styled(format!("   {second}"), Style::new().fg(color)),
+        Line::styled(format!("   {}", labels.second), Style::new().fg(color)),
         Line::styled(meta, Style::new().fg(FAINT)),
         Line::raw(""),
     ]
-}
-
-fn date_label(published: i64) -> String {
-    DateTime::<Utc>::from_timestamp(published, 0)
-        .filter(|_| published != 0)
-        .map_or_else(
-            || "undated".into(),
-            |date| date.format("%b %d").to_string(),
-        )
 }
 
 fn empty_articles(frame: &mut Frame<'_>, app: &App, area: Rect) {

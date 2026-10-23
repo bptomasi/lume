@@ -123,8 +123,23 @@ pub(super) fn needs_graphics(latex: &str, text: &str, block: bool) -> bool {
         || text.contains(['_', '^'])
         || super::cursor::column(text, text.len()) > 16
         || [
-            r"\frac", r"\dfrac", r"\tfrac", r"\sqrt", r"\sum", r"\prod",
-            r"\int", r"\begin", r"\binom",
+            r"\frac",
+            r"\dfrac",
+            r"\tfrac",
+            r"\sqrt",
+            r"\sum",
+            r"\prod",
+            r"\int",
+            r"\begin",
+            r"\binom",
+            r"\boxed",
+            r"\cancel",
+            r"\bcancel",
+            r"\xcancel",
+            r"\overbrace",
+            r"\underbrace",
+            r"\widehat",
+            r"\widetilde",
         ]
         .iter()
         .any(|command| latex.contains(command))

@@ -55,6 +55,7 @@ impl App {
         {
             self.note_marks.delete = None;
             self.pending_destination_delete = None;
+            self.pending_article_delete = None;
         }
     }
 
@@ -111,7 +112,7 @@ impl App {
         if let Some(action) = self.normal_prefix_action(key)? {
             return Ok(action);
         }
-        if self.library_delete_key(key)? {
+        if self.library_delete_key(key)? || self.article_delete_key(key)? {
             return Ok(Action::None);
         }
         if key.modifiers.contains(KeyModifiers::CONTROL) {

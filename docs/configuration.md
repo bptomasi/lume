@@ -218,6 +218,25 @@ Annotation collections use the Notebook search grammar.
 Retention is unlimited and automatic maintenance is disabled by default.
 Article lifetimes and recoverable-cache lifetimes are independent:
 
+Use `:retention preset` or `lume retention preset` to compare starting points.
+Choose one with `:retention preset balanced` or
+`lume retention preset balanced`:
+
+| Preset | Full text | Images | Read articles | Unread articles |
+| --- | --- | --- | --- | --- |
+| `archive` | Unlimited | Unlimited | Unlimited | Unlimited |
+| `cache-only` | 30 days | 30 days | Unlimited | Unlimited |
+| `balanced` | 30 days | 30 days | 90 days | Unlimited |
+| `compact` | 7 days | 14 days | 30 days | Unlimited |
+
+A preset writes ordinary `[retention.defaults]` values to TOML and sets
+`automatic = false`; it does not delete content. Every generated value remains
+editable. Source overrides, personal protections, smart-list exceptions,
+scheduling and run limits are preserved. An `archive` preset therefore keeps
+global defaults unlimited while explicit source overrides still apply. There
+is no hidden preset layer or dependency on a preset name in stored policies.
+Preview the resulting policy before applying or enabling automatic retention.
+
 ```toml
 [retention]
 automatic = false
@@ -289,6 +308,28 @@ runs while Lume is closed. Application rechecks personal protections inside
 small transactions and interrupts when another connection commits, rebuilding
 its plan on a later pass. Completed batches survive cancellation or a later
 failure. `:retention cancel` stops between batches.
+Cancelled automatic passes do not record a successful run or postpone the next
+attempt by the configured interval.
+
+### Storage reports
+
+`:storage` uses readable binary units automatically. Use `:storage MiB`,
+`:storage GiB` or `:storage bytes` to select a fixed unit, and `:storage auto`
+for automatic selection. MiB is 1,048,576 bytes; GiB is 1,073,741,824.
+Small nonzero values display as `<0.01 MiB/GiB` instead of a misleading zero.
+
+The report leads with the total size of library and image files, followed by
+article/note counts. Physical database, WAL/shared-memory, ordinary image and
+pinned offline files are separated from logical feed/Full/note text. Logical
+content and reusable pages are already part of the database/WAL, so they are
+not added a second time. Totals exclude backups and configuration. Inspection
+runs on the maintenance worker; selecting units does not trigger cleanup.
+
+Manual image cleanup inventories owned files before loading historical bodies.
+An empty cache requires no article-body reads. Long galleries are supported
+without the offline package's 64-image download limit; shared references and
+pinned copies remain intact. Candidate files replaced after inventory are
+skipped, and cancellation also stops reference collection.
 
 Expiring Full text preserves title, link and the original feed body; fetch it
 again normally. Expiring articles permanently removes eligible local news,
@@ -501,6 +542,8 @@ workers, without network access, a browser, Node or a TeX installation. Small
 inline variables and expressions remain in the paragraph as selectable text.
 Display equations and complex inline layouts use compact graphic blocks, with
 one em occupying 80% of a terminal row rather than stretching to the slot.
+Short boxed/cancelled expressions, braces and wide accents also request local
+outlines in graphics mode; simple inline sums and variables stay in the paragraph.
 Click a graphic to inspect and zoom; `y` copies the original TeX.
 
 Numbered and nested lists retain their markers around formula blocks. Table

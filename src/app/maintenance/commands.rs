@@ -104,7 +104,13 @@ impl App {
             return Ok(());
         }
         if argument.is_empty() || argument == "status" {
-            return self.submit_maintenance(Request::Storage);
+            return self.submit_maintenance(Request::Storage(
+                crate::storage::Unit::Auto,
+            ));
+        }
+        if !argument.starts_with("clean ") {
+            return self
+                .submit_maintenance(Request::Storage(argument.parse()?));
         }
         let scope = match argument {
             "clean images" => Cleanup::Images,
@@ -147,6 +153,9 @@ Completed batches remain committed if cancellation/failure follows.
         &mut self,
         argument: &str,
     ) -> Result<()> {
+        if argument == "preset" || argument.starts_with("preset ") {
+            return self.retention_preset(argument);
+        }
         if argument == "cancel" {
             self.cancel_maintenance();
             return Ok(());
@@ -155,11 +164,26 @@ Completed batches remain committed if cancellation/failure follows.
             "" | "status" => RetentionAction::Status,
             "preview" => RetentionAction::Preview,
             "apply" => RetentionAction::Apply,
-            _ => bail!("Use :retention status|preview|apply|cancel"),
+            _ => bail!(
+                "Use :retention status|preset [NAME]|preview|apply|cancel"
+            ),
         };
         self.submit_maintenance(Request::Retention {
             action,
             article: self.current().map(|article| article.id),
         })
+    }
+
+    fn retention_preset(&mut self, argument: &str) -> Result<()> {
+        let name = argument.strip_prefix("preset").unwrap_or_default().trim();
+        if !name.is_empty() {
+            self.store.set_retention_preset(name.parse()?)?;
+        }
+        self.show_document(
+            "Retention presets · :retention preview before applying",
+            crate::config::retention::presets::GUIDE,
+            None,
+        );
+        Ok(())
     }
 }

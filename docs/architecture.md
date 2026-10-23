@@ -192,6 +192,12 @@ only visible cells and preserves syntax, search, selection and cursor offsets.
 Layout and wrapping run outside input where they are expensive; tests cover
 long rows, resizing and libraries larger than the displayed metadata page.
 
+Headline presentation retains at most 64 wrapped title/date entries. Identity,
+exact title, publication time and pane width determine reuse; metadata larger
+than 4 KiB is displayed without retention. Reader motion can reuse this work
+without caching live selection, favorite/read flags or feed labels. Images
+skip workspace geometry/admission when their visible-slot interval is empty.
+
 `ui::layout` computes fixed columns and binary splits with bounded rectangle
 arithmetic. Rendering, focus and pointer hit testing share that geometry.
 Each split reserves the combined minimum dimensions of its expanded children;

@@ -26,7 +26,8 @@ The native benchmark also accepts focused flags, including
 `--tables-only`, `--lists-only`, `--rich-text-only`, `--recommendations-only`,
 `--pane-search-only`, `--query-editing-only`, `--library-sections-only` and
 `--fluency-only`, `--server-refresh-only`, `--publisher-refresh-only`,
-`--retention-images-only`, `--retention-only` and `--media-review-only`.
+`--retention-images-only`, `--retention-only`, `--media-review-only` and
+`--motion-review-only`.
 Add `--stress`
 for larger workloads.
 Setup precedes operation timers; resource reports identify process-wide
@@ -67,6 +68,7 @@ current hardware or a substitute for measuring later changes.
 | Reading services | [Repeated checked workloads](performance/reading-services.json), [native Foot qualification](performance/reading-foot.json) |
 | Reading-state and offline review | [Before/after workloads and native Foot](performance/reading-review.json) |
 | Image source reuse and formula fallback | [Checked before/after measurements](performance/media-review.json) |
+| Scroll frames and empty-cache cleanup | [Checked comparison](performance/motion-retention-review.json) |
 
 The reading-service workloads use three release processes per size with Rust
 1.99.1 on the recorded Core Ultra 7 environment. A selector movement pair plus
@@ -225,6 +227,35 @@ tests; these timings do not measure those cases. Reproduce with
 `cargo test --locked --bench reader -- --test --media-review-only`, adding
 `--stress` for the larger inputs. The report preserves raw samples, executable
 hashes and qualification details, including local graphics-tool substitutions.
+
+The [motion and storage review](performance/motion-retention-review.json)
+compares identical checked workloads against the preceding headline and cleanup
+implementations in `3ceade2`. Each size uses three sequential unoptimized local
+test processes. Fixture setup precedes timing; each process checks two empty
+image-cleanup passes and 60 reader motion pairs with two complete pane frames.
+
+| Operation | Before | After |
+| --- | ---: | ---: |
+| Motion pair + two frames, 200 articles/260-byte longest headline | 6.101 ms | 5.405 ms |
+| Motion pair + two frames, 2,000 articles/943-byte longest headline | 7.239 ms | 5.883 ms |
+| Empty image-cache cleanup, 200 articles | 33.786 ms | 0.044 ms |
+| Empty image-cache cleanup, 2,000 articles | 326.888 ms | 0.048 ms |
+
+Headline reuse avoids repeated title wrapping/date formatting during reader
+motion; live status/styles and metadata corrections remain current. Empty image
+cleanup returns before loading bodies. Other cases still inspect references,
+including long galleries, and skip files replaced after inventory. Separate
+native scenarios verify storage units/totals, preset publication/protections,
+cancelled automatic scheduling, source-preserving spatial inline formulas and
+two-press article deletion/undo.
+
+These measurements include state/output assertions and exclude HTTP, source
+preparation, native Sixel encoding and physical terminal presentation. Memory
+and I/O accounting are not measured. They do not establish release latency,
+expired-image deletion speed or a whole-application speedup. Reproduce with
+`cargo test --locked --bench reader -- --test --motion-review-only`, adding
+`--stress` for the larger fixture. The report retains raw samples, executable
+hashes and local qualification details.
 
 ## Boundaries
 

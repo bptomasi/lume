@@ -5,7 +5,6 @@
 //! cannot interrupt DNS or an already running request.
 
 mod images;
-pub(crate) use images::addresses as image_addresses;
 
 use std::{
     path::Path,

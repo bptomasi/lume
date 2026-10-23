@@ -9,22 +9,24 @@ use anyhow::Result;
 use super::Store;
 
 impl Store {
-    pub(crate) fn storage_report(&self) -> Result<String> {
-        let (articles, feed, full, notes, comments, highlights) =
-            self.connection.query_row(
-                include_str!("sql/select_storage_usage.sql"),
-                [],
-                |row| {
-                    Ok((
-                        row.get::<_, u64>(0)?,
-                        row.get::<_, u64>(1)?,
-                        row.get::<_, u64>(2)?,
-                        row.get::<_, u64>(3)?,
-                        row.get::<_, u64>(4)?,
-                        row.get::<_, u64>(5)?,
-                    ))
-                },
-            )?;
+    pub(crate) fn storage_usage(
+        &self,
+    ) -> Result<crate::storage::report::Usage> {
+        let mut usage = self.connection.query_row(
+            include_str!("sql/select_storage_usage.sql"),
+            [],
+            |row| {
+                Ok(crate::storage::report::Usage {
+                    articles: row.get(0)?,
+                    feed: row.get(1)?,
+                    full: row.get(2)?,
+                    notes: row.get(3)?,
+                    comments: row.get(4)?,
+                    highlights: row.get(5)?,
+                    ..Default::default()
+                })
+            },
+        )?;
         let pages: u64 =
             self.connection
                 .query_row("PRAGMA page_count", [], |row| row.get(0))?;
@@ -34,18 +36,9 @@ impl Store {
         let page_size: u64 =
             self.connection
                 .query_row("PRAGMA page_size", [], |row| row.get(0))?;
-        Ok(format!(
-            r#"Articles: {articles}
-Feed text: {feed} bytes
-Full text cache: {full} bytes
-Notes: {comments} ({notes} text bytes)
-Highlights: {highlights}
-Database pages: {} bytes
-Reusable database pages: {} bytes
-"#,
-            pages.saturating_mul(page_size),
-            free.saturating_mul(page_size),
-        ))
+        usage.pages = pages.saturating_mul(page_size);
+        usage.free = free.saturating_mul(page_size);
+        Ok(usage)
     }
 
     pub(crate) fn cleanup_boundary(&self) -> Result<i64> {
@@ -101,13 +94,15 @@ Reusable database pages: {} bytes
 
     pub(crate) fn visit_cached_bodies(
         &self,
+        cancel: &std::sync::atomic::AtomicBool,
         mut visit: impl FnMut(&str) -> Result<()>,
     ) -> Result<()> {
         let mut statement = self
             .connection
             .prepare(include_str!("sql/select_cached_bodies.sql"))?;
         let mut rows = statement.query([])?;
-        while let Some(row) = rows.next()? {
+        while !cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            let Some(row) = rows.next()? else { break };
             let body: String = row.get(0)?;
             visit(&body)?;
         }

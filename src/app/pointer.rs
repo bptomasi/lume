@@ -205,6 +205,7 @@ impl App {
                 | MouseEventKind::ScrollRight
         ) {
             self.pending_destination_delete = None;
+            self.pending_article_delete = None;
         }
         if matches!(self.mode, Mode::Web) && self.workspace.mouse {
             return self.web_mouse(event);
@@ -372,6 +373,7 @@ impl App {
         self.pointer.seen = true;
         self.note_marks.delete = None;
         self.pending_destination_delete = None;
+        self.pending_article_delete = None;
         if !self.workspace.mouse
             || !event.modifiers.is_empty()
             || self.screen.width < 24

@@ -13,6 +13,11 @@ pub(crate) enum Command {
     Preview,
     /// Apply the previously previewed policy, preserving all personal protections.
     Apply,
+    /// List presets or materialize global ages, pausing automatic cleanup.
+    Preset {
+        /// archive, cache-only, balanced or compact; omit to compare them.
+        name: Option<String>,
+    },
 }
 
 pub(super) fn run(
@@ -27,6 +32,15 @@ pub(super) fn run(
     let now = chrono::Utc::now().timestamp();
     match command.unwrap_or(Command::Status) {
         Command::Status => print!("{}", retention::status(store)?),
+        Command::Preset { name } => {
+            if let Some(name) = name {
+                store.set_retention_preset(name.parse()?)?;
+                println!("Preset saved to TOML; automatic retention paused.");
+                print!("{}", retention::status(store)?);
+            } else {
+                print!("{}", lume::config::retention::presets::GUIDE);
+            }
+        }
         Command::Preview => {
             print!("{}", retention::preview(store, &images, now)?.text(true))
         }

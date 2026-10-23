@@ -11,6 +11,10 @@ use anyhow::{Result, ensure};
 
 use crate::store::Store;
 
+pub(crate) mod report;
+mod units;
+pub use units::Unit;
+
 /// Recoverable cache scope; no action deletes articles or personal records.
 #[derive(Clone, Copy, Debug)]
 pub enum Cleanup {
@@ -27,33 +31,40 @@ pub enum Cleanup {
 /// # Errors
 /// Returns storage or filesystem errors.
 pub fn inspect(store: &Store, images: &Path) -> Result<String> {
-    let mut report = store.storage_report()?;
+    inspect_with_unit(store, images, Unit::Auto)
+}
+
+/// Inspect using a requested binary unit, with physical and logical usage apart.
+///
+/// # Errors
+/// Returns storage or filesystem errors; inspection never reclaims content.
+pub fn inspect_with_unit(
+    store: &Store,
+    images: &Path,
+    unit: Unit,
+) -> Result<String> {
+    let usage = store.storage_usage()?;
     let path = store.database_path()?;
-    let wal = std::path::PathBuf::from(format!("{}-wal", path.display()));
-    let wal_bytes = match std::fs::metadata(wal) {
+    let mut sizes = [0; 5];
+    for (index, suffix) in ["", "-wal", "-shm"].into_iter().enumerate() {
+        let mut file = path.as_os_str().to_os_string();
+        file.push(suffix);
+        sizes[index] = file_bytes(Path::new(&file))?;
+    }
+    sizes[3] = files(images)?.iter().map(|entry| entry.1).sum();
+    sizes[4] = files(&images.join("offline"))?
+        .iter()
+        .map(|entry| entry.1)
+        .sum();
+    Ok(report::text(&usage, sizes, unit))
+}
+
+fn file_bytes(path: &Path) -> Result<u64> {
+    Ok(match std::fs::metadata(path) {
         Ok(metadata) => metadata.len(),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => 0,
         Err(error) => return Err(error.into()),
-    };
-    let ordinary = files(images)?.iter().map(|entry| entry.1).sum::<u64>();
-    let pinned = files(&images.join("offline"))?
-        .iter()
-        .map(|entry| entry.1)
-        .sum::<u64>();
-    report.push_str(&format!(
-        r#"WAL file: {wal_bytes} bytes
-Image cache: {ordinary} bytes
-Protected offline images: {pinned} bytes
-"#
-    ));
-    report.push_str(
-        r#"
-:storage clean images|articles|all previews an explicit cleanup.
-Feed text, articles and personal data are never removed.
-SQLite reuses freed pages; the database file may retain its size.
-"#,
-    );
-    Ok(report)
+    })
 }
 
 /// Reclaim unprotected Full text in small transactions and orphaned images.
@@ -106,10 +117,53 @@ fn clean_images(
     cancel: &AtomicBool,
 ) -> Result<usize> {
     let started = SystemTime::now();
+    let candidates = files(directory)?;
+    if candidates.is_empty() {
+        return Ok(0);
+    }
+    let cached: BTreeSet<_> =
+        candidates.iter().map(|(path, _, _)| path.clone()).collect();
+    let retained = retained_images(store, directory, &cached, cancel)?;
+    let mut removed = 0;
+    for (path, bytes, modified) in candidates {
+        if cancel.load(Ordering::Relaxed) {
+            break;
+        }
+        if !retained.contains(&path)
+            && modified < started
+            && remove_unchanged(&path, bytes, modified)?
+        {
+            removed += 1;
+        }
+    }
+    Ok(removed)
+}
+
+fn retained_images(
+    store: &Store,
+    directory: &Path,
+    cached: &BTreeSet<std::path::PathBuf>,
+    cancel: &AtomicBool,
+) -> Result<BTreeSet<std::path::PathBuf>> {
     let mut retained = BTreeSet::new();
-    store.visit_cached_bodies(|body| {
-        for address in crate::offline::image_addresses(body)? {
-            retained.insert(crate::media::cache::path(directory, &address));
+    store.visit_cached_bodies(cancel, |body| {
+        for event in pulldown_cmark::Parser::new(body) {
+            if cancel.load(Ordering::Relaxed) {
+                break;
+            }
+            let pulldown_cmark::Event::Start(pulldown_cmark::Tag::Image {
+                dest_url,
+                ..
+            }) = event
+            else {
+                continue;
+            };
+            let address = crate::source::feed_url(&dest_url)?;
+            let path = crate::media::cache::path(directory, address.as_str());
+            if !cached.contains(&path) {
+                continue;
+            }
+            retained.insert(path);
             ensure!(
                 retained.len() <= 100_000,
                 "Image reference limit reached; no images were removed"
@@ -117,17 +171,29 @@ fn clean_images(
         }
         Ok(())
     })?;
-    let mut removed = 0;
-    for (path, _, modified) in files(directory)? {
-        if cancel.load(Ordering::Relaxed) {
-            break;
+    Ok(retained)
+}
+
+fn remove_unchanged(
+    path: &Path,
+    bytes: u64,
+    modified: SystemTime,
+) -> Result<bool> {
+    let current = match path.symlink_metadata() {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(false);
         }
-        if !retained.contains(&path) && modified < started {
-            std::fs::remove_file(path)?;
-            removed += 1;
-        }
+        Err(error) => return Err(error.into()),
+    };
+    if !current.is_file()
+        || current.len() != bytes
+        || current.modified()? != modified
+    {
+        return Ok(false);
     }
-    Ok(removed)
+    std::fs::remove_file(path)?;
+    Ok(true)
 }
 
 pub(crate) fn files(
@@ -153,4 +219,32 @@ pub(crate) fn files(
         }
     }
     Ok(files)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cleanup_skips_a_candidate_replaced_after_its_inventory() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let file = directory.path().join("candidate.img");
+        std::fs::write(&file, b"old")?;
+        let original = file.metadata()?;
+        std::fs::write(&file, b"new download")?;
+        assert!(!remove_unchanged(
+            &file,
+            original.len(),
+            original.modified()?
+        )?);
+        assert_eq!(std::fs::read(&file)?, b"new download");
+        let current = file.metadata()?;
+        assert!(remove_unchanged(&file, current.len(), current.modified()?)?);
+        assert!(!remove_unchanged(
+            &file,
+            current.len(),
+            current.modified()?
+        )?);
+        Ok(())
+    }
 }

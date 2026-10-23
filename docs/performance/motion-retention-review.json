@@ -1,0 +1,227 @@
+{
+  "date": "2026-10-23",
+  "baseline_revision": "3ceade2",
+  "candidate_revision": "working tree following 3ceade2",
+  "rust_toolchain": "1.99.1; exact repository version",
+  "machine": "Intel Core Ultra 7 155H, Linux x86_64",
+  "profile": "test, unoptimized, debug info disabled, incremental disabled",
+  "command": "cargo test --locked --bench reader -- --test --motion-review-only [--stress]",
+  "method": "Identical checked harness built against the prior headline and image-cleanup implementations, then the proposed implementations. Baseline also contained unrelated storage-unit/preset work. Three sequential processes per size, 2 cleanup iterations and 60 motion/frame pairs per process. No competing builds or measurements. Setup precedes operation timers.",
+  "fixtures": {
+    "articles": [
+      200,
+      2000
+    ],
+    "longest_headline_bytes": [
+      260,
+      943
+    ],
+    "gallery_references_per_feed_body": 16,
+    "terminal_cells": [
+      160,
+      44
+    ],
+    "visible_image_preparation": "not started; metadata and source are already prepared",
+    "scroll_checks": [
+      "j advances by one row; k restores the initial row",
+      "selected article identity retained",
+      "publisher body unchanged",
+      "two complete TestBackend frames per timed pair"
+    ],
+    "cleanup_checks": [
+      "zero files removed",
+      "missing directory remains missing"
+    ]
+  },
+  "scope": "Operation timers include output/state assertions. Measurements exclude fixture creation, HTTP, native Sixel encoding and physical presentation. The cleanup workload has no ordinary image files; it does not measure expired-image deletion or retained-reference inventory. RSS/I/O are not measured. Unoptimized timings are not production latency claims.",
+  "before": {
+    "binary_sha256": "eeba4ff019768eced53f269838d0c321720664f415ec876448cb875d07908dc3",
+    "scenarios": [
+      {
+        "stress": false,
+        "processes": 3,
+        "samples_ms_per_iteration": [
+          {
+            "empty image-cache cleanup": 33.786,
+            "reader motion pair + two full pane frames": 6.101
+          },
+          {
+            "empty image-cache cleanup": 34.498,
+            "reader motion pair + two full pane frames": 5.966
+          },
+          {
+            "empty image-cache cleanup": 33.49,
+            "reader motion pair + two full pane frames": 6.266
+          }
+        ],
+        "median_ms_per_iteration": {
+          "empty image-cache cleanup": 33.786,
+          "reader motion pair + two full pane frames": 6.101
+        }
+      },
+      {
+        "stress": true,
+        "processes": 3,
+        "samples_ms_per_iteration": [
+          {
+            "empty image-cache cleanup": 326.888,
+            "reader motion pair + two full pane frames": 7.238
+          },
+          {
+            "empty image-cache cleanup": 333.172,
+            "reader motion pair + two full pane frames": 7.239
+          },
+          {
+            "empty image-cache cleanup": 324.146,
+            "reader motion pair + two full pane frames": 7.322
+          }
+        ],
+        "median_ms_per_iteration": {
+          "empty image-cache cleanup": 326.888,
+          "reader motion pair + two full pane frames": 7.239
+        }
+      }
+    ]
+  },
+  "after": {
+    "binary_sha256": "3103a768e2a8367ccab13c78c06ba4085000f97f11c1998670694c01e830c635",
+    "scenarios": [
+      {
+        "stress": false,
+        "processes": 3,
+        "samples_ms_per_iteration": [
+          {
+            "empty image-cache cleanup": 0.044,
+            "reader motion pair + two full pane frames": 5.33
+          },
+          {
+            "empty image-cache cleanup": 0.048,
+            "reader motion pair + two full pane frames": 5.405
+          },
+          {
+            "empty image-cache cleanup": 0.04,
+            "reader motion pair + two full pane frames": 5.494
+          }
+        ],
+        "median_ms_per_iteration": {
+          "empty image-cache cleanup": 0.044,
+          "reader motion pair + two full pane frames": 5.405
+        }
+      },
+      {
+        "stress": true,
+        "processes": 3,
+        "samples_ms_per_iteration": [
+          {
+            "empty image-cache cleanup": 0.045,
+            "reader motion pair + two full pane frames": 5.951
+          },
+          {
+            "empty image-cache cleanup": 0.049,
+            "reader motion pair + two full pane frames": 5.883
+          },
+          {
+            "empty image-cache cleanup": 0.048,
+            "reader motion pair + two full pane frames": 5.708
+          }
+        ],
+        "median_ms_per_iteration": {
+          "empty image-cache cleanup": 0.048,
+          "reader motion pair + two full pane frames": 5.883
+        }
+      }
+    ]
+  },
+  "qualification": {
+    "make_check": "passed; all-target native and checked benchmark scenarios, format/lint, 44 Python tests and tool syntax checks",
+    "final_targeted_checks": {
+      "article_deletion": 7,
+      "documentation": 3
+    },
+    "real_http": 31,
+    "release_and_foot": {
+      "passed": true,
+      "binary_sha256": "c39ac972170e28fee794d1e9341a1a64e802512c734f71e314200c595bea101c",
+      "version": "lume 0.2.0 (3ceade23b4a3f1df1394a3329de1c7a349bdd2b1)",
+      "rust_toolchain": "1.99.1",
+      "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+      "environment_only_substitutions": [
+        "Weston 14.0.2 and Wayland tools extracted to /tmp, with a private module-path/configuration wrapper; CI uses distribution packages.",
+        "Local Pillow 11.1.0 versus CI pin 13.0.0.",
+        "Foot 1.21.0, owned Xvfb/X11 backend with a private native Wayland compositor. No product-source or Rust-toolchain substitution."
+      ],
+      "checks": {
+        "welcome": {
+          "native_pixel_art": true,
+          "entry_key_consumed": true
+        },
+        "reader_aliases": {
+          "keys": "ggIVvAy",
+          "yank": "Request ownership",
+          "host_clipboard": "disabled"
+        },
+        "help_search": {
+          "live_query": "resize",
+          "next_previous": true,
+          "escape_clears_first": true,
+          "unicode_formula": true
+        },
+        "inspector": {
+          "fit": [
+            [
+              1160,
+              348
+            ]
+          ],
+          "zoom": [
+            [
+              1160,
+              646
+            ]
+          ]
+        },
+        "reading_services": {
+          "linked_text_view": true,
+          "back_restores_images": true,
+          "diagnostics_opt_in": true
+        },
+        "preferences": {
+          "formula_policies": [
+            {
+              "enabled": false,
+              "visible": "$R{\\mathcal{I}}=\\text{Combine}\\circ\\text{Disintegrate}$",
+              "copied": "$R{\\mathcal{I}}=\\text{Combine}\\circ\\text{Disintegrate}$"
+            },
+            {
+              "enabled": true,
+              "visible": "R\u2110 = Combine \u2218 Disintegrate",
+              "copied": "R\u2110 = Combine \u2218 Disintegrate"
+            }
+          ],
+          "settings_enter_edit_ctrl_s_save": true
+        },
+        "graphic_formulas": {
+          "decoded_formula_images": [
+            {
+              "width": 199,
+              "height": 19
+            },
+            {
+              "width": 115,
+              "height": 38
+            }
+          ],
+          "inspector_zoom": true,
+          "original_latex_copy": true,
+          "returns_to_text": true
+        },
+        "cleanup": {
+          "returncode": 0,
+          "termios_restored": true
+        },
+        "publisher_content_preserved": true
+      },
+      "scope": "Functional native terminal qualification; not physical-display latency measurement."
+    }
+  }
+}

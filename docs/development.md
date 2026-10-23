@@ -5,6 +5,16 @@ version. Install the normal C build tools required by bundled SQLite. Local
 tool checks require Python 3.11 or newer. Product runtime requires no Python interpreter,
 source checkout, containers or external database.
 
+The [disk compression review](compression-review.md) records a separate proposal
+and its measurement requirements; compression has not been enabled by it.
+
+In the Articles pane, `dd` moves the selected article to Trash; `u` restores it
+through undo, and `:trash` / `:restore-article` provide explicit recovery. The
+first `d` waits for a second press on the same article. Escape, another key,
+pointer navigation or focus loss cancels the prefix. Held-key autorepeat never
+completes it. In Library and annotations, `dd` keeps its existing contextual
+behavior. Use `:organize` to edit folder membership independently of Trash.
+
 ## Build and installation commands
 
 `make` and `make help` list commands without building or modifying data.

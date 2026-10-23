@@ -71,7 +71,7 @@ impl Report {
 /// Returns invalid policy or storage errors.
 pub fn status(store: &Store) -> Result<String> {
     let policy = store.retention_policy()?;
-    Ok(format!(
+    let mut text = format!(
         "Automatic: {}\nCurrent policy previewed: {}\nInterval: {} hours\nArticle actions per run: {}\nImage files per run: {}\nTransaction limit: {}\nProtect smart-list matches: {}\nLast automatic pass: {}\n\nUse retention preview before retention apply or enabling automatic.\n",
         policy.automatic,
         store.retention_approved(&policy)?,
@@ -83,7 +83,16 @@ pub fn status(store: &Store) -> Result<String> {
         store
             .retention_state("retention_last_run")?
             .unwrap_or_else(|| "never".into())
-    ))
+    );
+    text.push_str(&format!(
+        "\nGLOBAL AGES\nFull text: {}\nImages: {}\nRead articles: {}\nUnread articles: {}\nSource overrides: {}\n\nUse retention preset to compare editable starting points.\n",
+        policy.defaults.full_text_days,
+        policy.defaults.image_days,
+        policy.defaults.read_days,
+        policy.defaults.unread_days,
+        policy.sources.len(),
+    ));
+    Ok(text)
 }
 
 /// Preview and remember the exact policy; no article or cache is modified.
@@ -199,7 +208,7 @@ pub fn automatic(
         return Ok(None);
     }
     let report = apply(store, directory, now, cancel, active_article)?;
-    if !report.interrupted {
+    if !report.interrupted && !report.cancelled {
         store.record_retention_state("retention_last_run", &now.to_string())?;
     }
     Ok(Some(report))

@@ -24,6 +24,22 @@ pub(crate) struct Plan {
 }
 
 impl Store {
+    /// Materialize a retention preset without deleting content or arming cleanup.
+    ///
+    /// # Errors
+    /// Returns invalid stored configuration or atomic SQLite failures.
+    pub fn set_retention_preset(
+        &self,
+        preset: crate::config::retention::presets::Preset,
+    ) -> Result<()> {
+        let transaction = self.write_transaction()?;
+        let mut policy = self.retention_policy()?;
+        preset.apply(&mut policy);
+        self.save_retention_policy(&policy)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
     /// Read the configured retention policy without scanning articles.
     ///
     /// # Errors

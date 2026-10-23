@@ -3,9 +3,20 @@
 use anyhow::{Result, ensure};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+pub mod presets;
+
 /// A positive number of days or the explicit TOML string `"unlimited"`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Age(pub Option<u32>);
+
+impl std::fmt::Display for Age {
+    fn fmt(&self, output: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            Some(days) => write!(output, "{days} days"),
+            None => output.write_str("unlimited"),
+        }
+    }
+}
 
 impl Serialize for Age {
     fn serialize<S: Serializer>(

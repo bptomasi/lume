@@ -22,7 +22,9 @@ mod events;
 mod exchange;
 mod extraction;
 mod formulas;
+mod headlines;
 mod help;
+pub(crate) use headlines::Labels as HeadlineLabels;
 mod horizontal;
 mod images;
 mod input;
@@ -330,6 +332,7 @@ pub struct App {
     pub demo: bool,
     pub(crate) pending_g: bool,
     pending_destination_delete: Option<View>,
+    pending_article_delete: Option<i64>,
     pub(crate) fullscreen_focus: Option<Focus>,
     pub(crate) retained_article: Option<i64>,
     pub(crate) pending_anchor: Option<usize>,
@@ -358,6 +361,7 @@ pub struct App {
     /// Separate image loading state; text layout never waits for it.
     pub images: ReaderImages,
     renderer: crate::reader::LiveRenderer,
+    headlines: std::cell::RefCell<headlines::Headlines>,
     navigation_worker: Option<navigation_worker::NavigationWorker>,
     catalog_worker: Option<catalog_worker::CatalogWorker>,
     session_writer: Option<session_writer::SessionWriter>,
@@ -507,6 +511,7 @@ impl App {
             demo,
             pending_g: false,
             pending_destination_delete: None,
+            pending_article_delete: None,
             fullscreen_focus: None,
             retained_article,
             layouts,
@@ -524,6 +529,7 @@ impl App {
             reader_tools: ReaderTools::default(),
             images: ReaderImages::default(),
             renderer: crate::reader::LiveRenderer::start()?,
+            headlines: std::cell::RefCell::default(),
             navigation_worker: None,
             catalog_worker: None,
             session_writer: None,

@@ -22,6 +22,50 @@ fn command(app: &mut App, command: &str) -> Result<()> {
     key(app, KeyCode::Enter)
 }
 
+#[test]
+fn internal_presets_publish_configuration_without_removing_articles()
+-> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let path = directory.path().join("config.toml");
+    let session = lume::config::Session::open(&store, &path)?;
+    let mut app = App::new(store, false)?;
+    command(&mut app, "retention preset compact")?;
+    session.flush()?;
+    let config = lume::config::read_document(&path)?;
+    assert_eq!(config.retention.defaults.full_text_days.0, Some(7));
+    assert_eq!(config.retention.defaults.image_days.0, Some(14));
+    assert_eq!(config.retention.defaults.read_days.0, Some(30));
+    assert!(!config.retention.automatic);
+    assert_eq!(app.library.articles.len(), 1);
+    assert!(
+        matches!(&app.mode, Mode::Document(view) if view.confirm.is_none())
+    );
+    Ok(())
+}
+
+#[test]
+fn storage_units_reach_the_background_report_and_invalid_units_do_no_work()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    let mut app = App::new(store, false)?;
+    for unit in ["MiB", "GiB", "bytes", "auto"] {
+        command(&mut app, &format!("storage {unit}"))?;
+        settle(&mut app)?;
+        let Mode::Document(view) = &app.mode else {
+            anyhow::bail!("Missing report")
+        };
+        let body = view.lines.join("\n");
+        assert!(body.contains("Total library + image files:"));
+        if unit == "MiB" || unit == "GiB" {
+            assert!(body.lines().nth(2).context("Total row")?.ends_with(unit));
+        }
+        key(&mut app, KeyCode::Esc)?;
+    }
+    assert!(command(&mut app, "storage unknown").is_err());
+    assert!(!app.maintenance_pending());
+    Ok(())
+}
+
 fn settle(app: &mut App) -> Result<()> {
     let deadline = Instant::now() + Duration::from_secs(8);
     loop {

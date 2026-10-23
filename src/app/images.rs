@@ -252,6 +252,13 @@ impl App {
         if matches!(self.mode, super::Mode::Image(_)) {
             return true;
         }
+        if self
+            .images
+            .visible_slots(self.scroll, self.reader_height)
+            .is_empty()
+        {
+            return false;
+        }
         (self.images.enabled || self.workspace.latex_graphics)
             && crate::ui::workspace_areas(
                 self.screen,
