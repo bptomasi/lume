@@ -45,10 +45,7 @@ impl Store {
     pub fn save_workspace(&self, workspace: &Workspace) -> Result<()> {
         validate_dimensions(workspace)?;
         self.connection.execute(
-            r#"
-            INSERT INTO settings (key, value) VALUES ('workspace', ?1)
-            ON CONFLICT (key) DO UPDATE SET value = excluded.value
-            "#,
+            include_str!("sql/insert_workspace.sql"),
             [serde_json::to_string(workspace)?],
         )?;
         Ok(())
@@ -72,7 +69,7 @@ impl Store {
     /// Returns integer conversion or SQLite errors.
     pub fn save_progress(&self, article: i64, line: usize) -> Result<()> {
         self.connection.execute(
-            "UPDATE articles SET progress = ?1 WHERE id = ?2",
+            include_str!("sql/update_feed_progress.sql"),
             (i64::try_from(line)?, article),
         )?;
         Ok(())
@@ -246,4 +243,49 @@ pub(crate) fn validate_dimensions(workspace: &Workspace) -> Result<()> {
         "Headlines width must be 24–80"
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod persistence_tests {
+    use super::*;
+
+    #[test]
+    fn identical_checkpoints_never_write_or_interrupt_other_connections()
+    -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("library.sqlite3");
+        let store = Store::open(&path)?;
+        store
+            .connection
+            .execute_batch(include_str!("sql/test_setup_retention.sql"))?;
+        let workspace = store.workspace()?;
+        let layouts = store.layouts(&workspace)?;
+        store.save_layouts(&workspace, &layouts)?;
+        store.save_progress(1, 42)?;
+        store.save_document_progress(1, 1, 37)?;
+        let other = Store::open(&path)?;
+        let version = other.retention_version()?;
+        let before = store.connection.total_changes();
+        for _ in 0..3 {
+            store.save_layouts(&workspace, &layouts)?;
+            store.save_progress(1, 42)?;
+            store.save_document_progress(1, 1, 37)?;
+        }
+        assert_eq!(store.connection.total_changes(), before);
+        assert_eq!(other.retention_version()?, version);
+        assert_eq!(store.progress(1)?, 42);
+        assert_eq!(
+            store.cached_document(1)?.map(|cache| cache.progress),
+            Some(37)
+        );
+        other.save_progress(1, 9)?;
+        store.save_progress(1, 42)?;
+        assert_eq!(other.progress(1)?, 42);
+        store.save_document_progress(1, 0, 80)?;
+        assert_eq!(
+            store.cached_document(1)?.map(|cache| cache.progress),
+            Some(37)
+        );
+        Ok(())
+    }
 }

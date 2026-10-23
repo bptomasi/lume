@@ -5,8 +5,9 @@ use crate::{
     store::{RetentionPlan, Store},
 };
 use anyhow::{Result, ensure};
+use pulldown_cmark::{Event, Parser, Tag};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
     sync::atomic::{AtomicBool, Ordering},
     time::{SystemTime, UNIX_EPOCH},
@@ -24,19 +25,18 @@ pub(super) fn candidates(
     directory: &Path,
     now: i64,
 ) -> Result<Vec<File>> {
-    let enabled =
-        plan.policy.defaults.image_days.0.is_some()
-            || plan.policy.sources.iter().any(|source| {
-                source.image_days.is_some_and(|age| age.0.is_some())
-            });
-    if !enabled {
+    let Some(cutoff) = earliest_expiration(plan, now) else {
         return Ok(Vec::new());
-    }
-    let files = crate::storage::files(directory)?;
+    };
+    let mut files = crate::storage::files(directory)?;
+    // Even the shortest configured lifetime cannot expire a newer file.
+    // Do not hydrate or parse historical bodies when the whole cache is fresh.
+    files.retain(|(_, _, modified)| old_enough(*modified, cutoff));
     if files.is_empty() {
         return Ok(Vec::new());
     }
-    let references = references(store, directory)?;
+    let cached = files.iter().map(|(path, _, _)| path.clone()).collect();
+    let references = references(store, directory, &cached)?;
     let fallback = plan
         .policy
         .defaults
@@ -44,6 +44,27 @@ pub(super) fn candidates(
         .0
         .map_or(0, |days| now.saturating_sub(i64::from(days) * 86_400));
     Ok(expired_files(files, &references, fallback))
+}
+
+fn earliest_expiration(plan: &RetentionPlan, now: i64) -> Option<i64> {
+    let default = plan.policy.defaults.image_days;
+    std::iter::once(default)
+        .chain(
+            plan.policy
+                .sources
+                .iter()
+                .map(|source| source.image_days.unwrap_or(default)),
+        )
+        .filter_map(|age| age.0)
+        .min()
+        .map(|days| now.saturating_sub(i64::from(days) * 86_400).max(0))
+}
+
+fn old_enough(modified: SystemTime, cutoff: i64) -> bool {
+    cutoff > 0
+        && modified
+            .duration_since(UNIX_EPOCH)
+            .is_ok_and(|age| age.as_secs() < cutoff as u64)
 }
 
 fn expired_files(
@@ -55,12 +76,7 @@ fn expired_files(
     let mut candidates = Vec::new();
     for (path, bytes, modified) in files {
         let cutoff = references.get(&path).copied().unwrap_or(fallback);
-        if cutoff > 0
-            && modified < started
-            && modified
-                .duration_since(UNIX_EPOCH)
-                .is_ok_and(|age| age.as_secs() < cutoff as u64)
-        {
+        if modified < started && old_enough(modified, cutoff) {
             candidates.push(File {
                 path,
                 bytes,
@@ -79,11 +95,21 @@ fn expired_files(
 fn references(
     store: &Store,
     directory: &Path,
+    cached: &BTreeSet<PathBuf>,
 ) -> Result<BTreeMap<PathBuf, i64>> {
     let mut references = BTreeMap::new();
     store.visit_retention_images(|body, cutoff| {
-        for address in crate::offline::image_addresses(body)? {
-            let path = crate::media::cache::path(directory, &address);
+        // This only inventories local cache references. Offline download
+        // limits must not reject a long publisher gallery during retention.
+        for event in Parser::new(body) {
+            let Event::Start(Tag::Image { dest_url, .. }) = event else {
+                continue;
+            };
+            let address = crate::source::feed_url(&dest_url)?;
+            let path = crate::media::cache::path(directory, address.as_str());
+            if !cached.contains(&path) {
+                continue;
+            }
             references
                 .entry(path)
                 .and_modify(|existing: &mut i64| {

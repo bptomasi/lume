@@ -15,6 +15,29 @@ struct Fixture {
 }
 
 impl Fixture {
+    fn publish_image_source(&mut self, body: &str) -> Result<()> {
+        let id = self.store.subscribe("https://other.example/feed")?;
+        let feed = self
+            .store
+            .feeds()?
+            .into_iter()
+            .find(|feed| feed.id == id)
+            .ok_or_else(|| anyhow::anyhow!("Shared source missing"))?;
+        self.store.ingest(
+            &feed,
+            "Unlimited source",
+            &[IncomingArticle {
+                external_id: "shared".into(),
+                title: "Shared image".into(),
+                url: "https://other.example/article".into(),
+                author: String::new(),
+                published: 1_000_000_000,
+                body: body.into(),
+                body_origin: FeedOrigin::Feed,
+            }],
+        )
+    }
+
     fn reopen(&self) -> Result<Store> {
         Store::open(&self.directory.path().join("library.sqlite3"))
     }
@@ -640,5 +663,84 @@ fn deleting_a_smart_list_removes_its_retention_exception_atomically()
     assert!(remaining.retention.unprotected_smart_lists.is_empty());
     assert!(fixture.apply().is_err());
     assert_eq!(fixture.store.view_count(&View::All)?, 24);
+    Ok(())
+}
+
+#[test]
+fn long_galleries_keep_protected_images_beyond_the_offline_download_limit()
+-> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.policy(Policy {
+        image_days: Age(Some(30)),
+        ..Default::default()
+    })?;
+    let gallery = (0..96)
+        .map(|id| format!("![Image](https://images.example/gallery/{id})\n\n"))
+        .collect::<String>();
+    fixture.store.connection.execute(
+        include_str!("../sql/test_set_retention_body.sql"),
+        (2, &gallery),
+    )?;
+    fixture.store.set_starred(2, true)?;
+    let protected = fixture.image("https://images.example/gallery/95", true)?;
+    let orphan = fixture.image("https://images.example/orphan", true)?;
+    assert_eq!(fixture.preview()?.images, 1);
+    assert_eq!(fixture.apply()?.images, 1);
+    assert!(protected.is_file());
+    assert!(!orphan.exists());
+    Ok(())
+}
+
+#[test]
+fn a_fresh_cache_never_scans_unneeded_historical_image_references() -> Result<()>
+{
+    let fixture = Fixture::new()?;
+    fixture.policy(Policy {
+        image_days: Age(Some(30)),
+        ..Default::default()
+    })?;
+    fixture.store.connection.execute(
+        include_str!("../sql/test_set_retention_body.sql"),
+        (1, "![An invalid historical reference](file:///unavailable)"),
+    )?;
+    let fresh = fixture.image("https://images.example/fresh", false)?;
+    let root = fixture.directory.path().join("images");
+    let now = chrono::Utc::now().timestamp();
+    assert_eq!(retention::preview(&fixture.store, &root, now)?.images, 0);
+    assert!(fresh.is_file());
+    Ok(())
+}
+
+#[test]
+fn image_age_prefilter_honors_short_source_overrides_and_unlimited_shared_sources()
+-> Result<()> {
+    let mut fixture = Fixture::new()?;
+    let key = fixture.store.capture_configuration()?.feeds[0].id.clone();
+    let mut policy = Retention::default();
+    policy.sources.push(crate::config::retention::Source {
+        id: key,
+        full_text_days: None,
+        read_days: None,
+        unread_days: None,
+        image_days: Some(Age(Some(7))),
+    });
+    fixture.store.save_retention_policy(&policy)?;
+    let body = "![Image](https://images.example/shared)";
+    fixture.store.connection.execute(
+        include_str!("../sql/test_set_retention_body.sql"),
+        (1, body),
+    )?;
+    let image = fixture.image("https://images.example/shared", false)?;
+    let now = chrono::Utc::now().timestamp();
+    std::fs::File::open(&image)?.set_modified(
+        std::time::UNIX_EPOCH
+            + std::time::Duration::from_secs((now - 10 * 86_400) as u64),
+    )?;
+    let root = fixture.directory.path().join("images");
+    assert_eq!(retention::preview(&fixture.store, &root, now)?.images, 1);
+    fixture.publish_image_source(body)?;
+    assert_eq!(retention::preview(&fixture.store, &root, now)?.images, 0);
+    assert_eq!(fixture.apply()?.images, 0);
+    assert!(image.is_file());
     Ok(())
 }

@@ -288,7 +288,9 @@ It never deletes news from the remote server. Ordinary image cleanup preserves
 shared images needed by protected or unexpired articles, foreign files,
 symlinks and the separate offline namespace. Unreferenced images use the global
 image lifetime; with an unlimited global lifetime and only source overrides,
-unknown orphan images are retained. SQLite reuses freed pages, so logical bytes
+unknown orphan images are retained. A fresh cache skips historical image-link
+scans; long galleries do not inherit offline-package download limits.
+SQLite reuses freed pages, so logical bytes
 released need not shrink the database file.
 
 ## Appearance, shortcuts and layouts

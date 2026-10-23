@@ -410,6 +410,18 @@ filesystem and SQLite changes as an atomic unit. Automatic scheduling caches
 its policy/deadline in the UI and persists last-run time; input and drawing do
 not poll SQLite or parse TOML. The same maintenance domain serves CLI commands.
 
+Routine publisher refreshes compare stored publisher fields before deriving
+reading duration or canonical URLs. Unchanged article payloads, HTTP validators
+and failure strings do not write SQLite or touch FTS. An IMMEDIATE lease covers
+the comparison and any subsequent update, preserving validator rollback and
+avoiding read-to-write snapshot races. Feed/Full progress and workspace/layout
+checkpoints use conditional database writes, so idempotence also survives
+intervening changes from another connection.
+
+Retention filters young ordinary cache files before hydrating image references.
+It inventories only existing candidate paths, streams long galleries without
+offline download caps, and preserves shared protections and unlimited overrides.
+
 Inline server credentials use a redacting debug type. Only authenticated HTTP
 and private configuration storage expose bytes. Public configuration inspection
 uses a redacted document prepared on the publication worker; raw TOML and its

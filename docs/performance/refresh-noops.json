@@ -1,0 +1,351 @@
+{
+  "date": "2026-10-23",
+  "baseline_revision": "ca220f6",
+  "toolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "test, unoptimized, debug info disabled, incremental disabled",
+  "commands": [
+    "cargo test --locked --bench reader -- --test --publisher-refresh-only [--stress]",
+    "cargo test --locked --bench reader -- --test --retention-images-only [--stress]"
+  ],
+  "method": "The same new checked harnesses were built against ca220f6 before changing production code, then rebuilt with the proposed changes. Each scenario runs in three sequential processes with two timed iterations. Fixture setup precedes each timer.",
+  "publisher_fixture": {
+    "feeds": 1,
+    "articles": [
+      200,
+      2000
+    ],
+    "body_bytes": 4100,
+    "personal_protections": "A favorite and note survive each refresh; a changed article body is checked independently"
+  },
+  "checkpoint_fixture": {
+    "batches_per_iteration": 100,
+    "operations_per_batch": [
+      "save layouts and workspace",
+      "save Feed position",
+      "save Full position"
+    ],
+    "checks": [
+      "Exact saved source positions",
+      "Workspace reading width retained"
+    ]
+  },
+  "image_fixture": {
+    "articles": [
+      200,
+      2000
+    ],
+    "image_links_per_article": 20,
+    "owned_cache_files": 32,
+    "files": "All freshly written; article admission dates are old",
+    "checks": [
+      "No eligible image removals",
+      "All articles retained",
+      "A sampled owned fresh file remains"
+    ]
+  },
+  "before": {
+    "phase": "before",
+    "binary_sha256": "6d4615bd855abf312f29aabf472c9ec374ee981d3def26ad6b969a602229852f",
+    "scenarios": [
+      {
+        "workload": "publisher-refresh",
+        "stress": false,
+        "articles": 200,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "unchanged publisher refresh (200 entries)": 43.0,
+            "one changed publisher article (200 entries)": 42.383,
+            "100 identical reading checkpoints": 31.881
+          },
+          {
+            "unchanged publisher refresh (200 entries)": 42.689,
+            "one changed publisher article (200 entries)": 42.044,
+            "100 identical reading checkpoints": 32.334
+          },
+          {
+            "unchanged publisher refresh (200 entries)": 43.089,
+            "one changed publisher article (200 entries)": 42.912,
+            "100 identical reading checkpoints": 31.97
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "unchanged publisher refresh (200 entries)": 43.0,
+          "one changed publisher article (200 entries)": 42.383,
+          "100 identical reading checkpoints": 31.97
+        }
+      },
+      {
+        "workload": "publisher-refresh",
+        "stress": true,
+        "articles": 2000,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "unchanged publisher refresh (2000 entries)": 479.761,
+            "one changed publisher article (2000 entries)": 477.345,
+            "100 identical reading checkpoints": 31.46
+          },
+          {
+            "unchanged publisher refresh (2000 entries)": 472.603,
+            "one changed publisher article (2000 entries)": 478.221,
+            "100 identical reading checkpoints": 31.555
+          },
+          {
+            "unchanged publisher refresh (2000 entries)": 478.115,
+            "one changed publisher article (2000 entries)": 474.072,
+            "100 identical reading checkpoints": 31.359
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "unchanged publisher refresh (2000 entries)": 478.115,
+          "one changed publisher article (2000 entries)": 477.345,
+          "100 identical reading checkpoints": 31.46
+        }
+      },
+      {
+        "workload": "retention-images",
+        "stress": false,
+        "articles": 200,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "fresh image retention preview (200 articles, 32 files)": 46.952
+          },
+          {
+            "fresh image retention preview (200 articles, 32 files)": 47.897
+          },
+          {
+            "fresh image retention preview (200 articles, 32 files)": 47.095
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "fresh image retention preview (200 articles, 32 files)": 47.095
+        }
+      },
+      {
+        "workload": "retention-images",
+        "stress": true,
+        "articles": 2000,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "fresh image retention preview (2000 articles, 32 files)": 494.221
+          },
+          {
+            "fresh image retention preview (2000 articles, 32 files)": 496.774
+          },
+          {
+            "fresh image retention preview (2000 articles, 32 files)": 495.698
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "fresh image retention preview (2000 articles, 32 files)": 495.698
+        }
+      }
+    ]
+  },
+  "after": {
+    "phase": "after",
+    "binary_sha256": "4df22341d87231e212d2c308cf164bf29430fddf89a7d475a68864efc1b40d78",
+    "scenarios": [
+      {
+        "workload": "publisher-refresh",
+        "stress": false,
+        "articles": 200,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "unchanged publisher refresh (200 entries)": 1.587,
+            "one changed publisher article (200 entries)": 1.951,
+            "100 identical reading checkpoints": 27.439
+          },
+          {
+            "unchanged publisher refresh (200 entries)": 1.73,
+            "one changed publisher article (200 entries)": 1.687,
+            "100 identical reading checkpoints": 27.248
+          },
+          {
+            "unchanged publisher refresh (200 entries)": 1.904,
+            "one changed publisher article (200 entries)": 1.729,
+            "100 identical reading checkpoints": 26.784
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "unchanged publisher refresh (200 entries)": 1.73,
+          "one changed publisher article (200 entries)": 1.729,
+          "100 identical reading checkpoints": 27.248
+        }
+      },
+      {
+        "workload": "publisher-refresh",
+        "stress": true,
+        "articles": 2000,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "unchanged publisher refresh (2000 entries)": 16.886,
+            "one changed publisher article (2000 entries)": 16.217,
+            "100 identical reading checkpoints": 27.863
+          },
+          {
+            "unchanged publisher refresh (2000 entries)": 16.539,
+            "one changed publisher article (2000 entries)": 16.185,
+            "100 identical reading checkpoints": 27.414
+          },
+          {
+            "unchanged publisher refresh (2000 entries)": 16.462,
+            "one changed publisher article (2000 entries)": 16.113,
+            "100 identical reading checkpoints": 27.363
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "unchanged publisher refresh (2000 entries)": 16.539,
+          "one changed publisher article (2000 entries)": 16.185,
+          "100 identical reading checkpoints": 27.414
+        }
+      },
+      {
+        "workload": "retention-images",
+        "stress": false,
+        "articles": 200,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "fresh image retention preview (200 articles, 32 files)": 1.045
+          },
+          {
+            "fresh image retention preview (200 articles, 32 files)": 1.094
+          },
+          {
+            "fresh image retention preview (200 articles, 32 files)": 1.092
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "fresh image retention preview (200 articles, 32 files)": 1.092
+        }
+      },
+      {
+        "workload": "retention-images",
+        "stress": true,
+        "articles": 2000,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "fresh image retention preview (2000 articles, 32 files)": 5.003
+          },
+          {
+            "fresh image retention preview (2000 articles, 32 files)": 5.264
+          },
+          {
+            "fresh image retention preview (2000 articles, 32 files)": 5.005
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "fresh image retention preview (2000 articles, 32 files)": 5.005
+        }
+      }
+    ]
+  },
+  "comparisons": [
+    {
+      "workload": "publisher-refresh",
+      "articles": 200,
+      "before_medians_ms": {
+        "unchanged publisher refresh (200 entries)": 43.0,
+        "one changed publisher article (200 entries)": 42.383,
+        "100 identical reading checkpoints": 31.97
+      },
+      "after_medians_ms": {
+        "unchanged publisher refresh (200 entries)": 1.73,
+        "one changed publisher article (200 entries)": 1.729,
+        "100 identical reading checkpoints": 27.248
+      },
+      "reduction_percent": {
+        "unchanged publisher refresh (200 entries)": 95.98,
+        "one changed publisher article (200 entries)": 95.92,
+        "100 identical reading checkpoints": 14.77
+      }
+    },
+    {
+      "workload": "publisher-refresh",
+      "articles": 2000,
+      "before_medians_ms": {
+        "unchanged publisher refresh (2000 entries)": 478.115,
+        "one changed publisher article (2000 entries)": 477.345,
+        "100 identical reading checkpoints": 31.46
+      },
+      "after_medians_ms": {
+        "unchanged publisher refresh (2000 entries)": 16.539,
+        "one changed publisher article (2000 entries)": 16.185,
+        "100 identical reading checkpoints": 27.414
+      },
+      "reduction_percent": {
+        "unchanged publisher refresh (2000 entries)": 96.54,
+        "one changed publisher article (2000 entries)": 96.61,
+        "100 identical reading checkpoints": 12.86
+      }
+    },
+    {
+      "workload": "retention-images",
+      "articles": 200,
+      "before_medians_ms": {
+        "fresh image retention preview (200 articles, 32 files)": 47.095
+      },
+      "after_medians_ms": {
+        "fresh image retention preview (200 articles, 32 files)": 1.092
+      },
+      "reduction_percent": {
+        "fresh image retention preview (200 articles, 32 files)": 97.68
+      }
+    },
+    {
+      "workload": "retention-images",
+      "articles": 2000,
+      "before_medians_ms": {
+        "fresh image retention preview (2000 articles, 32 files)": 495.698
+      },
+      "after_medians_ms": {
+        "fresh image retention preview (2000 articles, 32 files)": 5.005
+      },
+      "reduction_percent": {
+        "fresh image retention preview (2000 articles, 32 files)": 98.99
+      }
+    }
+  ],
+  "native_regressions": [
+    "Unchanged publisher refreshes and checkpoints produce zero SQLite total_changes and no other-connection data_version change",
+    "Publisher corrections preserve metadata, body provenance, Feed/Full anchors, Full caches, favorites and notes; obsolete FTS terms disappear",
+    "ETag, Last-Modified, title and failure recovery still update when article bodies are identical; failed real article updates roll back validators",
+    "Source-specific image ages and shared unlimited sources remain authoritative",
+    "Protected gallery references beyond 64 images are inventoried without applying offline-package download limits"
+  ],
+  "limits": [
+    "Local unoptimized domain operations, not production or whole-application latency",
+    "Publisher timers include independent count/body/personal-state assertions; checkpoints include saved-state rereads",
+    "Fresh-cache image measurements exclude expired-file deletion and image decoding",
+    "Peak memory, physical I/O, network parsing and terminal presentation are not measured",
+    "Checkpoint elapsed-time gains are modest; logical writes are eliminated independently of timing results"
+  ],
+  "qualification": {
+    "aggregate_native_tests_passed": 862,
+    "additional_source_override_regressions_passed": 1,
+    "python_tool_tests_passed": 44,
+    "real_http_tests_passed": 31,
+    "format_and_all_target_clippy": "passed",
+    "release_build": "passed with Rust 1.99.1",
+    "foot_passed": true,
+    "release_binary_sha256": "30962156ebc27940a59443e68a1f205342c9fdee0e846d661ef4259818826752",
+    "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+    "graphics_environment": "Private Xvfb/Weston 14.0.2, locally extracted modules mapped by a wrapper and a private desktop-shell configuration; Pillow 11.1.0 locally versus pinned 13.0.0 in CI. No Rust toolchain or Lume source substitution.",
+    "scope": "Local checks; no hosted CI run or remote publication asserted"
+  }
+}

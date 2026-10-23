@@ -29,4 +29,14 @@ ON CONFLICT (feed_id, external_id) DO UPDATE SET
         SELECT 1 FROM article_documents AS d
         WHERE d.article_id = articles.id AND d.url = excluded.url AND d.body <> ''
     ) THEN articles.reading_minutes ELSE excluded.reading_minutes END,
-    canonical_key = excluded.canonical_key;
+    canonical_key = excluded.canonical_key
+WHERE articles.title IS NOT excluded.title OR articles.url IS NOT excluded.url
+    OR articles.author IS NOT excluded.author
+    OR articles.published IS NOT excluded.published
+    OR articles.body IS NOT excluded.body
+    OR articles.body_origin IS NOT excluded.body_origin
+    OR articles.canonical_key IS NOT excluded.canonical_key
+    OR (articles.reading_minutes IS NOT excluded.reading_minutes
+        AND NOT EXISTS (SELECT 1 FROM article_documents AS d
+            WHERE d.article_id = articles.id AND d.url = excluded.url
+                AND d.body <> ''));

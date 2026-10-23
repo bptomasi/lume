@@ -46,7 +46,9 @@ fn failed_ingestion_does_not_advance_http_validators() -> Result<()> {
     database.execute_batch(include_str!(
         "../src/store/sql/test_create_reject_article.sql"
     ))?;
-    let parsed = source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
+    let mut parsed =
+        source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
+    parsed.articles[0].title = "Publisher correction must roll back".into();
     feed.etag = "must-not-commit".into();
     assert!(
         store

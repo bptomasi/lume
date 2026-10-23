@@ -7,6 +7,9 @@ use crate::model::{Feed, IncomingArticle};
 
 use super::Store;
 
+#[cfg(test)]
+mod tests;
+
 impl Store {
     /// Replace an exact old feed title without overwriting a publisher rename.
     ///
@@ -129,11 +132,14 @@ impl Store {
         articles: &[IncomingArticle],
     ) -> Result<()> {
         ensure!(articles.len() <= 2000, "Feed exceeds 2,000 entries");
-        let transaction = self.connection.transaction()?;
+        let transaction = self.write_transaction()?;
         {
             let mut insert = transaction
                 .prepare_cached(include_str!("sql/insert_article.sql"))?;
             for article in articles {
+                if unchanged_article(&transaction, feed.id, article)? {
+                    continue;
+                }
                 insert.execute(params![
                     feed.id,
                     article.external_id,
@@ -149,17 +155,13 @@ impl Store {
             }
         }
         transaction.execute(
-            r#"
-            UPDATE feeds
-            SET etag = ?1, modified = ?2, error = ''
-            WHERE id = ?3
-            "#,
+            include_str!("sql/update_feed_validators.sql"),
             (&feed.etag, &feed.modified, feed.id),
         )?;
         // FTS tracks feed titles. Avoid rebuilding every article's index when
         // the publisher returns the same title on a routine refresh.
         transaction.execute(
-            "UPDATE feeds SET title = ?1 WHERE id = ?2 AND title <> ?1",
+            include_str!("sql/update_feed_title.sql"),
             (title, feed.id),
         )?;
         transaction.commit()?;
@@ -173,11 +175,33 @@ impl Store {
     pub fn feed_error(&self, id: i64, error: &str) -> Result<()> {
         let message: String = error.chars().take(500).collect();
         self.connection.execute(
-            "UPDATE feeds SET error = ?1 WHERE id = ?2",
+            include_str!("sql/update_feed_error.sql"),
             (message, id),
         )?;
         Ok(())
     }
+}
+
+fn unchanged_article(
+    transaction: &rusqlite::Transaction<'_>,
+    feed: i64,
+    article: &IncomingArticle,
+) -> Result<bool> {
+    Ok(transaction
+        .prepare_cached(include_str!("sql/select_unchanged_article.sql"))?
+        .query_row(
+            params![
+                feed,
+                article.external_id,
+                article.title,
+                article.url,
+                article.author,
+                article.published,
+                article.body,
+                article.body_origin.as_str(),
+            ],
+            |row| row.get(0),
+        )?)
 }
 
 fn feed_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Feed> {

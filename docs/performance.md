@@ -25,7 +25,8 @@ The native benchmark also accepts focused flags, including
 `--configuration-only`, `--welcome-only`, `--code-viewport-only`, `--images-only`,
 `--tables-only`, `--lists-only`, `--rich-text-only`, `--recommendations-only`,
 `--pane-search-only`, `--query-editing-only`, `--library-sections-only` and
-`--fluency-only`, `--server-refresh-only` and `--retention-only`. Add `--stress`
+`--fluency-only`, `--server-refresh-only`, `--publisher-refresh-only`,
+`--retention-images-only` and `--retention-only`. Add `--stress`
 for larger workloads.
 Setup precedes operation timers; resource reports identify process-wide
 memory/I/O scope.
@@ -168,6 +169,35 @@ credential changes: median unchanged discovery was 2.193 ms and a 2,000-entry
 unchanged ingest was 23.888 ms, using the same unoptimized fixture and three
 processes. Native regression tests separately assert zero SQLite changes for
 identical publisher content and redundant personal flag writes.
+
+The [refresh and checkpoint review](performance/refresh-noops.json) compares
+identical checked workloads against `ca220f6`. Three sequential local test
+processes per scenario, with two timed iterations each, measured the following
+median iteration means. These unoptimized timings exclude fixture setup and
+include each workload's independent state assertions.
+
+| Operation | Before | After |
+| --- | ---: | ---: |
+| Unchanged publisher refresh, 200 articles | 43.000 ms | 1.730 ms |
+| Unchanged publisher refresh, 2,000 articles | 478.115 ms | 16.539 ms |
+| One publisher correction among 2,000 articles | 477.345 ms | 16.185 ms |
+| 100 identical reading checkpoints, 2,000-article fixture | 31.460 ms | 27.414 ms |
+| Fresh-image retention preview, 2,000 articles/32 files | 495.698 ms | 5.005 ms |
+
+Publisher equality is checked before Markdown duration estimation and canonical
+URL derivation; conditional updates also avoid unchanged validator/error writes.
+Native tests verify zero SQLite changes and no other-connection `data_version`
+advance for unchanged refreshes and reading checkpoints. Checkpoint elapsed-time
+gains are modest: layout validation/serialization still runs, while redundant
+logical writes are removed. Saves still observe intervening external changes.
+
+Image retention filters files using the shortest configured lifetime before
+loading historical bodies. When older files exist, reference bookkeeping retains
+only paths actually present in that candidate cache. It visits long galleries
+without applying the offline package's 64-download limit; shared protected or
+unlimited sources still keep their files. Timed images are fresh owned files;
+expired deletion and decoding are excluded. Memory and physical I/O are not
+measured, and these figures do not establish production or end-to-end latency.
 
 ## Boundaries
 

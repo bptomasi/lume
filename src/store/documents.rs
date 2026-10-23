@@ -100,12 +100,7 @@ impl Store {
         anchor: usize,
     ) -> Result<()> {
         self.connection.execute(
-            r#"
-            UPDATE article_documents
-            SET progress = ?1
-            WHERE article_id = ?2 AND revision = ?3
-                AND url = (SELECT url FROM articles WHERE id = ?2)
-            "#,
+            include_str!("sql/update_full_progress.sql"),
             (i64::try_from(anchor)?, article, revision),
         )?;
         Ok(())

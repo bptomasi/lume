@@ -53,6 +53,8 @@ mod pane_search;
 mod panes;
 #[path = "workloads/presentation.rs"]
 mod presentation;
+#[path = "workloads/publisher_refresh.rs"]
+mod publisher_refresh;
 #[path = "workloads/query_editing.rs"]
 mod query_editing;
 #[path = "workloads/reading_services.rs"]
@@ -65,6 +67,8 @@ mod recommendations;
 mod recovery_navigation;
 #[path = "workloads/retention.rs"]
 mod retention;
+#[path = "workloads/retention_images.rs"]
+mod retention_images;
 #[path = "workloads/rich_text.rs"]
 mod rich_text;
 #[path = "workloads/search_relevance.rs"]
@@ -125,6 +129,8 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    retention_images::run(iterations, stress)?;
+    publisher_refresh::run(iterations, stress)?;
     retention::run(iterations, stress)?;
     server_refresh::run(iterations, stress)?;
     library_sections::run(iterations, stress)?;
@@ -161,6 +167,8 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--retention-images-only", retention_images::run),
+    ("--publisher-refresh-only", publisher_refresh::run),
     ("--retention-only", retention::run),
     ("--server-refresh-only", server_refresh::run),
     ("--library-sections-only", library_sections::run),
