@@ -21,7 +21,7 @@ pub struct SettingsDraft {
 }
 
 impl SettingsDraft {
-    pub(crate) const FIELD_COUNT: usize = 15;
+    pub(crate) const FIELD_COUNT: usize = 18;
 }
 
 /// Stable key spelling accepted by `:bind`; no draft/editor key is remapped.
@@ -57,6 +57,7 @@ impl App {
         argument: &str,
     ) -> Result<Option<Action>> {
         match verb {
+            "auto-read" => return self.auto_read_command(argument),
             "config" | "config-reload" => {
                 return self.configuration_command(verb);
             }
@@ -184,37 +185,20 @@ fn change_visual(workspace: &mut Workspace, field: usize, forward: bool) {
         *value = !*value;
         return;
     }
-    match field {
-        0 => {
-            let themes = ["lume", "nord", "gruvbox"];
-            let current = themes
-                .iter()
-                .position(|theme| *theme == workspace.theme)
-                .unwrap_or(0);
-            let next = (current + if forward { 1 } else { 2 }) % themes.len();
-            workspace.theme = themes[next].into();
-        }
-        1 => {
-            workspace.reading_width =
-                resize(workspace.reading_width, forward, 40, 140)
-        }
-        2 => {
-            workspace.library_width =
-                resize(workspace.library_width, forward, 16, 48)
-        }
-        3 => {
-            workspace.article_width =
-                resize(workspace.article_width, forward, 24, 80)
-        }
-        7 => {
-            workspace.annotation_width =
-                resize(workspace.annotation_width, forward, 24, 80)
-        }
-        11 => {
-            workspace.fullscreen_width =
-                resize(workspace.fullscreen_width, forward, 40, 140)
-        }
-        _ => {}
+    if let Some((value, minimum, maximum)) =
+        editing::numeric_setting(workspace, field)
+    {
+        *value = resize(*value, forward, minimum, maximum);
+        return;
+    }
+    if field == 0 {
+        let themes = ["lume", "nord", "gruvbox"];
+        let current = themes
+            .iter()
+            .position(|theme| *theme == workspace.theme)
+            .unwrap_or(0);
+        let next = (current + if forward { 1 } else { 2 }) % themes.len();
+        workspace.theme = themes[next].into();
     }
 }
 
@@ -284,6 +268,7 @@ fn visual_switch(workspace: &mut Workspace, field: usize) -> Option<&mut bool> {
         12 => &mut workspace.justify,
         13 => &mut workspace.latex_formulas,
         14 => &mut workspace.latex_graphics,
+        15 => &mut workspace.auto_read.enabled,
         _ => return None,
     })
 }

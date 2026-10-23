@@ -89,6 +89,13 @@ impl App {
                 "Use :bulk read|unread|favorite|unfavorite|queue|unqueue|tag NAME|folder NAME"
             ),
         };
+        if matches!(edit, BulkEdit::Unread(_))
+            && let Some(article) = self
+                .current()
+                .filter(|article| self.marked.contains(&article.id))
+        {
+            self.auto_read_manual_state(article.id);
+        }
         self.submit_article_edit(self.marked.clone(), edit)?;
         let count = self.marked.len();
         self.marked.clear();

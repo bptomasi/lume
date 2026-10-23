@@ -357,10 +357,12 @@ impl App {
     fn click_article(&mut self, area: Rect, event: MouseEvent) -> Result<()> {
         if let Some(index) = ui::article_at(self, area, event.row) {
             self.articles_first = ui::article_origin(self, area);
+            if index == self.selected && !self.reader_stale() {
+                return Ok(());
+            }
             self.save_reading_position()?;
             self.selected = index;
             self.load_current_deferred()?;
-            self.open_reader()?;
         }
         Ok(())
     }

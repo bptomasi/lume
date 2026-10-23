@@ -1,0 +1,398 @@
+{
+  "measured_at_utc": "2026-10-23T14:53:39.656615+00:00",
+  "base_revision": "4b297bffcd3841e96cad3232d1aa6c55dc765474",
+  "source": "Uncommitted working tree: active Reader policy and semantic inline LaTeX",
+  "rust": "1.99.1",
+  "profile": "optimized bench; no toolchain or source substitution",
+  "platform": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "benchmark_sha256": "acf631a5a7e3be3419a6a5b617be4394fda9b3065b153e539c74e89f9ebfc2f4",
+  "release_binary_sha256": "a788d82f40fc380941703affdb831de33abf166fb91e364511706f77cc0b6397",
+  "scope": "Absolute native costs with checked output. Setup excluded; no HTTP, terminal/compositor presentation, or previous-version speedup baseline.",
+  "runs": [
+    {
+      "stress": false,
+      "flag": "--active-reading-only",
+      "sample": 1,
+      "measurements": [
+        {
+          "label": "active reading: 1,000 cached viewport polls",
+          "iterations": 40,
+          "total_ms": 1.675,
+          "mean_ms": 0.042
+        },
+        {
+          "label": "active reading: 1,000 changing viewport polls",
+          "iterations": 40,
+          "total_ms": 7.346,
+          "mean_ms": 0.184
+        }
+      ],
+      "stdout": "active reading: 1,000 cached viewport polls: 40 iterations, 1.675 ms total, 0.042 ms/iteration\nactive reading: 1,000 changing viewport polls: 40 iterations, 7.346 ms total, 0.184 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "flag": "--active-reading-only",
+      "sample": 2,
+      "measurements": [
+        {
+          "label": "active reading: 1,000 cached viewport polls",
+          "iterations": 40,
+          "total_ms": 1.664,
+          "mean_ms": 0.042
+        },
+        {
+          "label": "active reading: 1,000 changing viewport polls",
+          "iterations": 40,
+          "total_ms": 7.557,
+          "mean_ms": 0.189
+        }
+      ],
+      "stdout": "active reading: 1,000 cached viewport polls: 40 iterations, 1.664 ms total, 0.042 ms/iteration\nactive reading: 1,000 changing viewport polls: 40 iterations, 7.557 ms total, 0.189 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "flag": "--active-reading-only",
+      "sample": 3,
+      "measurements": [
+        {
+          "label": "active reading: 1,000 cached viewport polls",
+          "iterations": 40,
+          "total_ms": 1.727,
+          "mean_ms": 0.043
+        },
+        {
+          "label": "active reading: 1,000 changing viewport polls",
+          "iterations": 40,
+          "total_ms": 7.596,
+          "mean_ms": 0.19
+        }
+      ],
+      "stdout": "active reading: 1,000 cached viewport polls: 40 iterations, 1.727 ms total, 0.043 ms/iteration\nactive reading: 1,000 changing viewport polls: 40 iterations, 7.596 ms total, 0.190 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "flag": "--formulas-only",
+      "sample": 1,
+      "measurements": [
+        {
+          "label": "advanced formula parse + Unicode layout",
+          "iterations": 40,
+          "total_ms": 2.25,
+          "mean_ms": 0.056
+        },
+        {
+          "label": "raw formula layout without LaTeX conversion",
+          "iterations": 40,
+          "total_ms": 1.009,
+          "mean_ms": 0.025
+        },
+        {
+          "label": "vector formula layout + shared source outlines",
+          "iterations": 40,
+          "total_ms": 22.619,
+          "mean_ms": 0.565
+        },
+        {
+          "label": "compact mixed arXiv formula layout",
+          "iterations": 40,
+          "total_ms": 2.116,
+          "mean_ms": 0.053
+        },
+        {
+          "label": "styled inline TeX without graphic work",
+          "iterations": 40,
+          "total_ms": 1.078,
+          "mean_ms": 0.027
+        },
+        {
+          "label": "cached formula policy round trip + repeat renders",
+          "iterations": 40,
+          "total_ms": 3.481,
+          "mean_ms": 0.087
+        }
+      ],
+      "stdout": "advanced formula parse + Unicode layout: 40 iterations, 2.250 ms total, 0.056 ms/iteration\nraw formula layout without LaTeX conversion: 40 iterations, 1.009 ms total, 0.025 ms/iteration\nvector formula layout + shared source outlines: 40 iterations, 22.619 ms total, 0.565 ms/iteration\ncompact mixed arXiv formula layout: 40 iterations, 2.116 ms total, 0.053 ms/iteration\nstyled inline TeX without graphic work: 40 iterations, 1.078 ms total, 0.027 ms/iteration\ncached formula policy round trip + repeat renders: 40 iterations, 3.481 ms total, 0.087 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "flag": "--formulas-only",
+      "sample": 2,
+      "measurements": [
+        {
+          "label": "advanced formula parse + Unicode layout",
+          "iterations": 40,
+          "total_ms": 2.641,
+          "mean_ms": 0.066
+        },
+        {
+          "label": "raw formula layout without LaTeX conversion",
+          "iterations": 40,
+          "total_ms": 1.062,
+          "mean_ms": 0.027
+        },
+        {
+          "label": "vector formula layout + shared source outlines",
+          "iterations": 40,
+          "total_ms": 23.565,
+          "mean_ms": 0.589
+        },
+        {
+          "label": "compact mixed arXiv formula layout",
+          "iterations": 40,
+          "total_ms": 2.198,
+          "mean_ms": 0.055
+        },
+        {
+          "label": "styled inline TeX without graphic work",
+          "iterations": 40,
+          "total_ms": 1.091,
+          "mean_ms": 0.027
+        },
+        {
+          "label": "cached formula policy round trip + repeat renders",
+          "iterations": 40,
+          "total_ms": 3.765,
+          "mean_ms": 0.094
+        }
+      ],
+      "stdout": "advanced formula parse + Unicode layout: 40 iterations, 2.641 ms total, 0.066 ms/iteration\nraw formula layout without LaTeX conversion: 40 iterations, 1.062 ms total, 0.027 ms/iteration\nvector formula layout + shared source outlines: 40 iterations, 23.565 ms total, 0.589 ms/iteration\ncompact mixed arXiv formula layout: 40 iterations, 2.198 ms total, 0.055 ms/iteration\nstyled inline TeX without graphic work: 40 iterations, 1.091 ms total, 0.027 ms/iteration\ncached formula policy round trip + repeat renders: 40 iterations, 3.765 ms total, 0.094 ms/iteration\n"
+    },
+    {
+      "stress": false,
+      "flag": "--formulas-only",
+      "sample": 3,
+      "measurements": [
+        {
+          "label": "advanced formula parse + Unicode layout",
+          "iterations": 40,
+          "total_ms": 2.348,
+          "mean_ms": 0.059
+        },
+        {
+          "label": "raw formula layout without LaTeX conversion",
+          "iterations": 40,
+          "total_ms": 0.934,
+          "mean_ms": 0.023
+        },
+        {
+          "label": "vector formula layout + shared source outlines",
+          "iterations": 40,
+          "total_ms": 22.552,
+          "mean_ms": 0.564
+        },
+        {
+          "label": "compact mixed arXiv formula layout",
+          "iterations": 40,
+          "total_ms": 2.165,
+          "mean_ms": 0.054
+        },
+        {
+          "label": "styled inline TeX without graphic work",
+          "iterations": 40,
+          "total_ms": 1.118,
+          "mean_ms": 0.028
+        },
+        {
+          "label": "cached formula policy round trip + repeat renders",
+          "iterations": 40,
+          "total_ms": 3.561,
+          "mean_ms": 0.089
+        }
+      ],
+      "stdout": "advanced formula parse + Unicode layout: 40 iterations, 2.348 ms total, 0.059 ms/iteration\nraw formula layout without LaTeX conversion: 40 iterations, 0.934 ms total, 0.023 ms/iteration\nvector formula layout + shared source outlines: 40 iterations, 22.552 ms total, 0.564 ms/iteration\ncompact mixed arXiv formula layout: 40 iterations, 2.165 ms total, 0.054 ms/iteration\nstyled inline TeX without graphic work: 40 iterations, 1.118 ms total, 0.028 ms/iteration\ncached formula policy round trip + repeat renders: 40 iterations, 3.561 ms total, 0.089 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "flag": "--active-reading-only",
+      "sample": 1,
+      "measurements": [
+        {
+          "label": "active reading: 1,000 cached viewport polls",
+          "iterations": 40,
+          "total_ms": 1.692,
+          "mean_ms": 0.042
+        },
+        {
+          "label": "active reading: 1,000 changing viewport polls",
+          "iterations": 40,
+          "total_ms": 7.412,
+          "mean_ms": 0.185
+        }
+      ],
+      "stdout": "active reading: 1,000 cached viewport polls: 40 iterations, 1.692 ms total, 0.042 ms/iteration\nactive reading: 1,000 changing viewport polls: 40 iterations, 7.412 ms total, 0.185 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "flag": "--active-reading-only",
+      "sample": 2,
+      "measurements": [
+        {
+          "label": "active reading: 1,000 cached viewport polls",
+          "iterations": 40,
+          "total_ms": 1.749,
+          "mean_ms": 0.044
+        },
+        {
+          "label": "active reading: 1,000 changing viewport polls",
+          "iterations": 40,
+          "total_ms": 7.914,
+          "mean_ms": 0.198
+        }
+      ],
+      "stdout": "active reading: 1,000 cached viewport polls: 40 iterations, 1.749 ms total, 0.044 ms/iteration\nactive reading: 1,000 changing viewport polls: 40 iterations, 7.914 ms total, 0.198 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "flag": "--active-reading-only",
+      "sample": 3,
+      "measurements": [
+        {
+          "label": "active reading: 1,000 cached viewport polls",
+          "iterations": 40,
+          "total_ms": 1.952,
+          "mean_ms": 0.049
+        },
+        {
+          "label": "active reading: 1,000 changing viewport polls",
+          "iterations": 40,
+          "total_ms": 8.03,
+          "mean_ms": 0.201
+        }
+      ],
+      "stdout": "active reading: 1,000 cached viewport polls: 40 iterations, 1.952 ms total, 0.049 ms/iteration\nactive reading: 1,000 changing viewport polls: 40 iterations, 8.030 ms total, 0.201 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "flag": "--formulas-only",
+      "sample": 1,
+      "measurements": [
+        {
+          "label": "advanced formula parse + Unicode layout",
+          "iterations": 40,
+          "total_ms": 7.777,
+          "mean_ms": 0.194
+        },
+        {
+          "label": "raw formula layout without LaTeX conversion",
+          "iterations": 40,
+          "total_ms": 5.427,
+          "mean_ms": 0.136
+        },
+        {
+          "label": "vector formula layout + shared source outlines",
+          "iterations": 40,
+          "total_ms": 28.995,
+          "mean_ms": 0.725
+        },
+        {
+          "label": "compact mixed arXiv formula layout",
+          "iterations": 40,
+          "total_ms": 2.397,
+          "mean_ms": 0.06
+        },
+        {
+          "label": "styled inline TeX without graphic work",
+          "iterations": 40,
+          "total_ms": 4.973,
+          "mean_ms": 0.124
+        },
+        {
+          "label": "cached formula policy round trip + repeat renders",
+          "iterations": 40,
+          "total_ms": 14.028,
+          "mean_ms": 0.351
+        }
+      ],
+      "stdout": "advanced formula parse + Unicode layout: 40 iterations, 7.777 ms total, 0.194 ms/iteration\nraw formula layout without LaTeX conversion: 40 iterations, 5.427 ms total, 0.136 ms/iteration\nvector formula layout + shared source outlines: 40 iterations, 28.995 ms total, 0.725 ms/iteration\ncompact mixed arXiv formula layout: 40 iterations, 2.397 ms total, 0.060 ms/iteration\nstyled inline TeX without graphic work: 40 iterations, 4.973 ms total, 0.124 ms/iteration\ncached formula policy round trip + repeat renders: 40 iterations, 14.028 ms total, 0.351 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "flag": "--formulas-only",
+      "sample": 2,
+      "measurements": [
+        {
+          "label": "advanced formula parse + Unicode layout",
+          "iterations": 40,
+          "total_ms": 6.768,
+          "mean_ms": 0.169
+        },
+        {
+          "label": "raw formula layout without LaTeX conversion",
+          "iterations": 40,
+          "total_ms": 5.115,
+          "mean_ms": 0.128
+        },
+        {
+          "label": "vector formula layout + shared source outlines",
+          "iterations": 40,
+          "total_ms": 28.588,
+          "mean_ms": 0.715
+        },
+        {
+          "label": "compact mixed arXiv formula layout",
+          "iterations": 40,
+          "total_ms": 3.015,
+          "mean_ms": 0.075
+        },
+        {
+          "label": "styled inline TeX without graphic work",
+          "iterations": 40,
+          "total_ms": 6.071,
+          "mean_ms": 0.152
+        },
+        {
+          "label": "cached formula policy round trip + repeat renders",
+          "iterations": 40,
+          "total_ms": 13.765,
+          "mean_ms": 0.344
+        }
+      ],
+      "stdout": "advanced formula parse + Unicode layout: 40 iterations, 6.768 ms total, 0.169 ms/iteration\nraw formula layout without LaTeX conversion: 40 iterations, 5.115 ms total, 0.128 ms/iteration\nvector formula layout + shared source outlines: 40 iterations, 28.588 ms total, 0.715 ms/iteration\ncompact mixed arXiv formula layout: 40 iterations, 3.015 ms total, 0.075 ms/iteration\nstyled inline TeX without graphic work: 40 iterations, 6.071 ms total, 0.152 ms/iteration\ncached formula policy round trip + repeat renders: 40 iterations, 13.765 ms total, 0.344 ms/iteration\n"
+    },
+    {
+      "stress": true,
+      "flag": "--formulas-only",
+      "sample": 3,
+      "measurements": [
+        {
+          "label": "advanced formula parse + Unicode layout",
+          "iterations": 40,
+          "total_ms": 7.705,
+          "mean_ms": 0.193
+        },
+        {
+          "label": "raw formula layout without LaTeX conversion",
+          "iterations": 40,
+          "total_ms": 5.047,
+          "mean_ms": 0.126
+        },
+        {
+          "label": "vector formula layout + shared source outlines",
+          "iterations": 40,
+          "total_ms": 29.123,
+          "mean_ms": 0.728
+        },
+        {
+          "label": "compact mixed arXiv formula layout",
+          "iterations": 40,
+          "total_ms": 2.126,
+          "mean_ms": 0.053
+        },
+        {
+          "label": "styled inline TeX without graphic work",
+          "iterations": 40,
+          "total_ms": 5.098,
+          "mean_ms": 0.127
+        },
+        {
+          "label": "cached formula policy round trip + repeat renders",
+          "iterations": 40,
+          "total_ms": 13.79,
+          "mean_ms": 0.345
+        }
+      ],
+      "stdout": "advanced formula parse + Unicode layout: 40 iterations, 7.705 ms total, 0.193 ms/iteration\nraw formula layout without LaTeX conversion: 40 iterations, 5.047 ms total, 0.126 ms/iteration\nvector formula layout + shared source outlines: 40 iterations, 29.123 ms total, 0.728 ms/iteration\ncompact mixed arXiv formula layout: 40 iterations, 2.126 ms total, 0.053 ms/iteration\nstyled inline TeX without graphic work: 40 iterations, 5.098 ms total, 0.127 ms/iteration\ncached formula policy round trip + repeat renders: 40 iterations, 13.790 ms total, 0.345 ms/iteration\n"
+    }
+  ]
+}

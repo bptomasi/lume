@@ -198,7 +198,10 @@
   N               Outside reader: create an empty folder
   :favorite       Toggle favorite; :favorites opens all favorites
   f               Outside reader: toggle favorite
-  m / :mark-read / :mark-unread    Change read state
+  m / :mark-read / :mark-unread    Explicitly change read state
+  :auto-read on|off|status    Automatic reading requires active time and coverage
+                  Default: 10 focused seconds and 90% displayed publisher text
+                  Enter opens the reader; article clicks only select a preview
   :read           Automatic Read folder; unread articles leave it
   s / :queue      Toggle queue membership / open Read next
   dd              In Articles: move the selected article to Trash; u undoes

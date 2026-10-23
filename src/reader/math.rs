@@ -7,7 +7,9 @@ use math_core::{LatexToMathML, MathCoreConfig, MathDisplay, MaxExpansions};
 mod embellishments;
 mod fractions;
 pub(super) mod graphics;
+mod presentation;
 mod projection;
+pub(super) use presentation::Text as FormulaText;
 mod scripts;
 
 #[derive(Default)]
@@ -15,7 +17,7 @@ pub(super) struct Math {
     converter: Option<LatexToMathML>,
     count: usize,
     bytes: usize,
-    cache: std::collections::VecDeque<(String, bool, Option<String>)>,
+    cache: std::collections::VecDeque<(String, bool, Option<FormulaText>)>,
     graphic_cache: std::collections::VecDeque<(
         String,
         bool,
@@ -28,7 +30,7 @@ impl Math {
         &mut self,
         latex: &str,
         block: bool,
-    ) -> Option<String> {
+    ) -> Option<FormulaText> {
         self.count += 1;
         self.bytes += latex.len();
         if self.count > 256 || self.bytes > 65536 || !admissible(latex) {
@@ -49,7 +51,7 @@ impl Math {
         text
     }
 
-    fn convert(&mut self, latex: &str, block: bool) -> Option<String> {
+    fn convert(&mut self, latex: &str, block: bool) -> Option<FormulaText> {
         if self.converter.is_none() {
             let config = MathCoreConfig {
                 max_expansions: MaxExpansions(64),
@@ -88,7 +90,9 @@ impl Math {
         )
         .ok()?;
         let text = projection::project(document.root_element(), 0)?;
-        (text.len() <= 8192).then(|| text.trim().to_owned())
+        (text.len() <= 8192).then(|| {
+            FormulaText::new(document.root_element(), text.trim().to_owned())
+        })
     }
 
     pub(super) fn graphic(
@@ -114,35 +118,6 @@ impl Math {
             .push_back((latex.into(), block, image.clone()));
         image
     }
-}
-
-/// Small inline expressions stay in the paragraph, including variables and
-/// command names. Reserve pixels for layouts that benefit from typesetting.
-pub(super) fn needs_graphics(latex: &str, text: &str, block: bool) -> bool {
-    block
-        || text.contains(['_', '^'])
-        || super::cursor::column(text, text.len()) > 16
-        || [
-            r"\frac",
-            r"\dfrac",
-            r"\tfrac",
-            r"\sqrt",
-            r"\sum",
-            r"\prod",
-            r"\int",
-            r"\begin",
-            r"\binom",
-            r"\boxed",
-            r"\cancel",
-            r"\bcancel",
-            r"\xcancel",
-            r"\overbrace",
-            r"\underbrace",
-            r"\widehat",
-            r"\widetilde",
-        ]
-        .iter()
-        .any(|command| latex.contains(command))
 }
 
 fn admissible(latex: &str) -> bool {

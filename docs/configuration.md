@@ -353,6 +353,11 @@ justify = true
 latex_formulas = true
 latex_graphics = false
 
+[ui.auto_read]
+enabled = true
+min_active_seconds = 10
+min_coverage_percent = 90
+
 [ui.keybindings]
 "ctrl-t" = "toc"
 
@@ -378,6 +383,27 @@ Current article, selected destination, progress, layout history and search
 history stay in the library. Shortcuts map normal-mode key names to available
 ex commands; they do not replace editor-specific bindings. `Ctrl-c` stays
 reserved for exit.
+
+Article clicks select a preview and Enter opens the Reader without changing
+read state. Automatic marking requires both ten active Reader seconds and
+90% cumulative displayed publisher text by default. Jumping directly to the
+end does not count skipped text. A short article visible on one screen needs
+only the active time. Notes are excluded from coverage; code outside the
+horizontal viewport is excluded too.
+
+Automatic time pauses outside the Reader, in dialogs, during selections or
+gestures, and when the terminal reports lost window focus. Long event-loop
+stalls do not count. Coverage and time reset when the article/source changes;
+ordinary soft wrapping preserves them. Manual read/unread changes suppress
+automatic marking for that article visit, including an explicit unread action
+on an already unread article. `m`, `:mark-read`, `:mark-unread` and undo remain
+available. Progress restored from disk does not imply displayed coverage.
+
+`:auto-read on|off|toggle|status` controls the policy. `:settings` previews the
+switch and thresholds; Ctrl-s saves and Esc discards changes. TOML accepts
+1–3,600 active seconds and 1–100 percent coverage. Disable through `enabled`,
+rather than setting a threshold to zero. Timing uses terminal focus reports;
+terminals that do not send these reports cannot communicate window focus.
 
 ## Recommendations
 
@@ -539,7 +565,11 @@ terminals.
 Settings exposes both switches. Text is the default and initializes no graphic
 font resources. Graphics use self-contained vector outlines on the layout/image
 workers, without network access, a browser, Node or a TeX installation. Small
-inline variables and expressions remain in the paragraph as selectable text.
+inline variables and linear expressions remain in the paragraph as selectable
+text, regardless of their length. Text commands such as `\textit`, `\textbf`
+and `\texttt` stay inline too; uniform italic/bold styling is retained.
+Words and punctuation wrap with the surrounding prose instead of becoming
+centered image rows. Selection continues to map to the original delimited TeX.
 Display equations and complex inline layouts use compact graphic blocks, with
 one em occupying 80% of a terminal row rather than stretching to the slot.
 Short boxed/cancelled expressions, braces and wide accents also request local

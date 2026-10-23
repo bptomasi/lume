@@ -97,7 +97,9 @@ fn narrow_settings_keep_the_selected_fullscreen_width_visible() -> Result<()> {
     let mut app = App::new(store, false)?;
     app.resize_workspace(Rect::new(0, 0, 24, 10));
     command(&mut app, "settings")?;
-    press(&mut app, KeyCode::Up)?;
+    for _ in 0..11 {
+        press(&mut app, KeyCode::Down)?;
+    }
     let mut terminal = Terminal::new(TestBackend::new(24, 10))?;
     terminal.draw(|frame| ui::draw(frame, &app))?;
     let rendered = terminal

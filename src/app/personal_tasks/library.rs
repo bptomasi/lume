@@ -53,7 +53,7 @@ pub(super) fn perform(store: &Store, edit: LibraryEdit) -> Result<Outcome> {
     );
     match edit {
         LibraryEdit::Deleted { article, deleted } => {
-            store.set_deleted(article, deleted)?;
+            return delete_article(store, article, deleted);
         }
         LibraryEdit::Tags { target, tags } => store.set_tags(target, &tags)?,
         LibraryEdit::CreateFolder { name, article } => {
@@ -84,4 +84,15 @@ pub(super) fn perform(store: &Store, edit: LibraryEdit) -> Result<Outcome> {
         effect: UndoEffect::Library,
         comments: Ok(Vec::new()),
     })
+}
+
+fn delete_article(
+    store: &Store,
+    article: i64,
+    deleted: bool,
+) -> Result<Outcome> {
+    // Another connection may already have set this flag while our metadata
+    // still shows the row. Confirm durable state and reconcile it either way.
+    store.set_deleted(article, deleted)?;
+    Ok(Outcome::Deleted { article, deleted })
 }

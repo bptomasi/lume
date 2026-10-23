@@ -1,6 +1,8 @@
 //! Small data contracts shared by storage, collection and presentation.
 
+mod auto_read;
 mod credentials;
+pub use auto_read::AutoReadSettings;
 pub use credentials::ApiToken;
 
 mod document;

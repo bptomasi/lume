@@ -1008,6 +1008,12 @@ const COMMANDS: &[CommandSpec] = &[
         aliases: &[],
     },
     CommandSpec {
+        name: "auto-read",
+        usage: "auto-read [on|off|toggle|status]",
+        description: "Mark read after configured active Reader time and displayed coverage",
+        aliases: &[],
+    },
+    CommandSpec {
         name: "storage",
         usage: "storage [auto|MiB|GiB|bytes|status|clean images|clean articles|clean all]",
         description: "Inspect storage; preview explicit recoverable-cache cleanup",

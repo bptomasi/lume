@@ -85,6 +85,8 @@ fn value_text(workspace: &Workspace, field: usize) -> Option<String> {
         3 => workspace.article_width.to_string(),
         7 => workspace.annotation_width.to_string(),
         11 => workspace.fullscreen_width.to_string(),
+        16 => workspace.auto_read.min_active_seconds.to_string(),
+        17 => workspace.auto_read.min_coverage_percent.to_string(),
         _ => return None,
     })
 }
@@ -105,18 +107,30 @@ fn apply_value(
     let value: u16 = text
         .parse()
         .map_err(|_| anyhow::anyhow!("Enter a whole number"))?;
-    let (destination, minimum, maximum) = match field {
-        1 => (&mut workspace.reading_width, 40, 140),
-        2 => (&mut workspace.library_width, 16, 48),
-        3 => (&mut workspace.article_width, 24, 80),
-        7 => (&mut workspace.annotation_width, 24, 80),
-        11 => (&mut workspace.fullscreen_width, 40, 140),
-        _ => anyhow::bail!("This setting has no editable scalar value"),
-    };
+    let (destination, minimum, maximum) = numeric_setting(workspace, field)
+        .ok_or_else(|| {
+            anyhow::anyhow!("This setting has no editable scalar value")
+        })?;
     ensure!(
         (minimum..=maximum).contains(&value),
         "Use a value from {minimum} to {maximum}"
     );
     *destination = value;
     Ok(())
+}
+
+pub(super) fn numeric_setting(
+    workspace: &mut Workspace,
+    field: usize,
+) -> Option<(&mut u16, u16, u16)> {
+    Some(match field {
+        1 => (&mut workspace.reading_width, 40, 140),
+        2 => (&mut workspace.library_width, 16, 48),
+        3 => (&mut workspace.article_width, 24, 80),
+        7 => (&mut workspace.annotation_width, 24, 80),
+        11 => (&mut workspace.fullscreen_width, 40, 140),
+        16 => (&mut workspace.auto_read.min_active_seconds, 1, 3600),
+        17 => (&mut workspace.auto_read.min_coverage_percent, 1, 100),
+        _ => return None,
+    })
 }

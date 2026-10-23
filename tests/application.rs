@@ -13,7 +13,7 @@ fn normal_mode_opens_reader_and_insert_mode_keeps_vim_letters() -> Result<()> {
     let id = app.current().map(|article| article.id);
     press(&mut app, KeyCode::Enter)?;
     assert_eq!(app.focus, Focus::Reader);
-    assert!(!app.current().is_some_and(|article| article.unread));
+    assert!(app.current().is_some_and(|article| article.unread));
     type_text(&mut app, ":note")?;
     press(&mut app, KeyCode::Enter)?;
     type_text(&mut app, "jk:q are my thoughts")?;

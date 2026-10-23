@@ -72,13 +72,17 @@ impl InputBatch {
                 Action::None
             }
             Event::FocusLost => {
+                app.auto_read_window_focus(false);
                 app.cancel_pointer();
                 app.note_marks.delete = None;
                 app.pending_destination_delete = None;
                 app.pending_article_delete = None;
                 Action::None
             }
-            _ => Action::None,
+            Event::FocusGained => {
+                app.auto_read_window_focus(true);
+                Action::None
+            }
         };
         Ok(Some(action))
     }

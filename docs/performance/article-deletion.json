@@ -1,0 +1,170 @@
+{
+  "date": "2026-10-23",
+  "baseline_revision": "4b297bf",
+  "candidate_revision": "working tree following 4b297bf",
+  "rust_toolchain": "1.99.1, exact repository toolchain",
+  "machine": "Intel Core Ultra 7 155H, Linux x86_64",
+  "profile": "test, unoptimized, debug info disabled, incremental disabled",
+  "command": "cargo test --locked --bench reader -- --test --article-deletion-only [--stress]",
+  "method": "Same checked harness before and after production changes. Three sequential processes per size, two deletion iterations per process for each adapter. Each iteration restores the deleted article through undo outside the timer. No competing builds or measurements.",
+  "fixture": {
+    "articles": [
+      2000,
+      13000
+    ],
+    "smart_lists": 46,
+    "smart_list_query": "systems; matches every benchmark article",
+    "feed_body_bytes": 312,
+    "terminal_cells": [
+      144,
+      44
+    ],
+    "poll_interval_ms": 1,
+    "page_limit": 200
+  },
+  "timing_scope": {
+    "synchronous": "Two key presses and one TestBackend frame, after the durable transaction and synchronous presentation refresh.",
+    "first_committed_frame": "Two key presses, nonblocking worker polling until the captured metadata row is absent, then one complete TestBackend frame. A separate observer verifies the deletion was already committed. The next reader source and sidebar counts may still be preparing.",
+    "settled": "Starts with the same keys and also waits for ordered writes, catalog counts, current page and reader preparation; includes the first frame and durable observer check.",
+    "excluded": "Fixture setup and undo, network, physical terminal presentation, RSS and filesystem I/O accounting. These are local unoptimized measurements, not release or end-to-end latency guarantees."
+  },
+  "correctness_checks": [
+    "Committed deletion before visible removal",
+    "Selected captured identity removed, one Trash article, page total decremented",
+    "Undo restores the deleted identity before the next timed iteration"
+  ],
+  "before": {
+    "binary_sha256": "7c1d9f0087094950a21b6f21c6a5b9c61707660c30c72e4e927d29c82990d348",
+    "scenarios": [
+      {
+        "stress": false,
+        "processes": 3,
+        "samples_ms_per_iteration": [
+          {
+            "synchronous dd + committed frame": 105.959,
+            "background dd + first committed frame": 61.136,
+            "background dd + settled page and counts": 61.204
+          },
+          {
+            "synchronous dd + committed frame": 99.306,
+            "background dd + first committed frame": 57.264,
+            "background dd + settled page and counts": 57.32
+          },
+          {
+            "synchronous dd + committed frame": 101.082,
+            "background dd + first committed frame": 61.093,
+            "background dd + settled page and counts": 61.193
+          }
+        ],
+        "median_ms_per_iteration": {
+          "synchronous dd + committed frame": 101.082,
+          "background dd + first committed frame": 61.093,
+          "background dd + settled page and counts": 61.193
+        }
+      },
+      {
+        "stress": true,
+        "processes": 3,
+        "samples_ms_per_iteration": [
+          {
+            "synchronous dd + committed frame": 656.586,
+            "background dd + first committed frame": 338.2,
+            "background dd + settled page and counts": 338.255
+          },
+          {
+            "synchronous dd + committed frame": 673.501,
+            "background dd + first committed frame": 340.278,
+            "background dd + settled page and counts": 340.344
+          },
+          {
+            "synchronous dd + committed frame": 674.126,
+            "background dd + first committed frame": 343.284,
+            "background dd + settled page and counts": 343.346
+          }
+        ],
+        "median_ms_per_iteration": {
+          "synchronous dd + committed frame": 673.501,
+          "background dd + first committed frame": 340.278,
+          "background dd + settled page and counts": 340.344
+        }
+      }
+    ]
+  },
+  "after": {
+    "binary_sha256": "241c35b9356b6b0b84d5c9faf9a04d6c1e3acb8bd499eb173bbb38d7cfbe5adb",
+    "scenarios": [
+      {
+        "stress": false,
+        "processes": 3,
+        "samples_ms_per_iteration": [
+          {
+            "synchronous dd + committed frame": 48.296,
+            "background dd + first committed frame": 5.377,
+            "background dd + settled page and counts": 48.032
+          },
+          {
+            "synchronous dd + committed frame": 49.68,
+            "background dd + first committed frame": 5.559,
+            "background dd + settled page and counts": 49.569
+          },
+          {
+            "synchronous dd + committed frame": 48.757,
+            "background dd + first committed frame": 4.965,
+            "background dd + settled page and counts": 49.113
+          }
+        ],
+        "median_ms_per_iteration": {
+          "synchronous dd + committed frame": 48.757,
+          "background dd + first committed frame": 5.377,
+          "background dd + settled page and counts": 49.113
+        }
+      },
+      {
+        "stress": true,
+        "processes": 3,
+        "samples_ms_per_iteration": [
+          {
+            "synchronous dd + committed frame": 330.049,
+            "background dd + first committed frame": 5.164,
+            "background dd + settled page and counts": 317.636
+          },
+          {
+            "synchronous dd + committed frame": 334.715,
+            "background dd + first committed frame": 5.312,
+            "background dd + settled page and counts": 317.476
+          },
+          {
+            "synchronous dd + committed frame": 329.264,
+            "background dd + first committed frame": 5.138,
+            "background dd + settled page and counts": 326.983
+          }
+        ],
+        "median_ms_per_iteration": {
+          "synchronous dd + committed frame": 330.049,
+          "background dd + first committed frame": 5.164,
+          "background dd + settled page and counts": 317.636
+        }
+      }
+    ]
+  },
+  "qualification": {
+    "make_check": "passed",
+    "rust_tests": 897,
+    "python_tests": 44,
+    "format": "passed",
+    "all_target_clippy": "passed",
+    "behavioral_deletion_tests": 15,
+    "failure_and_boundary_cases": [
+      "Rejected SQLite transaction keeps the row and durable flags",
+      "Metadata changes without polling navigation/catalog delivery",
+      "Consecutive committed deletions target distinct rows",
+      "Modal source-bound editor retains its captured article and text",
+      "Last-page refill",
+      "Grouped representative replacement",
+      "Restore from Trash",
+      "Ordered undo and retained notes/favorites/folders",
+      "Idempotent confirmation after another connection already deleted the article; no duplicate undo entry"
+    ],
+    "validation_scope": "Native correctness and populated-library measurements; release build, HTTP and native terminal qualification were not repeated for this local deletion/presentation change."
+  }
+}

@@ -249,6 +249,9 @@ impl App {
     }
 
     fn set_read_state(&mut self, unread: bool) -> Result<()> {
+        if let Some(article) = self.current() {
+            self.auto_read_manual_state(article.id);
+        }
         let article = self.current().ok_or_else(|| {
             anyhow::anyhow!("Select an article to change its read state")
         })?;

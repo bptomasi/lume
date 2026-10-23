@@ -296,21 +296,12 @@ impl App {
     }
 
     pub(crate) fn open_reader(&mut self) -> Result<()> {
-        let Some(index) = self.visible.get(self.selected).copied() else {
+        if self.current().is_none() {
             return Ok(());
-        };
-        let article = &mut self.library.articles[index];
-        let changed = article.unread;
-        if changed {
-            let id = article.id;
-            self.submit_read_state(std::iter::once(id).collect(), false)?;
         }
         self.retained_article = self.current().map(|article| article.id);
         self.focus = Focus::Reader;
         self.workspace.show_reader = true;
-        if changed && self.personal_writes.is_none() {
-            self.refresh_read_counts()?;
-        }
         Ok(())
     }
 

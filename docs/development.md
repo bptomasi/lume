@@ -15,6 +15,11 @@ pointer navigation or focus loss cancels the prefix. Held-key autorepeat never
 completes it. In Library and annotations, `dd` keeps its existing contextual
 behavior. Use `:organize` to edit folder membership independently of Trash.
 
+The Articles list updates after the deletion transaction commits, independently
+of sidebar recounts and preparation of the next article. Failed writes retain
+the row. Modal editors and selections preserve their captured source until
+normal reading resumes; undo remains on the same ordered personal-write lane.
+
 ## Build and installation commands
 
 `make` and `make help` list commands without building or modifying data.

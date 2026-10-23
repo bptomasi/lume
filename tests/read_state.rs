@@ -85,12 +85,12 @@ fn explicit_mark_read_is_idempotent_and_one_undo_reverts_it() -> Result<()> {
 }
 
 #[test]
-fn opening_an_article_updates_read_and_restores_that_folder_after_restart()
+fn marking_an_article_updates_read_and_restores_that_folder_after_restart()
 -> Result<()> {
     let (directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
     let id = app.current().ok_or_else(|| anyhow!("Missing article"))?.id;
-    press(&mut app, KeyCode::Enter)?;
+    command(&mut app, "mark-read")?;
     let read_count = app
         .navigation
         .iter()
@@ -111,7 +111,7 @@ fn opening_an_article_updates_read_and_restores_that_folder_after_restart()
 }
 
 #[test]
-fn opening_updates_boolean_read_sensitive_counts_and_is_idempotent()
+fn explicit_read_updates_boolean_read_sensitive_counts_and_is_idempotent()
 -> Result<()> {
     let (_directory, store, _feed) = common::seeded_store()?;
     for (name, text) in [
@@ -131,7 +131,7 @@ fn opening_updates_boolean_read_sensitive_counts_and_is_idempotent()
     app.set_view(View::All)?;
 
     press(&mut app, KeyCode::Enter)?;
-    press(&mut app, KeyCode::Enter)?;
+    command(&mut app, "mark-read")?;
 
     for (name, expected) in [("Pending", 0), ("Done", 1), ("Everything", 1)] {
         let item = app.navigation.iter().find(|item| item.title == name);

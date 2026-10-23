@@ -122,7 +122,15 @@ impl App {
             completion.result?;
             return Ok(Action::None);
         }
-        match completion.result? {
+        self.install_personal_outcome(completion.result?, pending)
+    }
+
+    fn install_personal_outcome(
+        &mut self,
+        outcome: Outcome,
+        pending: Option<PendingWrite>,
+    ) -> Result<Action> {
+        match outcome {
             Outcome::SavedPage { article, visit } => {
                 self.finish_web_save(article, visit)?
             }
@@ -138,6 +146,9 @@ impl App {
                 self.install_personal_effect(effect, comments?)?;
             }
             Outcome::Articles | Outcome::Checkpoint => {}
+            Outcome::Deleted { article, deleted } => {
+                self.finish_article_deletion(article, deleted)?;
+            }
             Outcome::Collections => self.invalidate_notebook(),
             Outcome::Definitions => self.finish_definition_removal()?,
             Outcome::SearchHistory(history) => {

@@ -38,6 +38,8 @@ def seed(directory):
         "# Request ownership\n\nEach boundary owns a responsibility.\n\n"
         r"$R{\mathcal{I}}=\text{Combine}\circ\text{Disintegrate}$"
         "\n\n"
+        r"$\frac{\text{Compose}}{1+x}$"
+        "\n\n"
         r"$\ell_\infty+\frac{1}{2}+\log^{3/2} n$"
         "\n\n"
         f"![Request path]({ADDRESS})\n\n"
@@ -380,7 +382,7 @@ def graphic_formulas(directory, process, initial, cell_height):
     decoded = decode_formula_rows(directory, current, source_width)
     if len(decoded) != 2 or any(image["height"] > cell_height * 2 for image in decoded):
         raise RuntimeError(f"Graphic formulas exceeded compact font-relative rows: {decoded}")
-    command(directory, "find Combine")
+    command(directory, "find Compose")
     time.sleep(0.1)
     before = frame(directory)["offset"]
     command(directory, "image")
@@ -391,7 +393,7 @@ def graphic_formulas(directory, process, initial, cell_height):
     output = directory / "terminal-output.bin"
     before_copy = output.stat().st_size
     send(directory, b"y")
-    source = r"R{\mathcal{I}}=\text{Combine}\circ\text{Disintegrate}"
+    source = r"\frac{\text{Compose}}{1+x}"
     clipboard = b"\x1b]52;c;" + base64.b64encode(source.encode()) + b"\x1b\\"
     wait_for("formula original LaTeX", lambda: clipboard in output.read_bytes()[before_copy:], process)
     send(directory, b"\x1b")

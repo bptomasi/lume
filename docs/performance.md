@@ -28,6 +28,11 @@ The native benchmark also accepts focused flags, including
 `--fluency-only`, `--server-refresh-only`, `--publisher-refresh-only`,
 `--retention-images-only`, `--retention-only`, `--media-review-only` and
 `--motion-review-only`.
+Deletion has its own `--article-deletion-only` workload.
+`--active-reading-only` checks cached and changing viewport observations in
+batches of 1,000 polls, with simulated monotonic time and durable unread-state
+verification. The formula workload also checks styled inline prose without
+requesting graphics. These timings exclude terminal presentation.
 Add `--stress`
 for larger workloads.
 Setup precedes operation timers; resource reports identify process-wide
@@ -69,6 +74,18 @@ current hardware or a substitute for measuring later changes.
 | Reading-state and offline review | [Before/after workloads and native Foot](performance/reading-review.json) |
 | Image source reuse and formula fallback | [Checked before/after measurements](performance/media-review.json) |
 | Scroll frames and empty-cache cleanup | [Checked comparison](performance/motion-retention-review.json) |
+| Article deletion feedback | [Committed deletion/frame comparison](performance/article-deletion.json) |
+| Active read policy and inline LaTeX | [Checked representative/stress costs](performance/active-inline-reading.json) |
+
+The active-read/inline-LaTeX report uses three optimized processes per workload
+and size with Rust 1.99.1. Observing a cached viewport costs median 0.042/0.044 ms
+per 1,000 polls with 200/2,000 paragraphs; changing the viewport costs
+0.189/0.198 ms. Checks retain the same selected article and durable unread
+state without reaching the configured time threshold. Styled inline TeX with
+20/120 sentence copies costs 0.027/0.127 ms per parse/layout and requests zero
+graphics. These are absolute local costs without a prior-version comparison.
+The release executable builds successfully; real Foot qualification for this
+revision remains pending because this environment lacks Xvfb and Weston.
 
 The reading-service workloads use three release processes per size with Rust
 1.99.1 on the recorded Core Ultra 7 environment. A selector movement pair plus
@@ -256,6 +273,35 @@ expired-image deletion speed or a whole-application speedup. Reproduce with
 `cargo test --locked --bench reader -- --test --motion-review-only`, adding
 `--stress` for the larger fixture. The report retains raw samples, executable
 hashes and local qualification details.
+
+The [article deletion comparison](performance/article-deletion.json) uses
+2,000/13,000 articles and 46 populated smart lists. Three sequential local
+unoptimized processes per size each perform two deletions through the real `dd`
+key path. Undo restores the captured identity outside each operation timer.
+
+| Operation | Before | After |
+| --- | ---: | ---: |
+| Background `dd` to first committed frame, 2,000 articles | 61.093 ms | 5.377 ms |
+| Background `dd` to first committed frame, 13,000 articles | 340.278 ms | 5.164 ms |
+| Background `dd`, page/source/counts settled, 13,000 articles | 340.344 ms | 317.636 ms |
+| Synchronous `dd` and committed frame, 13,000 articles | 673.501 ms | 330.049 ms |
+
+Commit acknowledgement updates the bounded metadata page before recounting
+smart lists or preparing the next source. Counts and source/page reads proceed
+independently; count publication does not repeat that page load. No row is
+hidden before its write commits, and failed writes retain the existing row.
+The synchronous path no longer reloads the whole library twice.
+
+First-frame timings mean the updated Articles list is drawn; reader preparation
+and sidebar counts can still be pending. Complete reconciliation remains much
+more expensive than this initial feedback. Timers include a 1 ms poll cadence
+and TestBackend drawing; setup, undo, network and physical presentation are
+excluded. Process RSS and I/O are not measured. Native regressions separately
+cover rejected writes, source-bound editors, successive deletions, grouped
+representatives, last-page refill, restoration and undo. Reproduce with
+`cargo test --locked --bench reader -- --test --article-deletion-only`, adding
+`--stress` for 13,000 articles. These measurements do not establish release or
+physical-display latency.
 
 ## Boundaries
 

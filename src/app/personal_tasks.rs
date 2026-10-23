@@ -95,6 +95,10 @@ pub(super) enum Outcome {
         comments: Result<Vec<Comment>>,
     },
     Articles,
+    Deleted {
+        article: i64,
+        deleted: bool,
+    },
     Checkpoint,
     Collections,
     Definitions,

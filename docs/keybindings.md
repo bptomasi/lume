@@ -9,7 +9,7 @@ motions act on readable text and preserve Unicode grapheme boundaries.
 | Welcome | Any key; `Ctrl-c` | Enter the library; exit |
 | Navigation | `j/k`, arrows, `gg/G`, `Ctrl-d/u` | Move, jump and page |
 | Panels | `Tab`, `Shift-Tab`, `Ctrl-w` | Change focus; open the layout guide |
-| Article | `Enter`, `Z`, `Esc` | Open and mark read; fullscreen; return |
+| Article | `Enter`, `Z`, `Esc` | Open Reader; fullscreen; return |
 | Search | `/`, `n/N` | Search the focused reader/list; next/previous match |
 | Reader | `h/l`, `w/b/e`, `W/B/E` | Character, word and whitespace-delimited WORD motions |
 | Reader | `0`, `^`, `$`, `I`, `A` | Row start, first text and row end |
@@ -27,6 +27,15 @@ be created against a hidden article from an unrelated panel. `dd` uses the
 focused target; article deletion goes to recoverable Trash, while note deletion
 retains the note undo contract. Check `?` for counted motions, jump history,
 find commands, editor search, tags, study cards and command variants.
+
+Clicking an article only selects its preview. Enter opens the Reader without
+marking it read. By default, automatic marking requires 90% cumulative
+displayed publisher text and ten active Reader seconds. A jump to the end
+does not count skipped text. Other panes, dialogs and lost terminal window
+focus pause time. `m` toggles read state explicitly; `:mark-read` and
+`:mark-unread` set it. Explicit changes override automation for the current
+article visit. `:auto-read off` disables automation; `:settings` and
+`[ui.auto_read]` configure its thresholds.
 
 ## Tables and code
 
@@ -175,6 +184,8 @@ Unicode formulas include extended super/subscripts, sums/products and integral
 bounds, function application, accents, binomial coefficients and compact matrix
 rows. Missing script glyphs use grouped `^(...)` / `_(...)` notation. This is
 portable terminal text, with unsupported layouts preserved as original LaTeX.
+In graphics mode, text commands and linear inline expressions retain paragraph
+flow; spatial notation and display equations can use local vector outlines.
 
 In Library, `dd` removes the selected feed subscription or smart list.
 The two presses must refer to the same destination; Esc, another action or

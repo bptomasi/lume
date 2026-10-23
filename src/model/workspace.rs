@@ -161,6 +161,8 @@ pub struct Workspace {
     pub latex_formulas: bool,
     /// Opt into SVG typesetting; unsupported terminals retain readable text.
     pub latex_graphics: bool,
+    /// Active reading thresholds; selecting or opening never marks by itself.
+    pub auto_read: super::AutoReadSettings,
     /// Durable local preference generation; excluded from portable configuration.
     pub appearance_revision: u64,
     /// Maximum prose width in terminal columns.
@@ -213,6 +215,7 @@ impl Default for Workspace {
             justify: false,
             latex_formulas: true,
             latex_graphics: false,
+            auto_read: super::AutoReadSettings::default(),
             appearance_revision: 0,
             reading_width: 82,
             fullscreen_width: 80,

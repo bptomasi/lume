@@ -174,6 +174,8 @@ pub struct Ui {
     pub latex_formulas: bool,
     /// Opt into SVG typesetting; unsupported terminals retain readable text.
     pub latex_graphics: bool,
+    /// Active Reader time and visible coverage required for automatic read state.
+    pub auto_read: crate::model::AutoReadSettings,
     /// Normal-mode key names mapped to ex commands.
     pub keybindings: BTreeMap<String, String>,
     /// Pane arrangement and prose widths, without article identities.
@@ -195,6 +197,7 @@ impl Ui {
             justify: workspace.justify,
             latex_formulas: workspace.latex_formulas,
             latex_graphics: workspace.latex_graphics,
+            auto_read: workspace.auto_read,
             keybindings: workspace.keybindings.clone(),
             layout: PanelLayout::capture(workspace),
         }
@@ -209,6 +212,7 @@ impl Ui {
         workspace.justify = self.justify;
         workspace.latex_formulas = self.latex_formulas;
         workspace.latex_graphics = self.latex_graphics;
+        workspace.auto_read = self.auto_read;
         workspace.keybindings = self.keybindings.clone();
     }
 }
@@ -258,6 +262,7 @@ impl Configuration {
         self.validate_servers()?;
         self.validate_queries()?;
         self.retention.validate()?;
+        self.ui.auto_read.validate()?;
         self.validate_retention_sources()?;
         let mut workspace = Workspace::default();
         self.ui.apply(&mut workspace);

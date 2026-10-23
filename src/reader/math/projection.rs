@@ -42,11 +42,12 @@ fn element(node: Node<'_, '_>, parts: &[String]) -> Option<String> {
             .attribute("width")
             .map_or_else(String::new, |_| " ".into()),
         ("mi", _) => parts.concat().replace(['\u{fe00}', '\u{fe01}'], ""),
+        ("mtext", _) => parts.concat().replace('\u{a0}', " "),
         ("annotation", _) => String::new(),
         ("mo", _) => operator(node, &parts.concat()),
         (
-            "math" | "mrow" | "mn" | "mtext" | "mstyle" | "mpadded" | "mtd"
-            | "semantics",
+            "math" | "mrow" | "mn" | "mstyle" | "mpadded" | "mtd" | "semantics"
+            | "b" | "i" | "em" | "code" | "span" | "s" | "u",
             _,
         ) => parts.concat(),
         _ => return None,

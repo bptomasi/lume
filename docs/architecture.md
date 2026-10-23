@@ -198,6 +198,16 @@ than 4 KiB is displayed without retention. Reader motion can reuse this work
 without caching live selection, favorite/read flags or feed labels. Images
 skip workspace geometry/admission when their visible-slot interval is empty.
 
+Article deletion acknowledges a committed visibility change separately from
+generic library edits. In ordinary reading mode, acknowledgement removes its
+bounded metadata row immediately and preserves the selected surviving identity.
+The next page/source and sidebar counts refresh independently. The count result
+does not enqueue a second page load. Generation checks reject earlier snapshots;
+source-bound editors and selections defer publication through the existing
+navigation guards. Failed writes never remove a row. Grouped-page counts come
+from the authoritative query because another occurrence can replace a deleted
+representative. The synchronous adapter performs one catalog reload.
+
 `ui::layout` computes fixed columns and binary splits with bounded rectangle
 arithmetic. Rendering, focus and pointer hit testing share that geometry.
 Each split reserves the combined minimum dimensions of its expanded children;
@@ -289,6 +299,22 @@ restrictions are irrelevant to that bounded Unicode projection; macro state
 remains local and unknown commands still fail closed to raw source. Positive
 and negative text/vector results share the existing bounded per-document
 caches; repeated failures still consume the document admission budget.
+Generated MathML text-style wrappers project transparently, normalizing mtext
+nonbreaking spaces for paragraph wrapping and preserving uniform text modifiers.
+Graphic admission follows spatial MathML structure instead of source length:
+styled prose and linear expressions do not request image work. Display math
+and two-dimensional notation retain vector outlines and exact source mappings.
+
+Automatic read intent is owned by `app::auto_read`, independently of selection
+and saved position. A bounded union of at most 1,024 displayed byte intervals
+tracks publisher coverage, excluding appended notes and horizontally hidden
+code. Cached viewport keys avoid recording unchanged rows on idle polls. A
+monotonic clock counts only eligible focused Reader time; dialogs, gestures,
+selection and lost terminal focus pause it, and gaps over one second are not
+credited. Source changes reset coverage; unchanged publisher text survives
+reflow. Explicit read/unread intent blocks automation for that article visit.
+One qualifying observation admits the existing ordered personal write; there
+are no database reads/writes, new timers or frames on ordinary idle polls.
 
 Server credential entry is a distinct masked mode, outside general command
 and draft editors. The modal owns only a transient bounded value; the store

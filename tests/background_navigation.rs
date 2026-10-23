@@ -30,6 +30,14 @@ fn settle(app: &mut App) -> Result<()> {
     Ok(())
 }
 
+fn active_read(app: &mut App) -> Result<()> {
+    let start = Instant::now();
+    for step in 0..=40 {
+        app.poll_auto_read(start + Duration::from_millis(step * 250))?;
+    }
+    Ok(())
+}
+
 fn command(app: &mut App, text: &str) -> Result<()> {
     app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
     app.paste(text)?;
@@ -269,8 +277,8 @@ fn additional_article_steps_replace_the_selection_of_a_page_still_loading()
 }
 
 #[test]
-fn opening_unread_admits_write_without_waiting_for_a_locked_database()
--> Result<()> {
+fn active_read_admits_write_without_waiting_for_a_locked_database() -> Result<()>
+{
     let (directory, store, _) = common::seeded_store()?;
     let path = directory.path().join("library.sqlite3");
     let observer = Store::open(&path)?;
@@ -287,6 +295,8 @@ fn opening_unread_admits_write_without_waiting_for_a_locked_database()
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     assert!(start.elapsed() < Duration::from_millis(200));
     assert_eq!(app.focus, Pane::Reader);
+    assert!(app.current().context("Selection")?.unread);
+    active_read(&mut app)?;
     assert!(!app.current().context("Selection")?.unread);
     assert!(observer.article(id)?.unread);
     assert!(app.notes_pending());
@@ -320,6 +330,7 @@ fn manual_unread_and_undo_follow_the_admitted_automatic_read() -> Result<()> {
     app.focus = Pane::Articles;
 
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    active_read(&mut app)?;
     command(&mut app, "mark-unread")?;
     app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE))?;
     lock.execute_batch("ROLLBACK")?;
@@ -457,6 +468,7 @@ fn failed_read_save_reports_the_failure_and_reconciles_optimistic_flags()
 
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     let deadline = Instant::now() + Duration::from_secs(5);
+    active_read(&mut app)?;
     let error = loop {
         if let Err(error) = app.poll_note_tasks() {
             break error;
@@ -541,6 +553,9 @@ fn automatic_read_keeps_an_opened_unread_smart_list_article() -> Result<()> {
         let expected = observer.body(id)?;
 
         app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+        settle(&mut app)?;
+        assert!(observer.article(id)?.unread);
+        active_read(&mut app)?;
         settle(&mut app)?;
 
         assert_eq!(app.current().context("Retained article")?.id, id);

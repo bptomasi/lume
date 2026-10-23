@@ -6,6 +6,7 @@
 
 mod annotations;
 mod article_edits;
+mod auto_read;
 mod catalog_worker;
 mod commands;
 mod completion;
@@ -361,6 +362,7 @@ pub struct App {
     /// Separate image loading state; text layout never waits for it.
     pub images: ReaderImages,
     renderer: crate::reader::LiveRenderer,
+    auto_read: auto_read::AutoRead,
     headlines: std::cell::RefCell<headlines::Headlines>,
     navigation_worker: Option<navigation_worker::NavigationWorker>,
     catalog_worker: Option<catalog_worker::CatalogWorker>,
@@ -529,6 +531,7 @@ impl App {
             reader_tools: ReaderTools::default(),
             images: ReaderImages::default(),
             renderer: crate::reader::LiveRenderer::start()?,
+            auto_read: auto_read::AutoRead::default(),
             headlines: std::cell::RefCell::default(),
             navigation_worker: None,
             catalog_worker: None,

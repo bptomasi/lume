@@ -99,6 +99,15 @@ fn visual_preferences(
                 "Text"
             }
         ),
+        format!("Automatic read state: {}", app.workspace.auto_read.enabled),
+        format!(
+            "Active reading seconds: {}",
+            app.workspace.auto_read.min_active_seconds
+        ),
+        format!(
+            "Displayed article coverage: {}%",
+            app.workspace.auto_read.min_coverage_percent
+        ),
     ]
 }
 

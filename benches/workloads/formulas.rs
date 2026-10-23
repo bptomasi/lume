@@ -45,7 +45,39 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     }
     graphical_layout(&body.replace('$', "$$"), iterations)?;
     compact_abstract(iterations)?;
+    styled_prose(iterations, stress)?;
     cached_transitions(&body, iterations)
+}
+
+fn styled_prose(iterations: usize, stress: bool) -> Result<()> {
+    let copies = if stress { 120 } else { 20 };
+    let body =
+        r"Verse uses $\textit{Chandas}$ and $\textit{Laghu-Guru}$ analysis. "
+            .repeat(copies);
+    super::measure("styled inline TeX without graphic work", iterations, || {
+        let rendered = reader::render_with_options(
+            &body,
+            80,
+            RenderOptions {
+                latex_formulas: true,
+                graphical_formulas: true,
+            },
+        );
+        ensure!(
+            rendered.images.is_empty(),
+            "Styled prose requested graphics"
+        );
+        ensure!(
+            rendered.text.matches("Chandas").count() == copies,
+            "Term lost"
+        );
+        ensure!(
+            rendered.text.matches("Laghu-Guru").count() == copies,
+            "Term lost"
+        );
+        ensure!(!rendered.text.contains('\\'), "Raw TeX escaped projection");
+        Ok(())
+    })
 }
 
 fn compact_abstract(iterations: usize) -> Result<()> {
@@ -59,7 +91,10 @@ fn compact_abstract(iterations: usize) -> Result<()> {
                 graphical_formulas: true,
             },
         );
-        ensure!(rendered.images.len() == 2, "Inline variables became images");
+        ensure!(
+            rendered.images.is_empty(),
+            "Linear inline math became images"
+        );
         ensure!(rendered.lines.len() < 24, "Abstract became fragmented");
         ensure!(
             rendered.images.iter().all(|slot| slot.rows.len() <= 2),

@@ -74,15 +74,69 @@ impl App {
         if self.retained_article == Some(article) {
             self.retained_article = None;
         }
-        if self.personal_writes.is_none() {
-            self.reload()?;
-        }
         self.status = if deleted {
             "Article moved to Trash · u undo · :trash to restore".into()
         } else {
             "Article restored · u undo".into()
         };
         Ok(())
+    }
+
+    pub(super) fn finish_article_deletion(
+        &mut self,
+        article: i64,
+        deleted: bool,
+    ) -> Result<()> {
+        // Commit acknowledgement owns visibility. Counts and the next source
+        // can be expensive; neither is a prerequisite for removing this row.
+        let checkpoint = self.save_reading_position();
+        self.library_revision = self.library_revision.wrapping_add(1);
+        self.invalidate_notebook();
+        if self.retained_article == Some(article) {
+            self.retained_article = None;
+        }
+        if matches!(self.mode, super::Mode::Normal)
+            && self.selection.is_none()
+            && self.notebook.is_none()
+        {
+            if deleted != (self.view == View::Trash) {
+                self.remove_deleted_metadata(article);
+            }
+            if self.current().is_none() {
+                self.clear_current();
+            }
+        }
+        self.refresh_catalog_page();
+        self.request_catalog(super::catalog_worker::Scope::Counts);
+        self.status = if deleted {
+            "Article moved to Trash · u undo · :trash to restore".into()
+        } else {
+            "Article restored · u undo".into()
+        };
+        checkpoint
+    }
+
+    fn remove_deleted_metadata(&mut self, article: i64) {
+        let selected = self.current().map(|item| item.id);
+        let previous = self.library.articles.len();
+        self.library.articles.retain(|item| item.id != article);
+        if self.library.articles.len() == previous {
+            return;
+        }
+        self.visible = (0..self.library.articles.len()).collect();
+        self.selected = selected
+            .filter(|id| *id != article)
+            .and_then(|id| {
+                self.library.articles.iter().position(|item| item.id == id)
+            })
+            .unwrap_or_else(|| {
+                self.selected.min(self.visible.len().saturating_sub(1))
+            });
+        // Grouped results may replace the deleted representative with another
+        // occurrence. Let the authoritative page determine its group count.
+        if self.view != View::Grouped {
+            self.page_total = self.page_total.saturating_sub(1);
+        }
     }
 
     pub(super) fn deletion_choice(&self) -> Option<Choice> {

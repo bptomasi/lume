@@ -14,6 +14,47 @@ fn options() -> reader::RenderOptions {
 }
 
 #[test]
+fn styled_arxiv_terms_remain_in_the_paragraph_and_keep_exact_source()
+-> Result<()> {
+    use ratatui::style::Modifier;
+    let source = r"Verse uses $\textit{Chandas}$, rhythmic $\textit{Laghu}$ and $\textit{Guru}$ syllables. We introduce $\textit{ShlokaDhara}$ for $\textit{Text-to-Recite}$ synthesis and $\textit{Laghu-Guru}$ analysis.";
+    let expected = "Verse uses Chandas, rhythmic Laghu and Guru syllables. We introduce ShlokaDhara for Text-to-Recite synthesis and Laghu-Guru analysis.";
+    for width in [40, 80, 120] {
+        let rendered = reader::render_with_options(source, width, options());
+        assert_eq!(rendered.text.trim(), expected);
+        assert!(rendered.images.is_empty());
+        assert!(
+            rendered
+                .lines
+                .iter()
+                .flat_map(|line| &line.spans)
+                .any(|span| span.content.contains("Chandas")
+                    && span.style.add_modifier.contains(Modifier::ITALIC))
+        );
+        let start =
+            rendered.text.find("ShlokaDhara").context("Term missing")?;
+        let original = reader::to_source(
+            &rendered.mappings,
+            start..start + "ShlokaDhara".len(),
+        )
+        .context("Source missing")?;
+        assert_eq!(&source[original], r"$\textit{ShlokaDhara}$");
+    }
+    Ok(())
+}
+
+#[test]
+fn long_text_labels_do_not_request_graphics_based_on_their_length() {
+    let source = r"A $\textbf{very long descriptive model name}$ stays inline beside $\texttt{encoder-decoder}$ and $\textit{A\&B}$.";
+    let rendered = reader::render_with_options(source, 120, options());
+    assert!(rendered.images.is_empty());
+    assert_eq!(
+        rendered.text.trim(),
+        "A very long descriptive model name stays inline beside encoder-decoder and A&B."
+    );
+}
+
+#[test]
 fn short_spatial_inline_formulas_get_outlines_and_keep_original_source()
 -> Result<()> {
     for latex in [
@@ -272,7 +313,7 @@ fn arxiv_inline_variables_and_commands_keep_the_paragraph_compact() {
     );
     assert!(rendered.text.contains("state set Q and tape alphabet Γ"));
     assert!(rendered.text.contains("EQₙ requires 2ⁿ states"));
-    assert_eq!(rendered.images.len(), 2);
+    assert!(rendered.images.is_empty());
     assert!(rendered.images.iter().all(|slot| slot.rows.len() <= 2));
     assert!(rendered.lines.len() < 24);
 }
@@ -316,7 +357,7 @@ fn navigation_after_a_formula_policy_change_replaces_the_pending_source_anchor()
 -> Result<()> {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let source = format!(
-        "{}\n{}",
+        "{}\n\nA spatial term $\\frac{{a}}{{b}}$.\n\n{}",
         include_str!("fixtures/arxiv-tool-access.md"),
         "A later passage remains available.\n\n".repeat(80)
     );

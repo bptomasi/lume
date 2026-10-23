@@ -452,12 +452,16 @@ impl App {
         // Private comments currently include display wraps in readable text.
         // Their reflow must not invalidate a selection of unchanged publisher
         // text. Selections reaching those comments still require exact equality.
-        let publisher_unchanged = cursor < self.article_text_end
+        let publisher_unchanged = previous.get(..previous_article_end)
+            == self.reader_text.get(..self.article_text_end);
+        if !publisher_unchanged {
+            self.auto_read_text_changed();
+        }
+        let publisher_unchanged = publisher_unchanged
+            && cursor < self.article_text_end
             && self
                 .selection
-                .is_none_or(|anchor| anchor < self.article_text_end)
-            && previous.get(..previous_article_end)
-                == self.reader_text.get(..self.article_text_end);
+                .is_none_or(|anchor| anchor < self.article_text_end);
         if unchanged || publisher_unchanged {
             self.place_cursor(cursor);
             return;

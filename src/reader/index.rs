@@ -105,6 +105,7 @@ impl DocumentIndex {
                 {
                     let text = super::math::Math::default()
                         .render(&text, false)
+                        .map(|text| text.value)
                         .unwrap_or_else(|| text.into_string());
                     append_text(&mut heading, &mut code, &text);
                 }

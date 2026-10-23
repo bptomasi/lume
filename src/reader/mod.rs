@@ -224,18 +224,23 @@ impl Builder<'_> {
         if block {
             self.flush();
         }
-        let text = self
+        let projected = self
             .options
             .latex_formulas
             .then(|| self.math.render(latex, block))
-            .flatten()
-            .unwrap_or_else(|| {
-                self.source.get(range.clone()).unwrap_or(latex).to_owned()
-            });
+            .flatten();
+        let spatial = projected.as_ref().is_some_and(|text| text.spatial);
+        let modifier = projected
+            .as_ref()
+            .map_or(Modifier::empty(), |text| text.modifier);
+        let text = projected.map_or_else(
+            || self.source.get(range.clone()).unwrap_or(latex).to_owned(),
+            |text| text.value,
+        );
         if self.options.latex_formulas
             && self.options.graphical_formulas
             && self.table.is_none()
-            && math::needs_graphics(latex, &text, block)
+            && (block || spatial)
             && self
                 .rendered
                 .images
@@ -248,7 +253,9 @@ impl Builder<'_> {
             self.formula_image(formula, text, range);
             return;
         }
+        self.push_style(modifier);
         self.append(text, range);
+        self.styles.pop();
         if block {
             self.flush();
         }

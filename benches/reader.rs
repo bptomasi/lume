@@ -7,10 +7,14 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use lume::{app::App, model::IncomingArticle, source, store::Store, ui};
 use ratatui::{Terminal, backend::TestBackend};
 
+#[path = "workloads/active_reading.rs"]
+mod active_reading;
 #[path = "workloads/notebook.rs"]
 mod annotation_notebook;
 #[path = "workloads/annotation_projection.rs"]
 mod annotation_projection;
+#[path = "workloads/article_deletion.rs"]
+mod article_deletion;
 #[path = "workloads/catalog.rs"]
 mod catalog;
 #[path = "workloads/code_viewport.rs"]
@@ -133,6 +137,8 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    active_reading::run(iterations, stress)?;
+    article_deletion::run(iterations, stress)?;
     motion_review::run(iterations, stress)?;
     media_review::run(iterations, stress)?;
     retention_images::run(iterations, stress)?;
@@ -173,6 +179,8 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--active-reading-only", active_reading::run),
+    ("--article-deletion-only", article_deletion::run),
     ("--media-review-only", media_review::run),
     ("--motion-review-only", motion_review::run),
     ("--retention-images-only", retention_images::run),

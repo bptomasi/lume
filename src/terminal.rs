@@ -154,6 +154,7 @@ fn event_loop(
     loop {
         if !welcome {
             dirty |= sync_mouse(guard, app);
+            dirty |= poll_auto_read(app);
         }
         dirty |= background.tick(app)?;
         dirty |= poll_reading_workers(app);
@@ -209,6 +210,16 @@ fn dispatch_input(
         return Ok(InputOutcome::Redraw);
     }
     Ok(InputOutcome::Idle)
+}
+
+fn poll_auto_read(app: &mut App) -> bool {
+    match app.poll_auto_read(Instant::now()) {
+        Ok(changed) => changed,
+        Err(error) => {
+            app.status = format!("{error:#}");
+            true
+        }
+    }
 }
 
 fn poll_reading_workers(app: &mut App) -> bool {
