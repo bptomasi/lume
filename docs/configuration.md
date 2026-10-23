@@ -83,11 +83,20 @@ Manage these definitions without editing TOML:
 
 ```text
 :server https://reader.example LUME_MINIFLUX_TOKEN
+:server https://reader.example --token
 :servers
 :server-disable
 :server-enable
 :unserver
 ```
+
+Use `:server URL --token` to open a masked API-key prompt. The destination is
+shown before saving. Paste the key and press Enter to save it in TOML;
+Esc discards the entry, Ctrl-u clears it, and Backspace edits it. The secret is
+excluded from ordinary command text, annotation drafts, debug output and
+frames. Reconnecting the same URL retains its portable identity and replaces
+the previous credential source. This option belongs to the internal command;
+the noninteractive `lume server add` command still accepts an environment name.
 
 The Library has a **SERVERS** section with one aggregate destination per
 connection and its remote feeds below it. Select a connection and use `dd` to
@@ -438,6 +447,19 @@ enabled = false
 protocol = "auto"
 ```
 
+Images are decoded from original bytes, with native Lanczos filtering and
+source-based inspection rather than enlarging a character preview. The source
+budget accepts up to 8,388,608 pixels, including UHD 3840×2160, while retaining
+the 8 MiB download/cache-file and 64 MiB decoder allocation limits. Two raster
+sources can share a 32 MiB decoded cache; larger sources evict older entries or
+are prepared without retention. Two SVG trees share a 512 KiB source-input
+budget. Sources can be reused across image/formula switches, zoom and resize.
+Camera/EXIF orientation is applied once before fitting and caching the source.
+Transparent raster edges are matted before filtering, preserving 16-bit source
+precision until resampling; existing RGBA pixel buffers are borrowed instead of
+cloned for compositing. SVG antialiasing composites directly onto the theme
+background. Native Sixel output still has its palette/terminal limitations.
+
 Image preferences persist across sessions. `:images on/off` changes `enabled`;
 `:image-protocol auto|blocks|sixel|iterm2` changes the protocol preference.
 `auto` conservatively detects the current terminal, independently per session.
@@ -456,6 +478,8 @@ Only nonfinal prose rows expand existing word gaps, by at most three extra
 cells per gap. Code blocks, tables, headings, lists and quotations keep their
 original alignment. Readable text, clipboard contents, links and annotation
 source ranges retain their original bytes.
+
+## LaTeX formulas
 
 Formula rendering defaults to `latex_formulas = true` under `[ui]`.
 `:latex-formulas on|off|toggle` changes and saves the same preference;
@@ -484,3 +508,13 @@ cells and table inspection always use text formulas to preserve their columns.
 Terminals without Sixel and temporary linked text pages also retain the
 lightweight projection. Unsupported or excessive expressions remain readable;
 a document admits at most 32 graphic formulas and 32 ordinary image slots.
+
+Text formulas also support boxed/cancelled terms (`\boxed`, `\cancel`,
+`\bcancel`, `\xcancel`), over/under braces, tensor prescripts, wide accents and
+under arrows. Spatial notation without a compact Unicode glyph uses explicit
+labels such as `boxed(x² + y²)` or `underbrace(a + b)ₙ`. Formula selection and
+notes continue to reference the exact original TeX. Unsupported results are
+cached within the same bounded document preparation without relaxing the
+expression-count, source-size or expansion limits; unsupported commands still
+remain verbatim. Graphic coverage is independently limited by the qualified
+outline renderer, with selectable text fallback.

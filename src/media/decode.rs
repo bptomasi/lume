@@ -11,7 +11,7 @@ use ratatui_image::{
 
 use super::{ImageKey, ImageProtocol, MAX_BYTES, Thumbnail, geometry};
 
-/// Reuses fonts and one bounded raster source outside UI drawing.
+/// Reuses fonts and bounded raster/vector sources outside UI drawing.
 #[derive(Default)]
 pub struct Decoder {
     svg: super::svg::SvgDecoder,
@@ -33,7 +33,6 @@ impl Decoder {
         let (image, dimensions) = if image::guess_format(bytes).is_ok() {
             self.raster.render(bytes, key)?
         } else {
-            self.raster.clear();
             self.svg.render(bytes, key)?
         };
         prepare(image, dimensions, key)
@@ -151,6 +150,11 @@ fn composite(image: DynamicImage, key: &ImageKey) -> DynamicImage {
         // row could force the terminal encoder to rescale the fitted image.
         image.height()
     };
+    // Both source decoders matte before this point. Reuse fitted opaque
+    // pixels unless halfblocks need one final padding row.
+    if image.height() == height {
+        return image;
+    }
     let mut canvas = RgbaImage::from_pixel(
         image.width(),
         height,

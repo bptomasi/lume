@@ -1,16 +1,23 @@
 //! Restricted vector rendering: no resource resolver can read publisher paths.
 
 use anyhow::{Context, Result, ensure};
-use image::{DynamicImage, RgbaImage};
+use image::{DynamicImage, RgbImage};
 use resvg::{tiny_skia, usvg};
 use sha2::{Digest, Sha256};
+use std::collections::VecDeque;
 
 use super::ImageKey;
 
 #[derive(Default)]
 pub(super) struct SvgDecoder {
     options: Option<usvg::Options<'static>>,
-    cached: Option<([u8; 32], usvg::Tree)>,
+    cached: VecDeque<Source>,
+}
+
+struct Source {
+    digest: [u8; 32],
+    bytes: usize,
+    tree: usvg::Tree,
 }
 
 impl SvgDecoder {
@@ -29,6 +36,8 @@ impl SvgDecoder {
         let mut pixmap =
             tiny_skia::Pixmap::new(geometry.width, geometry.height)
                 .context("Could not allocate SVG thumbnail")?;
+        let [red, green, blue] = key.background;
+        pixmap.fill(tiny_skia::Color::from_rgba8(red, green, blue, 255));
         resvg::render(
             tree,
             tiny_skia::Transform::from_row(
@@ -41,26 +50,47 @@ impl SvgDecoder {
             ),
             &mut pixmap.as_mut(),
         );
-        let image = unpremultiply(&pixmap)?;
+        let image = opaque_pixels(&pixmap)?;
         Ok((image, dimensions))
     }
 
     fn tree(&mut self, bytes: &[u8]) -> Result<&usvg::Tree> {
-        let digest: [u8; 32] = Sha256::digest(bytes).into();
-        if self.cached.as_ref().is_none_or(|(old, _)| *old != digest) {
-            // One admitted source only. Failed input cannot render stale paths.
-            self.cached = None;
+        let digest = Sha256::digest(bytes).into();
+        if let Some(index) = self
+            .cached
+            .iter()
+            .position(|source| source.digest == digest)
+        {
+            let source = self
+                .cached
+                .remove(index)
+                .context("SVG cache entry disappeared")?;
+            self.cached.push_front(source);
+        } else {
+            while self.cached.len() >= 2
+                || self.cached.iter().map(|source| source.bytes).sum::<usize>()
+                    + bytes.len()
+                    > 512 * 1024
+            {
+                if self.cached.pop_back().is_none() {
+                    break;
+                }
+            }
             let xml = parse(bytes)?;
             let options = self.options.get_or_insert_with(restricted_options);
             if xml.descendants().any(|node| node.has_tag_name("text")) {
                 super::fonts::prepare(options)?;
             }
-            self.cached =
-                Some((digest, usvg::Tree::from_xmltree(&xml, options)?));
+            let tree = usvg::Tree::from_xmltree(&xml, options)?;
+            self.cached.push_front(Source {
+                digest,
+                bytes: bytes.len(),
+                tree,
+            });
         }
         self.cached
-            .as_ref()
-            .map(|(_, tree)| tree)
+            .front()
+            .map(|source| &source.tree)
             .context("SVG source was not prepared")
     }
 }
@@ -93,16 +123,13 @@ fn restricted_options() -> usvg::Options<'static> {
     }
 }
 
-fn unpremultiply(pixmap: &tiny_skia::Pixmap) -> Result<DynamicImage> {
+fn opaque_pixels(pixmap: &tiny_skia::Pixmap) -> Result<DynamicImage> {
     let pixels = pixmap
         .pixels()
         .iter()
-        .flat_map(|pixel| {
-            let color = pixel.demultiply();
-            [color.red(), color.green(), color.blue(), color.alpha()]
-        })
+        .flat_map(|pixel| [pixel.red(), pixel.green(), pixel.blue()])
         .collect();
-    let image = RgbaImage::from_raw(pixmap.width(), pixmap.height(), pixels)
+    let image = RgbImage::from_raw(pixmap.width(), pixmap.height(), pixels)
         .context("Invalid SVG thumbnail dimensions")?;
-    Ok(DynamicImage::ImageRgba8(image))
+    Ok(DynamicImage::ImageRgb8(image))
 }

@@ -298,3 +298,20 @@ bytes or a resource resolver. Unsupported text remains in the lightweight
 projection. A change to those consumers or authorities invalidates the review.
 Migration of the upstream exporter to a maintained font parser remains a
 maintenance requirement; the advisory gate retains and checks this finding.
+
+## Image and formula implementation review
+
+This review changes no dependencies. Raster decoding admits 8,388,608 pixels
+(including UHD 3840×2160) with the existing 64 MiB allocation bound. It reserves
+decoder output and evicts old sources before allocation; two retained entries
+share 32 MiB, with source precision preserved. Two SVG trees share a 512 KiB
+source-input budget; this does not claim a bound on parsed-tree memory. Existing
+XML/node limits and resource resolvers are unchanged. Opaque SVG preparation
+eliminates the unpremultiply/recomposite pass without changing allowed assets.
+
+The existing math-core parser admits its browser-layout-limited wide accents
+for Lume's explicit Unicode projection. This adds no parser, executable macros,
+font source or resource resolver. Projection adds enclosures, prescripts and
+brace/arrow annotations while retaining original source maps. Cached failures
+remain subject to document/expression budgets. Unknown or unrepresentable
+content stays raw rather than silently discarding mathematical material.

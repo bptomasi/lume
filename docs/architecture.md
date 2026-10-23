@@ -266,6 +266,29 @@ selections clip only intersecting regions. The inspector fits or zooms from
 source bytes/paths. Portable halfblock previews remain available independently
 of native protocols.
 
+Image source reuse is bounded independently from prepared terminal cells. Two
+raster entries share 32 MiB, with eviction before allocating a new decoded
+source; format headers and pixel/allocation admission are checked before that
+allocation. Opaque-source classification is retained instead of rescanning
+alpha on every fit. Two SVG trees share a 512 KiB raw-input budget and preserve
+shared font setup. Raster sources survive intervening vector preparations.
+SVG paints directly onto an opaque theme canvas, avoiding an unpremultiply/
+recomposite round trip; fitted opaque pixels need only the optional odd-row
+padding used by halfblocks. Native encoders and their existing bounds own wire
+format and color quantization.
+
+Unicode formula projection admits explicit enclosures, braces, tensor indices
+and wide/lower accents from the existing parser. Browser-specific MathML
+restrictions are irrelevant to that bounded Unicode projection; macro state
+remains local and unknown commands still fail closed to raw source. Positive
+and negative text/vector results share the existing bounded per-document
+caches; repeated failures still consume the document admission budget.
+
+Server credential entry is a distinct masked mode, outside general command
+and draft editors. The modal owns only a transient bounded value; the store
+validates the API-token type and atomically reconnects the existing portable
+connection. Publication/redaction uses the ordinary configuration worker.
+
 ## Verification and evolution
 
 Refinery owns immutable, contiguous migration history and checksum validation.

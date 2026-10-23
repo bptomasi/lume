@@ -10,12 +10,19 @@ pub(super) fn project(node: Node<'_, '_>, depth: usize) -> Option<String> {
     if node.is_text() {
         return Some(node.text().unwrap_or_default().into());
     }
+    if node.has_tag_name("mmultiscripts") {
+        return super::embellishments::tensor(node, depth);
+    }
     let parts: Vec<String> = node
         .children()
         .filter(|child| child.is_element() || child.is_text())
         .map(|child| project(child, depth + 1))
         .collect::<Option<_>>()?;
-    let text = match (node.tag_name().name(), parts.as_slice()) {
+    element(node, &parts)
+}
+
+fn element(node: Node<'_, '_>, parts: &[String]) -> Option<String> {
+    let text = match (node.tag_name().name(), parts) {
         ("mfrac", [a, b]) if node.attribute("linethickness") == Some("0") => {
             format!("{a} choose {b}")
         }
@@ -27,9 +34,10 @@ pub(super) fn project(node: Node<'_, '_>, depth: usize) -> Option<String> {
         ("msubsup", [a, b, c]) => {
             limits(&scripted_base(node, a), Some(b), Some(c))
         }
-        ("mover" | "munder" | "munderover", _) => decorated(node, &parts)?,
-        ("mtable", _) => matrix(node, &parts),
-        ("mtr", _) => matrix_row(node, &parts),
+        ("mover" | "munder" | "munderover", _) => decorated(node, parts)?,
+        ("menclose", _) => super::embellishments::enclosure(node, parts)?,
+        ("mtable", _) => matrix(node, parts),
+        ("mtr", _) => matrix_row(node, parts),
         ("mspace", _) => node
             .attribute("width")
             .map_or_else(String::new, |_| " ".into()),
@@ -37,7 +45,8 @@ pub(super) fn project(node: Node<'_, '_>, depth: usize) -> Option<String> {
         ("annotation", _) => String::new(),
         ("mo", _) => operator(node, &parts.concat()),
         (
-            "math" | "mrow" | "mn" | "mtext" | "mstyle" | "mtd" | "semantics",
+            "math" | "mrow" | "mn" | "mtext" | "mstyle" | "mpadded" | "mtd"
+            | "semantics",
             _,
         ) => parts.concat(),
         _ => return None,
@@ -52,7 +61,7 @@ fn fraction(numerator: &str, denominator: &str) -> String {
     )
 }
 
-fn scripted_base(node: Node<'_, '_>, text: &str) -> String {
+pub(super) fn scripted_base(node: Node<'_, '_>, text: &str) -> String {
     let mut base = node.first_element_child();
     while let Some(child) = base {
         if child.has_tag_name("mrow")
@@ -66,7 +75,7 @@ fn scripted_base(node: Node<'_, '_>, text: &str) -> String {
     if base.is_some_and(|base| {
         matches!(
             base.tag_name().name(),
-            "msup" | "msubsup" | "mfrac" | "msqrt" | "mroot"
+            "msup" | "msubsup" | "mmultiscripts" | "mfrac" | "msqrt" | "mroot"
         )
     }) {
         format!("({text})")
@@ -136,14 +145,28 @@ fn decorated(node: Node<'_, '_>, parts: &[String]) -> Option<String> {
 }
 
 fn accent(base: &str, mark: &str, under: bool) -> Option<String> {
+    let named = match (mark, under) {
+        ("⏞", _) => Some("overbrace"),
+        ("⏟", _) => Some("underbrace"),
+        ("~", true) => Some("utilde"),
+        ("←", true) => Some("underleftarrow"),
+        ("→", true) => Some("underrightarrow"),
+        ("↔", true) => Some("underleftrightarrow"),
+        ("←", false) => Some("overleftarrow"),
+        ("↔", false) => Some("overleftrightarrow"),
+        _ => None,
+    };
+    if let Some(name) = named {
+        return Some(format!("{name}({base})"));
+    }
     let (name, combining) = match mark {
-        "ˆ" | "^" => ("hat", '\u{0302}'),
+        "ˆ" | "^" | "\u{0302}" => ("hat", '\u{0302}'),
         "¯" | "‾" | "_" if under => ("underline", '\u{0332}'),
         "¯" | "‾" => ("overline", '\u{0305}'),
         "⃗" | "→" => ("vec", '\u{20d7}'),
         "˙" | "." => ("dot", '\u{0307}'),
         "¨" => ("ddot", '\u{0308}'),
-        "˜" | "~" => ("tilde", '\u{0303}'),
+        "˜" | "~" | "\u{0303}" => ("tilde", '\u{0303}'),
         "ˇ" => ("check", '\u{030c}'),
         "˘" => ("breve", '\u{0306}'),
         _ => return None,

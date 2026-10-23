@@ -46,6 +46,7 @@ mod passages;
 mod performance;
 mod servers;
 pub use performance::Operation;
+pub use servers::ServerToken;
 mod personal_tasks;
 mod picker;
 mod picker_reads;
@@ -202,6 +203,8 @@ pub enum Mode {
     Help,
     /// Search, command or annotation editor.
     Input(Box<Input>),
+    /// Masked API token entry, excluded from ordinary drafts and command text.
+    ServerToken(ServerToken),
     /// Searchable command/article/list/link/source selector.
     Picker(Box<Picker>),
     /// Contextual Space-key menu.

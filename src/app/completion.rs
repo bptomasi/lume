@@ -277,8 +277,8 @@ const COMMANDS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "server",
-        usage: "server URL TOKEN_ENV",
-        description: "Connect a Miniflux server using an external token variable",
+        usage: "server URL TOKEN_ENV|--token",
+        description: "Connect via an environment variable or masked TOML token entry",
         aliases: &[],
     },
     CommandSpec {

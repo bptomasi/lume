@@ -33,6 +33,7 @@ impl App {
                 Ok(Action::None)
             }
             Mode::Input(_) => self.input_key(key),
+            Mode::ServerToken(_) => self.server_token_key(key),
             Mode::Picker(_) => self.picker_key(key),
             Mode::Leader => self.leader_key(key),
             Mode::Smart(_) => self.smart_key(key),

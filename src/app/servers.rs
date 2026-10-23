@@ -2,7 +2,10 @@
 
 use anyhow::{Context, Result, bail, ensure};
 
-use super::{Action, App, Choice, ChoiceAction, Focus, View};
+use super::{Action, App, Choice, ChoiceAction, Focus, Mode, View};
+
+mod token;
+pub use token::ServerToken;
 
 impl App {
     pub(super) fn server_command(
@@ -26,8 +29,15 @@ impl App {
 
     fn connect_server(&mut self, argument: &str) -> Result<Action> {
         let fields = argument.split_whitespace().collect::<Vec<_>>();
-        ensure!(fields.len() == 2, "Usage: :server URL TOKEN_ENV");
+        ensure!(fields.len() == 2, "Usage: :server URL TOKEN_ENV|--token");
+        if fields[1] == "--token" {
+            return self.begin_server_token(fields[0]);
+        }
         let id = self.store.add_server(fields[0], fields[1])?;
+        self.finish_server_connection(id)
+    }
+
+    fn finish_server_connection(&mut self, id: i64) -> Result<Action> {
         let view = View::Server(id);
         self.reveal_server(&view)?;
         self.view = view;

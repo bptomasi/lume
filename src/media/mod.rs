@@ -89,7 +89,7 @@ pub struct ImageKey {
 pub struct Thumbnail {
     /// Aspect-preserving area; native encodings leave these cells blank.
     pub cells: Buffer,
-    /// Original raster or logical SVG dimensions, before thumbnailing.
+    /// Oriented raster or logical SVG dimensions, before thumbnailing.
     pub dimensions: (u32, u32),
     /// Cache write failure after successful rendering, if any.
     pub cache_warning: Option<String>,

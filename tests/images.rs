@@ -544,3 +544,152 @@ fn collapsed_reader_does_not_admit_images_until_it_is_visible() -> Result<()> {
     assert!(app.images.thumbnail(&key).is_some());
     Ok(())
 }
+
+#[test]
+fn uhd_sources_fit_the_pixel_budget_and_keep_original_definition() -> Result<()>
+{
+    let mut bytes = Cursor::new(Vec::new());
+    DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+        3840,
+        2160,
+        image::Rgb([255, 0, 0]),
+    ))
+    .write_to(&mut bytes, ImageFormat::Png)?;
+    let prepared = Decoder::default().render(bytes.get_ref(), &key(20, 10))?;
+    assert_eq!(prepared.dimensions, (3840, 2160));
+    assert!(
+        prepared.cells.area.width <= 20 && prepared.cells.area.height <= 10
+    );
+    assert!(
+        prepared
+            .cells
+            .content
+            .iter()
+            .any(|cell| cell.fg == Color::Rgb(255, 0, 0))
+    );
+    Ok(())
+}
+
+#[test]
+fn svg_transparency_composites_against_each_theme_without_color_halos()
+-> Result<()> {
+    let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect width="1" height="2" fill="red" opacity="0.5"/></svg>"#;
+    let mut decoder = Decoder::default();
+    for background in [[20, 40, 60], [200, 180, 160]] {
+        let mut requested = key(2, 1);
+        requested.background = background;
+        let prepared = decoder.render(svg, &requested)?;
+        assert_eq!(
+            prepared.cells[(1, 0)].bg,
+            Color::Rgb(background[0], background[1], background[2])
+        );
+        let Color::Rgb(red, green, blue) = prepared.cells[(0, 0)].bg else {
+            anyhow::bail!("Missing composited RGB pixels");
+        };
+        for (actual, expected) in [
+            (red, (255 + u16::from(background[0])) / 2),
+            (green, u16::from(background[1]) / 2),
+            (blue, u16::from(background[2]) / 2),
+        ] {
+            assert!(i32::from(actual).abs_diff(i32::from(expected)) <= 1);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn camera_orientation_is_applied_once_before_fitting_and_source_reuse()
+-> Result<()> {
+    let source = image::RgbImage::from_fn(16, 32, |_, y| {
+        if y < 16 {
+            image::Rgb([255, 0, 0])
+        } else {
+            image::Rgb([0, 0, 255])
+        }
+    });
+    let mut encoded = Cursor::new(Vec::new());
+    DynamicImage::ImageRgb8(source)
+        .write_to(&mut encoded, ImageFormat::Jpeg)?;
+    let mut decoder = Decoder::default();
+    for orientation in [6, 8] {
+        let bytes = oriented_jpeg_payload(encoded.get_ref(), orientation);
+        let prepared = decoder.render(&bytes, &key(32, 8))?;
+        assert_eq!(prepared.dimensions, (32, 16));
+        let Color::Rgb(red, _, blue) = prepared.cells[(0, 0)].fg else {
+            anyhow::bail!("Missing oriented JPEG pixels");
+        };
+        assert_eq!(blue > red, orientation == 6);
+        assert_eq!(decoder.render(&bytes, &key(32, 8))?.cells, prepared.cells);
+    }
+    Ok(())
+}
+
+#[test]
+fn transparent_sixteen_bit_sources_keep_their_colors_across_theme_changes()
+-> Result<()> {
+    let source = image::ImageBuffer::from_pixel(
+        2,
+        2,
+        image::Rgba([65535_u16, 0, 0, 32768]),
+    );
+    let mut bytes = Cursor::new(Vec::new());
+    DynamicImage::ImageRgba16(source).write_to(&mut bytes, ImageFormat::Png)?;
+    let mut decoder = Decoder::default();
+    for background in [[20, 40, 60], [200, 180, 160]] {
+        let mut requested = key(2, 1);
+        requested.background = background;
+        let prepared = decoder.render(bytes.get_ref(), &requested)?;
+        let Color::Rgb(red, green, blue) = prepared.cells[(0, 0)].fg else {
+            anyhow::bail!("Missing high-precision alpha pixels");
+        };
+        for (actual, expected) in [
+            (red, (255 + u16::from(background[0])) / 2),
+            (green, u16::from(background[1]) / 2),
+            (blue, u16::from(background[2]) / 2),
+        ] {
+            assert!(i32::from(actual).abs_diff(i32::from(expected)) <= 1);
+        }
+    }
+    Ok(())
+}
+
+fn oriented_jpeg_payload(encoded: &[u8], orientation: u8) -> Vec<u8> {
+    let exif = [
+        b'E',
+        b'x',
+        b'i',
+        b'f',
+        0,
+        0,
+        b'I',
+        b'I',
+        42,
+        0,
+        8,
+        0,
+        0,
+        0,
+        1,
+        0,
+        18,
+        1,
+        3,
+        0,
+        1,
+        0,
+        0,
+        0,
+        orientation,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ];
+    let mut bytes = vec![255, 216, 255, 225, 0, 34];
+    bytes.extend_from_slice(&exif);
+    bytes.extend_from_slice(&encoded[2..]);
+    bytes
+}

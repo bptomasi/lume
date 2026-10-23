@@ -4,6 +4,7 @@
 //! claiming pixel typesetting. Unsupported or excessive input stays verbatim.
 
 use math_core::{LatexToMathML, MathCoreConfig, MathDisplay, MaxExpansions};
+mod embellishments;
 mod fractions;
 pub(super) mod graphics;
 mod projection;
@@ -14,9 +15,12 @@ pub(super) struct Math {
     converter: Option<LatexToMathML>,
     count: usize,
     bytes: usize,
-    cache: std::collections::VecDeque<(String, bool, String)>,
-    graphic_cache:
-        std::collections::VecDeque<(String, bool, graphics::FormulaImage)>,
+    cache: std::collections::VecDeque<(String, bool, Option<String>)>,
+    graphic_cache: std::collections::VecDeque<(
+        String,
+        bool,
+        Option<graphics::FormulaImage>,
+    )>,
 }
 
 impl Math {
@@ -35,20 +39,23 @@ impl Math {
             .iter()
             .find(|(source, display, _)| source == latex && *display == block)
         {
-            return Some(text.clone());
+            return text.clone();
         }
-        let text = self.convert(latex, block)?;
+        let text = self.convert(latex, block);
         if self.cache.len() == 32 {
             self.cache.pop_front();
         }
         self.cache.push_back((latex.into(), block, text.clone()));
-        Some(text)
+        text
     }
 
     fn convert(&mut self, latex: &str, block: bool) -> Option<String> {
         if self.converter.is_none() {
             let config = MathCoreConfig {
                 max_expansions: MaxExpansions(64),
+                // These restrictions concern browser MathML layout, not our
+                // explicit Unicode projection of wide and lower accents.
+                allow_unreliable_rendering: true,
                 ..MathCoreConfig::default()
             };
             self.converter = LatexToMathML::new(config, Vec::new()).ok();
@@ -97,15 +104,15 @@ impl Math {
             .iter()
             .find(|(source, display, _)| source == latex && *display == block)
         {
-            return Some(image.clone());
+            return image.clone();
         }
-        let image = graphics::render(latex, block)?;
+        let image = graphics::render(latex, block);
         if self.graphic_cache.len() == 32 {
             self.graphic_cache.pop_front();
         }
         self.graphic_cache
             .push_back((latex.into(), block, image.clone()));
-        Some(image)
+        image
     }
 }
 
@@ -148,4 +155,18 @@ fn admissible(latex: &str) -> bool {
         }
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Math;
+
+    #[test]
+    fn cached_failures_still_consume_the_document_conversion_budget() {
+        let mut math = Math::default();
+        for _ in 0..256 {
+            assert_eq!(math.render(r"\phantom{a+b}", false), None);
+        }
+        assert_eq!(math.render("x^2", false), None);
+    }
 }

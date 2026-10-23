@@ -50,6 +50,9 @@ impl App {
     /// # Errors
     /// Returns storage errors while updating a live search.
     pub fn paste(&mut self, text: &str) -> Result<()> {
+        if let Mode::ServerToken(input) = &mut self.mode {
+            return input.paste(text);
+        }
         if self.paste_setting_value(text) {
             return Ok(());
         }

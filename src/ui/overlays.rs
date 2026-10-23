@@ -16,6 +16,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     match &app.mode {
         Mode::Help => help(frame, app),
         Mode::Input(input) => editor(frame, app, input),
+        Mode::ServerToken(input) => server_token(frame, input),
         Mode::Picker(picker) => selectors::picker(frame, picker),
         Mode::Smart(form) => selectors::smart(frame, form),
         Mode::Document(document) => document_view(frame, document),
@@ -373,6 +374,29 @@ pub(super) fn centered(area: Rect, width: u16, height: u16) -> Rect {
         width,
         height,
     )
+}
+
+fn server_token(frame: &mut Frame<'_>, input: &crate::app::ServerToken) {
+    let inner = modal(
+        frame,
+        "API token · Enter saves to TOML · Esc cancels",
+        Popup::Token,
+    );
+    let masked = input.masked(inner.width);
+    if !inner.is_empty() && inner.height > 1 {
+        frame.set_cursor_position((
+            inner.x + (masked.chars().count() as u16).min(inner.width - 1),
+            inner.y + 1,
+        ));
+    }
+    frame.render_widget(
+        Paragraph::new(vec![
+            Line::raw(input.address()),
+            Line::raw(masked),
+            Line::raw("Ctrl-u clears the key · Backspace edits"),
+        ]),
+        inner,
+    );
 }
 
 #[cfg(test)]

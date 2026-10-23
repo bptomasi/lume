@@ -449,3 +449,72 @@ fn malformed_remote_scope_references_are_rejected_before_application() {
         assert!(config::decode(&text).is_err(), "{reference}");
     }
 }
+
+#[test]
+fn masked_token_command_publishes_the_key_without_exposing_it_in_frames_or_debug()
+-> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let path = directory.path().join("config.toml");
+    let session = config::Session::open(&store, &path)?;
+    let mut app = App::new(store, false)?;
+    app.configure_document(session.initial().clone());
+    assert_eq!(
+        command(&mut app, "server https://reader.example --token")?,
+        Action::None
+    );
+    assert!(app.library.servers.is_empty());
+    app.paste("private-ui-token\n")?;
+    assert!(!format!("{:?}", app.mode).contains("private-ui-token"));
+    let mut terminal = Terminal::new(TestBackend::new(100, 32))?;
+    terminal.draw(|frame| lume::ui::draw(frame, &app))?;
+    let pixels = terminal
+        .backend()
+        .buffer()
+        .content
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect::<String>();
+    assert!(pixels.contains('•'));
+    assert!(pixels.contains("reader.example"));
+    assert!(!pixels.contains("private-ui-token"));
+    assert_eq!(app.key(KeyCode::Enter.into())?, Action::Refresh);
+    session.flush()?;
+    let saved = config::read_document(&path)?;
+    assert_eq!(
+        saved.servers[0].token.as_ref().map(|key| key.expose()),
+        Some("private-ui-token")
+    );
+    assert!(saved.servers[0].token_env.is_empty());
+    assert!(!format!("{:?}", app.library.servers).contains("private-ui-token"));
+    Ok(())
+}
+
+#[test]
+fn token_entry_cancels_and_rejects_controls_or_excessive_pastes_without_partial_connections()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    let mut app = App::new(store, false)?;
+    command(&mut app, "server https://reader.example --token")?;
+    assert!(app.key(KeyCode::Enter.into()).is_err());
+    assert!(app.paste("bad\nkey").is_err());
+    assert!(app.paste(&"x".repeat(4097)).is_err());
+    app.paste("discarded-secret")?;
+    app.key(KeyCode::Esc.into())?;
+    assert!(app.library.servers.is_empty());
+    assert!(matches!(app.mode, lume::app::Mode::Normal));
+    command(&mut app, "server https://reader.example --token")?;
+    app.paste("replace-this")?;
+    app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL))?;
+    app.paste("final-token")?;
+    app.key(KeyCode::Char('x').into())?;
+    app.key(KeyCode::Backspace.into())?;
+    assert_eq!(app.key(KeyCode::Enter.into())?, Action::Refresh);
+    assert_eq!(
+        app.library.servers[0]
+            .token
+            .as_ref()
+            .map(|key| key.expose()),
+        Some("final-token")
+    );
+    Ok(())
+}

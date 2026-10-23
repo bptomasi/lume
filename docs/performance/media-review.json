@@ -1,0 +1,772 @@
+{
+  "date": "2026-10-23",
+  "baseline_revision": "4a6cb89",
+  "candidate_revision": "uncommitted working tree following 4a6cb89",
+  "machine": "Intel Core Ultra 7 155H, Linux x86_64",
+  "profile": "test, unoptimized, debug info disabled, incremental disabled",
+  "rust_toolchain": "1.99.1; exact repository toolchain, no Rust/source substitution",
+  "command": "cargo test --locked --bench reader -- --test --media-review-only [--stress]",
+  "method": "Same checked harness against baseline and candidate media/math implementations. Baseline already included the unrelated masked-token UI work. The final harness differs only in formatting the SVG fixture construction. Three sequential processes per size, two timed iterations per process. Both image sources warm before timers. Measurements are sequential without competing builds.",
+  "fixtures": {
+    "raster": {
+      "sizes": [
+        [
+          1200,
+          600
+        ],
+        [
+          2400,
+          1200
+        ]
+      ],
+      "sources": 2,
+      "format": "RGB PNG, independently checked solid red and blue",
+      "output": "80 columns by 12 half-block rows"
+    },
+    "svg": {
+      "size": [
+        1200,
+        600
+      ],
+      "paths_per_source": [
+        150,
+        900
+      ],
+      "sources": 2,
+      "checks": [
+        "logical dimensions",
+        "visible path geometry"
+      ]
+    },
+    "math": {
+      "expression": "$\\phantom{\\frac{a+b+c+d}{\\sqrt{x^2+y^2}}}$",
+      "copies": [
+        20,
+        120
+      ],
+      "checks": [
+        "every original expression survives verbatim"
+      ]
+    }
+  },
+  "scope": "Repeated source switching with fitting and cell checks; repeated failed Unicode formula projection with exact source fallback. Setup, downloads, physical presentation, process RSS and filesystem I/O excluded. Unoptimized timings are not release latency claims.",
+  "before": {
+    "binary_sha256": "f469e3151301fe90776c5550d1197d57bc5bd81ca7291f013a04e2f87e64abff",
+    "scenarios": [
+      {
+        "stress": false,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "alternate two raster sources + fit": 162.947,
+            "alternate two SVG sources + fit": 5.992,
+            "repeat unsupported formula with exact source fallback": 1.886
+          },
+          {
+            "alternate two raster sources + fit": 164.543,
+            "alternate two SVG sources + fit": 5.929,
+            "repeat unsupported formula with exact source fallback": 1.716
+          },
+          {
+            "alternate two raster sources + fit": 163.013,
+            "alternate two SVG sources + fit": 5.927,
+            "repeat unsupported formula with exact source fallback": 2.0
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "alternate two raster sources + fit": 163.013,
+          "alternate two SVG sources + fit": 5.929,
+          "repeat unsupported formula with exact source fallback": 1.886
+        }
+      },
+      {
+        "stress": true,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "alternate two raster sources + fit": 641.792,
+            "alternate two SVG sources + fit": 32.679,
+            "repeat unsupported formula with exact source fallback": 9.181
+          },
+          {
+            "alternate two raster sources + fit": 629.806,
+            "alternate two SVG sources + fit": 33.82,
+            "repeat unsupported formula with exact source fallback": 9.175
+          },
+          {
+            "alternate two raster sources + fit": 642.767,
+            "alternate two SVG sources + fit": 33.197,
+            "repeat unsupported formula with exact source fallback": 9.029
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "alternate two raster sources + fit": 641.792,
+          "alternate two SVG sources + fit": 33.197,
+          "repeat unsupported formula with exact source fallback": 9.175
+        }
+      }
+    ]
+  },
+  "after": {
+    "binary_sha256": "d282ba17e1c974e9acbc335cba3c00510b3f43415a14ca8b26b70bbe85bb9512",
+    "scenarios": [
+      {
+        "stress": false,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "alternate two raster sources + fit": 139.961,
+            "alternate two SVG sources + fit": 3.518,
+            "repeat unsupported formula with exact source fallback": 0.439
+          },
+          {
+            "alternate two raster sources + fit": 138.243,
+            "alternate two SVG sources + fit": 3.72,
+            "repeat unsupported formula with exact source fallback": 0.44
+          },
+          {
+            "alternate two raster sources + fit": 138.975,
+            "alternate two SVG sources + fit": 3.487,
+            "repeat unsupported formula with exact source fallback": 0.423
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "alternate two raster sources + fit": 138.975,
+          "alternate two SVG sources + fit": 3.518,
+          "repeat unsupported formula with exact source fallback": 0.439
+        }
+      },
+      {
+        "stress": true,
+        "processes": 3,
+        "iterations_per_process": 2,
+        "samples_ms_per_iteration": [
+          {
+            "alternate two raster sources + fit": 537.216,
+            "alternate two SVG sources + fit": 19.348,
+            "repeat unsupported formula with exact source fallback": 0.885
+          },
+          {
+            "alternate two raster sources + fit": 539.936,
+            "alternate two SVG sources + fit": 19.204,
+            "repeat unsupported formula with exact source fallback": 1.086
+          },
+          {
+            "alternate two raster sources + fit": 538.031,
+            "alternate two SVG sources + fit": 20.388,
+            "repeat unsupported formula with exact source fallback": 0.936
+          }
+        ],
+        "medians_ms_per_iteration": {
+          "alternate two raster sources + fit": 538.031,
+          "alternate two SVG sources + fit": 19.348,
+          "repeat unsupported formula with exact source fallback": 0.936
+        }
+      }
+    ]
+  },
+  "qualification": {
+    "make_check": {
+      "passed": true,
+      "rust_tests": 873,
+      "python_tests": 44,
+      "rust_format_and_all_target_clippy": true,
+      "correctness_checked_benchmarks": true
+    },
+    "real_http": {
+      "passed": true,
+      "tests": 31
+    },
+    "graphics": {
+      "passed": true,
+      "environment_only_substitutions": [
+        "Weston 14.0.2 and Wayland tools extracted into /tmp; local wrapper supplies private module paths and desktop-shell configuration. CI uses distribution packages.",
+        "Local Pillow 11.1.0 instead of the CI pin 13.0.0.",
+        "Foot 1.21.0; owned Xvfb/X11 backend with private native Wayland compositor. No Rust toolchain or product-source substitution."
+      ],
+      "scope": "Single functional qualification, not repeated physical-display latency measurement. Startup milestones belong only to this local process.",
+      "foot_result": {
+        "geometry": {
+          "pid": 2031226,
+          "columns": 120,
+          "rows": 40,
+          "cell_pixels": [
+            10,
+            19
+          ]
+        },
+        "welcome": {
+          "native_pixel_art": true,
+          "entry_key_consumed": true
+        },
+        "decoded_strips": [
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "070b181e486462c3f80ff061362090a882cf6c976a1a3bc40ec4d56938ea2624"
+          },
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "070b181e486462c3f80ff061362090a882cf6c976a1a3bc40ec4d56938ea2624"
+          },
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "1b55a3e162207e91e1c7fcbaf9688b409251644ea8f596365d941e2a29d4f62b"
+          },
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "5dad856107523fb46d2815003b64d54429224fb06a48647d3e90bc5ae0eced32"
+          },
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "f835c621c4e6ef96269ecff2676ed8e81c8b2a0977074d77616c23ba3b132352"
+          },
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "70d9932b92a077d4dbe52853281c9ad63141f4301281bb89c8aab05fc81c7fca"
+          },
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "d0ee69bd96be002df7b6a725b3bdfad3e4f730b36a5efb9e5af73348dc70de3e"
+          },
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "b8049886b4d20dffee92371786d136264cae028f4b1aa46d86fa78e4b2d7b32f"
+          },
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "5dad856107523fb46d2815003b64d54429224fb06a48647d3e90bc5ae0eced32"
+          },
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "4b3ad64c143117532464742161ff08d643501740012810e6bcf7062360bd9d18"
+          },
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "070b181e486462c3f80ff061362090a882cf6c976a1a3bc40ec4d56938ea2624"
+          },
+          {
+            "size": [
+              760,
+              19
+            ],
+            "sha256": "070b181e486462c3f80ff061362090a882cf6c976a1a3bc40ec4d56938ea2624"
+          }
+        ],
+        "scroll_rows": [
+          [
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26
+          ],
+          [
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          [
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          [
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22
+          ],
+          [
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ],
+          [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20
+          ],
+          [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19
+          ],
+          [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18
+          ],
+          [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19
+          ],
+          [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20
+          ],
+          [
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ],
+          [
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22
+          ],
+          [
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          [
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          [
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25
+          ],
+          [
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26
+          ]
+        ],
+        "selection": {
+          "keyboard": [
+            {
+              "mode": "v",
+              "rows": [
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ]
+              ]
+            },
+            {
+              "mode": "V",
+              "rows": [
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ],
+                [
+                  760,
+                  19
+                ]
+              ]
+            }
+          ],
+          "mouse_down_scroll": [
+            [
+              760,
+              19
+            ],
+            [
+              760,
+              19
+            ],
+            [
+              760,
+              19
+            ],
+            [
+              760,
+              19
+            ],
+            [
+              760,
+              19
+            ],
+            [
+              760,
+              19
+            ],
+            [
+              760,
+              19
+            ],
+            [
+              760,
+              19
+            ],
+            [
+              760,
+              19
+            ],
+            [
+              760,
+              19
+            ],
+            [
+              760,
+              19
+            ],
+            [
+              760,
+              19
+            ]
+          ]
+        },
+        "reader_aliases": {
+          "keys": "ggIVvAy",
+          "yank": "Request ownership",
+          "host_clipboard": "disabled"
+        },
+        "help_search": {
+          "live_query": "resize",
+          "next_previous": true,
+          "escape_clears_first": true,
+          "unicode_formula": true
+        },
+        "inspector": {
+          "fit": [
+            [
+              1160,
+              348
+            ]
+          ],
+          "zoom": [
+            [
+              1160,
+              646
+            ]
+          ]
+        },
+        "reading_services": {
+          "linked_text_view": true,
+          "back_restores_images": true,
+          "diagnostics_opt_in": true
+        },
+        "preferences": {
+          "formula_policies": [
+            {
+              "enabled": false,
+              "visible": "$R{\\mathcal{I}}=\\text{Combine}\\circ\\text{Disintegrate}$",
+              "copied": "$R{\\mathcal{I}}=\\text{Combine}\\circ\\text{Disintegrate}$"
+            },
+            {
+              "enabled": true,
+              "visible": "R\u2110 = Combine \u2218 Disintegrate",
+              "copied": "R\u2110 = Combine \u2218 Disintegrate"
+            }
+          ],
+          "settings_enter_edit_ctrl_s_save": true
+        },
+        "graphic_formulas": {
+          "decoded_formula_images": [
+            {
+              "width": 199,
+              "height": 19
+            },
+            {
+              "width": 115,
+              "height": 38
+            }
+          ],
+          "inspector_zoom": true,
+          "original_latex_copy": true,
+          "returns_to_text": true
+        },
+        "cleanup": {
+          "returncode": 0,
+          "termios_restored": true
+        },
+        "publisher_content_preserved": true,
+        "passed": true,
+        "binary_sha256": "142e4af2fc144469172483b9cc76bdee41660748453f1a64b548c6830f7847ed",
+        "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+        "lume_version": "lume 0.2.0 (4a6cb892ab26575fa9f45245b8299952c90ea0bd)",
+        "startup_output_milestones": {
+          "welcome_output_ms": 20.325502,
+          "library_output_ms": 255.777543,
+          "reader_output_ms": 255.912813
+        }
+      },
+      "visual_inspection": "Decoded native-reader-pixels.png checked: labeled API/Q/DB diagram, correct transparent matte and legible outlines."
+    },
+    "release_build": {
+      "passed": true,
+      "binary_sha256": "142e4af2fc144469172483b9cc76bdee41660748453f1a64b548c6830f7847ed",
+      "version": "lume 0.2.0 (4a6cb892ab26575fa9f45245b8299952c90ea0bd)",
+      "toolchain": "1.99.1",
+      "profile": "optimized release",
+      "dependencies_changed": false
+    }
+  },
+  "behavioral_coverage": [
+    "Masked internal server token entry publishes TOML without exposing the key in frames/debug/history",
+    "Cancelled or invalid token entry does not create partial connections",
+    "Decoded-source cache evicts before allocation and observes two-source/32 MiB bounds",
+    "UHD 3840x2160 image admission",
+    "JPEG EXIF rotation applied exactly once, including cache reuse",
+    "Transparent 16-bit raster and SVG composition across theme changes",
+    "Extended Unicode formula notation preserves original source ranges",
+    "Cached failed formulas still consume document conversion budgets"
+  ]
+}

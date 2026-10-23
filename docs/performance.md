@@ -26,7 +26,8 @@ The native benchmark also accepts focused flags, including
 `--tables-only`, `--lists-only`, `--rich-text-only`, `--recommendations-only`,
 `--pane-search-only`, `--query-editing-only`, `--library-sections-only` and
 `--fluency-only`, `--server-refresh-only`, `--publisher-refresh-only`,
-`--retention-images-only` and `--retention-only`. Add `--stress`
+`--retention-images-only`, `--retention-only` and `--media-review-only`.
+Add `--stress`
 for larger workloads.
 Setup precedes operation timers; resource reports identify process-wide
 memory/I/O scope.
@@ -65,6 +66,7 @@ current hardware or a substitute for measuring later changes.
 | Native welcome frame | [Representative/stress frames and interaction qualification](performance/welcome.json) |
 | Reading services | [Repeated checked workloads](performance/reading-services.json), [native Foot qualification](performance/reading-foot.json) |
 | Reading-state and offline review | [Before/after workloads and native Foot](performance/reading-review.json) |
+| Image source reuse and formula fallback | [Checked before/after measurements](performance/media-review.json) |
 
 The reading-service workloads use three release processes per size with Rust
 1.99.1 on the recorded Core Ultra 7 environment. A selector movement pair plus
@@ -198,6 +200,31 @@ without applying the offline package's 64-download limit; shared protected or
 unlimited sources still keep their files. Timed images are fresh owned files;
 expired deletion and decoding are excluded. Memory and physical I/O are not
 measured, and these figures do not establish production or end-to-end latency.
+
+The [media review](performance/media-review.json) compares the same checked
+workloads against `4a6cb89`. Three sequential local unoptimized test processes
+per size each run two timed iterations. Sources are prepared before timing;
+each image iteration alternates both sources and verifies the resulting
+dimensions and visible output. Formula iterations verify every raw fallback.
+
+| Operation | Before | After |
+| --- | ---: | ---: |
+| Alternate two 1200×600 PNG sources and fit | 163.013 ms | 138.975 ms |
+| Alternate two 2400×1200 PNG sources and fit | 641.792 ms | 538.031 ms |
+| Alternate two SVG sources, 150 paths each | 5.929 ms | 3.518 ms |
+| Alternate two SVG sources, 900 paths each | 33.197 ms | 19.348 ms |
+| Prepare 20 repeated unsupported formulas | 1.886 ms | 0.439 ms |
+| Prepare 120 repeated unsupported formulas | 9.175 ms | 0.936 ms |
+
+These measure bounded decoded-source/tree reuse and cached failed conversions,
+including fitting and output checks. They exclude downloads, physical terminal
+presentation and process memory/I/O accounting. They do not establish release
+or whole-application latency. JPEG orientation, UHD admission, 16-bit alpha
+composition and switching theme backgrounds have separate native correctness
+tests; these timings do not measure those cases. Reproduce with
+`cargo test --locked --bench reader -- --test --media-review-only`, adding
+`--stress` for the larger inputs. The report preserves raw samples, executable
+hashes and qualification details, including local graphics-tool substitutions.
 
 ## Boundaries
 

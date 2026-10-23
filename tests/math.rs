@@ -198,3 +198,51 @@ fn powers_of_powers_and_fraction_bases_keep_their_grouping() {
         );
     }
 }
+
+#[test]
+fn boxed_cancelled_braced_and_prescript_expressions_keep_selectable_source()
+-> Result<()> {
+    for (latex, expected) in [
+        (r"\boxed{x^2+y^2}", "boxed(x² + y²)"),
+        (r"\cancel{x+y}", "cancel(x + y)"),
+        (r"\bcancel{x}", "bcancel(x)"),
+        (r"\xcancel{x+y}", "xcancel(x + y)"),
+        (r"\overbrace{a+b}^{n}", "overbrace(a + b)ⁿ"),
+        (r"\underbrace{a+b}_{n}", "underbrace(a + b)ₙ"),
+        (r"\prescript{14}{6}{C}", "₆¹⁴C"),
+        (r"\prescript{a}{b}{\frac{x}{y}}_i^n", "_bᵃ(x/y)ᵢⁿ"),
+        (r"\utilde{xy}", "utilde(xy)"),
+        (r"\widecheck{xy}", "check(xy)"),
+        (r"\prescript{a}{b}{X}_c^d", "_bᵃX_cᵈ"),
+        (r"\underleftarrow{AB}", "underleftarrow(AB)"),
+        (r"\widehat{xyz}", "hat(xyz)"),
+        (r"\widetilde{xyz}", "tilde(xyz)"),
+    ] {
+        let source = format!("Before ${latex}$ after.");
+        let rendered = reader::render(&source, 120);
+        assert!(
+            rendered.text.contains(expected),
+            "{latex}: {}",
+            rendered.text
+        );
+        let first = rendered
+            .text
+            .find(expected)
+            .context("Formula text missing")?;
+        let range = reader::to_source(
+            &rendered.mappings,
+            first..first + expected.len(),
+        )
+        .context("Formula source mapping missing")?;
+        assert_eq!(&source[range], format!("${latex}$"));
+    }
+    Ok(())
+}
+
+#[test]
+fn repeated_unsupported_projection_keeps_every_original_expression() {
+    let formula = r"$\phantom{\frac{a+b+c+d}{\sqrt{x^2+y^2}}}$";
+    let body = format!("{formula}\n\n").repeat(300);
+    let rendered = reader::render(&body, 80);
+    assert_eq!(rendered.text.matches(formula).count(), 300);
+}

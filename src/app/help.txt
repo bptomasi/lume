@@ -206,6 +206,8 @@
   :pin            Pin/unpin selected sidebar destination
   :move-up / :move-down    Customize sidebar order
   :server URL TOKEN_ENV                 Add a Miniflux connection
+  :server URL --token
+                  Enter an API key in a masked prompt; save it in TOML.
   :servers                              Inspect connections and errors
   :server-enable / :server-disable       Resume / pause selected server
   :unserver                             Remove selected connection; keep articles

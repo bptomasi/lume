@@ -258,6 +258,7 @@ fn status_line(app: &App) -> Line<'static> {
         Mode::Help => (" HELP ", BLUE),
         Mode::Input(input) => (editor_mode(input), AMBER),
         Mode::Smart(_) => (" INSERT ", AMBER),
+        Mode::ServerToken(_) => (" TOKEN ", AMBER),
         Mode::Picker(_) => (" SELECT ", BLUE),
         Mode::Leader => (" SPACE ", AMBER),
         Mode::Document(_) => (" INSPECT ", AMBER),

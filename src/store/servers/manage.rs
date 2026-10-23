@@ -10,8 +10,30 @@ impl Store {
     /// # Errors
     /// Rejects invalid URLs, token variable names, limits or SQLite failures.
     pub fn add_server(&self, address: &str, token_env: &str) -> Result<i64> {
-        let url = crate::source::server_url(address)?;
         crate::config::validate_env_name(token_env)?;
+        self.persist_server(address, token_env, "")
+    }
+
+    /// Add or reconnect with an explicitly stored TOML API token.
+    ///
+    /// # Errors
+    /// Returns invalid URL/token, server limit or atomic SQLite failures.
+    pub fn add_server_token(
+        &self,
+        address: &str,
+        token: &crate::model::ApiToken,
+    ) -> Result<i64> {
+        token.validate()?;
+        self.persist_server(address, "", token.expose())
+    }
+
+    fn persist_server(
+        &self,
+        address: &str,
+        token_env: &str,
+        token: &str,
+    ) -> Result<i64> {
+        let url = crate::source::server_url(address)?;
         let transaction = self.write_transaction()?;
         let count: usize = transaction.query_row(
             include_str!("../sql/servers/count_other_servers.sql"),
@@ -21,7 +43,7 @@ impl Store {
         ensure!(count < 16, "At most 16 servers");
         transaction.execute(
             include_str!("../sql/configuration/insert_server.sql"),
-            (&url, token_env, true, ""),
+            (&url, token_env, true, token),
         )?;
         let id = transaction.query_row(
             include_str!("../sql/servers/select_id.sql"),

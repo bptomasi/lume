@@ -9,6 +9,7 @@ use crate::app::{InputKind, Mode};
 #[derive(Clone, Copy)]
 pub(super) enum Popup {
     Help,
+    Token,
     Command,
     Picker,
     Smart,
@@ -30,6 +31,7 @@ impl Popup {
                 None
             }
             Mode::Help => Some(Self::Help),
+            Mode::ServerToken(_) => Some(Self::Token),
             Mode::Input(input) if matches!(input.kind, InputKind::Command) => {
                 Some(Self::Command)
             }
@@ -46,6 +48,7 @@ impl Popup {
     pub(super) fn area(self, screen: Rect) -> Rect {
         let (width, height) = match self {
             Self::Help => (88, 40),
+            Self::Token => (76, 5),
             Self::Command => (100, 25),
             Self::Picker => (110, 28),
             Self::Smart => (82, 22),
@@ -111,6 +114,7 @@ mod tests {
     -> anyhow::Result<()> {
         let kinds = [
             Popup::Help,
+            Popup::Token,
             Popup::Command,
             Popup::Picker,
             Popup::Smart,
