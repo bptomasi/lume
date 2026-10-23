@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-22",
+  "baseline_revision": "6d062bce31ccc193ebb9546fb9b7ade51cead72f",
+  "toolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "test, unoptimized, debug info disabled, incremental disabled",
+  "fixture": {
+    "feeds": 100,
+    "articles": 2000,
+    "body_bytes": 4100,
+    "iterations_per_process": 2,
+    "processes_per_version": 3
+  },
+  "command": "cargo test --locked --bench reader -- --test --server-refresh-only",
+  "checks": [
+    "Stable feed identities and article count",
+    "Favorite and personal note survive every repeated ingest",
+    "Native regression asserts zero SQLite total_changes for repeated identical content",
+    "Changed-body regression checks replacement of the FTS index"
+  ],
+  "baseline_adaptation": "Isolated source copy restores HEAD servers.rs and five owning SQL statements; legacy sync_offset spelling is adapted to the new sync_after_id column. No other measured logic changes.",
+  "samples_ms_per_iteration": {
+    "before": [
+      {
+        "unchanged server discovery (2,000 cached articles)": "173.224",
+        "unchanged remote page (2,000 entries)": "715.703"
+      },
+      {
+        "unchanged server discovery (2,000 cached articles)": "170.511",
+        "unchanged remote page (2,000 entries)": "703.307"
+      },
+      {
+        "unchanged server discovery (2,000 cached articles)": "177.330",
+        "unchanged remote page (2,000 entries)": "725.393"
+      }
+    ],
+    "after": [
+      {
+        "unchanged server discovery (2,000 cached articles)": "2.189",
+        "unchanged remote page (2,000 entries)": "25.231"
+      },
+      {
+        "unchanged server discovery (2,000 cached articles)": "2.183",
+        "unchanged remote page (2,000 entries)": "24.421"
+      },
+      {
+        "unchanged server discovery (2,000 cached articles)": "2.184",
+        "unchanged remote page (2,000 entries)": "24.775"
+      }
+    ]
+  },
+  "medians_ms_per_iteration": {
+    "before": {
+      "unchanged server discovery (2,000 cached articles)": 173.224,
+      "unchanged remote page (2,000 entries)": 715.703
+    },
+    "after": {
+      "unchanged server discovery (2,000 cached articles)": 2.184,
+      "unchanged remote page (2,000 entries)": 24.775
+    }
+  },
+  "limits": [
+    "Scoped store operations in an unoptimized local build; not whole-refresh or production latency",
+    "Discovery measurement includes checked feed reread; entry measurement includes checked counts and personal state",
+    "Fixture construction precedes measured operations; this report does not measure memory or I/O",
+    "Network parsing and terminal rendering are excluded"
+  ],
+  "retention_revalidation": {
+    "date": "2026-10-23",
+    "dirty": true,
+    "binary_sha256": "0643b22098b527ac0d8fb775d5a1f5ac851d4fcdd7955e520cf472680c449632",
+    "samples_ms_per_iteration": [
+      {
+        "unchanged server discovery (2,000 cached articles)": 2.193,
+        "unchanged remote page (2,000 entries)": 24.08
+      },
+      {
+        "unchanged server discovery (2,000 cached articles)": 2.242,
+        "unchanged remote page (2,000 entries)": 23.888
+      },
+      {
+        "unchanged server discovery (2,000 cached articles)": 2.153,
+        "unchanged remote page (2,000 entries)": 23.453
+      }
+    ],
+    "medians_ms_per_iteration": {
+      "unchanged server discovery (2,000 cached articles)": 2.193,
+      "unchanged remote page (2,000 entries)": 23.888
+    },
+    "scope": "Same local unoptimized fixture after adding retention tombstones, inline credentials and conditional personal flag writes; not a production latency claim"
+  }
+}

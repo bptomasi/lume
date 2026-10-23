@@ -649,3 +649,52 @@ fn formula_preference_applies_to_linked_pages_and_back_history() -> Result<()> {
     assert!(app.web_page().context("Page")?.rendered.text.contains("x²"));
     Ok(())
 }
+
+#[test]
+fn retention_preview_requires_enter_and_preserves_the_current_reader()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("library.sqlite3");
+    let store = lume::store::Store::open(&path)?;
+    rusqlite::Connection::open(&path)?.execute_batch(include_str!(
+        "../src/store/sql/test_setup_retention.sql"
+    ))?;
+    let document = directory.path().join("config.toml");
+    let session = lume::config::Session::open(&store, &document)?;
+    let mut policy = lume::config::decode(&session.initial().document)?;
+    policy.retention.defaults.read_days = lume::config::retention::Age(Some(1));
+    std::fs::write(&document, lume::config::encode(&policy)?)?;
+    let configured = lume::config::Session::open(&store, &document)?;
+    let mut app = App::new(store, false)?;
+    app.configure_document(configured.initial().clone());
+    app.set_view(lume::model::View::All)?;
+    settle(&mut app)?;
+    let current = app.current().context("Current reader")?.id;
+    command(&mut app, "retention preview")?;
+    settle(&mut app)?;
+    assert!(
+        matches!(&app.mode, Mode::Document(view) if view.confirm.is_some())
+    );
+    let observed = lume::store::Store::open(&path)?;
+    assert_eq!(observed.view_count(&lume::model::View::All)?, 24);
+    key(&mut app, KeyCode::Enter)?;
+    settle(&mut app)?;
+    assert_eq!(observed.view_count(&lume::model::View::All)?, 1);
+    assert!(observed.article(current).is_ok());
+    assert!(
+        matches!(&app.mode, Mode::Document(view) if view.confirm.is_none())
+    );
+    Ok(())
+}
+
+#[test]
+fn retention_status_uses_its_own_report_title() -> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    let mut app = App::new(store, false)?;
+    command(&mut app, "retention status")?;
+    settle(&mut app)?;
+    assert!(
+        matches!(&app.mode, Mode::Document(view) if view.title == "Retention · Esc closes")
+    );
+    Ok(())
+}

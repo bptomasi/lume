@@ -62,10 +62,15 @@ Reusable database pages: {} bytes
         upper: i64,
     ) -> Result<(usize, u64, i64)> {
         let transaction = self.write_transaction()?;
+        let protected = include_str!("sql/retention/select_protected.sql")
+            .trim()
+            .trim_end_matches(';');
+        let query = format!(
+            "WITH protected AS MATERIALIZED ({protected})\n{}",
+            include_str!("sql/select_disposable_documents.sql")
+        );
         let entries = transaction
-            .prepare_cached(include_str!(
-                "sql/select_disposable_documents.sql"
-            ))?
+            .prepare_cached(&query)?
             .query_map((after, upper), |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
@@ -81,7 +86,7 @@ Reusable database pages: {} bytes
                 [article],
             )?;
             transaction.execute(
-                "UPDATE articles SET reading_minutes = ?1 WHERE id = ?2",
+                include_str!("sql/retention/update_reading_minutes.sql"),
                 (crate::content::reading_minutes(body), article),
             )?;
             bytes += size;

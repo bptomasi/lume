@@ -48,7 +48,11 @@ pub(super) fn print(store: &Store) -> Result<()> {
             server.id,
             if server.enabled { "enabled" } else { "paused" },
             server.url,
-            server.token_env
+            if server.token.is_some() {
+                "TOML (hidden)"
+            } else {
+                server.token_env.as_str()
+            }
         );
         if !server.error.is_empty() {
             println!("  {}", lume::content::label(&server.error, 500));

@@ -427,7 +427,6 @@
         "returncode": 0,
         "termios_restored": true
       }
-    },
-    "alacritty": "Not rerun: xdotool is unavailable."
+    }
   }
 }

@@ -2,7 +2,7 @@ use std::{path::Path, sync::atomic::AtomicBool};
 
 use anyhow::{Context, Result, ensure};
 
-use super::{Outcome, Request, report};
+use super::{Outcome, Request, RetentionAction, report};
 use crate::{model::ReadingSession, store::Store};
 
 pub(super) fn perform(
@@ -17,6 +17,9 @@ pub(super) fn perform(
         .context("Library has no parent directory")?
         .join("images");
     match request {
+        Request::Retention { action, article } => {
+            retention(&store, &images, action, article, cancel)
+        }
         Request::Offline { view, limits } => {
             let state = crate::offline::capture(&store, view, limits)?;
             prepare(&store, &images, state, cancel, progress)
@@ -46,6 +49,40 @@ pub(super) fn perform(
         Request::Session { advance } => session(&store, advance),
         Request::EndSession => end_session(&store),
     }
+}
+
+fn retention(
+    store: &Store,
+    images: &Path,
+    action: RetentionAction,
+    article: Option<i64>,
+    cancel: &AtomicBool,
+) -> Result<Outcome> {
+    let now = chrono::Utc::now().timestamp();
+    let (report, preview) = match action {
+        RetentionAction::Status => {
+            return Ok(Outcome::RetentionStatus(crate::retention::status(
+                store,
+            )?));
+        }
+        RetentionAction::Preview => {
+            (crate::retention::preview(store, images, now)?, true)
+        }
+        RetentionAction::Apply => (
+            crate::retention::apply(store, images, now, cancel, article)?,
+            false,
+        ),
+        RetentionAction::Automatic => {
+            let report = crate::retention::automatic(
+                store, images, now, cancel, article,
+            )?;
+            return Ok(Outcome::AutomaticRetention {
+                report,
+                delay: crate::retention::next_check(store, now)?,
+            });
+        }
+    };
+    Ok(Outcome::Retention { report, preview })
 }
 
 fn prepare(

@@ -26,11 +26,18 @@ pub(crate) enum ConfigCommand {
         file: Option<PathBuf>,
     },
     /// Print the active document after finishing pending definition edits.
-    Show,
+    Show {
+        /// Explicitly include inline credentials in the displayed document.
+        #[arg(long)]
+        include_secrets: bool,
+    },
     /// Export complete portable definitions, excluding personal reading data.
     Export {
         /// New destination; omit to print TOML to stdout.
         output: Option<PathBuf>,
+        /// Explicitly include inline credentials in the exported definitions.
+        #[arg(long)]
+        include_secrets: bool,
     },
     /// Reconcile file and pending library edits, without collecting sources.
     Reload,
@@ -126,21 +133,26 @@ pub(crate) fn execute(
     path: &Path,
 ) -> Result<()> {
     if let ConfigCommand::Recover { source } = command {
-        let source = match source {
-            Recovery::File => config::Recovery::File,
-            Recovery::Library => config::Recovery::Library,
-        };
-        for backup in config::recover(store, path, source)? {
-            println!("Recovery backup: {}", backup.display());
-        }
-        return Ok(());
+        return recover(store, path, source);
     }
     let session = Session::open(store, path)?;
     let text = &session.initial().document;
     match command {
-        ConfigCommand::Show => print!("{text}"),
-        ConfigCommand::Export { output } => {
-            let config = config::decode(text)?;
+        ConfigCommand::Show { include_secrets } => {
+            if include_secrets {
+                print!("{text}");
+            } else {
+                print!("{}", config::redacted_document(text)?);
+            }
+        }
+        ConfigCommand::Export {
+            output,
+            include_secrets,
+        } => {
+            let mut config = config::decode(text)?;
+            if !include_secrets {
+                config = config.redacted();
+            }
             if let Some(path) = output {
                 config::export(&config, &path)?;
             } else {
@@ -153,6 +165,17 @@ pub(crate) fn execute(
         _ => anyhow::bail!(
             "Configuration diagnostic must run before opening the library"
         ),
+    }
+    Ok(())
+}
+
+fn recover(store: &Store, path: &Path, source: Recovery) -> Result<()> {
+    let source = match source {
+        Recovery::File => config::Recovery::File,
+        Recovery::Library => config::Recovery::Library,
+    };
+    for backup in config::recover(store, path, source)? {
+        println!("Recovery backup: {}", backup.display());
     }
     Ok(())
 }

@@ -93,6 +93,8 @@ pub enum PickerKind {
 pub enum ChoiceAction {
     /// Confirm an explicitly previewed recoverable-cache cleanup.
     CleanCache(crate::storage::Cleanup),
+    /// Apply a previewed retention policy; personal protections are rechecked.
+    ApplyRetention,
     /// Start exactly the time-budget proposal that was previewed.
     StartSession(crate::model::ReadingSession),
     /// Captured notebook, type or reference action.
@@ -337,6 +339,9 @@ impl App {
         action: ChoiceAction,
     ) -> Result<Action> {
         match action {
+            ChoiceAction::ApplyRetention => {
+                self.retention_command("apply")?;
+            }
             ChoiceAction::CleanCache(scope) => {
                 self.submit_maintenance(super::maintenance::Request::Clean(
                     scope,

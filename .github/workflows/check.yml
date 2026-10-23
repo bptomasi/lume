@@ -2,11 +2,21 @@ name: Check Lume
 
 on:
   push:
+    branches: ['**']
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+env:
+  CARGO_BUILD_JOBS: 2
+  RUST_TEST_THREADS: 2
 
 jobs:
   reader:
@@ -15,15 +25,36 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate release tag before qualification
+        if: github.ref_type == 'tag'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python3 tools/publish_release.py --tag "$RELEASE_TAG" --check-tag-only
       - name: Install the pinned Rust toolchain
         run: rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt
-      - name: Install SVG text and real terminal qualification tools
+      - name: Restore compiler and security tool caches
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/cargo-audit
+            target
+          key: lume-${{ runner.os }}-rust-1.99.1-audit-0.22.2-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+          restore-keys: |
+            lume-${{ runner.os }}-rust-1.99.1-audit-0.22.2-${{ hashFiles('Cargo.lock') }}-
+      - name: Install SVG text and real Foot qualification tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y fonts-dejavu-core alacritty xvfb xdotool xclip x11-apps foot weston imagemagick python3-venv
+          sudo apt-get install -y fonts-dejavu-core xvfb xauth foot weston \
+            wayland-utils imagemagick python3-venv
       - name: Install pinned development security and visual tools
         run: |
-          cargo install cargo-audit --version 0.22.2 --locked --no-default-features
+          if ! cargo-audit --version 2>/dev/null | grep -qx 'cargo-audit 0.22.2'; then
+            cargo install cargo-audit --version 0.22.2 --locked --no-default-features
+          fi
           python3 -m venv /tmp/lume-visual
           /tmp/lume-visual/bin/python -m pip install -r tools/requirements-visual.txt
       - name: Qualify local behavior
@@ -33,40 +64,18 @@ jobs:
       - name: Qualify real HTTP
         run: make check-http
       - name: Build the release binary
-        if: ${{ !cancelled() }}
         run: make build
-      - name: Qualify input and cleanup in real Alacritty
-        if: ${{ !cancelled() }}
-        run: xvfb-run -a make check-alacritty ALACRITTY_ARGS="--artifacts /tmp/lume-alacritty-ci"
-      - name: Qualify Foot on native Wayland
-        if: ${{ !cancelled() }}
-        shell: bash
+      - name: Qualify Foot through native Wayland with an input seat
         run: |
-          export XDG_RUNTIME_DIR
-          XDG_RUNTIME_DIR="$(mktemp -d)"
-          chmod 700 "$XDG_RUNTIME_DIR"
-          export WAYLAND_DISPLAY=wayland-lume
-          weston --backend=headless-backend.so --renderer=pixman \
-            --socket=wayland-lume --idle-time=0 > /tmp/lume-weston.log 2>&1 &
-          compositor=$!
-          trap 'kill "$compositor"' EXIT
-          for attempt in $(seq 1 100); do
-            if [[ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]]; then
-              break
-            fi
-            sleep 0.1
-          done
-          if [[ ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]]; then
-            cat /tmp/lume-weston.log
-            exit 1
-          fi
-          make check-foot PYTHON=/tmp/lume-visual/bin/python \
+          xvfb-run -a -s '-screen 0 1920x1440x24' \
+            python3 tools/qualify_wayland.py --artifacts /tmp/lume-wayland-ci -- \
+            make check-foot PYTHON=/tmp/lume-visual/bin/python \
             FOOT_ARGS="--artifacts /tmp/lume-foot-ci"
-      - name: Package the qualified revision on manual dispatch
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+      - name: Package the qualified revision
+        if: ${{ success() && (github.event_name == 'workflow_dispatch' || github.ref_type == 'tag') }}
         run: make package PACKAGE_ARGS=--require-clean
       - name: Retain standalone package
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ success() && (github.event_name == 'workflow_dispatch' || github.ref_type == 'tag') }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: lume-linux-x86_64
@@ -78,9 +87,32 @@ jobs:
         with:
           name: terminal-and-security-qualification
           path: |
-            /tmp/lume-alacritty-ci
             /tmp/lume-foot-ci
-            /tmp/lume-weston.log
+            /tmp/lume-wayland-ci
             reports/advisories.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
+
+  release:
+    name: Publish tagged release
+    needs: reader
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Check out qualified revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Download qualified package from this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: lume-linux-x86_64
+          path: dist
+      - name: Verify and publish the complete release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python3 tools/publish_release.py --tag "$RELEASE_TAG" --publish

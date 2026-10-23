@@ -1,6 +1,6 @@
 use anyhow::{Result, bail, ensure};
 
-use super::{App, Request};
+use super::{App, Request, RetentionAction};
 use crate::{
     app::{Action, ChoiceAction, View},
     model::OfflineLimits,
@@ -17,6 +17,7 @@ impl App {
             "offline" => self.offline_command(argument)?,
             "storage" => self.storage_command(argument)?,
             "session" => self.reading_session_command(argument)?,
+            "retention" => self.retention_command(argument)?,
             _ => return Ok(None),
         }
         Ok(Some(Action::None))
@@ -140,5 +141,25 @@ Completed batches remain committed if cancellation/failure follows.
             value => Request::Plan(value.parse::<u16>()?),
         };
         self.submit_maintenance(request)
+    }
+
+    pub(in crate::app) fn retention_command(
+        &mut self,
+        argument: &str,
+    ) -> Result<()> {
+        if argument == "cancel" {
+            self.cancel_maintenance();
+            return Ok(());
+        }
+        let action = match argument {
+            "" | "status" => RetentionAction::Status,
+            "preview" => RetentionAction::Preview,
+            "apply" => RetentionAction::Apply,
+            _ => bail!("Use :retention status|preview|apply|cancel"),
+        };
+        self.submit_maintenance(Request::Retention {
+            action,
+            article: self.current().map(|article| article.id),
+        })
     }
 }

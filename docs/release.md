@@ -11,7 +11,6 @@ Run these gates on the revision being packaged:
 ```sh
 make check-release
 make check-foot
-xvfb-run -a make check-alacritty
 make package PACKAGE_ARGS=--require-clean
 ```
 
@@ -22,7 +21,38 @@ with a private HOME/config/library before packaging. Archive ordering and
 metadata are deterministic for the same binary and revision. Compiler output
 is not claimed reproducible across arbitrary hosts. No release is uploaded
 by this command. Manual CI dispatch retains the qualified package as an
-artifact; it does not publish a GitHub release or change repository visibility.
+artifact. Tag pushes publish through the separate release job described below.
+
+## Versions and tags
+
+Use Semantic Versioning, starting with version **0.2.0** in `Cargo.toml` and
+the annotated Git tag **v0.2.0**. Keep the root package version in `Cargo.lock`
+in agreement. Before 1.0, use a patch release for compatible fixes and a minor
+release for new capabilities or incompatible changes. Use `1.0.0` once the
+public configuration and command contracts have a stability commitment.
+Prereleases use suffixes such as `0.3.0-rc.1` and `v0.3.0-rc.1`.
+
+After committing the intended revision and version, publish its tag:
+
+```sh
+git tag -a v0.2.0 -m 'Lume 0.2.0'
+git push origin v0.2.0
+```
+
+The workflow rejects a tag that disagrees with `Cargo.toml` before compiling.
+Publication requires local, license, advisory, real HTTP and real Foot checks,
+the release build and a clean-source package from that same workflow run.
+The publishing job verifies the remote tag revision, archive checksum, build
+manifest and executable hash before uploading the archive and checksum to a
+draft. It verifies the uploaded asset digests before making the release public.
+Prerelease tags produce prereleases; stable tags update the latest release.
+
+Only the publishing job receives repository write permission. A failed check
+leaves the tag without a published release. Fix the failure and rerun the
+workflow, or issue a new version if source changes are needed. Never move a
+published tag. Reruns accept an already published release only when its asset
+bytes match exactly; published assets are never replaced. An interrupted draft
+can be completed by rerunning the same qualified revision.
 
 License updates require cargo-about 0.9.2 with its CLI feature:
 

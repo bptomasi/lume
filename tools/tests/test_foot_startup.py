@@ -62,6 +62,17 @@ class FootStartupTests(unittest.TestCase):
                 self.driver.service_frame(None, 9, b"Wrong popup", allow_native=True),
             )
 
+    def test_sixel_origin_includes_painted_margins_but_not_erase_cells(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            for prefix in (b"\x1b[16;21H\x1b[;m  \x1b[76X",
+                           "\x1b[16;1H│\x1b[;m                     \x1b[76X".encode()):
+                wire = (self.driver.BEGIN + prefix
+                        + b'\x1bPq"1;1;760;19\x1b\\' + self.driver.END)
+                (directory / "terminal-output.bin").write_bytes(wire)
+                strip = self.driver.frame(directory)["strips"][0]
+                self.assertEqual((strip["row"], strip["column"]), (15, 22))
+
 
 if __name__ == "__main__":
     unittest.main()

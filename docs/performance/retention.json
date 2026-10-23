@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-23",
+  "source_revision": "6d062bce31ccc193ebb9546fb9b7ade51cead72f",
+  "dirty": true,
+  "toolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "test, unoptimized, debug info disabled, incremental disabled",
+  "binary_sha256": "0643b22098b527ac0d8fb775d5a1f5ac851d4fcdd7955e520cf472680c449632",
+  "command": "cargo test --locked --bench reader -- --test --retention-only [--stress]",
+  "scenarios": [
+    {
+      "articles": 1000,
+      "full_caches": 1000,
+      "protected_articles": 5,
+      "original_feed_body_bytes": 290,
+      "full_body_bytes": 9280,
+      "preview_iterations_per_process": 2,
+      "apply_iterations_per_process": 1,
+      "processes": 3,
+      "batch_size": 32,
+      "max_articles_per_run": 1000,
+      "deleted_articles": 497,
+      "cleared_full_caches": 498,
+      "samples_ms": [
+        {
+          "preview_ms": 8.178,
+          "apply_ms": 160.626
+        },
+        {
+          "preview_ms": 7.872,
+          "apply_ms": 164.786
+        },
+        {
+          "preview_ms": 8.12,
+          "apply_ms": 162.637
+        }
+      ],
+      "medians_ms": {
+        "preview_ms": 8.12,
+        "apply_ms": 162.637
+      }
+    },
+    {
+      "articles": 10000,
+      "full_caches": 10000,
+      "protected_articles": 5,
+      "original_feed_body_bytes": 290,
+      "full_body_bytes": 9280,
+      "preview_iterations_per_process": 2,
+      "apply_iterations_per_process": 1,
+      "processes": 3,
+      "batch_size": 32,
+      "max_articles_per_run": 10000,
+      "deleted_articles": 4997,
+      "cleared_full_caches": 4998,
+      "samples_ms": [
+        {
+          "preview_ms": 77.256,
+          "apply_ms": 1811.1
+        },
+        {
+          "preview_ms": 74.621,
+          "apply_ms": 1823.875
+        },
+        {
+          "preview_ms": 77.109,
+          "apply_ms": 1812.783
+        }
+      ],
+      "medians_ms": {
+        "preview_ms": 77.109,
+        "apply_ms": 1812.783
+      }
+    }
+  ],
+  "checks": [
+    "Favorite, queue, folder, note and smart-list matches keep all five Full caches",
+    "Read deletions and unread Full expirations have independently checked counts",
+    "Original feed text survives Full expiration; unprotected old read item is removed",
+    "Remaining library size, personal flags, folder membership and note count are checked"
+  ],
+  "limits": [
+    "No baseline comparison: these measure a new capability, not a claimed speedup",
+    "Local unoptimized SQLite operations; not production or whole-application latency",
+    "Fixture construction and post-application correctness checks are outside operation timers",
+    "Preview timer includes count checks and repeated preview acknowledgement",
+    "No images in this timed fixture; shared-image and filesystem failures use native behavioral tests",
+    "Network, terminal presentation, peak memory and filesystem I/O are not measured"
+  ],
+  "qualification": {
+    "local_gate": "make check",
+    "native_tests_passed": 856,
+    "python_tool_tests_passed": 44,
+    "real_http_tests_passed": 31,
+    "current_rustsec_gate": "passed; zero reported vulnerabilities and six scoped informational reviews",
+    "advisory_database_commit": "f7b2f6bc663452200bbe639ebb75e0c762b3422b",
+    "release_build": "passed with the repository Rust 1.99.1 toolchain; no toolchain or Lume source substitution",
+    "release_binary_sha256": "578ed459a3eb2fc4d91b9beef0f7b467153d3f7738228a4355b097f8804251e5",
+    "real_foot_qualification": true,
+    "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+    "local_graphics_environment": "Weston 14.0.2 and Xvfb extracted under /tmp; local wrapper maps extracted modules and replaces --no-config with a private desktop-shell configuration. Pillow 11.1.0 is installed locally; CI uses its pinned Pillow 13.0.0 and Ubuntu system compositor packages.",
+    "standalone_package": "verified CLI startup and backup/restore from the archive staging directory",
+    "source_tree": "uncommitted workspace; the local package explicitly records dirty=true and is not a clean-source release qualification",
+    "ci_scope": "workflow syntax and release-tag validation passed locally; no hosted GitHub Actions run is asserted"
+  }
+}

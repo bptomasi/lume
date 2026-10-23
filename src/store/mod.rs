@@ -26,6 +26,8 @@ mod offline;
 mod organization;
 mod query;
 mod reading_sessions;
+mod retention;
+pub(crate) use retention::{Plan as RetentionPlan, Step as RetentionStep};
 mod recommendations;
 mod servers;
 mod storage;

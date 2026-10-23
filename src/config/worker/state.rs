@@ -150,10 +150,12 @@ mod tests {
     fn update(document: &str) -> Update {
         Update {
             appearance_revision: 0,
+            retention: Default::default(),
             ui: crate::config::Ui::default(),
             workspaces: Default::default(),
             catalog_fingerprint: [0; 32],
             document: document.into(),
+            redacted_document: None,
             path: "configuration.toml".into(),
         }
     }

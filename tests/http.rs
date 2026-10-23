@@ -529,14 +529,133 @@ fn assert_exported_config(
 }
 
 fn drain_mirror_requests(requests: mpsc::Receiver<String>) -> Result<()> {
-    for _ in 0..4 {
+    for index in 0..4 {
         let request = requests.recv_timeout(Duration::from_secs(5))?;
         assert!(
             request.to_lowercase().contains("x-auth-token: test-token"),
             "Missing API token header: {request}"
         );
+        if index == 3 {
+            assert!(request.contains("after_entry_id=0"));
+            assert!(!request.contains("offset="));
+        }
     }
     Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn miniflux_retry_after_defers_discovery_and_entries_across_restart()
+-> Result<()> {
+    for entry_failure in [false, true] {
+        let directory = tempfile::tempdir()?;
+        let config = directory.path().join("config.toml");
+        let data = directory.path().join("data");
+        let (origin, requests) = miniflux_rate_limited_server(entry_failure)?;
+        let added = run_mirror_cli(
+            &config,
+            &data,
+            &["server", "add", &origin, "LUME_TEST_MINIFLUX_TOKEN"],
+        )?;
+        ensure!(added.status.success(), "Cannot add test server");
+        let first = run_mirror_cli(&config, &data, &["sync"])?;
+        assert!(!first.status.success());
+        let store = Store::open(&data.join("library.sqlite3"))?;
+        if entry_failure {
+            let health = store.source_health()?.remove(0);
+            assert!(health.retry_at >= chrono::Utc::now().timestamp() + 3500);
+        } else {
+            assert!(store.servers()?[0].error.contains("HTTP 429"));
+        }
+        let second = run_mirror_cli(&config, &data, &["sync"])?;
+        assert!(
+            second.status.success(),
+            "{}",
+            String::from_utf8_lossy(&second.stderr)
+        );
+        for _ in 0..(if entry_failure { 2 } else { 1 }) {
+            requests.recv_timeout(Duration::from_secs(5))?;
+        }
+        assert!(requests.try_recv().is_err());
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn inline_miniflux_credentials_authenticate_but_stay_hidden_in_diagnostics()
+-> Result<()> {
+    let (_directory, config, data, requests) = mirror_setup()?;
+    let text = std::fs::read_to_string(&config)?.replace(
+        "token_env = \"LUME_TEST_MINIFLUX_TOKEN\"",
+        "token = \"inline-distinct-key\"",
+    );
+    std::fs::write(&config, text)?;
+    first_mirror_sync(&config, &data)?;
+    first_mirror_sync(&config, &data)?;
+    for _ in 0..4 {
+        let request = requests.recv_timeout(Duration::from_secs(5))?;
+        assert!(
+            request
+                .to_lowercase()
+                .contains("x-auth-token: inline-distinct-key")
+        );
+        assert!(!request.contains("test-token"));
+    }
+    for arguments in
+        [&["servers"][..], &["config", "show"], &["config", "export"]]
+    {
+        let output = run_mirror_cli(&config, &data, arguments)?;
+        assert!(output.status.success());
+        assert!(
+            !String::from_utf8(output.stdout)?.contains("inline-distinct-key")
+        );
+    }
+    let exported = run_mirror_cli(
+        &config,
+        &data,
+        &["config", "export", "--include-secrets"],
+    )?;
+    assert!(exported.status.success());
+    assert!(
+        String::from_utf8(exported.stdout)?.contains("inline-distinct-key")
+    );
+    Ok(())
+}
+
+fn miniflux_rate_limited_server(
+    entry_failure: bool,
+) -> Result<(String, mpsc::Receiver<String>)> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = format!("http://{}", listener.local_addr()?);
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || -> Result<()> {
+        for index in 0..(if entry_failure { 2 } else { 1 }) {
+            let (mut stream, _) = listener.accept()?;
+            stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+            let request = read_request(&mut stream)?;
+            let discovery = entry_failure && index == 0;
+            let body = if discovery {
+                r#"[{"id":7,"title":"Remote","feed_url":"https://publisher.example/feed"}]"#
+            } else {
+                ""
+            };
+            let status = if discovery {
+                "200 OK"
+            } else {
+                "429 Too Many Requests"
+            };
+            write!(
+                stream,
+                "HTTP/1.1 {status}\r\nContent-Type: application/json\r\n\
+                Retry-After: 3600\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )?;
+            sender.send(request)?;
+        }
+        Ok(())
+    });
+    Ok((address, receiver))
 }
 
 fn miniflux_server() -> Result<(String, mpsc::Receiver<String>)> {

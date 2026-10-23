@@ -54,7 +54,6 @@ These commands open only their own test windows and temporary libraries:
 ```sh
 make build
 make check-foot
-xvfb-run -a make check-alacritty
 make check-latency
 ```
 
@@ -66,10 +65,9 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r tools/requirements-visual.txt
 make check-foot PYTHON=.venv/bin/python
 ```
-Alacritty qualification requires X11/Xvfb, Alacritty, xdotool, xclip and x11-apps.
 The latency harness requires a real Foot session plus an owned loopback HTTP
 publisher. It requires at least 100 samples per workload for reported p99.
-Use `FOOT_ARGS`, `ALACRITTY_ARGS` or `LATENCY_ARGS` for explicit `--binary` and
+Use `FOOT_ARGS` or `LATENCY_ARGS` for explicit `--binary` and
 `--artifacts` paths. The default binary is `target/release/lume`.
 
 Native buffer checks do not prove compositor presentation, physical screen
@@ -142,8 +140,18 @@ read or modify the developer's personal configuration, subscriptions, clipboard
 or terminal preferences. No network fixtures contact arbitrary live publishers.
 
 CI is configured for the pinned toolchain, local/license/advisory/HTTP checks,
-a release build, isolated Alacritty/Xvfb and native Wayland Foot under a headless
-Weston compositor. It retains terminal output, pixel checks and binary hashes.
+a release build and native Wayland Foot under a private Weston compositor.
+Weston's X11 backend runs inside Xvfb with software rendering to provide the
+input seat required by Foot. Install `weston`, `wayland-utils`, `xvfb`, `xauth`
+and `fonts-dejavu-core` to reproduce this isolated environment:
+
+```sh
+xvfb-run -a -s '-screen 0 1920x1440x24' \
+  python3 tools/qualify_wayland.py --artifacts /tmp/lume-wayland -- \
+  make check-foot PYTHON=.venv/bin/python
+```
+
+CI retains terminal output, pixel checks, startup logs and binary hashes.
 These wire checks complement physical display inspection; they do not measure
 compositor presentation latency. A workflow definition alone is not evidence
 that a hosted CI run passed. See [release qualification](release.md).
@@ -153,7 +161,6 @@ that a hosted CI run passed. See [release qualification](release.md).
 | Environment | Text/input | Images | Qualification scope |
 | --- | --- | --- | --- |
 | Linux x86_64, Foot, native Wayland | Supported | Native Sixel | Required real Foot wire/pixel/input/cleanup gate; physical presentation checked separately. |
-| Linux, Alacritty | Supported | Character previews | Real Alacritty/Xvfb input/cleanup gate; no XWayland image helper is required. |
 | Generic ANSI terminal | Portable baseline | Character previews | Native Rust frame/input tests; terminal-specific differences remain possible. |
 | tmux or Zellij | Portable baseline | Character previews by default | Native graphics passthrough is not qualified; force a protocol only deliberately. |
 | WezTerm/iTerm2 | Experimental | iTerm2 encoder | Encoder fixtures pass independently; native desktop behavior is not yet qualified. |

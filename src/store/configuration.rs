@@ -161,6 +161,16 @@ fn publication_update(
     document: String,
     appearance_revision: u64,
 ) -> Result<Update> {
+    let redacted_document =
+        if config.servers.iter().any(|server| server.token.is_some()) {
+            Some(config::document::render(
+                Some(&document),
+                Some(&config),
+                &config.redacted(),
+            )?)
+        } else {
+            None
+        };
     let catalog = serde_json::to_vec(&(
         &config.feeds,
         &config.servers,
@@ -170,11 +180,13 @@ fn publication_update(
         &config.recommendations,
     ))?;
     Ok(Update {
+        retention: config.retention,
         appearance_revision,
         ui: config.ui,
         workspaces: config.workspaces,
         catalog_fingerprint: sha2::Sha256::digest(catalog).into(),
         document,
+        redacted_document,
         path: path.to_path_buf(),
     })
 }

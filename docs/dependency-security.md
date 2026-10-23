@@ -194,6 +194,16 @@ inspection, under its permissive HPND-derived terms. It processes controlled
 qualification fixtures and captured cells, not runtime publisher images.
 It is installed in a development virtualenv and is not bundled in Lume.
 
+The release workflow uses GitHub-maintained `actions/cache` v4 at
+`0057852bfaa89a56745cba8c7296529d2fc39830` and `actions/download-artifact` v4
+at `d3f86a106a0bac45b974a628896c90dbdf5c8093`, verified against their upstream
+tag refs. These MIT-licensed development actions add no runtime dependency.
+Cache restores include the runner OS, pinned Rust/security tool versions and
+lock hash; compilation and advisory checks still run after restoration.
+Release artifacts come from the successful prerequisite job in the same run.
+Only the publication job receives repository write permission. Updates require
+review of the upstream action code, permissions and release history.
+
 Prose justification reuses textwrap's prepared line breaks and the qualified
 Unicode cell/grapheme contracts. Textwrap supplies no justified alignment API;
 Lume's presentation policy expands existing word gaps in eligible cached rows.

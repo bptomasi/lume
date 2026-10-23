@@ -25,7 +25,7 @@ The native benchmark also accepts focused flags, including
 `--configuration-only`, `--welcome-only`, `--code-viewport-only`, `--images-only`,
 `--tables-only`, `--lists-only`, `--rich-text-only`, `--recommendations-only`,
 `--pane-search-only`, `--query-editing-only`, `--library-sections-only` and
-`--fluency-only`. Add `--stress`
+`--fluency-only`, `--server-refresh-only` and `--retention-only`. Add `--stress`
 for larger workloads.
 Setup precedes operation timers; resource reports identify process-wide
 memory/I/O scope.
@@ -146,7 +146,45 @@ no frame speedup is established. The proposed projection allocation change was
 removed, and the retained viewport projection code is unchanged. Resource
 records include process-wide setup, memory and I/O.
 
+The [retention measurements](performance/retention.json) use 1,000 and 10,000
+articles with 290-byte feed summaries and 9,280-byte Full caches. Three local
+unoptimized test processes per scenario measured median previews of 8.120 and
+77.109 ms, and complete applications of 162.637 and 1,812.783 ms. Application
+removes 497/4,997 old read articles and clears 498/4,998 unread Full caches;
+five articles with a favorite, queue item, folder, note or smart-list match
+retain their caches and personal state. Transactions contain at most 32 article
+actions. The stress workload explicitly raises the per-run limit to 10,000;
+the default remains 1,000. Setup and post-application checks are outside timers.
+Images, network, terminal presentation and resource consumption are not timed.
+This is a new capability with no speedup baseline, and the unoptimized figures
+are not release latency claims. Reproduce with
+`cargo test --locked --bench reader -- --test --retention-only`, adding
+`--stress` for 10,000 articles. The report records the executable hash and
+local qualification results, including the graphics-tool substitutions used
+for real Foot and the uncommitted-source package status.
+
+The server-refresh report also retains a revalidation after the retention and
+credential changes: median unchanged discovery was 2.193 ms and a 2,000-entry
+unchanged ingest was 23.888 ms, using the same unoptimized fixture and three
+processes. Native regression tests separately assert zero SQLite changes for
+identical publisher content and redundant personal flag writes.
+
 ## Boundaries
+
+The [server refresh comparison](performance/server-refresh.json) checks 100
+remote feeds and 2,000 cached articles across three independent processes per
+version. Median unchanged discovery fell from 173.224 ms to 2.184 ms; applying
+an unchanged 2,000-entry batch fell from 715.703 ms to 24.775 ms. These are
+unoptimized local store measurements with two iterations per process, excluding
+network parsing and terminal work. They do not establish production latency.
+Fixture setup precedes each timer, and each operation checks identities,
+counts and preservation of personal state.
+
+Unchanged discovery now avoids title-triggered FTS rebuilding and marking every
+remote feed absent before restoring it. Repeated entries compare publisher
+fields before normalization metadata or index updates, reuse prepared SQL and
+retain all local flags. Native regressions verify zero SQLite changes for an
+identical repeat and correct search-index replacement for changed bodies.
 
 TestBackend timings measure checked application work, not terminal transport or
 physical display latency. The real Foot latency observer measures injected input
@@ -155,7 +193,7 @@ excludes the compositor and physical key-to-photon time. At least 100 samples
 per workload are required for its reported p99; compare repeated independent runs
 before claiming an improvement.
 
-Actual Foot and Alacritty qualification uses owned windows and temporary libraries,
+Actual Foot qualification uses owned windows and temporary libraries,
 checks cleanup and never changes terminal preferences or the host clipboard.
 Desktop-dependent checks remain separate from ordinary local verification and
 must be reported as unavailable if their environment cannot be provided.
@@ -197,8 +235,7 @@ Real Foot qualification of the reviewed application used 50,002 articles,
 input-to-terminal-acknowledgement p99 was 5.464 ms during collection, 6.141 ms
 with cached images and 22.174 ms for article switching. This excludes physical
 presentation; it is not a before/after terminal speedup comparison. Native image
-scroll, selection, welcome entry and terminal cleanup also passed. Alacritty was
-not rerun for this revision because xdotool was unavailable.
+scroll, selection, welcome entry and terminal cleanup also passed.
 
 See the [durability and navigation qualification](performance/audit-remediation.md)
 for dense annotations, startup phases and validated snapshot measurements.

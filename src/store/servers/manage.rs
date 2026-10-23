@@ -12,7 +12,7 @@ impl Store {
     pub fn add_server(&self, address: &str, token_env: &str) -> Result<i64> {
         let url = crate::source::server_url(address)?;
         crate::config::validate_env_name(token_env)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let count: usize = transaction.query_row(
             include_str!("../sql/servers/count_other_servers.sql"),
             [&url],
@@ -21,7 +21,7 @@ impl Store {
         ensure!(count < 16, "At most 16 servers");
         transaction.execute(
             include_str!("../sql/configuration/insert_server.sql"),
-            (&url, token_env, true),
+            (&url, token_env, true, ""),
         )?;
         let id = transaction.query_row(
             include_str!("../sql/servers/select_id.sql"),
@@ -35,6 +35,14 @@ impl Store {
             include_str!("../sql/servers/restore_binding.sql"),
             [id],
         )?;
+        transaction.execute(
+            include_str!("../sql/servers/update_enabled.sql"),
+            (id, true),
+        )?;
+        transaction.execute(
+            include_str!("../sql/servers/reset_feed_health.sql"),
+            [id],
+        )?;
         transaction.commit()?;
         Ok(id)
     }
@@ -44,29 +52,38 @@ impl Store {
     /// # Errors
     /// Returns missing connection or SQLite failures.
     pub fn set_server_enabled(&self, id: i64, enabled: bool) -> Result<()> {
+        let transaction = self.write_transaction()?;
         ensure!(
             self.servers()?.iter().any(|server| server.id == id),
             "Server no longer exists"
         );
-        self.connection.execute(
+        transaction.execute(
             include_str!("../sql/servers/update_enabled.sql"),
             (id, enabled),
         )?;
+        if enabled {
+            transaction.execute(
+                include_str!("../sql/servers/reset_feed_health.sql"),
+                [id],
+            )?;
+        }
+        transaction.commit()?;
         Ok(())
     }
 
     /// Archive the definition without deleting cached or personal data.
     ///
     /// # Errors
-    /// Rejects missing connections, references from active smart lists or
+    /// Rejects missing connections, smart-list/retention references or
     /// SQLite failures; changes are atomic.
     pub fn remove_server(&self, id: i64) -> Result<()> {
+        let transaction = self.write_transaction()?;
         ensure!(
             self.servers()?.iter().any(|server| server.id == id),
             "Server no longer exists"
         );
-        let transaction = self.connection.unchecked_transaction()?;
         self.ensure_server_unreferenced(id)?;
+        self.ensure_retention_server_unreferenced(id)?;
         transaction.execute_batch(include_str!(
             "../sql/servers/insert_bindings.sql"
         ))?;

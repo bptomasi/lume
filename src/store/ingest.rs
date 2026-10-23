@@ -187,12 +187,16 @@ fn feed_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Feed> {
             server_id,
             server_url: row.get(7)?,
             token_env: row.get(8)?,
+            token: row
+                .get::<_, Option<String>>(16)?
+                .filter(|token| !token.is_empty())
+                .map(Into::into),
             enabled: row.get(9)?,
             remote_id: row.get(10)?,
             initialized: row.get(11)?,
             last_changed: row.get(12)?,
             present: row.get(13)?,
-            sync_offset: row.get(14)?,
+            sync_after_id: row.get(14)?,
             sync_latest: row.get(15)?,
         }),
         None => None,

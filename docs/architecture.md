@@ -275,10 +275,13 @@ populated libraries retain the former implicit recommendation profile explicitly
 new libraries start neutral. Migration tests exercise real owned SQLite files.
 V13 observes justification-only appearance changes and admits previously enabled
 preferences for configuration publication without replacing personal data.
+V19 replaces unstable remote page offsets with entry IDs and retains multiple
+remote identities for one canonical article. Incomplete legacy passes restart
+from their retained timestamp watermark; cached articles and notes are preserved.
 
 Native tests cover public behavior and credible failures. Visual snapshots cover
 reviewed terminal cells, styles, themes and sizes. Real HTTP fixtures qualify
-network boundaries. Owned Foot and Alacritty windows complement buffer tests;
+network boundaries. Owned Foot windows complement buffer tests;
 protocol acknowledgement is not physical key-to-photon measurement.
 See [development](development.md), [performance](performance.md),
 [configuration](configuration.md) and [dependency policy](dependency-security.md).
@@ -386,6 +389,32 @@ older than that scan. It preserves symlinks, foreign files and pinned images.
 SQLite page reuse is reported separately from physical file shrinkage. A
 multi-batch operation can partially complete; it is never presented as one
 filesystem/database transaction.
+
+Retention has a separate declarative policy and a local preview acknowledgement.
+Its SQLite owner materializes source cutoffs, smart-list matches and candidate
+identities in temporary tables under a read snapshot; this stage never acquires
+an IMMEDIATE write lease or hydrates all bodies. Each bounded mutation batch
+then acquires that lease, checks `data_version` against the captured plan and
+rechecks mandatory personal protections. An external commit interrupts the pass
+before another batch. Full-cache clearing reuses existing document/FTS revision
+semantics; article deletion records original and remote-alias tombstones first.
+A monotonic article identity clock prevents deleted IDs from being reused by
+later news. A single adoption marker supplies legacy reading-state grace
+without rewriting the library during migration.
+
+Image planning is skipped when no image lifetime applies or the ordinary cache
+is empty. Otherwise shared body references resolve once to the strictest
+lifetime, with protection/unlimited taking precedence. Cleanup rechecks file
+type, size and modification time under a bounded write lease. It never treats
+filesystem and SQLite changes as an atomic unit. Automatic scheduling caches
+its policy/deadline in the UI and persists last-run time; input and drawing do
+not poll SQLite or parse TOML. The same maintenance domain serves CLI commands.
+
+Inline server credentials use a redacting debug type. Only authenticated HTTP
+and private configuration storage expose bytes. Public configuration inspection
+uses a redacted document prepared on the publication worker; raw TOML and its
+SQLite snapshots intentionally retain the key. Environment references never
+persist expanded credentials.
 
 Reading sessions greedily select at most eight cached unread recommendations
 within a 1–240 minute total estimate. Repeated sources/interests have diminishing

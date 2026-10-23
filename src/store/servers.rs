@@ -29,6 +29,10 @@ impl Store {
                     id: row.get(0)?,
                     url: row.get(1)?,
                     token_env: row.get(2)?,
+                    token: row
+                        .get::<_, Option<String>>(5)?
+                        .filter(|token| !token.is_empty())
+                        .map(Into::into),
                     enabled: row.get(3)?,
                     error: row.get(4)?,
                 })
@@ -75,11 +79,7 @@ impl Store {
     ) -> Result<()> {
         ensure!(candidates.len() <= 5000, "Server exceeds 5,000 feeds");
         let mut remote_ids = BTreeSet::new();
-        let transaction = self.connection.transaction()?;
-        transaction.execute(
-            include_str!("sql/servers/archive_feeds.sql"),
-            [server_id],
-        )?;
+        let transaction = self.write_transaction()?;
         for candidate in candidates {
             upsert_server_feed(
                 &transaction,
@@ -88,6 +88,9 @@ impl Store {
                 &mut remote_ids,
             )?;
         }
+        transaction
+            .prepare_cached(include_str!("sql/servers/archive_feeds.sql"))?
+            .execute((server_id, serde_json::to_string(&remote_ids)?))?;
         transaction.commit()?;
         Ok(())
     }
@@ -104,38 +107,52 @@ impl Store {
         remote: &RemoteFeedUpdate,
     ) -> Result<()> {
         ensure!(articles.len() <= 2000, "Feed exceeds 2,000 entries");
-        let server = feed
-            .server
-            .as_ref()
-            .filter(|server| server.server_id == remote.server_id)
-            .ok_or_else(|| {
-                anyhow::anyhow!("Remote feed does not match its server")
-            })?;
-        ensure!(
-            server.remote_id == remote.remote_id,
-            "Remote feed identity changed during collection"
-        );
-        let transaction = self.connection.transaction()?;
-        transaction.execute(
-            include_str!("sql/servers/update_feed_title.sql"),
-            (title, feed.id),
-        )?;
+        validate_remote_feed(feed, remote)?;
+        let transaction = self.write_transaction()?;
+        transaction
+            .prepare_cached(include_str!("sql/servers/update_feed_title.sql"))?
+            .execute((title, feed.id))?;
+        let removed: bool = transaction
+            .prepare_cached(include_str!(
+                "sql/retention/select_has_tombstones.sql"
+            ))?
+            .query_row([feed.id], |row| row.get(0))?;
         for article in articles {
-            ingest_remote_article(&transaction, feed, article, remote)?;
+            ingest_remote_article(
+                &transaction,
+                feed,
+                article,
+                remote,
+                removed,
+            )?;
         }
-        transaction.execute(
-            include_str!("sql/servers/update_cursor.sql"),
-            (
+        transaction
+            .prepare_cached(include_str!("sql/servers/update_cursor.sql"))?
+            .execute((
                 remote.server_id,
                 remote.remote_id,
                 remote.last_changed,
-                remote.sync_offset,
+                remote.sync_after_id,
                 remote.sync_latest,
-            ),
-        )?;
+            ))?;
         transaction.commit()?;
         Ok(())
     }
+}
+
+fn validate_remote_feed(feed: &Feed, remote: &RemoteFeedUpdate) -> Result<()> {
+    let server = feed
+        .server
+        .as_ref()
+        .filter(|server| server.server_id == remote.server_id)
+        .ok_or_else(|| {
+            anyhow::anyhow!("Remote feed does not match its server")
+        })?;
+    ensure!(
+        server.remote_id == remote.remote_id,
+        "Remote feed identity changed during collection"
+    );
+    Ok(())
 }
 
 fn ingest_remote_article(
@@ -143,6 +160,7 @@ fn ingest_remote_article(
     feed: &Feed,
     article: &IncomingArticle,
     remote: &RemoteFeedUpdate,
+    has_removed: bool,
 ) -> Result<()> {
     let remote_id = article
         .external_id
@@ -152,12 +170,21 @@ fn ingest_remote_article(
             anyhow::anyhow!("Remote article has an invalid identity")
         })?;
     ensure!(remote_id > 0, "Remote article needs a positive ID");
+    if has_removed
+        && super::retention::removed(
+            transaction,
+            feed.id,
+            &article.external_id,
+            &crate::source::canonical_article_url(&article.url),
+        )?
+    {
+        return Ok(());
+    }
     let article_id =
         resolve_remote_article(transaction, feed, article, remote, remote_id)?;
-    transaction.execute(
-        include_str!("sql/servers/insert_entry_mapping.sql"),
-        (remote.server_id, remote_id, article_id),
-    )?;
+    transaction
+        .prepare_cached(include_str!("sql/servers/insert_entry_mapping.sql"))?
+        .execute((remote.server_id, remote_id, article_id))?;
     Ok(())
 }
 
@@ -168,9 +195,12 @@ fn resolve_remote_article(
     remote: &RemoteFeedUpdate,
     remote_id: i64,
 ) -> Result<i64> {
-    if let Some(id) = mapped_article(transaction, remote.server_id, remote_id)?
+    if let Some((id, unchanged)) =
+        mapped_article(transaction, remote.server_id, remote_id, article)?
     {
-        update_remote_article(transaction, id, article)?;
+        if !unchanged {
+            update_remote_article(transaction, id, article)?;
+        }
         return Ok(id);
     }
     if let Some(id) =
@@ -184,16 +214,26 @@ fn resolve_remote_article(
         update_remote_article(transaction, id, article)?;
         return Ok(id);
     }
+    insert_remote_article(transaction, feed.id, article, remote, &canonical)
+}
+
+fn insert_remote_article(
+    transaction: &rusqlite::Transaction<'_>,
+    feed_id: i64,
+    article: &IncomingArticle,
+    remote: &RemoteFeedUpdate,
+    canonical: &str,
+) -> Result<i64> {
     let state = remote.states.get(&article.external_id).copied().unwrap_or(
         crate::model::RemoteArticleState {
             unread: true,
             starred: false,
         },
     );
-    transaction.execute(
-        include_str!("sql/insert_remote_article.sql"),
-        params![
-            feed.id,
+    transaction
+        .prepare_cached(include_str!("sql/insert_remote_article.sql"))?
+        .execute(params![
+            feed_id,
             article.external_id,
             article.title,
             article.url,
@@ -205,8 +245,7 @@ fn resolve_remote_article(
             state.unread,
             state.starred,
             canonical,
-        ],
-    )?;
+        ])?;
     Ok(transaction.last_insert_rowid())
 }
 
@@ -214,12 +253,22 @@ fn mapped_article(
     transaction: &rusqlite::Transaction<'_>,
     server_id: i64,
     remote_id: i64,
-) -> Result<Option<i64>> {
+    article: &IncomingArticle,
+) -> Result<Option<(i64, bool)>> {
     Ok(transaction
+        .prepare_cached(include_str!("sql/servers/select_cached_entry.sql"))?
         .query_row(
-            include_str!("sql/servers/select_entry_mapping.sql"),
-            (server_id, remote_id),
-            |row| row.get(0),
+            params![
+                server_id,
+                remote_id,
+                article.title,
+                article.url,
+                article.author,
+                article.published,
+                article.body,
+                article.body_origin.as_str(),
+            ],
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?)
 }
@@ -230,11 +279,10 @@ fn article_by_external(
     external_id: &str,
 ) -> Result<Option<i64>> {
     Ok(transaction
-        .query_row(
-            include_str!("sql/servers/select_article_external.sql"),
-            (feed_id, external_id),
-            |row| row.get(0),
-        )
+        .prepare_cached(include_str!(
+            "sql/servers/select_article_external.sql"
+        ))?
+        .query_row((feed_id, external_id), |row| row.get(0))
         .optional()?)
 }
 
@@ -244,11 +292,8 @@ fn article_by_canonical(
     canonical: &str,
 ) -> Result<Option<i64>> {
     Ok(transaction
-        .query_row(
-            include_str!("sql/select_article_by_canonical.sql"),
-            (feed_id, canonical),
-            |row| row.get(0),
-        )
+        .prepare_cached(include_str!("sql/select_article_by_canonical.sql"))?
+        .query_row((feed_id, canonical), |row| row.get(0))
         .optional()?)
 }
 
@@ -277,15 +322,14 @@ fn upsert_server_feed(
         &local_url,
         title,
     )?;
-    transaction.execute(
-        include_str!("sql/insert_server_feed.sql"),
-        params![
+    transaction
+        .prepare_cached(include_str!("sql/insert_server_feed.sql"))?
+        .execute(params![
             server_id,
             candidate.remote_id,
             candidate.remote_url,
             feed_id
-        ],
-    )?;
+        ])?;
     Ok(())
 }
 
@@ -297,28 +341,23 @@ fn server_feed_identity(
     title: &str,
 ) -> Result<i64> {
     let existing: Option<i64> = transaction
-        .query_row(
-            include_str!("sql/servers/select_feed_identity.sql"),
-            (server_id, remote_id),
-            |row| row.get(0),
-        )
+        .prepare_cached(include_str!("sql/servers/select_feed_identity.sql"))?
+        .query_row((server_id, remote_id), |row| row.get(0))
         .optional()?;
     if let Some(id) = existing {
-        transaction.execute(
-            include_str!("sql/servers/update_feed_identity.sql"),
-            (id, &local_url, title),
-        )?;
+        transaction
+            .prepare_cached(include_str!(
+                "sql/servers/update_feed_identity.sql"
+            ))?
+            .execute((id, &local_url, title))?;
         Ok(id)
     } else {
-        transaction.execute(
-            include_str!("sql/upsert_server_feed.sql"),
-            params![local_url, title, server_id],
-        )?;
-        Ok(transaction.query_row(
-            include_str!("sql/servers/select_feed_id.sql"),
-            [&local_url],
-            |row| row.get(0),
-        )?)
+        transaction
+            .prepare_cached(include_str!("sql/upsert_server_feed.sql"))?
+            .execute(params![local_url, title, server_id])?;
+        Ok(transaction
+            .prepare_cached(include_str!("sql/servers/select_feed_id.sql"))?
+            .query_row([&local_url], |row| row.get(0))?)
     }
 }
 
@@ -327,9 +366,9 @@ fn update_remote_article(
     id: i64,
     article: &IncomingArticle,
 ) -> Result<()> {
-    transaction.execute(
-        include_str!("sql/update_remote_article.sql"),
-        params![
+    transaction
+        .prepare_cached(include_str!("sql/update_remote_article.sql"))?
+        .execute(params![
             id,
             article.title,
             article.url,
@@ -339,8 +378,7 @@ fn update_remote_article(
             article.body_origin.as_str(),
             crate::content::reading_minutes(&article.body) as i64,
             crate::source::canonical_article_url(&article.url),
-        ],
-    )?;
+        ])?;
     Ok(())
 }
 

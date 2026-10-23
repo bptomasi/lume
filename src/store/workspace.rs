@@ -161,13 +161,15 @@ impl Store {
         .collect()
     }
 
-    /// Delete a saved query without affecting articles.
+    /// Delete a saved query and its obsolete retention exception atomically.
     ///
     /// # Errors
-    /// Returns SQLite errors.
+    /// Returns policy or SQLite errors without partially removing definitions.
     pub fn delete_smart_list(&self, id: i64) -> Result<()> {
-        self.connection
-            .execute("DELETE FROM smart_lists WHERE id = ?1", [id])?;
+        let transaction = self.write_transaction()?;
+        self.forget_retention_smart_list(id)?;
+        transaction.execute(include_str!("sql/delete_smart_list.sql"), [id])?;
+        transaction.commit()?;
         Ok(())
     }
 

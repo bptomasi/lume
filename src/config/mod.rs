@@ -10,6 +10,7 @@ pub(crate) mod document;
 mod formatting;
 pub(crate) mod merge;
 pub(crate) mod publication;
+pub mod retention;
 mod schema;
 mod worker;
 
@@ -130,8 +131,16 @@ pub fn decode(text: &str) -> Result<Configuration> {
         text.len() <= 2 * 1024 * 1024,
         "Configuration exceeds 2 MiB"
     );
-    let mut config: Configuration = toml_edit::de::from_str(text)
-        .context("Invalid Lume TOML configuration")?;
+    let mut config: Configuration = toml_edit::de::from_str(text).map_err(
+        |error: toml_edit::de::Error| {
+            // The full TOML error display includes nearby source lines, which
+            // may contain an inline credential unrelated to the invalid field.
+            anyhow::anyhow!(
+                "Invalid Lume TOML configuration: {}",
+                error.message()
+            )
+        },
+    )?;
     for feed in &mut config.feeds {
         feed.url = crate::source::feed_url(&feed.url)?.to_string();
     }
@@ -150,6 +159,15 @@ pub fn decode(text: &str) -> Result<Configuration> {
 pub fn encode(config: &Configuration) -> Result<String> {
     config.validate()?;
     Ok(formatting::generated(config)?.to_string())
+}
+
+/// Preserve document comments while hiding inline credentials for diagnostics.
+///
+/// # Errors
+/// Returns invalid configuration or TOML tree errors.
+pub fn redacted_document(text: &str) -> Result<String> {
+    let config = decode(text)?;
+    document::render(Some(text), Some(&config), &config.redacted())
 }
 
 /// Read and validate one bounded UTF-8 document without opening a library.

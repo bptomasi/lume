@@ -30,6 +30,9 @@ pub struct Configuration {
     pub recommendations: Recommendations,
     /// User-named layout profiles; excludes layout undo history.
     pub workspaces: BTreeMap<String, PanelLayout>,
+    /// Explicit cache and article lifetimes; unlimited and inactive by default.
+    #[serde(default, skip_serializing_if = "retention_default")]
+    pub retention: super::retention::Retention,
 }
 
 impl Default for Configuration {
@@ -45,8 +48,13 @@ impl Default for Configuration {
             recommendations: Recommendations::default(),
             workspaces: crate::model::LayoutHistory::new(&Workspace::default())
                 .profiles,
+            retention: super::retention::Retention::default(),
         }
     }
+}
+
+fn retention_default(value: &super::retention::Retention) -> bool {
+    *value == super::retention::Retention::default()
 }
 
 /// Subscription identity and extraction policy; publisher titles remain cached.
@@ -75,7 +83,7 @@ fn enabled() -> bool {
     true
 }
 
-/// Optional Miniflux-compatible collection server; the token stays external.
+/// Optional Miniflux server with one explicit credential source.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Server {
@@ -84,7 +92,11 @@ pub struct Server {
     /// Absolute HTTP(S) server root without a query or fragment.
     pub url: String,
     /// Environment variable holding the per-application API token.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub token_env: String,
+    /// Optional inline API token; mutually exclusive with `token_env`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token: Option<crate::model::ApiToken>,
     /// Whether collection through this server is enabled.
     #[serde(default = "enabled")]
     pub enabled: bool,
@@ -202,7 +214,22 @@ impl Ui {
 }
 
 impl Configuration {
+    /// Copy portable definitions with inline credentials hidden for display.
+    pub fn redacted(&self) -> Self {
+        let mut copy = self.clone();
+        for server in &mut copy.servers {
+            if server.token.is_some() {
+                server.token = Some("[redacted]".into());
+            }
+        }
+        copy
+    }
+
     pub(crate) fn normalize(&mut self) {
+        self.retention.unprotected_smart_lists.sort();
+        self.retention
+            .sources
+            .sort_by(|left, right| left.id.cmp(&right.id));
         self.feeds.sort_by(|left, right| left.id.cmp(&right.id));
         self.servers.sort_by(|left, right| left.id.cmp(&right.id));
         self.folders.sort_by(|left, right| left.id.cmp(&right.id));
@@ -230,6 +257,8 @@ impl Configuration {
         self.validate_feeds()?;
         self.validate_servers()?;
         self.validate_queries()?;
+        self.retention.validate()?;
+        self.validate_retention_sources()?;
         let mut workspace = Workspace::default();
         self.ui.apply(&mut workspace);
         crate::store::validate_workspace_dimensions(&workspace)?;
@@ -275,6 +304,29 @@ impl Configuration {
         Ok(())
     }
 
+    fn validate_retention_sources(&self) -> Result<()> {
+        for key in &self.retention.unprotected_smart_lists {
+            ensure!(
+                self.smart_lists.iter().any(|list| list.id == *key),
+                "Unknown unprotected smart list"
+            );
+        }
+        for source in &self.retention.sources {
+            if let Some((server, _)) = server_feed_reference(&source.id)? {
+                ensure!(
+                    self.servers.iter().any(|item| item.id == server),
+                    "Unknown server in retention source"
+                );
+            } else {
+                ensure!(
+                    self.feeds.iter().any(|item| item.id == source.id),
+                    "Unknown feed in retention source"
+                );
+            }
+        }
+        Ok(())
+    }
+
     fn validate_servers(&self) -> Result<()> {
         ensure!(self.servers.len() <= 16, "At most 16 servers");
         let mut ids = BTreeSet::new();
@@ -288,7 +340,15 @@ impl Configuration {
             );
             let url = crate::source::server_url(&server.url)?;
             ensure!(urls.insert(url.clone()), "Duplicate server URL: {url}");
-            validate_env_name(&server.token_env)?;
+            ensure!(
+                server.token.is_some() != !server.token_env.is_empty(),
+                "Server requires exactly one of token or token_env"
+            );
+            if let Some(token) = &server.token {
+                token.validate()?;
+            } else {
+                validate_env_name(&server.token_env)?;
+            }
         }
         Ok(())
     }
@@ -393,6 +453,79 @@ fn validate_names<'a>(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+
+    #[test]
+    fn inline_credentials_round_trip_but_debug_and_diagnostics_hide_them()
+    -> Result<()> {
+        let text = r#"schema_version = 1
+[[servers]]
+id = "home"
+url = "https://reader.example"
+token = "private-test-key"
+"#;
+        let config = crate::config::decode(text)?;
+        assert!(config.servers[0].token_env.is_empty());
+        assert!(!format!("{config:?}").contains("private-test-key"));
+        assert!(crate::config::encode(&config)?.contains("private-test-key"));
+        let redacted = crate::config::redacted_document(text)?;
+        assert!(!redacted.contains("private-test-key"));
+        assert!(redacted.contains("[redacted]"));
+        assert!(crate::config::decode(&redacted).is_ok());
+        let invalid = format!("{text}enabled = 42\n");
+        let error = crate::config::decode(&invalid)
+            .err()
+            .ok_or_else(|| anyhow::anyhow!("Invalid field was accepted"))?;
+        assert!(!format!("{error:#}").contains("private-test-key"));
+        assert!(
+            crate::config::decode(&format!("{text}token_env = \"TOKEN\"\n"))
+                .is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn retention_rejects_invalid_bounds_ages_and_unknown_sources() {
+        for value in ["0", "-1", "365001", "true", "1.5", "\"forever\""] {
+            let text = format!("[retention.defaults]\nread_days = {value}\n");
+            assert!(crate::config::decode(&text).is_err());
+        }
+        for text in [
+            "[retention]\nbatch_size = 0",
+            "[retention]\ninterval_hours = 0",
+            "[retention]\nmax_images_per_run = 0",
+            "[retention]\nmax_articles_per_run = 0",
+            "[[retention.sources]]\nid = 'unknown'",
+            "[retention]\nunprotected_smart_lists = ['unknown']",
+        ] {
+            assert!(crate::config::decode(text).is_err());
+        }
+    }
+
+    #[test]
+    fn retention_age_overrides_preserve_inheritance_and_explicit_unlimited()
+    -> Result<()> {
+        let text = r#"
+[[feeds]]
+id = "journal"
+url = "https://journal.example/feed"
+[retention.defaults]
+read_days = 90
+[[retention.sources]]
+id = "journal"
+read_days = "unlimited"
+full_text_days = 30
+"#;
+        let config = crate::config::decode(text)?;
+        let resolved =
+            config.retention.sources[0].resolve(&config.retention.defaults);
+        assert_eq!(resolved.read_days.0, None);
+        assert_eq!(resolved.full_text_days.0, Some(30));
+        assert_eq!(
+            crate::config::decode(&crate::config::encode(&config)?)?,
+            config
+        );
+        Ok(())
+    }
 
     #[test]
     fn server_definition_round_trips_with_a_normalized_root() -> Result<()> {

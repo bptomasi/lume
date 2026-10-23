@@ -63,10 +63,14 @@ mod reading_tools;
 mod recommendations;
 #[path = "workloads/recovery_navigation.rs"]
 mod recovery_navigation;
+#[path = "workloads/retention.rs"]
+mod retention;
 #[path = "workloads/rich_text.rs"]
 mod rich_text;
 #[path = "workloads/search_relevance.rs"]
 mod search_relevance;
+#[path = "workloads/server_refresh.rs"]
+mod server_refresh;
 #[path = "workloads/servers.rs"]
 mod servers;
 #[path = "workloads/service_interaction.rs"]
@@ -121,6 +125,8 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    retention::run(iterations, stress)?;
+    server_refresh::run(iterations, stress)?;
     library_sections::run(iterations, stress)?;
     servers::run(iterations, stress)?;
     geometry::run(iterations, stress)?;
@@ -155,6 +161,8 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--retention-only", retention::run),
+    ("--server-refresh-only", server_refresh::run),
     ("--library-sections-only", library_sections::run),
     ("--geometry-only", geometry::run),
     ("--reading-services-only", reading_services::run),

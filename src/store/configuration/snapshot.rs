@@ -41,6 +41,7 @@ impl Store {
                 include_read: profile.include_read,
             },
             workspaces: layouts.profiles,
+            retention: self.retention_policy()?,
         };
         config.normalize();
         config.validate()?;
@@ -89,6 +90,10 @@ impl Store {
                     id: row.get(1)?,
                     url: row.get(2)?,
                     token_env: row.get(3)?,
+                    token: row
+                        .get::<_, Option<String>>(5)?
+                        .filter(|token| !token.is_empty())
+                        .map(Into::into),
                     enabled: row.get(4)?,
                 })
             })?

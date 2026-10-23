@@ -48,7 +48,6 @@ mod tests {
     #[test]
     fn native_images_need_explicit_supported_terminal_evidence() {
         for (term, program, expected) in [
-            ("alacritty", "", ImageProtocol::Blocks),
             ("xterm-256color", "", ImageProtocol::Blocks),
             ("xterm-kitty", "", ImageProtocol::Blocks),
             ("xterm-ghostty", "ghostty", ImageProtocol::Blocks),

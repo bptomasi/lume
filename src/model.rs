@@ -1,5 +1,8 @@
 //! Small data contracts shared by storage, collection and presentation.
 
+mod credentials;
+pub use credentials::ApiToken;
+
 mod document;
 mod offline;
 mod reading_session;
@@ -111,6 +114,8 @@ pub struct Server {
     pub url: String,
     /// Environment variable holding the API token.
     pub token_env: String,
+    /// Inline credential when the environment variable name is empty.
+    pub token: Option<ApiToken>,
     /// Whether collection through this server is enabled.
     pub enabled: bool,
     /// Last server-level failure, empty after success or before the first try.
@@ -126,6 +131,8 @@ pub struct ServerFeed {
     pub server_url: String,
     /// Environment variable holding the API token.
     pub token_env: String,
+    /// Inline credential when the environment variable name is empty.
+    pub token: Option<ApiToken>,
     /// Whether the server definition is enabled.
     pub enabled: bool,
     /// Remote feed identity.
@@ -134,8 +141,8 @@ pub struct ServerFeed {
     pub initialized: bool,
     /// Latest observed remote `changed_at` second, zero before first sync.
     pub last_changed: i64,
-    /// Next offset while a bounded incremental pass is incomplete.
-    pub sync_offset: usize,
+    /// Last remote ID while a bounded incremental pass is incomplete.
+    pub sync_after_id: i64,
     /// Highest change timestamp observed during the current bounded pass.
     pub sync_latest: i64,
     /// Whether the subscription still exists on the server.
@@ -162,8 +169,8 @@ pub struct RemoteFeedUpdate {
     pub initialized: bool,
     /// Latest remote `changed_at` second in this update.
     pub last_changed: i64,
-    /// Next offset while a bounded incremental pass is incomplete.
-    pub sync_offset: usize,
+    /// Last remote ID while a bounded incremental pass is incomplete.
+    pub sync_after_id: i64,
     /// Highest change timestamp observed during the current bounded pass.
     pub sync_latest: i64,
     /// Initial state keyed by the article's stable external identity.

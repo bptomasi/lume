@@ -60,24 +60,36 @@ impl Store {
 
     fn apply_configuration_server(&self, server: &Server) -> Result<()> {
         let url = crate::source::server_url(&server.url)?;
-        let id =
-            if let Some(id) = self.configuration_id("server", &server.id)? {
-                self.connection.execute(
-                    include_str!("../sql/configuration/update_server.sql"),
-                    (id, url.as_str(), &server.token_env, server.enabled),
-                )?;
-                id
-            } else {
-                self.connection.execute(
-                    include_str!("../sql/configuration/insert_server.sql"),
-                    (url.as_str(), &server.token_env, server.enabled),
-                )?;
-                self.connection.query_row(
-                    include_str!("../sql/servers/select_id.sql"),
-                    [url.as_str()],
-                    |row| row.get(0),
-                )?
-            };
+        let id = if let Some(id) =
+            self.configuration_id("server", &server.id)?
+        {
+            self.connection.execute(
+                include_str!("../sql/configuration/update_server.sql"),
+                (
+                    id,
+                    url.as_str(),
+                    &server.token_env,
+                    server.enabled,
+                    server.token.as_ref().map_or("", |token| token.expose()),
+                ),
+            )?;
+            id
+        } else {
+            self.connection.execute(
+                include_str!("../sql/configuration/insert_server.sql"),
+                (
+                    url.as_str(),
+                    &server.token_env,
+                    server.enabled,
+                    server.token.as_ref().map_or("", |token| token.expose()),
+                ),
+            )?;
+            self.connection.query_row(
+                include_str!("../sql/servers/select_id.sql"),
+                [url.as_str()],
+                |row| row.get(0),
+            )?
+        };
         self.bind_configuration("server", id, &server.id)
     }
 
@@ -250,6 +262,7 @@ impl Store {
         &self,
         config: &Configuration,
     ) -> Result<()> {
+        self.save_retention_policy(&config.retention)?;
         let sources = config
             .feeds
             .iter()
@@ -349,6 +362,7 @@ mod tests {
             id: "home".into(),
             url: "https://reader.example/base/".into(),
             token_env: "LUME_MINIFLUX_TOKEN".into(),
+            token: None,
             enabled: true,
         });
         config.normalize();

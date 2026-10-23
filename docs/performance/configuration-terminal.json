@@ -115,7 +115,6 @@
   },
   "limits": [
     "Summary of owned real-terminal runs; raw captures are not repository assets.",
-    "No baseline comparison or speedup is claimed.",
-    "Alacritty was not rerun for this revision: xdotool is unavailable."
+    "No baseline comparison or speedup is claimed."
   ]
 }

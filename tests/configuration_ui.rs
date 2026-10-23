@@ -292,3 +292,26 @@ fn an_older_publication_cannot_undo_a_local_return_to_the_initial_value()
     assert!(!app.workspace.latex_formulas);
     Ok(())
 }
+
+#[test]
+fn configuration_inspection_uses_the_cached_redacted_document() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let store = Store::open(&directory.path().join("library.sqlite3"))?;
+    let path = directory.path().join("config.toml");
+    fs::write(
+        &path,
+        "[[servers]]\nid = 'home'\nurl = 'https://reader.example'\ntoken = 'private-inline-key'\n",
+    )?;
+    let session = Session::open(&store, &path)?;
+    let mut app = App::new(store, false)?;
+    app.configure_document(session.initial().clone());
+    fs::remove_file(&path)?;
+    command(&mut app, "config")?;
+    let lume::app::Mode::Document(document) = &app.mode else {
+        anyhow::bail!("Configuration inspection did not open");
+    };
+    let visible = document.lines.join("\n");
+    assert!(visible.contains("[redacted]"));
+    assert!(!visible.contains("private-inline-key"));
+    Ok(())
+}

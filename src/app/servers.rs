@@ -1,4 +1,4 @@
-//! Explicit connections use external credentials and ordinary Library actions.
+//! Explicit connections expose credential sources and ordinary Library actions.
 
 use anyhow::{Context, Result, bail, ensure};
 
@@ -116,9 +116,13 @@ fn server_choice(server: &crate::model::Server) -> Choice {
     Choice {
         title: server.url.clone(),
         detail: format!(
-            "{state} · token variable: {}\n{error}\n\n\
+            "{state} · credential source: {}\n{error}\n\n\
              :server-enable / :server-disable · dd removes the connection",
-            server.token_env
+            if server.token.is_some() {
+                "TOML (hidden)"
+            } else {
+                server.token_env.as_str()
+            }
         ),
         action: ChoiceAction::SetView(View::Server(server.id)),
     }

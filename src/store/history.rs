@@ -130,9 +130,9 @@ impl Store {
         column: &str,
         value: bool,
     ) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let undo = transaction.query_row(
-            "SELECT unread, starred, queued FROM articles WHERE id = ?1",
+            include_str!("sql/select_personal_flags.sql"),
             [article],
             |row| {
                 Ok(Undo::Flags {
@@ -144,9 +144,11 @@ impl Store {
             },
         )?;
         // Column names are owner-selected constants, never user input.
-        let sql = format!("UPDATE articles SET {column} = ?1 WHERE id = ?2");
-        transaction.execute(&sql, (value, article))?;
-        record(&transaction, &undo)?;
+        let sql = include_str!("sql/update_personal_flag.sql")
+            .replace("{column}", column);
+        if transaction.execute(&sql, (value, article))? > 0 {
+            record(&transaction, &undo)?;
+        }
         transaction.commit()?;
         Ok(())
     }
@@ -289,4 +291,30 @@ fn restore_collection(
         )?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unchanged_flags_never_write_or_create_false_retention_protections()
+    -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let store = Store::open(&directory.path().join("library.sqlite3"))?;
+        store
+            .connection
+            .execute_batch(include_str!("sql/test_setup_retention.sql"))?;
+        let before = store.connection.total_changes();
+        store.set_unread(1, false)?;
+        store.set_starred(1, false)?;
+        store.set_queued(1, false)?;
+        assert_eq!(store.connection.total_changes(), before);
+        assert!(!store.undo()?);
+        store.set_queued(1, true)?;
+        assert!(store.article(1)?.queued);
+        assert!(store.undo()?);
+        assert!(!store.article(1)?.queued);
+        Ok(())
+    }
 }

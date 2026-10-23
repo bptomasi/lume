@@ -130,7 +130,7 @@ fn clean_images(
     Ok(removed)
 }
 
-fn files(
+pub(crate) fn files(
     directory: &Path,
 ) -> Result<Vec<(std::path::PathBuf, u64, SystemTime)>> {
     let entries = match std::fs::read_dir(directory) {

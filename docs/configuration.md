@@ -93,7 +93,8 @@ The Library has a **SERVERS** section with one aggregate destination per
 connection and its remote feeds below it. Select a connection and use `dd` to
 remove it. `:collapse servers` folds the section; pinning and Library search
 also work for server destinations. Paused connections remain readable offline.
-Errors and the token variable name are available through `:servers`.
+Errors and the credential source are available through `:servers`; inline
+credentials appear as `TOML (hidden)`.
 
 Library section titles (`SMART LISTS`, `FEEDS`, `SERVERS`, `YOUR FOLDERS` and
 `PINNED`) are selectable controls. Click a title, or move to it with `j/k` or
@@ -123,12 +124,33 @@ A connection used by a smart list can be paused. To remove it, first remove
 that list's source restriction; removal reports the referencing list rather
 than leaving an invalid configuration.
 
-Create an API key in Miniflux under *Settings → API Keys*, then export the token
-in the named environment variable before starting Lume or running `lume sync`.
-The token is never written to TOML, printed in errors, or included in
-`lume config export`. `url` must be an absolute HTTP(S) root without
-credentials, a query or a fragment; a deployment below a path prefix is
-supported.
+Create an API key in Miniflux under *Settings → API Keys*. Set exactly one of
+`token_env` (the environment variable name) or `token` (the literal key):
+
+```toml
+[[servers]]
+id = "office"
+url = "https://office-reader.example"
+token = "your-miniflux-api-key"
+```
+
+For `token_env`, export that variable before starting Lume or running
+`lume sync`; its value is never persisted. A missing environment value is an
+error, with no fallback to another credential. For `token`, Lume stores the
+literal in TOML, its SQLite configuration projection and private recovery
+backups. These files contain the key in plaintext. Newly created configuration
+files and exports are private; existing file permissions remain unchanged.
+
+`:config`, `lume config show`, `lume config export`, server listings and debug
+output hide inline keys. Explicit `lume config show --include-secrets` or
+`lume config export reader-backup.toml --include-secrets` includes them for a
+complete portable copy. A redacted export needs a real key or an environment
+reference before it can authenticate. Parser errors omit source excerpts so a
+neighboring inline key cannot leak. Formatting and ordinary definition edits
+retain the actual key in the private file.
+
+`url` must be an absolute HTTP(S) root without credentials, a query or a
+fragment; a deployment below a path prefix is supported.
 
 Server-owned feeds do not appear as `[[feeds]]` records and are read-only in the
 configuration file. Their articles are cached locally like publisher content.
@@ -139,8 +161,12 @@ already cached articles do not overwrite local state.
 
 Disabling or removing a server stops collection but retains cached articles,
 notes and reading state. The first observation per feed reads up to 2,000 of the
-newest entries; later refreshes read changed entries in bounded pages and resume incomplete
-passes, including batches whose entries share a timestamp. Miniflux 2.0.49 or
+newest entries; later refreshes read changed entries in bounded pages and resume
+incomplete passes by remote entry ID, including timestamp ties. Deleting earlier
+entries does not shift the saved cursor. HTTP Retry-After pauses requests to
+that hostname, including discovery, and survives restart. Enabling or
+reconnecting a server clears stale feed failures while respecting that shared
+HTTP deadline. Miniflux 2.0.49 or
 later is required for the [`changed_after` API filter](https://miniflux.app/docs/api.html). Authenticated API
 requests do not follow redirects; use the final Miniflux root URL. Missing
 or revoked tokens, an unreachable server and malformed responses leave the
@@ -177,6 +203,93 @@ boolean expression. Feed references use portable source IDs, including disabled
 sources. Remove references before removing their source definition, or retain
 the source with `enabled = false`. Ordinary folders have no query.
 Annotation collections use the Notebook search grammar.
+
+## Retention and recoverable caches
+
+Retention is unlimited and automatic maintenance is disabled by default.
+Article lifetimes and recoverable-cache lifetimes are independent:
+
+```toml
+[retention]
+automatic = false
+interval_hours = 24
+batch_size = 32
+max_articles_per_run = 1000
+max_images_per_run = 1000
+protect_smart_lists = true
+unprotected_smart_lists = []
+
+[retention.defaults]
+full_text_days = 30
+image_days = 30
+read_days = 90
+unread_days = "unlimited"
+
+[[retention.sources]]
+id = "journal"             # Existing [[feeds]] ID
+read_days = "unlimited"    # Omitted fields inherit the defaults
+full_text_days = 14
+
+# A discovered server feed uses its portable identity:
+# [[retention.sources]]
+# id = "server:home:42"
+# unread_days = 180
+```
+
+Use positive whole days (1–365,000) or `"unlimited"`; zero is rejected. Read and
+unread lifetimes start at the later of local admission and the last read/unread
+transition, rather than the publisher's date. Marking an old item unread gives
+it a fresh unread lifetime. Upgraded libraries receive a grace period for
+existing items whose transition date was not recorded. Full-text age starts
+at its successful download. Ordinary images expire only when their referencing
+articles and the files themselves are old enough; a fresh download survives.
+
+Favorites, queued articles, every personal folder membership (including hidden
+folders), notes, highlights, note-link targets, tags, saved web pages, recoverable
+drafts/undo, export manifests, offline-package items, remaining reading-session
+items and the current reader are always protected. These protections also keep
+their Full text and images. Active smart-list matches are protected by default;
+`unprotected_smart_lists = ["temporary-list-id"]` exempts individual dynamic
+queries, or `protect_smart_lists = false` exempts all dynamic queries. Personal
+folders and the other protections still apply. Deleting a smart list also
+removes its exception and requires a fresh preview. Overrides reference local
+feed IDs or `server:<connection-id>:<remote-feed-id>`, never display names. Before
+removing a server with retention overrides, remove those overrides or pause
+the connection instead. This keeps the remaining cached articles' policy
+explicit.
+
+Inspect and acknowledge a policy before applying it:
+
+```sh
+lume retention status
+lume retention preview
+lume retention apply
+```
+
+The TUI supports `:retention status`, `:retention preview` (Enter applies),
+`:retention apply` and `:retention cancel`. CLI commands work offline. Preview
+counts all currently eligible content without removing it; application obeys
+both per-run budgets. Changing lifetimes, source overrides or smart-list
+protection requires another preview. Changing scheduling/budgets or enabling
+`automatic = true` after preview retains that acknowledgement. A preview does
+not itself enable automatic maintenance.
+
+Automatic passes run on the TUI maintenance worker while ordinary reading is
+idle, and after successful `lume sync`; the interval survives restarts. No work
+runs while Lume is closed. Application rechecks personal protections inside
+small transactions and interrupts when another connection commits, rebuilding
+its plan on a later pass. Completed batches survive cancellation or a later
+failure. `:retention cancel` stops between batches.
+
+Expiring Full text preserves title, link and the original feed body; fetch it
+again normally. Expiring articles permanently removes eligible local news,
+leaving compact source/GUID/URL tombstones so refreshes do not reimport them.
+It never deletes news from the remote server. Ordinary image cleanup preserves
+shared images needed by protected or unexpired articles, foreign files,
+symlinks and the separate offline namespace. Unreferenced images use the global
+image lifetime; with an unlimited global lifetime and only source overrides,
+unknown orphan images are retained. SQLite reuses freed pages, so logical bytes
+released need not shrink the database file.
 
 ## Appearance, shortcuts and layouts
 
@@ -252,7 +365,7 @@ lume config reload
 
 `path`, `check` and `format` do not create or migrate a library. Export creates
 a private file and refuses to overwrite an existing destination. Inside the TUI,
-`:config` shows the cached, validated document; `:config-reload` requests
+`:config` shows the cached, validated document with inline keys hidden; `:config-reload` requests
 reconciliation.
 The background worker also observes ordinary file changes. Installation never
 installs a reading preset or clears personal data.

@@ -1,6 +1,7 @@
 //! HTTP downloads produce owned results; only the collector commits SQLite.
 
 use anyhow::{Result, bail};
+use std::sync::atomic::AtomicBool;
 
 use crate::model::Feed;
 
@@ -12,9 +13,13 @@ pub(super) struct Download {
     pub(super) retry_at: i64,
 }
 
-pub(super) fn fetch(client: &ureq::Agent, feed: &Feed) -> Download {
+pub(super) fn fetch(
+    client: &ureq::Agent,
+    feed: &Feed,
+    stopped: &AtomicBool,
+) -> Download {
     if let Some(server) = feed.server.as_ref() {
-        return super::miniflux::fetch_entries(client, feed, server);
+        return super::miniflux::fetch_entries(client, feed, server, stopped);
     }
     let mut updated = feed.clone();
     let mut retry_at = 0;

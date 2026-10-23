@@ -28,8 +28,12 @@ pub struct Update {
     pub catalog_fingerprint: [u8; 32],
     /// Validated current file text for the discoverable configuration viewer.
     pub document: String,
+    /// Prepared credential-safe view; absent when the document has no inline keys.
+    pub redacted_document: Option<String>,
     /// Canonical effective configuration path.
     pub path: PathBuf,
+    /// Cached scheduling preferences; article scans stay on the maintenance lane.
+    pub retention: super::retention::Retention,
 }
 
 /// Bounded reconciliation notifications; pending edits themselves live in SQLite.
@@ -166,10 +170,12 @@ mod tests {
         for name in ["First", "Second"] {
             send.send(Ok(Update {
                 appearance_revision: 0,
+                retention: Default::default(),
                 ui: Default::default(),
                 workspaces: Default::default(),
                 catalog_fingerprint: [0; 32],
                 document: name.into(),
+                redacted_document: None,
                 path: "config.toml".into(),
             }))?;
         }

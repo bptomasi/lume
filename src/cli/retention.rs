@@ -1,0 +1,63 @@
+//! Explicit previews and application share the background retention contract.
+
+use anyhow::{Context, Result};
+use clap::Subcommand;
+use lume::{retention, store::Store};
+use std::{path::Path, sync::atomic::AtomicBool};
+
+#[derive(Subcommand)]
+pub(crate) enum Command {
+    /// Explain activation and scheduling without scanning article bodies.
+    Status,
+    /// Count eligible content and acknowledge this exact policy without deleting.
+    Preview,
+    /// Apply the previously previewed policy, preserving all personal protections.
+    Apply,
+}
+
+pub(super) fn run(
+    store: &Store,
+    path: &Path,
+    command: Option<Command>,
+) -> Result<()> {
+    let images = path
+        .parent()
+        .context("Library has no parent directory")?
+        .join("images");
+    let now = chrono::Utc::now().timestamp();
+    match command.unwrap_or(Command::Status) {
+        Command::Status => print!("{}", retention::status(store)?),
+        Command::Preview => {
+            print!("{}", retention::preview(store, &images, now)?.text(true))
+        }
+        Command::Apply => print!(
+            "{}",
+            retention::apply(
+                store,
+                &images,
+                now,
+                &AtomicBool::new(false),
+                None
+            )?
+            .text(false)
+        ),
+    }
+    Ok(())
+}
+
+pub(super) fn automatic(store: &Store, path: &Path) -> Result<()> {
+    let images = path
+        .parent()
+        .context("Library has no parent directory")?
+        .join("images");
+    if let Some(report) = retention::automatic(
+        store,
+        &images,
+        chrono::Utc::now().timestamp(),
+        &AtomicBool::new(false),
+        None,
+    )? {
+        print!("{}", report.text(false));
+    }
+    Ok(())
+}

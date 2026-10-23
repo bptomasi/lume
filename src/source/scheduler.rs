@@ -34,7 +34,7 @@ pub(super) fn refresh(
     let server_failures =
         super::miniflux::sync_servers(&mut store, client, stopped)?;
     let progress = collect(&mut store, stopped, progress, &|feed| {
-        download::fetch(client, feed)
+        download::fetch(client, feed, stopped)
     })?;
     Ok(match progress {
         Progress::Finished { feeds, failures } => Progress::Finished {
@@ -120,7 +120,7 @@ fn buckets(feeds: Vec<Feed>) -> Vec<Vec<Feed>> {
     buckets
 }
 
-fn domain(address: &str) -> String {
+pub(super) fn domain(address: &str) -> String {
     url::Url::parse(address)
         .ok()
         .and_then(|url| url.host_str().map(str::to_owned))

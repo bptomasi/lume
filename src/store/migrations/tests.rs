@@ -190,6 +190,49 @@ fn v10_library(path: &std::path::Path) -> Result<()> {
 }
 
 #[test]
+fn remote_cursor_upgrade_retains_identity_and_replays_incomplete_passes()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("remote-upgrade.sqlite3");
+    v7_library(&path)?;
+    let mut connection = Connection::open(&path)?;
+    let migrations = MIGRATIONS
+        .iter()
+        .take(18)
+        .map(|(name, sql)| Migration::unapplied(name, sql))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Runner::new(&migrations)
+        .set_grouped(true)
+        .run(&mut connection)?;
+    connection.execute_batch(include_str!(
+        "../sql/test_setup_remote_cursor_upgrade.sql"
+    ))?;
+    drop(connection);
+
+    for _ in 0..2 {
+        let store = Store::open(&path)?;
+        let remote = store
+            .feeds()?
+            .remove(0)
+            .server
+            .ok_or_else(|| anyhow::anyhow!("Remote identity was lost"))?;
+        assert_eq!(remote.sync_after_id, 0);
+        assert_eq!(remote.last_changed, 100);
+        assert_eq!(remote.sync_latest, 500);
+        let mapped: i64 = store.connection.query_row(
+            include_str!("../sql/servers/select_entry_mapping.sql"),
+            (77, 88),
+            |row| row.get(0),
+        )?;
+        assert_eq!(mapped, 1);
+        assert!(store.article(1)?.starred);
+        assert_eq!(store.body(1)?, "Original body");
+        assert_eq!(store.comments(1)?[0].body, "Keep this private note");
+    }
+    Ok(())
+}
+
+#[test]
 fn justification_upgrade_admits_unpublished_preferences_and_keeps_owned_data()
 -> Result<()> {
     let directory = tempfile::tempdir()?;
@@ -230,5 +273,61 @@ fn v12_justified_library(
     workspace.justify = true;
     legacy.save_workspace(&workspace)?;
     assert!(!legacy.configuration_pending(config)?);
+    Ok(())
+}
+
+#[test]
+fn retention_upgrade_adopts_legacy_dates_without_rewriting_owned_articles()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("retention-upgrade.sqlite3");
+    v20_retention_library(&path)?;
+    let store = Store::open(&path)?;
+    let (last, adopted): (i64, i64) = store.connection.query_row(
+        include_str!("../sql/test_select_retention_adoption.sql"),
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    assert_eq!(last, 3);
+    let mut policy = crate::config::retention::Retention::default();
+    policy.defaults.read_days = crate::config::retention::Age(Some(1));
+    policy.defaults.unread_days = crate::config::retention::Age(Some(1));
+    store.save_retention_policy(&policy)?;
+    let images = directory.path().join("images");
+    assert_eq!(
+        crate::retention::preview(&store, &images, adopted)?.articles,
+        0
+    );
+    assert_eq!(
+        crate::retention::preview(&store, &images, adopted + 86_401)?.articles,
+        2
+    );
+    assert_eq!(store.body(1)?, "Original body");
+    assert_eq!(store.comments(1)?[0].body, "Keep this private note");
+    assert_eq!(
+        Store::open(&path)?.connection.query_row(
+            include_str!("../sql/test_select_retention_adoption.sql"),
+            [],
+            |row| row.get::<_, i64>(1),
+        )?,
+        adopted
+    );
+    Ok(())
+}
+
+fn v20_retention_library(path: &std::path::Path) -> Result<()> {
+    v7_library(path)?;
+    let mut connection = Connection::open(path)?;
+    let migrations = MIGRATIONS
+        .iter()
+        .take(20)
+        .map(|(name, sql)| Migration::unapplied(name, sql))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Runner::new(&migrations)
+        .set_grouped(true)
+        .run(&mut connection)?;
+    connection.execute_batch(include_str!(
+        "../sql/test_prepare_retention_upgrade.sql"
+    ))?;
     Ok(())
 }

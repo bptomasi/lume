@@ -177,7 +177,7 @@ fn paint_cursor(app: &App, index: usize, line: &mut Line<'static>) {
         && index == app.reader_cursor
     {
         // Paint the only reader cursor. A hardware block on this same cell
-        // can invert it again, cancelling contrast in terminals like Alacritty.
+        // can invert it again, cancelling the intended contrast.
         let style = cursor_style();
         let text = app.reader_lines.get(index).map_or("", String::as_str);
         if text.is_empty() {

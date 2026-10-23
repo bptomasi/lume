@@ -8,7 +8,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, ensure};
 use serde::de::DeserializeOwned;
 
 use crate::{
@@ -41,14 +41,27 @@ pub(super) fn sync_servers(
     stopped: &AtomicBool,
 ) -> Result<usize> {
     let servers = store.servers()?;
+    let mut retries = store.domain_retries(now())?;
     let mut failures = 0;
     for server in servers.into_iter().filter(|server| server.enabled) {
         if stopped.load(Ordering::Relaxed) {
             break;
         }
-        let result = sync_server(store, client, &server);
+        let host = super::scheduler::domain(&server.url);
+        if retries.get(&host).is_some_and(|deadline| *deadline > now()) {
+            continue;
+        }
+        let result = sync_server(store, client, &server, stopped);
+        if stopped.load(Ordering::Relaxed) {
+            break;
+        }
         if let Err(error) = &result {
             failures += 1;
+            let deadline = retry_deadline(error);
+            if deadline > now() {
+                store.record_domain_retry(&host, deadline, now())?;
+                retries.insert(host, deadline);
+            }
             store.record_server_attempt(
                 server.id,
                 now(),
@@ -65,6 +78,7 @@ fn sync_server(
     store: &mut Store,
     client: &ureq::Agent,
     server: &Server,
+    stopped: &AtomicBool,
 ) -> Result<()> {
     let token = token(server)?;
     let feeds: Vec<RemoteFeed> =
@@ -86,6 +100,7 @@ fn sync_server(
             })
         })
         .collect::<Result<Vec<_>>>()?;
+    ensure!(!stopped.load(Ordering::Relaxed), "Collection cancelled");
     store.sync_server_feeds(server.id, &candidates)
 }
 
@@ -94,12 +109,14 @@ pub(super) fn fetch_entries(
     client: &ureq::Agent,
     feed: &Feed,
     server: &ServerFeed,
+    stopped: &AtomicBool,
 ) -> Download {
-    let result = request_entries(client, feed, server);
+    let result = request_entries(client, feed, server, stopped);
+    let retry_at = result.as_ref().err().map_or(0, retry_deadline);
     Download {
         feed: feed.clone(),
         result,
-        retry_at: 0,
+        retry_at,
     }
 }
 
@@ -107,13 +124,15 @@ fn request_entries(
     client: &ureq::Agent,
     feed: &Feed,
     server: &ServerFeed,
+    stopped: &AtomicBool,
 ) -> Result<Option<ParsedFeed>> {
-    let token = token_from(&server.token_env)?;
-    let entries = fetch_pages(client, server, &token)?;
-    let sync_offset = entries.next_offset;
+    let token = credential(server.token.as_ref(), &server.token_env)?;
+    let entries = fetch_pages(client, server, &token, stopped)?;
+    ensure!(!stopped.load(Ordering::Relaxed), "Collection cancelled");
+    let sync_after_id = entries.after_id;
     let (articles, states, latest) =
         normalize_entries(server, entries.entries)?;
-    let last_changed = if sync_offset > 0 {
+    let last_changed = if sync_after_id > 0 {
         server.last_changed
     } else {
         latest
@@ -127,7 +146,7 @@ fn request_entries(
             remote_id: server.remote_id,
             initialized: true,
             last_changed,
-            sync_offset,
+            sync_after_id,
             sync_latest: latest,
             states,
         }),
@@ -136,16 +155,17 @@ fn request_entries(
 
 struct Collected {
     entries: BTreeMap<i64, RemoteEntry>,
-    next_offset: usize,
+    after_id: i64,
 }
 
 fn fetch_pages(
     client: &ureq::Agent,
     server: &ServerFeed,
     token: &str,
+    stopped: &AtomicBool,
 ) -> Result<Collected> {
-    collect_pages(server, |offset| {
-        let url = entry_page_url(server, !server.initialized, offset)?;
+    collect_pages(server, stopped, |cursor| {
+        let url = entry_page_url(server, !server.initialized, cursor)?;
         get_json(client, &url, token)
             .map_err(|error| annotate(error, &server.token_env, token))
     })
@@ -153,45 +173,57 @@ fn fetch_pages(
 
 fn collect_pages(
     server: &ServerFeed,
-    mut fetch: impl FnMut(usize) -> Result<EntryPage>,
+    stopped: &AtomicBool,
+    mut fetch: impl FnMut(i64) -> Result<EntryPage>,
 ) -> Result<Collected> {
-    let mut offset = if server.initialized {
-        server.sync_offset
+    let mut cursor = if server.initialized {
+        server.sync_after_id
     } else {
         0
     };
     let mut entries = BTreeMap::new();
     for _ in 0..MAX_PAGES {
-        let page = fetch(offset)?;
+        ensure!(!stopped.load(Ordering::Relaxed), "Collection cancelled");
+        let page = fetch(cursor)?;
         ensure!(page.entries.len() <= PAGE_ENTRIES, "Oversized entry page");
         let count = page.entries.len();
-        let complete =
-            count < PAGE_ENTRIES || offset.saturating_add(count) >= page.total;
+        let visited = if server.initialized {
+            0
+        } else {
+            cursor as usize
+        };
+        let complete = count < PAGE_ENTRIES || visited + count >= page.total;
         for entry in page.entries {
             ensure!(entry.id > 0, "Remote entry needs a positive ID");
+            if server.initialized {
+                ensure!(
+                    entry.id > cursor,
+                    "Remote entry IDs are not ascending"
+                );
+                cursor = entry.id;
+            }
             entries.entry(entry.id).or_insert(entry);
         }
-        offset = offset.saturating_add(count);
+        if !server.initialized {
+            cursor += count as i64;
+        }
         if complete {
             return Ok(Collected {
                 entries,
-                next_offset: 0,
+                after_id: 0,
             });
         }
     }
     // Initial import deliberately keeps only the newest bounded set. Later
     // passes resume against the same watermark, including timestamp ties.
-    let next_offset = if server.initialized { offset } else { 0 };
-    Ok(Collected {
-        entries,
-        next_offset,
-    })
+    let after_id = if server.initialized { cursor } else { 0 };
+    Ok(Collected { entries, after_id })
 }
 
 fn entry_page_url(
     server: &ServerFeed,
     initial: bool,
-    offset: usize,
+    cursor: i64,
 ) -> Result<url::Url> {
     let mut url = endpoint_parts(
         &server.server_url,
@@ -199,15 +231,15 @@ fn entry_page_url(
     )?;
     {
         let mut query = url.query_pairs_mut();
-        query
-            .append_pair("limit", &PAGE_ENTRIES.to_string())
-            .append_pair("offset", &offset.to_string());
+        query.append_pair("limit", &PAGE_ENTRIES.to_string());
         if initial {
             query
+                .append_pair("offset", &cursor.to_string())
                 .append_pair("order", "published_at")
                 .append_pair("direction", "desc");
         } else {
             query
+                .append_pair("after_entry_id", &cursor.to_string())
                 .append_pair("order", "id")
                 .append_pair("direction", "asc")
                 .append_pair(
@@ -285,8 +317,21 @@ fn normalize(
     })
 }
 
-fn token(server: &Server) -> Result<String> {
-    token_from(&server.token_env)
+fn token(server: &Server) -> Result<std::borrow::Cow<'_, str>> {
+    credential(server.token.as_ref(), &server.token_env)
+}
+
+fn credential<'a>(
+    inline: Option<&'a crate::model::ApiToken>,
+    environment: &str,
+) -> Result<std::borrow::Cow<'a, str>> {
+    if let Some(token) = inline {
+        ensure!(environment.is_empty(), "Ambiguous server credentials");
+        token.validate()?;
+        Ok(std::borrow::Cow::Borrowed(token.expose()))
+    } else {
+        token_from(environment).map(std::borrow::Cow::Owned)
+    }
 }
 
 fn token_from(name: &str) -> Result<String> {
@@ -326,7 +371,16 @@ fn get_json<T: DeserializeOwned>(
         .build()
         .call()?;
     if response.status() != 200 {
-        bail!("Miniflux returned HTTP {}", response.status());
+        return Err(HttpFailure {
+            status: response.status().as_u16(),
+            retry_at: response
+                .headers()
+                .get("retry-after")
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| super::download::retry_after(value, now()))
+                .unwrap_or(0),
+        }
+        .into());
     }
     let bytes = crate::http_body::read(response.body_mut(), MAX_FEED_BYTES)
         .context("Miniflux response exceeds 16 MiB")?;
@@ -338,12 +392,40 @@ fn annotate(
     token_env: &str,
     token: &str,
 ) -> anyhow::Error {
-    let text = format!("{error:#}").replace(token, "[redacted]");
-    if text.contains("HTTP 401") || text.contains("HTTP 403") {
-        anyhow::anyhow!("Miniflux authentication failed; check {token_env}")
-    } else {
-        anyhow::anyhow!(text)
+    if let Some(failure) = error.downcast_ref::<HttpFailure>() {
+        if matches!(failure.status, 401 | 403) {
+            let location = if token_env.is_empty() {
+                "server token in TOML"
+            } else {
+                token_env
+            };
+            return anyhow::anyhow!(
+                "Miniflux authentication failed; check {location}"
+            );
+        }
+        return error;
     }
+    anyhow::anyhow!(format!("{error:#}").replace(token, "[redacted]"))
+}
+
+#[derive(Debug)]
+struct HttpFailure {
+    status: u16,
+    retry_at: i64,
+}
+
+impl std::fmt::Display for HttpFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "Miniflux returned HTTP {}", self.status)
+    }
+}
+
+impl std::error::Error for HttpFailure {}
+
+fn retry_deadline(error: &anyhow::Error) -> i64 {
+    error
+        .downcast_ref::<HttpFailure>()
+        .map_or(0, |error| error.retry_at)
 }
 
 fn timestamp(value: &str) -> i64 {
@@ -407,7 +489,10 @@ mod tests {
 
         let incremental = entry_page_url(&server(true, 100), false, 200)?;
         let query = parameters(&incremental);
-        assert_eq!(query.get("offset").map(String::as_str), Some("200"));
+        assert_eq!(
+            query.get("after_entry_id").map(String::as_str),
+            Some("200")
+        );
         assert_eq!(query.get("order").map(String::as_str), Some("id"));
         assert_eq!(query.get("direction").map(String::as_str), Some("asc"));
         assert_eq!(query.get("changed_after").map(String::as_str), Some("99"));
@@ -424,27 +509,60 @@ mod tests {
     fn incremental_batches_resume_timestamp_ties_instead_of_starting_over()
     -> Result<()> {
         let mut remote = server(true, 100);
-        let first = collect_pages(&remote, synthetic_page)?;
+        let first =
+            collect_pages(&remote, &AtomicBool::new(false), synthetic_page)?;
         assert_eq!(first.entries.len(), 2000);
-        assert_eq!(first.next_offset, 2000);
-        remote.sync_offset = first.next_offset;
-        let second = collect_pages(&remote, synthetic_page)?;
+        assert_eq!(first.after_id, 2000);
+        remote.sync_after_id = first.after_id;
+        let second =
+            collect_pages(&remote, &AtomicBool::new(false), synthetic_page)?;
         assert_eq!(second.entries.len(), 1);
-        assert_eq!(second.next_offset, 0);
+        assert_eq!(second.after_id, 0);
         assert!(second.entries.contains_key(&2001));
+        Ok(())
+    }
+
+    #[test]
+    fn initial_import_keeps_only_the_newest_bounded_set() -> Result<()> {
+        let mut calls = 0;
+        let collected = collect_pages(
+            &server(false, 0),
+            &AtomicBool::new(false),
+            |offset| {
+                calls += 1;
+                Ok(EntryPage {
+                    total: 5000,
+                    entries: (5000 - offset - 199..=5000 - offset)
+                        .rev()
+                        .map(entry)
+                        .collect(),
+                })
+            },
+        )?;
+        assert_eq!(calls, MAX_PAGES);
+        assert_eq!(collected.entries.len(), 2000);
+        assert_eq!(collected.after_id, 0);
+        assert_eq!(
+            collected.entries.first_key_value().map(|(id, _)| *id),
+            Some(3001)
+        );
+        assert_eq!(
+            collected.entries.last_key_value().map(|(id, _)| *id),
+            Some(5000)
+        );
         Ok(())
     }
 
     #[test]
     fn oversized_pages_and_invalid_remote_identities_fail() -> Result<()> {
         let remote = server(true, 100);
-        let bad = collect_pages(&remote, |_| {
+        let bad = collect_pages(&remote, &AtomicBool::new(false), |_| {
             let mut page = synthetic_page(0)?;
             page.entries.push(entry(201));
             Ok(page)
         });
         assert!(bad.is_err());
-        let bad = collect_pages(&remote, |_| {
+        let bad = collect_pages(&remote, &AtomicBool::new(false), |_| {
             Ok(EntryPage {
                 total: 1,
                 entries: vec![entry(0)],
@@ -487,11 +605,72 @@ mod tests {
         assert!(error.to_string().contains("[redacted]"));
     }
 
-    fn synthetic_page(offset: usize) -> Result<EntryPage> {
+    #[test]
+    fn pagination_survives_deletions_before_the_last_remote_id() -> Result<()> {
+        let remote = server(true, 100);
+        let mut calls = 0;
+        let collected =
+            collect_pages(&remote, &AtomicBool::new(false), |cursor| {
+                calls += 1;
+                if cursor == 0 {
+                    synthetic_page(0)
+                } else {
+                    assert_eq!(cursor, 200);
+                    Ok(EntryPage {
+                        total: 1,
+                        entries: vec![entry(201)],
+                    })
+                }
+            })?;
+        assert_eq!(calls, 2);
+        assert!(collected.entries.contains_key(&201));
+        assert_eq!(collected.after_id, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn cancelled_or_repeating_pagination_stops_before_another_request()
+    -> Result<()> {
+        let remote = server(true, 100);
+        let stopped = AtomicBool::new(false);
+        let mut calls = 0;
+        let result = collect_pages(&remote, &stopped, |_| {
+            calls += 1;
+            stopped.store(true, Ordering::Relaxed);
+            synthetic_page(0)
+        });
+        assert!(result.is_err());
+        assert_eq!(calls, 1);
+        let mut calls = 0;
+        let result = collect_pages(&remote, &AtomicBool::new(false), |_| {
+            calls += 1;
+            synthetic_page(0)
+        });
+        assert!(result.is_err());
+        assert_eq!(calls, 2);
+        Ok(())
+    }
+
+    #[test]
+    fn redaction_keeps_http_retry_deadlines() {
+        let error = annotate(
+            HttpFailure {
+                status: 429,
+                retry_at: 1234,
+            }
+            .into(),
+            "TOKEN",
+            "secret",
+        );
+        assert_eq!(retry_deadline(&error), 1234);
+        assert!(error.to_string().contains("HTTP 429"));
+    }
+
+    fn synthetic_page(offset: i64) -> Result<EntryPage> {
         Ok(EntryPage {
-            total: 2001,
+            total: (2001 - offset) as usize,
             entries: (offset..(offset + 200).min(2001))
-                .map(|index| entry(index as i64 + 1))
+                .map(|index| entry(index + 1))
                 .collect(),
         })
     }
@@ -516,11 +695,12 @@ mod tests {
             server_id: 1,
             server_url: "https://reader.example".into(),
             token_env: "LUME_MINIFLUX_TOKEN".into(),
+            token: None,
             enabled: true,
             remote_id: 7,
             initialized,
             last_changed,
-            sync_offset: 0,
+            sync_after_id: 0,
             sync_latest: last_changed,
             present: true,
         }

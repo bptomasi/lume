@@ -22,7 +22,7 @@ import time
 
 from visual_dependencies import pillow
 from foot_terminal import relay
-from qualify_alacritty import wait_for, write_json
+from terminal_support import wait_for, write_json
 
 ADDRESS = "https://example.org/request-path.svg"
 BEGIN = b"\x1b[?2026h"
@@ -91,14 +91,25 @@ def frame(directory):
         dimensions = re.search(rb'"1;1;(\d+);(\d+)', match[0])
         if not position or not dimensions:
             raise RuntimeError("Sixel strip lacks a bounded position/dimensions")
-        cursor = position[-1]
+        row, column = strip_position(content, position[-1], match.start())
         strips.append({
-            "row": int(cursor[1]) - 1, "column": int(cursor[2]) - 1,
+            "row": row, "column": column,
             "width": int(dimensions[1]), "height": int(dimensions[2]),
             "sha256": hashlib.sha256(match[0]).hexdigest(),
             "data": match[0],
         })
     return {"offset": end, "content": content, "strips": strips}
+
+
+def strip_position(content, cursor, offset):
+    # Ratatui can paint the blank margin after its last absolute cursor move.
+    # ECH clears cells without advancing; SGR changes style without advancing.
+    # Our fixture permits only spaces and the single-cell pane border here.
+    margin = re.sub(rb"\x1b\[[0-?]*[ -/]*[@-~]", b"",
+                    content[cursor.end():offset]).decode("utf-8")
+    if any(character not in " │" for character in margin):
+        raise RuntimeError("Unexpected content before fixture Sixel position")
+    return int(cursor[1]) - 1, int(cursor[2]) - 1 + len(margin)
 
 
 def native_frame(directory, after=-1):
@@ -581,11 +592,8 @@ def launch(binary, directory):
         raise RuntimeError("Native Wayland is required")
     body = seed(directory)
     configuration = directory / "foot.ini"
-    configuration.write_text(
-        "[main]\nfont=FiraCode Nerd Font Mono:size=12\n"
-        "initial-window-size-chars=120x40\npad=0x0\n"
-        "[security]\nosc52=disabled\n"
-    )
+    from terminal_support import foot_configuration
+    configuration.write_text(foot_configuration())
     environment = os.environ.copy()
     environment.update(LUME_DATA_DIR=str(directory / "data/lume"),
                            LUME_CONFIG=str(directory / "config.toml"))
@@ -633,7 +641,14 @@ def main():
         })
     if any(directory.iterdir()):
         raise RuntimeError("Use an empty artifact directory for isolation")
-    report = launch(binary, directory)
+    try:
+        report = launch(binary, directory)
+    except (OSError, RuntimeError, subprocess.SubprocessError, sqlite3.Error) as error:
+        from terminal_support import startup_failure
+        message = startup_failure(error, directory, ["foot.log"])
+        write_json(directory / "result.json", {"passed": False, "error": message})
+        print(f"FAIL: {message}; evidence: {directory}", file=sys.stderr)
+        return 1
     report.update(
         passed=True, binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
         foot_version=subprocess.check_output(["foot", "--version"], text=True).strip(),

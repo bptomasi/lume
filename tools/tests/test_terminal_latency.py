@@ -93,7 +93,7 @@ class GeometryTests(unittest.TestCase):
         import sys
         from types import SimpleNamespace
         from unittest.mock import patch
-        dependencies = {"qualify_alacritty": module("qualify_alacritty")}
+        dependencies = {"terminal_support": module("terminal_support")}
         with patch.dict(sys.modules, dependencies):
             relay = module("foot_terminal")
         provisional = struct.pack("HHHH", 24, 80, 0, 0)

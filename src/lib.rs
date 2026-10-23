@@ -15,6 +15,7 @@ pub mod media;
 pub mod model;
 pub mod offline;
 pub mod reader;
+pub mod retention;
 pub mod search;
 pub mod source;
 pub mod storage;

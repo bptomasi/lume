@@ -1,4 +1,5 @@
 INSERT INTO articles (
+    id,
     feed_id,
     external_id,
     title,
@@ -13,4 +14,5 @@ INSERT INTO articles (
     added_at,
     canonical_key
 )
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, unixepoch(), ?12);
+VALUES ((SELECT last_id + 1 FROM article_identity_clock WHERE singleton = 1),
+    ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, unixepoch(), ?12);

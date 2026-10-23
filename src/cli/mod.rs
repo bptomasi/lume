@@ -1,6 +1,7 @@
 //! Noninteractive commands use the same persistence and exchange contracts.
 
 mod feeds;
+mod retention;
 mod servers;
 
 use std::path::{Path, PathBuf};
@@ -47,6 +48,11 @@ pub(super) enum Command {
     },
     /// List configured remote servers, status and token variable names.
     Servers,
+    /// Preview or apply explicitly configured cache and article lifetimes.
+    Retention {
+        #[command(subcommand)]
+        command: Option<retention::Command>,
+    },
     /// Add, remove, pause or resume a remote reader connection.
     Server {
         #[command(subcommand)]
@@ -134,6 +140,10 @@ pub(super) fn execute(
         }
         Command::Feeds { sort, errors } => feeds::print(&store, sort, errors)?,
         Command::Servers => servers::print(&store)?,
+        Command::Retention { command } => {
+            real_library(demo)?;
+            retention::run(&store, &path, command)?;
+        }
         Command::Server { command } => {
             real_library(demo)?;
             servers::edit(&store, command)?;
@@ -142,6 +152,7 @@ pub(super) fn execute(
             real_library(demo)?;
             network_enabled(offline)?;
             sync_subscriptions(&path)?;
+            retention::automatic(&store, &path)?;
         }
         Command::Fetch { article } => {
             real_library(demo)?;
@@ -149,12 +160,7 @@ pub(super) fn execute(
             source::article::fetch_once(&path, article)?;
             println!("Full article {article} cached for offline reading.");
         }
-        Command::Discover { url } => {
-            network_enabled(offline)?;
-            for feed in source::discovery::discover(&url)? {
-                println!("{}\t{}", feed.title, feed.url);
-            }
-        }
+        Command::Discover { url } => discover(&url, offline)?,
         Command::Search { text, limit } => search(&store, text, limit)?,
         Command::Undo => undo_change(&store)?,
         other => exchange_command(other, &store)?,
@@ -258,5 +264,13 @@ fn install_reading(store: &Store) -> Result<()> {
         report.total_feeds, report.added_feeds, report.added_searches,
     );
     println!("Run lume sync or open the TUI to collect articles.");
+    Ok(())
+}
+
+fn discover(url: &str, offline: bool) -> Result<()> {
+    network_enabled(offline)?;
+    for feed in source::discovery::discover(url)? {
+        println!("{}\t{}", feed.title, feed.url);
+    }
     Ok(())
 }

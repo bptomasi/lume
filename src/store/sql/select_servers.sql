@@ -1,4 +1,4 @@
-SELECT s.id, s.url, s.token_env, s.enabled, s.error
+SELECT s.id, s.url, s.token_env, s.enabled, s.error, s.token
 FROM servers AS s
 WHERE NOT EXISTS (
     SELECT 1 FROM configuration_bindings AS b

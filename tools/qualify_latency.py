@@ -23,7 +23,7 @@ import time
 
 from foot_terminal import relay
 from latency_fixture import Publisher, body, seed
-from qualify_alacritty import wait_for, write_json
+from terminal_support import wait_for, write_json
 from qualify_foot import command, enter_library, frame, send
 
 

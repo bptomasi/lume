@@ -15,7 +15,7 @@ CARGO_AUDIT ?= cargo-audit
 REPORT_DIR ?= reports
 MIGRATE_FROM ?=
 
-.PHONY: help paths check check-release check-http check-alacritty fmt format
+.PHONY: help paths check check-release check-http fmt format
 .PHONY: lint test bench build run demo clean
 .PHONY: install upgrade test-tools bench-tools bench-notes bench-recommendations
 .PHONY: bench-reading bench-images bench-interaction bench-code check-image-display check-foot
@@ -51,7 +51,6 @@ help:
 		'  check-http            Qualify real loopback HTTP behavior' \
 		'  check-foot            Qualify images and input in a real Wayland Foot' \
 		'  check-image-display   Alias for check-foot' \
-		'  check-alacritty       Qualify Alacritty input and cleanup on X11' \
 		'  check-latency         Measure real Foot input/frame acknowledgement' \
 		'' \
 		'Correctness-checked measurements:' \
@@ -83,14 +82,14 @@ check:
 	$(MAKE) lint
 	$(MAKE) test
 	$(MAKE) test-tools
-	$(PYTHON) -m py_compile tools/render_preview.py tools/qualify_alacritty.py \
+	$(PYTHON) -m py_compile tools/render_preview.py tools/terminal_support.py \
 		tools/install.py tools/bench_install.py tools/bench_notes.py \
 		tools/bench_support.py tools/bench_recommendations.py tools/bench_images.py \
 		tools/qualify_foot.py tools/foot_terminal.py tools/bench_interaction.py \
 		tools/terminal_latency.py tools/latency_fixture.py tools/qualify_latency.py \
 		tools/bench_code.py tools/bench_configuration.py tools/bench_reading.py \
 		tools/advisories.py tools/dependency_inventory.py tools/visual_dependencies.py \
-		tools/package_release.py
+		tools/package_release.py tools/publish_release.py tools/qualify_wayland.py
 
 fmt:
 	$(CARGO) fmt --all -- --check
@@ -118,11 +117,6 @@ check-release:
 
 check-http:
 	$(CARGO) test --locked --test http --test image_http -- --ignored
-
-# Requires a real X11 display, or xvfb-run, and the named GUI test tools.
-# This is separate from local checks because it opens a desktop window.
-check-alacritty:
-	$(PYTHON) tools/qualify_alacritty.py --binary "$(BINARY)" $(ALACRITTY_ARGS)
 
 # Requires Foot and native Wayland; opens only an owned qualification window.
 check-image-display: check-foot

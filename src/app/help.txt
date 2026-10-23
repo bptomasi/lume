@@ -67,7 +67,6 @@
                   Enter / :edit-note works from the keyboard.
   Wheel           Scroll the panel under the pointer
                   One reported event moves one row/item; no acceleration.
-                  Alacritty: [scrolling] multiplier = 1 for one notch/row.
   Drag divider    Resize columns or rows; release saves, Esc cancels
   Drag [≡]        Hold the corner grip; the pane follows the pointer
                   Move in both axes; the rest of the workspace darkens.
@@ -85,7 +84,7 @@
   Drag text       Select only within the reader, even across a divider
   y / s / n       Yank / highlight / annotate the reader selection
   Capture requires terminal mouse reporting; keyboard always works.
-  Alacritty: hold Shift for native terminal selection instead.
+  Hold Shift for native terminal selection instead.
   Mouse capture is suspended for external editors and restored on return.
   Help, previews and pickers scroll; text editors retain keyboard input.
 
@@ -402,6 +401,13 @@ DECLARATIVE CONFIGURATION
                   Plans use the cached unread recommendations, not a model.
                   Configure interests first; at most eight entries fit a plan.
   :storage        Inspect feed, Full cache, notes, database/WAL and image usage
+  :retention      Inspect opt-in retention; unlimited and inactive by default
+  :retention preview
+                  Count eligible content without deleting; Enter applies once
+  :retention apply
+                  Apply the previewed policy in bounded background batches
+  :retention cancel
+                  Stop maintenance between batches; completed batches remain
   :storage clean images|articles|all
                   Preview eligible cache cleanup; Enter confirms, Esc cancels.
                   Personal context, folders, offline and session entries stay.

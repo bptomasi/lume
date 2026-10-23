@@ -86,7 +86,7 @@ fn cache_article(
         remote_id: remote,
         initialized: true,
         last_changed: 100,
-        sync_offset: 0,
+        sync_after_id: 0,
         sync_latest: 100,
         states: Default::default(),
     };

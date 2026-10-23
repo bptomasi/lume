@@ -9,6 +9,7 @@ pub(super) struct ConfigurationState {
     document: Option<crate::config::Update>,
     deferred: Option<Deferred>,
     written_ui: Option<crate::config::Ui>,
+    next_retention: Option<std::time::Instant>,
 }
 
 struct Deferred {
@@ -19,7 +20,41 @@ struct Deferred {
 impl App {
     /// Cache a successfully reconciled document; drawing never reads its file.
     pub fn configure_document(&mut self, update: crate::config::Update) {
+        if self
+            .configuration
+            .document
+            .as_ref()
+            .is_none_or(|previous| previous.retention != update.retention)
+        {
+            self.configuration.next_retention = None;
+        }
         self.configuration.document = Some(update);
+    }
+
+    pub(super) fn retention_due(&mut self) -> bool {
+        if !self.configuration.document.as_ref().is_some_and(|update| {
+            update.retention.automatic && update.retention.has_limits()
+        }) || self.maintenance_pending()
+            || !self.configuration_idle()
+        {
+            return false;
+        }
+        let now = std::time::Instant::now();
+        if self
+            .configuration
+            .next_retention
+            .is_some_and(|next| next > now)
+        {
+            return false;
+        }
+        self.configuration.next_retention =
+            Some(now + std::time::Duration::from_secs(60));
+        true
+    }
+
+    pub(super) fn schedule_retention(&mut self, delay: std::time::Duration) {
+        self.configuration.next_retention =
+            Some(std::time::Instant::now() + delay);
     }
 
     pub(super) fn remember_appearance_write(&mut self) {
@@ -156,7 +191,10 @@ impl App {
                     "# Configuration\n\n{}\n\nEdit this file externally, \
                     then use :config-reload.\n\n```toml\n{}\n```",
                     config.path.display(),
-                    config.document
+                    config
+                        .redacted_document
+                        .as_deref()
+                        .unwrap_or(&config.document)
                 );
                 self.show_document("Configuration · Esc closes", &text, None);
                 Ok(Some(Action::None))

@@ -28,7 +28,10 @@ use super::{App, Mode};
 
 #[derive(Clone, Debug)]
 pub(super) enum Request {
-    Offline { view: View, limits: OfflineLimits },
+    Offline {
+        view: View,
+        limits: OfflineLimits,
+    },
     Resume,
     Release,
     OfflineStatus,
@@ -36,15 +39,38 @@ pub(super) enum Request {
     Clean(Cleanup),
     Plan(u16),
     Start(ReadingSession),
-    Session { advance: bool },
+    Session {
+        advance: bool,
+    },
     EndSession,
+    Retention {
+        action: RetentionAction,
+        article: Option<i64>,
+    },
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) enum RetentionAction {
+    Status,
+    Preview,
+    Apply,
+    Automatic,
 }
 
 enum Outcome {
     Text(String),
+    RetentionStatus(String),
     Offline(OfflineState),
     Plan(ReadingSession),
     Session(ReadingSession),
+    Retention {
+        report: crate::retention::Report,
+        preview: bool,
+    },
+    AutomaticRetention {
+        report: Option<crate::retention::Report>,
+        delay: std::time::Duration,
+    },
 }
 
 enum Update {
@@ -98,6 +124,16 @@ impl App {
         &mut self,
         request: Request,
     ) -> Result<()> {
+        self.admit_maintenance(request)?;
+        self.show_document(
+            "Working · Esc closes report",
+            "Working in the background…",
+            None,
+        );
+        Ok(())
+    }
+
+    fn admit_maintenance(&mut self, request: Request) -> Result<()> {
         if self.maintenance.is_none() {
             self.maintenance =
                 Some(Maintenance::start(self.store.database_path()?)?);
@@ -116,11 +152,6 @@ impl App {
             .try_send(request)
             .context("Maintenance request was not admitted")?;
         worker.pending = true;
-        self.show_document(
-            "Working · Esc closes report",
-            "Working in the background…",
-            None,
-        );
         Ok(())
     }
 
@@ -129,6 +160,12 @@ impl App {
     /// # Errors
     /// Returns an acknowledged background failure; committed batches are retained.
     pub fn poll_maintenance(&mut self) -> Result<bool> {
+        if self.retention_due() {
+            self.admit_maintenance(Request::Retention {
+                action: RetentionAction::Automatic,
+                article: self.current().map(|article| article.id),
+            })?;
+        }
         let Some(worker) = &mut self.maintenance else {
             return Ok(false);
         };
@@ -148,8 +185,15 @@ impl App {
         if matches!(update, Update::Finished(_)) {
             worker.pending = false;
         }
+        let changed = !matches!(
+            &update,
+            Update::Finished(Ok(Outcome::AutomaticRetention {
+                report: None,
+                ..
+            }))
+        );
         self.apply_maintenance_update(update)?;
-        Ok(true)
+        Ok(changed)
     }
 
     fn apply_maintenance_update(&mut self, update: Update) -> Result<()> {
@@ -202,6 +246,18 @@ Inspect the current checkpoint before retrying."#
         visible: bool,
     ) -> Result<()> {
         match outcome {
+            Outcome::AutomaticRetention { report, delay } => {
+                self.schedule_retention(delay);
+                if let Some(report) = report {
+                    self.finish_retention(report, false, false)?;
+                }
+            }
+            Outcome::Retention { report, preview } => {
+                self.finish_retention(report, preview, visible)?;
+            }
+            Outcome::RetentionStatus(text) if visible => {
+                self.show_document("Retention · Esc closes", &text, None)
+            }
             Outcome::Text(text) if visible => {
                 self.show_document("Storage · Esc closes", &text, None)
             }
@@ -213,14 +269,7 @@ Inspect the current checkpoint before retrying."#
                 );
             }
             Outcome::Plan(session) if visible => {
-                let confirm = (!session.items.is_empty()).then(|| {
-                    super::ChoiceAction::StartSession(session.clone())
-                });
-                self.show_document(
-                    "Reading plan · Enter starts · Esc cancels",
-                    &report::session(&session),
-                    confirm,
-                );
+                self.show_reading_plan(session);
             }
             Outcome::Session(session) => {
                 self.show_reading_session(session, visible)?
@@ -232,6 +281,46 @@ Inspect the current checkpoint before retrying."#
                 )
                 .into();
             }
+        }
+        Ok(())
+    }
+
+    fn show_reading_plan(&mut self, session: ReadingSession) {
+        let confirm = (!session.items.is_empty())
+            .then(|| super::ChoiceAction::StartSession(session.clone()));
+        self.show_document(
+            "Reading plan · Enter starts · Esc cancels",
+            &report::session(&session),
+            confirm,
+        );
+    }
+
+    fn finish_retention(
+        &mut self,
+        report: crate::retention::Report,
+        preview: bool,
+        visible: bool,
+    ) -> Result<()> {
+        if !preview && (report.articles > 0 || report.full_texts > 0) {
+            self.reload()?;
+        }
+        if visible {
+            let confirm = (preview && !report.interrupted)
+                .then_some(super::ChoiceAction::ApplyRetention);
+            self.show_document(
+                if preview {
+                    "Retention preview · Enter applies · Esc closes"
+                } else {
+                    "Retention · Esc closes"
+                },
+                &report.text(preview),
+                confirm,
+            );
+        } else if report.articles + report.full_texts + report.images > 0 {
+            self.status = format!(
+                "Retention: {} articles, {} Full caches, {} images",
+                report.articles, report.full_texts, report.images
+            );
         }
         Ok(())
     }

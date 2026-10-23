@@ -104,6 +104,43 @@ impl Criteria {
 }
 
 impl Store {
+    pub(super) fn protect_retention_queries(
+        &self,
+        unprotected: &[String],
+    ) -> Result<()> {
+        let ignored = self
+            .connection
+            .prepare_cached(include_str!(
+                "sql/retention/select_unprotected_lists.sql"
+            ))?
+            .query_map([serde_json::to_string(unprotected)?], |row| {
+                row.get::<_, i64>(0)
+            })?
+            .collect::<rusqlite::Result<std::collections::BTreeSet<_>>>()?;
+        for list in self.smart_lists()? {
+            if ignored.contains(&list.id) {
+                continue;
+            }
+            let query = ArticleQuery {
+                view: View::Smart(list.id),
+                text: String::new(),
+                offset: 0,
+                limit: 1,
+                retained: None,
+            };
+            let criteria = self.criteria(&query)?;
+            let sql = format!(
+                "{}\n{}",
+                include_str!("sql/retention/insert_smart.sql"),
+                criteria.predicate()
+            );
+            let mut statement = self.connection.prepare_cached(&sql)?;
+            bind(&mut statement, &criteria, &query)?;
+            statement.raw_execute()?;
+        }
+        Ok(())
+    }
+
     /// Read one article, including Trash and archived subscriptions.
     ///
     /// # Errors

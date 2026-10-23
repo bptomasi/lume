@@ -1014,6 +1014,12 @@ const COMMANDS: &[CommandSpec] = &[
         aliases: &[],
     },
     CommandSpec {
+        name: "retention",
+        usage: "retention [status|preview|apply|cancel]",
+        description: "Preview or apply opt-in retention with personal protections",
+        aliases: &[],
+    },
+    CommandSpec {
         name: "session",
         usage: "session MINUTES|status|next|end",
         description: "Preview a diverse reading plan within a total time budget",

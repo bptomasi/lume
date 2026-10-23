@@ -46,7 +46,7 @@ class MakeCommandsTests(unittest.TestCase):
         result = self.make("paths", f"CARGO_TARGET_DIR={build}")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(str(build / "release/lume"), result.stdout)
-        for target in ("check-foot", "check-alacritty", "check-latency"):
+        for target in ("check-foot", "check-latency"):
             result = self.make("-n", target, f"CARGO_TARGET_DIR={build}")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(f'--binary "{build}/release/lume"', result.stdout)

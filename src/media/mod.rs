@@ -26,7 +26,7 @@ pub const MAX_BYTES: usize = 8 * 1024 * 1024;
 /// Session presentation for prepared inline images and the image inspector.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ImageProtocol {
-    /// Portable character approximation, including Alacritty.
+    /// Portable character approximation for terminals without native images.
     #[default]
     Blocks,
     /// DEC Sixel, requiring a supporting terminal.

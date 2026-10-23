@@ -18,7 +18,7 @@ import sys
 import termios
 import tty
 
-from qualify_alacritty import write_json
+from terminal_support import write_json
 
 
 def relay(binary, directory, arguments=("--offline",), measure=False, startup_markers=None):
