@@ -19,6 +19,9 @@ impl Store {
             self.connection.execute_batch(include_str!(
                 "../sql/configuration/delete_server_feed_bindings.sql"
             ))?;
+            self.connection.execute_batch(include_str!(
+                "../sql/servers/insert_bindings.sql"
+            ))?;
         }
         let (workspace, layouts) = self.configuration_preferences()?;
         let profile = self.recommendation_profile()?;
@@ -179,12 +182,12 @@ impl Store {
                     starred: filter.starred,
                     feed: filter
                         .feed
-                        .map(|id| self.configuration_key("feed", id))
+                        .map(|id| self.configuration_feed_key(id))
                         .transpose()?,
                     feeds: filter
                         .feeds
                         .into_iter()
-                        .map(|id| self.configuration_key("feed", id))
+                        .map(|id| self.configuration_feed_key(id))
                         .collect::<Result<_>>()?,
                     days: filter.days,
                 })

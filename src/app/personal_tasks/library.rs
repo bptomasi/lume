@@ -31,6 +31,7 @@ pub(in crate::app) enum LibraryEdit {
     },
     DeleteFolder(i64),
     Unsubscribe(i64),
+    RemoveServer(i64),
     DeleteSmart(i64),
     RemoveMember {
         article: i64,
@@ -46,7 +47,9 @@ pub(in crate::app) enum LibraryEdit {
 pub(super) fn perform(store: &Store, edit: LibraryEdit) -> Result<Outcome> {
     let definition = matches!(
         &edit,
-        LibraryEdit::Unsubscribe(_) | LibraryEdit::DeleteSmart(_)
+        LibraryEdit::Unsubscribe(_)
+            | LibraryEdit::RemoveServer(_)
+            | LibraryEdit::DeleteSmart(_)
     );
     match edit {
         LibraryEdit::Deleted { article, deleted } => {
@@ -61,6 +64,7 @@ pub(super) fn perform(store: &Store, edit: LibraryEdit) -> Result<Outcome> {
         }
         LibraryEdit::DeleteFolder(folder) => store.delete_collection(folder)?,
         LibraryEdit::Unsubscribe(feed) => store.unsubscribe(feed)?,
+        LibraryEdit::RemoveServer(id) => store.remove_server(id)?,
         LibraryEdit::DeleteSmart(id) => store.delete_smart_list(id)?,
         LibraryEdit::RemoveMember { article, folder } => {
             store.remove_member(folder, article)?

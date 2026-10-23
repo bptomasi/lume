@@ -113,19 +113,7 @@ impl Store {
     pub fn feeds(&self) -> Result<Vec<Feed>> {
         Ok(self
             .connection
-            .prepare(
-                r#"
-            SELECT
-                f.id, f.title, f.url, f.etag, f.modified, f.error,
-                s.id, s.url, s.token_env, s.enabled,
-                sf.remote_id, sf.initialized, sf.last_changed, sf.present
-            FROM feeds AS f
-            LEFT JOIN servers AS s ON s.id = f.server_id
-            LEFT JOIN server_feeds AS sf ON sf.feed_id = f.id
-            WHERE f.enabled = 1
-            ORDER BY f.title COLLATE NOCASE, f.id
-            "#,
-            )?
+            .prepare(include_str!("sql/select_active_feeds.sql"))?
             .query_map([], feed_row)?
             .collect::<rusqlite::Result<_>>()?)
     }
@@ -204,6 +192,8 @@ fn feed_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Feed> {
             initialized: row.get(11)?,
             last_changed: row.get(12)?,
             present: row.get(13)?,
+            sync_offset: row.get(14)?,
+            sync_latest: row.get(15)?,
         }),
         None => None,
     };

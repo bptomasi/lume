@@ -320,3 +320,25 @@ fn hostname_retry_keeps_the_longest_deadline_and_ignores_expired_entries()
     assert!(store.domain_retries(300)?.is_empty());
     Ok(())
 }
+
+#[test]
+fn a_server_discovery_failure_does_not_retry_each_remote_feed() -> Result<()> {
+    let (_directory, mut store) = library(&["https://local.example/feed"])?;
+    let server = store.add_server("https://reader.example", "LUME_TOKEN")?;
+    store.sync_server_feeds(
+        server,
+        &[crate::model::RemoteFeedCandidate {
+            remote_id: 7,
+            title: "Remote".into(),
+            remote_url: "https://publisher.example/feed".into(),
+            local_url: "https://reader.example/v1/feeds/7".into(),
+        }],
+    )?;
+    store.record_server_attempt(server, 100, "Authentication failed")?;
+    let eligible = eligible_feeds(&store)?;
+    assert_eq!(eligible.len(), 1);
+    assert_eq!(eligible[0].url, "https://local.example/feed");
+    store.record_server_attempt(server, 101, "")?;
+    assert_eq!(eligible_feeds(&store)?.len(), 2);
+    Ok(())
+}

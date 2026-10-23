@@ -71,15 +71,9 @@ impl App {
             .then(|| self.navigation.get(self.nav_selected))
             .flatten()
             .map(|item| item.view.clone());
-        self.navigation = items;
-        self.customize_navigation();
-        self.nav_selected = self
-            .navigation
-            .iter()
-            .position(|item| item.view.same_destination(&self.view))
-            .unwrap_or(1);
-        self.view = self.navigation[self.nav_selected].view.clone();
-        self.refresh_library_search();
+        self.navigation_sections
+            .install(items, &self.workspace, &self.library);
+        self.project_navigation();
         if let Some(selected) = selected
             && let Some(index) = self
                 .navigation
@@ -91,7 +85,23 @@ impl App {
         }
     }
 
+    pub(super) fn project_navigation(&mut self) {
+        self.navigation = self
+            .navigation_sections
+            .project(&self.workspace.collapsed_groups);
+        self.nav_selected = self
+            .navigation
+            .iter()
+            .position(|item| item.view.same_destination(&self.view))
+            .unwrap_or(1);
+        self.view = self.navigation[self.nav_selected].view.clone();
+        self.refresh_library_search();
+    }
+
     pub(crate) fn filter(&mut self) -> Result<()> {
+        if matches!(self.view, View::Group(_)) {
+            return self.clear_section_page();
+        }
         let query = self.article_query();
         if self.navigation_worker.is_some() {
             self.defer_navigation(super::navigation_worker::Request::Page {
@@ -106,6 +116,9 @@ impl App {
     }
 
     pub(super) fn filter_now(&mut self) -> Result<()> {
+        if matches!(self.view, View::Group(_)) {
+            return self.clear_section_page();
+        }
         let query = self.article_query();
         let page = self.store.query_articles(&query)?;
         self.page_total = page.total;
@@ -115,6 +128,20 @@ impl App {
             return self.filter_now();
         }
         self.apply_page(page)
+    }
+
+    fn clear_section_page(&mut self) -> Result<()> {
+        let clear = self.navigation_loading
+            || self.projecting_navigation
+            || !self.library.articles.is_empty()
+            || !self.reader_text.is_empty();
+        self.page_total = 0;
+        self.library.articles.clear();
+        self.visible.clear();
+        if clear {
+            self.load_current()?;
+        }
+        Ok(())
     }
 
     pub(super) fn article_query(&self) -> ArticleQuery {
@@ -171,6 +198,7 @@ impl App {
     /// Returns SQLite or content-loading errors.
     pub fn set_view(&mut self, view: View) -> Result<()> {
         self.pin_navigation_viewport();
+        self.reveal_server(&view)?;
         self.close_notebook();
         self.save_reading_position()?;
         self.retained_article = None;
@@ -471,7 +499,9 @@ fn catalog_destinations(
         library
             .feeds
             .iter()
+            .filter(|feed| feed.server.is_none())
             .map(|feed| (View::Feed(feed.id), feed.title.clone(), "FEEDS")),
     );
+    destinations.extend(super::servers::destinations(library));
     destinations
 }

@@ -79,6 +79,50 @@ token_env = "LUME_MINIFLUX_TOKEN"
 enabled = true
 ```
 
+Manage these definitions without editing TOML:
+
+```text
+:server https://reader.example LUME_MINIFLUX_TOKEN
+:servers
+:server-disable
+:server-enable
+:unserver
+```
+
+The Library has a **SERVERS** section with one aggregate destination per
+connection and its remote feeds below it. Select a connection and use `dd` to
+remove it. `:collapse servers` folds the section; pinning and Library search
+also work for server destinations. Paused connections remain readable offline.
+Errors and the token variable name are available through `:servers`.
+
+Library section titles (`SMART LISTS`, `FEEDS`, `SERVERS`, `YOUR FOLDERS` and
+`PINNED`) are selectable controls. Click a title, or move to it with `j/k` or
+the arrow keys and press **Enter**, to fold or unfold its children. `▾` marks
+an expanded section and `▸` a folded one. The state survives reopening Lume.
+
+The same edits are available outside the UI:
+
+```sh
+lume server add https://reader.example LUME_MINIFLUX_TOKEN
+lume servers
+lume server disable 1
+lume server enable 1
+lume server remove 1
+```
+
+The final argument to `server add` is the **environment variable name**, not
+the token value. Commands publish `[[servers]]` to TOML and preserve its stable
+ID across removal and reconnection. Removing a connection never unsubscribes
+feeds on the remote server. OPML exports contain local subscriptions; portable
+remote connection definitions travel with TOML.
+
+Smart lists can restrict sources to remote feeds. TOML stores these restrictions
+as `server:<connection-id>:<remote-feed-id>`; restoring a configuration keeps the
+scope empty until that feed is discovered, then reuses the same local identity.
+A connection used by a smart list can be paused. To remove it, first remove
+that list's source restriction; removal reports the referencing list rather
+than leaving an invalid configuration.
+
 Create an API key in Miniflux under *Settings → API Keys*, then export the token
 in the named environment variable before starting Lume or running `lume sync`.
 The token is never written to TOML, printed in errors, or included in
@@ -95,7 +139,10 @@ already cached articles do not overwrite local state.
 
 Disabling or removing a server stops collection but retains cached articles,
 notes and reading state. The first observation per feed reads up to 2,000 of the
-newest entries; later refreshes read changed entries in bounded pages. Missing
+newest entries; later refreshes read changed entries in bounded pages and resume incomplete
+passes, including batches whose entries share a timestamp. Miniflux 2.0.49 or
+later is required for the [`changed_after` API filter](https://miniflux.app/docs/api.html). Authenticated API
+requests do not follow redirects; use the final Miniflux root URL. Missing
 or revoked tokens, an unreachable server and malformed responses leave the
 cached library readable and report the failure through collection status and
 `lume feeds --errors` for affected feeds.

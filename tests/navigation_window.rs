@@ -12,7 +12,7 @@ use lume::{
 use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
 #[test]
-fn section_headers_are_not_selectable_and_item_rows_keep_their_identity()
+fn static_labels_are_not_selectable_and_item_rows_keep_their_identity()
 -> Result<()> {
     let (_directory, mut app) = application()?;
     for (width, height) in [(40, 18), (80, 28), (144, 44)] {

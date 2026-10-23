@@ -49,6 +49,7 @@ impl App {
                         | "fullscreen"
                         | "zen"
                         | "sidebar"
+                        | "collapse"
                         | "headlines"
                         | "reader"
                         | "annotations"

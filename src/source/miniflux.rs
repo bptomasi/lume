@@ -69,7 +69,7 @@ fn sync_server(
     let token = token(server)?;
     let feeds: Vec<RemoteFeed> =
         get_json(client, &endpoint(server, "/v1/feeds")?, &token)
-            .map_err(|error| annotate(error, &server.token_env))?;
+            .map_err(|error| annotate(error, &server.token_env, &token))?;
     ensure!(feeds.len() <= 5000, "Server exceeds 5,000 feeds");
     let candidates = feeds
         .into_iter()
@@ -110,7 +110,14 @@ fn request_entries(
 ) -> Result<Option<ParsedFeed>> {
     let token = token_from(&server.token_env)?;
     let entries = fetch_pages(client, server, &token)?;
-    let (articles, states, last_changed) = normalize_entries(server, entries)?;
+    let sync_offset = entries.next_offset;
+    let (articles, states, latest) =
+        normalize_entries(server, entries.entries)?;
+    let last_changed = if sync_offset > 0 {
+        server.last_changed
+    } else {
+        latest
+    };
     let title = content::label(&feed.title, 200);
     Ok(Some(ParsedFeed {
         title,
@@ -120,40 +127,65 @@ fn request_entries(
             remote_id: server.remote_id,
             initialized: true,
             last_changed,
+            sync_offset,
+            sync_latest: latest,
             states,
         }),
     }))
+}
+
+struct Collected {
+    entries: BTreeMap<i64, RemoteEntry>,
+    next_offset: usize,
 }
 
 fn fetch_pages(
     client: &ureq::Agent,
     server: &ServerFeed,
     token: &str,
-) -> Result<BTreeMap<i64, RemoteEntry>> {
-    let initial = !server.initialized;
-    let mut offset = 0;
-    let mut pages = 0;
+) -> Result<Collected> {
+    collect_pages(server, |offset| {
+        let url = entry_page_url(server, !server.initialized, offset)?;
+        get_json(client, &url, token)
+            .map_err(|error| annotate(error, &server.token_env, token))
+    })
+}
+
+fn collect_pages(
+    server: &ServerFeed,
+    mut fetch: impl FnMut(usize) -> Result<EntryPage>,
+) -> Result<Collected> {
+    let mut offset = if server.initialized {
+        server.sync_offset
+    } else {
+        0
+    };
     let mut entries = BTreeMap::new();
-    loop {
-        if entries.len() >= MAX_PAGES * PAGE_ENTRIES || pages >= MAX_PAGES {
-            break;
-        }
-        pages += 1;
-        let url = entry_page_url(server, initial, offset)?;
-        let page: EntryPage = get_json(client, &url, token)
-            .map_err(|error| annotate(error, &server.token_env))?;
+    for _ in 0..MAX_PAGES {
+        let page = fetch(offset)?;
         ensure!(page.entries.len() <= PAGE_ENTRIES, "Oversized entry page");
-        let complete = page.entries.len() < PAGE_ENTRIES
-            || offset + page.entries.len() >= page.total;
+        let count = page.entries.len();
+        let complete =
+            count < PAGE_ENTRIES || offset.saturating_add(count) >= page.total;
         for entry in page.entries {
+            ensure!(entry.id > 0, "Remote entry needs a positive ID");
             entries.entry(entry.id).or_insert(entry);
         }
-        offset += PAGE_ENTRIES;
-        if complete || entries.len() >= MAX_PAGES * PAGE_ENTRIES {
-            break;
+        offset = offset.saturating_add(count);
+        if complete {
+            return Ok(Collected {
+                entries,
+                next_offset: 0,
+            });
         }
     }
-    Ok(entries)
+    // Initial import deliberately keeps only the newest bounded set. Later
+    // passes resume against the same watermark, including timestamp ties.
+    let next_offset = if server.initialized { offset } else { 0 };
+    Ok(Collected {
+        entries,
+        next_offset,
+    })
 }
 
 fn entry_page_url(
@@ -176,7 +208,7 @@ fn entry_page_url(
                 .append_pair("direction", "desc");
         } else {
             query
-                .append_pair("order", "changed_at")
+                .append_pair("order", "id")
                 .append_pair("direction", "asc")
                 .append_pair(
                     "changed_after",
@@ -197,12 +229,19 @@ fn normalize_entries(
 )> {
     let mut states = BTreeMap::new();
     let mut articles = Vec::with_capacity(entries.len());
-    let mut last_changed = server.last_changed;
+    let mut last_changed = server.last_changed.max(server.sync_latest);
     for entry in entries.into_values() {
+        ensure!(
+            entry.feed_id == server.remote_id,
+            "Remote entry belongs to another feed"
+        );
+        let changed = chrono::DateTime::parse_from_rfc3339(&entry.changed_at)
+            .context("Invalid remote entry change timestamp")?
+            .timestamp();
+        last_changed = last_changed.max(changed);
         if !matches!(entry.status.as_str(), "read" | "unread") {
             continue;
         }
-        last_changed = last_changed.max(timestamp(&entry.changed_at));
         let external_id = format!("miniflux:{}", entry.id);
         states.insert(
             external_id.clone(),
@@ -251,8 +290,9 @@ fn token(server: &Server) -> Result<String> {
 }
 
 fn token_from(name: &str) -> Result<String> {
-    let value = std::env::var(name)
-        .with_context(|| format!("Set {name} to the Miniflux API token"))?;
+    let value = std::env::var(name).map_err(|_| {
+        anyhow::anyhow!("Set {name} to a valid Miniflux API token")
+    })?;
     ensure!(
         !value.trim().is_empty()
             && value.len() <= 4096
@@ -281,6 +321,7 @@ fn get_json<T: DeserializeOwned>(
         .header("Accept", "application/json")
         .header("X-Auth-Token", token)
         .config()
+        .max_redirects(0)
         .http_status_as_error(false)
         .build()
         .call()?;
@@ -292,12 +333,16 @@ fn get_json<T: DeserializeOwned>(
     serde_json::from_slice(&bytes).context("Invalid Miniflux JSON response")
 }
 
-fn annotate(error: anyhow::Error, token_env: &str) -> anyhow::Error {
-    let text = format!("{error:#}");
+fn annotate(
+    error: anyhow::Error,
+    token_env: &str,
+    token: &str,
+) -> anyhow::Error {
+    let text = format!("{error:#}").replace(token, "[redacted]");
     if text.contains("HTTP 401") || text.contains("HTTP 403") {
         anyhow::anyhow!("Miniflux authentication failed; check {token_env}")
     } else {
-        error
+        anyhow::anyhow!(text)
     }
 }
 
@@ -319,7 +364,6 @@ struct RemoteFeed {
 
 #[derive(serde::Deserialize)]
 struct EntryPage {
-    #[serde(default)]
     total: usize,
     entries: Vec<RemoteEntry>,
 }
@@ -327,6 +371,7 @@ struct EntryPage {
 #[derive(serde::Deserialize)]
 struct RemoteEntry {
     id: i64,
+    feed_id: i64,
     title: String,
     url: String,
     author: String,
@@ -363,7 +408,7 @@ mod tests {
         let incremental = entry_page_url(&server(true, 100), false, 200)?;
         let query = parameters(&incremental);
         assert_eq!(query.get("offset").map(String::as_str), Some("200"));
-        assert_eq!(query.get("order").map(String::as_str), Some("changed_at"));
+        assert_eq!(query.get("order").map(String::as_str), Some("id"));
         assert_eq!(query.get("direction").map(String::as_str), Some("asc"));
         assert_eq!(query.get("changed_after").map(String::as_str), Some("99"));
         Ok(())
@@ -375,6 +420,97 @@ mod tests {
         assert_eq!(timestamp("not-a-date"), 0);
     }
 
+    #[test]
+    fn incremental_batches_resume_timestamp_ties_instead_of_starting_over()
+    -> Result<()> {
+        let mut remote = server(true, 100);
+        let first = collect_pages(&remote, synthetic_page)?;
+        assert_eq!(first.entries.len(), 2000);
+        assert_eq!(first.next_offset, 2000);
+        remote.sync_offset = first.next_offset;
+        let second = collect_pages(&remote, synthetic_page)?;
+        assert_eq!(second.entries.len(), 1);
+        assert_eq!(second.next_offset, 0);
+        assert!(second.entries.contains_key(&2001));
+        Ok(())
+    }
+
+    #[test]
+    fn oversized_pages_and_invalid_remote_identities_fail() -> Result<()> {
+        let remote = server(true, 100);
+        let bad = collect_pages(&remote, |_| {
+            let mut page = synthetic_page(0)?;
+            page.entries.push(entry(201));
+            Ok(page)
+        });
+        assert!(bad.is_err());
+        let bad = collect_pages(&remote, |_| {
+            Ok(EntryPage {
+                total: 1,
+                entries: vec![entry(0)],
+            })
+        });
+        assert!(bad.is_err());
+        let mut wrong_feed = entry(1);
+        wrong_feed.feed_id = 9;
+        assert!(
+            normalize_entries(&remote, BTreeMap::from([(1, wrong_feed)]))
+                .is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn completed_id_ordered_passes_retain_the_highest_earlier_timestamp()
+    -> Result<()> {
+        let mut remote = server(true, 100);
+        remote.sync_latest = 2_000_000_000;
+        let (_, _, latest) =
+            normalize_entries(&remote, BTreeMap::from([(1, entry(1))]))?;
+        assert_eq!(latest, 2_000_000_000);
+        let mut invalid = entry(2);
+        invalid.changed_at = "not-a-date".into();
+        assert!(
+            normalize_entries(&remote, BTreeMap::from([(2, invalid)])).is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn errors_redact_the_exact_api_token() {
+        let error = annotate(
+            anyhow::anyhow!("Invalid value: secret-token"),
+            "TOKEN",
+            "secret-token",
+        );
+        assert!(!error.to_string().contains("secret-token"));
+        assert!(error.to_string().contains("[redacted]"));
+    }
+
+    fn synthetic_page(offset: usize) -> Result<EntryPage> {
+        Ok(EntryPage {
+            total: 2001,
+            entries: (offset..(offset + 200).min(2001))
+                .map(|index| entry(index as i64 + 1))
+                .collect(),
+        })
+    }
+
+    fn entry(id: i64) -> RemoteEntry {
+        RemoteEntry {
+            id,
+            feed_id: 7,
+            title: format!("Entry {id}"),
+            url: format!("https://publisher.example/{id}"),
+            author: String::new(),
+            content: "<p>Cached content.</p>".into(),
+            published_at: "2026-10-01T10:00:00Z".into(),
+            changed_at: "2026-10-01T10:01:00Z".into(),
+            status: "unread".into(),
+            starred: false,
+        }
+    }
+
     fn server(initialized: bool, last_changed: i64) -> ServerFeed {
         ServerFeed {
             server_id: 1,
@@ -384,6 +520,8 @@ mod tests {
             remote_id: 7,
             initialized,
             last_changed,
+            sync_offset: 0,
+            sync_latest: last_changed,
             present: true,
         }
     }

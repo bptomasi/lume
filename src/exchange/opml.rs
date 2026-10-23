@@ -87,6 +87,7 @@ pub fn export(store: &Store, path: &Path) -> Result<()> {
     let outlines = store
         .feeds()?
         .into_iter()
+        .filter(|feed| feed.server.is_none())
         .map(|feed| Outline {
             text: feed.title,
             title: String::new(),

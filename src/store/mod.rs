@@ -102,6 +102,7 @@ impl Store {
         Ok(Library {
             articles: Vec::new(),
             feeds: self.feeds()?,
+            servers: self.servers()?,
             collections,
             smart_lists: self.smart_lists()?,
         })
@@ -138,6 +139,7 @@ impl Store {
         Ok(Library {
             articles,
             feeds: self.feeds()?,
+            servers: self.servers()?,
             collections: self.collections()?,
             smart_lists: self.smart_lists()?,
         })

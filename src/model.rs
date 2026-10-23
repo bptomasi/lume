@@ -134,6 +134,10 @@ pub struct ServerFeed {
     pub initialized: bool,
     /// Latest observed remote `changed_at` second, zero before first sync.
     pub last_changed: i64,
+    /// Next offset while a bounded incremental pass is incomplete.
+    pub sync_offset: usize,
+    /// Highest change timestamp observed during the current bounded pass.
+    pub sync_latest: i64,
     /// Whether the subscription still exists on the server.
     pub present: bool,
 }
@@ -158,6 +162,10 @@ pub struct RemoteFeedUpdate {
     pub initialized: bool,
     /// Latest remote `changed_at` second in this update.
     pub last_changed: i64,
+    /// Next offset while a bounded incremental pass is incomplete.
+    pub sync_offset: usize,
+    /// Highest change timestamp observed during the current bounded pass.
+    pub sync_latest: i64,
     /// Initial state keyed by the article's stable external identity.
     pub states: std::collections::BTreeMap<String, RemoteArticleState>,
 }
@@ -214,6 +222,8 @@ pub struct Library {
     pub articles: Vec<Article>,
     /// Active subscriptions.
     pub feeds: Vec<Feed>,
+    /// Configured remote reader connections, including paused servers.
+    pub servers: Vec<Server>,
     /// Personal lists, including empty lists.
     pub collections: Vec<Collection>,
     /// Saved typed search criteria.

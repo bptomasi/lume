@@ -107,6 +107,7 @@ impl Store {
             filter.days.is_none_or(|days| days > 0),
             "Days must be positive"
         );
+        self.validate_smart_sources(filter)?;
         self.connection.execute(
             r#"
             INSERT INTO smart_lists (name, definition) VALUES (?1, ?2)
@@ -115,6 +116,18 @@ impl Store {
             "#,
             (name, serde_json::to_string(filter)?),
         )?;
+        Ok(())
+    }
+
+    fn validate_smart_sources(&self, filter: &SmartFilter) -> Result<()> {
+        for id in filter.feed.iter().chain(&filter.feeds) {
+            let available: bool = self.connection.query_row(
+                include_str!("sql/configuration/select_source_available.sql"),
+                [id],
+                |row| row.get(0),
+            )?;
+            ensure!(available, "Source belongs to a removed server");
+        }
         Ok(())
     }
 

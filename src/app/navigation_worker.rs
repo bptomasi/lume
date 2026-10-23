@@ -240,6 +240,9 @@ impl App {
     }
 
     pub(super) fn refresh_catalog_page(&mut self) {
+        if matches!(self.view, super::View::Group(_)) {
+            return;
+        }
         self.projecting_navigation = true;
         self.note_marks.hover = None;
         let request = Request::Refresh {

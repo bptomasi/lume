@@ -51,18 +51,7 @@ fn collect(
     progress: impl Fn(usize, usize),
     fetch: &(impl Fn(&Feed) -> Download + Sync),
 ) -> Result<Progress> {
-    let now = chrono::Utc::now().timestamp();
-    let retries = store.domain_retries(now)?;
-    let health = store
-        .source_health()?
-        .into_iter()
-        .map(|source| (source.feed, source.retry_at))
-        .collect::<BTreeMap<_, _>>();
-    let eligible = store
-        .feeds()?
-        .into_iter()
-        .filter(|feed| due(feed, &health, &retries, now))
-        .collect::<Vec<_>>();
+    let eligible = eligible_feeds(store)?;
     let total = eligible.len();
     let buckets = buckets(eligible);
     thread::scope(|scope| {
@@ -87,6 +76,32 @@ fn collect(
             failures,
         })
     })
+}
+
+fn eligible_feeds(store: &Store) -> Result<Vec<Feed>> {
+    let now = chrono::Utc::now().timestamp();
+    let retries = store.domain_retries(now)?;
+    let health = store
+        .source_health()?
+        .into_iter()
+        .map(|source| (source.feed, source.retry_at))
+        .collect::<BTreeMap<_, _>>();
+    let failed_servers = store
+        .servers()?
+        .into_iter()
+        .filter(|server| !server.error.is_empty())
+        .map(|server| server.id)
+        .collect::<std::collections::BTreeSet<_>>();
+    Ok(store
+        .feeds()?
+        .into_iter()
+        .filter(|feed| due(feed, &health, &retries, now))
+        .filter(|feed| {
+            feed.server.as_ref().is_none_or(|server| {
+                !failed_servers.contains(&server.server_id)
+            })
+        })
+        .collect())
 }
 
 fn buckets(feeds: Vec<Feed>) -> Vec<Vec<Feed>> {

@@ -15,7 +15,7 @@
 │  Grouped ar    │ 0% · v select · y copy · s highlight · Tab panels · Z ful│−]╮
 │  For you       ╰──────────────────────────────────────────────────────────╯  │
 │                  ││  Your reading, annotated.                                │
-│  FEEDS           ││                                                          │
+│▾ FEEDS          1││                                                          │
 │  Systems Jo    1 ││  v selects a passage                                     │
 │                  ││  s saves a highlight                                     │
 │                  ││  n adds a passage note                                   │
@@ -139,8 +139,7 @@
 16:21..79 Style::new().fg(Color::Rgb(129, 133, 139)).bg(Color::Rgb(31, 36, 45))
 16:79..80 Style::new().fg(Color::Rgb(45, 51, 63)).bg(Color::Rgb(31, 36, 45))
 17:0..1 Style::new().fg(Color::Rgb(45, 51, 63)).bg(Color::Rgb(31, 36, 45))
-17:1..8 Style::new().fg(Color::Rgb(94, 102, 113)).bg(Color::Rgb(31, 36, 45))
-17:8..19 Style::new().fg(Color::Rgb(141, 143, 146)).bg(Color::Rgb(31, 36, 45))
+17:1..19 Style::new().fg(Color::Rgb(94, 102, 113)).bg(Color::Rgb(31, 36, 45))
 17:19..21 Style::new().fg(Color::Rgb(45, 51, 63)).bg(Color::Rgb(31, 36, 45))
 17:21..79 Style::new().fg(Color::Rgb(129, 133, 139)).bg(Color::Rgb(31, 36, 45))
 17:79..80 Style::new().fg(Color::Rgb(45, 51, 63)).bg(Color::Rgb(31, 36, 45))

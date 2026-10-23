@@ -37,6 +37,8 @@ mod highlighting;
 mod images;
 #[path = "workloads/interaction.rs"]
 mod interaction;
+#[path = "workloads/library_sections.rs"]
+mod library_sections;
 #[path = "workloads/links.rs"]
 mod links;
 #[path = "workloads/lists.rs"]
@@ -65,6 +67,8 @@ mod recovery_navigation;
 mod rich_text;
 #[path = "workloads/search_relevance.rs"]
 mod search_relevance;
+#[path = "workloads/servers.rs"]
+mod servers;
 #[path = "workloads/service_interaction.rs"]
 mod service_interaction;
 #[path = "workloads/smoothness.rs"]
@@ -117,6 +121,8 @@ fn main() -> Result<()> {
 }
 
 fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
+    library_sections::run(iterations, stress)?;
+    servers::run(iterations, stress)?;
     geometry::run(iterations, stress)?;
     reading_services::run(iterations, stress)?;
     service_interaction::run(iterations, stress)?;
@@ -149,6 +155,7 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--library-sections-only", library_sections::run),
     ("--geometry-only", geometry::run),
     ("--reading-services-only", reading_services::run),
     ("--service-interaction-only", service_interaction::run),
@@ -162,6 +169,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--interaction-only", interaction::run),
     ("--code-viewport-only", code_viewport::run),
     ("--images-only", images::run),
+    ("--servers-only", servers::run),
     ("--recommendations-only", recommendations::run),
     ("--notebook-only", annotation_notebook::run),
     ("--notes-only", note_interactions::run),

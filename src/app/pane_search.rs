@@ -129,6 +129,10 @@ impl App {
         let selected = self.nav_selected;
         self.set_view(self.navigation[selected].view.clone())?;
         self.library_search.before = None;
+        if matches!(self.view, super::View::Group(_)) {
+            self.toggle_navigation_group("")?;
+            return Ok(());
+        }
         self.focus_pane(Focus::Articles)
     }
 

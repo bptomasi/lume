@@ -15,7 +15,7 @@
 │  Grouped articles         │  Every panel has a [−] button. Top [+] buttons reopen hidden panels.                 │                           │
 │  For you                  │  All panels may be collapsed. Tab then restores the reader.                          │                           │
 │                           │  Space c / :compact      Switch headline density                                     │                           │
-│  FEEDS                    │  Space z / :zen          Center the reading column                                   │                           │
+│▾ FEEDS                    │  Space z / :zen          Center the reading column                                   │                           │
 │  Systems Journal          │  Z / F11 / :fullscreen   Expand article to the whole terminal                        │                           │
 │                           │  Esc             Leave fullscreen or cancel visual selection                         │                           │
 │                           │  :width 82       Prose width, 40–140 columns                                         │                           │
@@ -166,8 +166,7 @@
 16:116..143 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
 16:143..144 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
 17:0..1 Style::new().fg(Color::Rgb(80, 73, 69)).bg(Color::Rgb(40, 40, 40))
-17:1..8 Style::new().fg(Color::Rgb(146, 131, 116)).bg(Color::Rgb(40, 40, 40))
-17:8..28 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
+17:1..28 Style::new().fg(Color::Rgb(146, 131, 116)).bg(Color::Rgb(40, 40, 40))
 17:28..29 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))
 17:29..115 Style::new().fg(Color::Rgb(235, 219, 178)).bg(Color::Rgb(40, 40, 40))
 17:115..116 Style::new().fg(Color::Rgb(250, 189, 47)).bg(Color::Rgb(40, 40, 40))

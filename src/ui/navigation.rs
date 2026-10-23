@@ -116,7 +116,14 @@ fn heading_rows(app: &App, position: usize) -> usize {
         .checked_sub(1)
         .and_then(|position| app.navigation_indices().nth(position))
         .map_or("", |index| app.navigation[index].group);
-    usize::from(app.navigation[index].group != previous) * 2
+    if app.navigation[index].group == previous {
+        return 0;
+    }
+    if matches!(app.navigation[index].view, crate::model::View::Group(_)) {
+        1
+    } else {
+        2
+    }
 }
 
 fn rows(app: &App, first: usize) -> impl Iterator<Item = Row> + '_ {
@@ -130,7 +137,9 @@ fn rows(app: &App, first: usize) -> impl Iterator<Item = Row> + '_ {
         group = item.group;
         [
             changed_group.then_some(Row::Blank),
-            changed_group.then_some(Row::Heading(group)),
+            (changed_group
+                && !matches!(item.view, crate::model::View::Group(_)))
+            .then_some(Row::Heading(group)),
             Some(Row::Item(index)),
         ]
         .into_iter()
@@ -146,10 +155,29 @@ fn item_line(app: &App, index: usize, width: u16) -> Line<'static> {
             .fg(ACCENT)
             .bg(RAISED)
             .add_modifier(Modifier::BOLD)
+    } else if matches!(item.view, crate::model::View::Group(_)) {
+        Style::new().fg(FAINT)
     } else {
         Style::new().fg(MUTED)
     };
-    Line::styled(item_text(item, selected, width), style)
+    let text = if matches!(item.view, crate::model::View::Group(_)) {
+        section_text(item, width)
+    } else {
+        item_text(item, selected, width)
+    };
+    Line::styled(text, style)
+}
+
+fn section_text(item: &crate::app::NavItem, width: u16) -> String {
+    let label = &item.title;
+    let count = item.count.to_string();
+    let width = usize::from(width);
+    if label.width() + count.len() < width {
+        let padding = width - label.width();
+        format!("{label}{count:>padding$}")
+    } else {
+        label.clone()
+    }
 }
 
 fn item_text(item: &crate::app::NavItem, selected: bool, width: u16) -> String {

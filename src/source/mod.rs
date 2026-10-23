@@ -90,7 +90,7 @@ pub fn feed_url(address: &str) -> Result<Url> {
 /// # Errors
 /// Rejects credentials, queries, fragments and non-HTTP(S) schemes.
 pub fn server_url(address: &str) -> Result<String> {
-    let mut url = feed_url(address)?;
+    let mut url = link_url(address)?;
     ensure!(
         url.query().is_none() && url.fragment().is_none(),
         "Server URL cannot contain a query or fragment"

@@ -49,20 +49,12 @@ impl Store {
         let message: String = error.chars().take(500).collect();
         if message.is_empty() {
             self.connection.execute(
-                r#"
-                UPDATE servers
-                SET attempted_at = ?1, succeeded_at = ?1, error = ''
-                WHERE id = ?2
-                "#,
+                include_str!("sql/servers/update_attempt_success.sql"),
                 (now, id),
             )?;
         } else {
             self.connection.execute(
-                r#"
-                UPDATE servers
-                SET attempted_at = ?1, error = ?2
-                WHERE id = ?3
-                "#,
+                include_str!("sql/servers/update_attempt_failure.sql"),
                 (now, message, id),
             )?;
         }
@@ -85,7 +77,7 @@ impl Store {
         let mut remote_ids = BTreeSet::new();
         let transaction = self.connection.transaction()?;
         transaction.execute(
-            "UPDATE server_feeds SET present = 0 WHERE server_id = ?1",
+            include_str!("sql/servers/archive_feeds.sql"),
             [server_id],
         )?;
         for candidate in candidates {
@@ -125,20 +117,21 @@ impl Store {
         );
         let transaction = self.connection.transaction()?;
         transaction.execute(
-            "UPDATE feeds SET title = ?1 WHERE id = ?2 AND title <> ?1",
+            include_str!("sql/servers/update_feed_title.sql"),
             (title, feed.id),
         )?;
         for article in articles {
             ingest_remote_article(&transaction, feed, article, remote)?;
         }
         transaction.execute(
-            r#"
-            UPDATE server_feeds
-            SET initialized = 1,
-                last_changed = max(last_changed, ?3)
-            WHERE server_id = ?1 AND remote_id = ?2
-            "#,
-            (remote.server_id, remote.remote_id, remote.last_changed),
+            include_str!("sql/servers/update_cursor.sql"),
+            (
+                remote.server_id,
+                remote.remote_id,
+                remote.last_changed,
+                remote.sync_offset,
+                remote.sync_latest,
+            ),
         )?;
         transaction.commit()?;
         Ok(())
@@ -158,14 +151,11 @@ fn ingest_remote_article(
         .ok_or_else(|| {
             anyhow::anyhow!("Remote article has an invalid identity")
         })?;
+    ensure!(remote_id > 0, "Remote article needs a positive ID");
     let article_id =
         resolve_remote_article(transaction, feed, article, remote, remote_id)?;
     transaction.execute(
-        r#"
-        INSERT OR IGNORE INTO server_entries (
-            server_id, remote_id, article_id
-        ) VALUES (?1, ?2, ?3)
-        "#,
+        include_str!("sql/servers/insert_entry_mapping.sql"),
         (remote.server_id, remote_id, article_id),
     )?;
     Ok(())
@@ -227,10 +217,7 @@ fn mapped_article(
 ) -> Result<Option<i64>> {
     Ok(transaction
         .query_row(
-            r#"
-            SELECT article_id FROM server_entries
-            WHERE server_id = ?1 AND remote_id = ?2
-            "#,
+            include_str!("sql/servers/select_entry_mapping.sql"),
             (server_id, remote_id),
             |row| row.get(0),
         )
@@ -244,10 +231,7 @@ fn article_by_external(
 ) -> Result<Option<i64>> {
     Ok(transaction
         .query_row(
-            r#"
-            SELECT id FROM articles
-            WHERE feed_id = ?1 AND external_id = ?2
-            "#,
+            include_str!("sql/servers/select_article_external.sql"),
             (feed_id, external_id),
             |row| row.get(0),
         )
@@ -286,14 +270,12 @@ fn upsert_server_feed(
     } else {
         title.as_str()
     };
-    transaction.execute(
-        include_str!("sql/upsert_server_feed.sql"),
-        params![local_url, title, server_id],
-    )?;
-    let feed_id: i64 = transaction.query_row(
-        "SELECT id FROM feeds WHERE url = ?1",
-        [local_url.as_str()],
-        |row| row.get(0),
+    let feed_id = server_feed_identity(
+        transaction,
+        server_id,
+        candidate.remote_id,
+        &local_url,
+        title,
     )?;
     transaction.execute(
         include_str!("sql/insert_server_feed.sql"),
@@ -305,6 +287,39 @@ fn upsert_server_feed(
         ],
     )?;
     Ok(())
+}
+
+fn server_feed_identity(
+    transaction: &rusqlite::Transaction<'_>,
+    server_id: i64,
+    remote_id: i64,
+    local_url: &str,
+    title: &str,
+) -> Result<i64> {
+    let existing: Option<i64> = transaction
+        .query_row(
+            include_str!("sql/servers/select_feed_identity.sql"),
+            (server_id, remote_id),
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(id) = existing {
+        transaction.execute(
+            include_str!("sql/servers/update_feed_identity.sql"),
+            (id, &local_url, title),
+        )?;
+        Ok(id)
+    } else {
+        transaction.execute(
+            include_str!("sql/upsert_server_feed.sql"),
+            params![local_url, title, server_id],
+        )?;
+        Ok(transaction.query_row(
+            include_str!("sql/servers/select_feed_id.sql"),
+            [&local_url],
+            |row| row.get(0),
+        )?)
+    }
 }
 
 fn update_remote_article(
@@ -329,141 +344,7 @@ fn update_remote_article(
     Ok(())
 }
 
+mod manage;
+
 #[cfg(test)]
-mod tests {
-    use std::collections::BTreeMap;
-
-    use anyhow::Result;
-
-    use crate::model::{
-        FeedOrigin, IncomingArticle, RemoteArticleState, RemoteFeedCandidate,
-        RemoteFeedUpdate,
-    };
-    use crate::store::Store;
-
-    struct Fixture {
-        _directory: tempfile::TempDir,
-        store: Store,
-        feed: crate::model::Feed,
-        server_id: i64,
-    }
-
-    fn mirrored_store() -> Result<Fixture> {
-        let directory = tempfile::tempdir()?;
-        let path = directory.path().join("library.sqlite3");
-        let mut store = Store::open(&path)?;
-        store.connection.execute(
-            "INSERT INTO servers (url, token_env) VALUES (?1, ?2)",
-            ("https://reader.example", "LUME_MINIFLUX_TOKEN"),
-        )?;
-        let server_id = store.connection.last_insert_rowid();
-        store.sync_server_feeds(
-            server_id,
-            &[RemoteFeedCandidate {
-                remote_id: 7,
-                title: "Remote journal".into(),
-                remote_url: "https://publisher.example/feed".into(),
-                local_url: "https://reader.example/v1/feeds/7".into(),
-            }],
-        )?;
-        let feed = store
-            .feeds()?
-            .into_iter()
-            .find(|feed| feed.server.is_some())
-            .ok_or_else(|| anyhow::anyhow!("Missing mirrored feed"))?;
-        Ok(Fixture {
-            _directory: directory,
-            store,
-            feed,
-            server_id,
-        })
-    }
-
-    #[test]
-    fn remote_refresh_preserves_local_state() -> Result<()> {
-        let mut fixture = mirrored_store()?;
-        let store = &mut fixture.store;
-        let feed = &fixture.feed;
-        store.ingest_remote(
-            feed,
-            "Remote journal",
-            &[article("miniflux:1", "First")],
-            &update(
-                fixture.server_id,
-                RemoteArticleState {
-                    unread: false,
-                    starred: true,
-                },
-                100,
-            ),
-        )?;
-        let first = store.library()?.articles.remove(0);
-        assert!(!first.unread);
-        assert!(first.starred);
-        store.set_unread(first.id, true)?;
-        store.set_starred(first.id, false)?;
-        store.ingest_remote(
-            feed,
-            "Remote journal",
-            &[article("miniflux:1", "Revised")],
-            &update(
-                fixture.server_id,
-                RemoteArticleState {
-                    unread: false,
-                    starred: true,
-                },
-                200,
-            ),
-        )?;
-        let articles = store.library()?.articles;
-        assert_eq!(articles.len(), 1);
-        assert_eq!(articles[0].title, "Revised");
-        assert!(articles[0].unread);
-        assert!(!articles[0].starred);
-        Ok(())
-    }
-
-    #[test]
-    fn server_feeds_are_omitted_from_portable_feeds() -> Result<()> {
-        let mut fixture = mirrored_store()?;
-        fixture.store.sync_server_feeds(fixture.server_id, &[])?;
-        let feed = fixture
-            .store
-            .feeds()?
-            .into_iter()
-            .find(|feed| feed.server.is_some())
-            .ok_or_else(|| anyhow::anyhow!("Missing mirrored feed"))?;
-        let server = feed
-            .server
-            .ok_or_else(|| anyhow::anyhow!("Missing server state"))?;
-        assert!(!server.present);
-        assert!(fixture.store.capture_configuration()?.feeds.is_empty());
-        Ok(())
-    }
-
-    fn article(external_id: &str, title: &str) -> IncomingArticle {
-        IncomingArticle {
-            external_id: external_id.into(),
-            title: title.into(),
-            url: "https://publisher.example/article".into(),
-            author: "Author".into(),
-            published: 1_800_000_000,
-            body: format!("{title} body"),
-            body_origin: FeedOrigin::Feed,
-        }
-    }
-
-    fn update(
-        server_id: i64,
-        state: RemoteArticleState,
-        last_changed: i64,
-    ) -> RemoteFeedUpdate {
-        RemoteFeedUpdate {
-            server_id,
-            remote_id: 7,
-            initialized: true,
-            last_changed,
-            states: BTreeMap::from([("miniflux:1".into(), state)]),
-        }
-    }
-}
+mod tests;

@@ -557,7 +557,7 @@ fn miniflux_server() -> Result<(String, mpsc::Receiver<String>)> {
                     request.starts_with("GET /v1/feeds/7/entries?"),
                     "Unexpected Miniflux request: {request}"
                 );
-                br#"{"total":1,"entries":[{"id":42,"title":"Mirrored article","url":"https://publisher.example/article","author":"Remote Author","content":"<p>Server supplied content.</p>","published_at":"2026-10-01T10:00:00Z","changed_at":"2026-10-01T10:01:00Z","status":"read","starred":true}]}"#.as_slice()
+                br#"{"total":1,"entries":[{"id":42,"feed_id":7,"title":"Mirrored article","url":"https://publisher.example/article","author":"Remote Author","content":"<p>Server supplied content.</p>","published_at":"2026-10-01T10:00:00Z","changed_at":"2026-10-01T10:01:00Z","status":"read","starred":true}]}"#.as_slice()
             };
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
@@ -963,5 +963,43 @@ fn a_cancelled_resource_navigation_cannot_request_a_browser_launch()
 
     assert!(app.take_web_browser_request().is_none());
     assert!(!app.web_active());
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn miniflux_tokens_never_follow_redirects() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let destination = TcpListener::bind("127.0.0.1:0")?;
+    destination.set_nonblocking(true)?;
+    let target = format!("http://{}/stolen", destination.local_addr()?);
+    let (origin, request) =
+        server(302, b"", &format!("Location: {target}\r\n"))?;
+    let config = directory.path().join("config.toml");
+    let data = directory.path().join("data");
+    let added = run_mirror_cli(
+        &config,
+        &data,
+        &["server", "add", &origin, "LUME_TEST_MINIFLUX_TOKEN"],
+    )?;
+    assert!(
+        added.status.success(),
+        "{}",
+        String::from_utf8_lossy(&added.stderr)
+    );
+    let result = run_mirror_cli(&config, &data, &["sync"])?;
+    assert!(!result.status.success());
+    let request = request.recv_timeout(Duration::from_secs(5))?;
+    assert!(request.to_lowercase().contains("x-auth-token: test-token"));
+    let error = destination
+        .accept()
+        .err()
+        .context("Redirect leaked the API token")?;
+    assert_eq!(error.kind(), std::io::ErrorKind::WouldBlock);
+    let listed = run_mirror_cli(&config, &data, &["servers"])?;
+    assert!(listed.status.success());
+    let text = String::from_utf8(listed.stdout)?;
+    assert!(text.contains("HTTP 302"));
+    assert!(!text.contains("test-token"));
     Ok(())
 }

@@ -15,7 +15,7 @@
 │  Grouped articles              1 ││                                                                                                          │
 │  For you                       0 ││                                                                                                          │
 │                                  ││                                                                                                          │
-│  FEEDS                           ││                                                                                                          │
+│▾ FEEDS                          1││                                                                                                          │
 │  Systems Journal               1 ││                                                                                                          │
 │                                  ││                                                                                                          │
 │                                  ││ 0% · v select · y copy · s highlight · Tab panels · Z fullscreen                                         │
@@ -164,8 +164,7 @@
 16:37..143 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75))
 16:143..144 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))
 17:0..1 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
-17:1..8 Style::new().fg(Color::Rgb(157, 170, 189)).bg(Color::Rgb(52, 60, 75))
-17:8..35 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75))
+17:1..35 Style::new().fg(Color::Rgb(157, 170, 189)).bg(Color::Rgb(52, 60, 75))
 17:35..36 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
 17:36..37 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(52, 60, 75))
 17:37..143 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75))

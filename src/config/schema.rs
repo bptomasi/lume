@@ -307,7 +307,14 @@ impl Configuration {
                 "Days must be positive"
             );
             for id in list.feed.iter().chain(&list.feeds) {
-                ensure!(feeds.contains(id), "Unknown feed reference: {id}");
+                if let Some((server, _)) = server_feed_reference(id)? {
+                    ensure!(
+                        self.servers.iter().any(|item| item.id == server),
+                        "Unknown server in feed reference: {id}"
+                    );
+                } else {
+                    ensure!(feeds.contains(id), "Unknown feed reference: {id}");
+                }
             }
         }
         ensure!(
@@ -325,7 +332,21 @@ impl Configuration {
     }
 }
 
-fn validate_env_name(name: &str) -> Result<()> {
+/// Remote scopes use the stable connection key and publisher feed identity.
+pub(crate) fn server_feed_reference(key: &str) -> Result<Option<(&str, i64)>> {
+    let Some(reference) = key.strip_prefix("server:") else {
+        return Ok(None);
+    };
+    let (server, remote) = reference.split_once(':').ok_or_else(|| {
+        anyhow::anyhow!("Invalid server feed reference: {key}")
+    })?;
+    validate_id(server)?;
+    let id = remote.parse::<i64>()?;
+    ensure!(id > 0, "Remote feed needs a positive ID");
+    Ok(Some((server, id)))
+}
+
+pub(crate) fn validate_env_name(name: &str) -> Result<()> {
     let mut bytes = name.bytes();
     ensure!(
         name.len() <= 128

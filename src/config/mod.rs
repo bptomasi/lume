@@ -16,6 +16,7 @@ mod worker;
 pub use schema::{
     Configuration, Feed, Folder, Recommendations, Server, SmartList, Ui,
 };
+pub(crate) use schema::{server_feed_reference, validate_env_name};
 pub use worker::{Update, Worker};
 
 use std::path::{Path, PathBuf};

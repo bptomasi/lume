@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{Article, Comment, ContentSource, Pane};
 
 /// A destination queried across the entire library.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum View {
     /// Unread articles.
     Inbox,
@@ -27,6 +27,8 @@ pub enum View {
     Collection(i64),
     /// Subscription.
     Feed(i64),
+    /// Articles cached from one remote reader server.
+    Server(i64),
     /// Saved smart list.
     Smart(i64),
     /// Articles with a saved reading position.
@@ -35,7 +37,7 @@ pub enum View {
     SinceLastVisit(i64),
     /// One representative per canonical URL; occurrences remain accessible.
     Grouped,
-    /// Collapsed navigation section; not an article destination.
+    /// Collapsible navigation section; not an article destination.
     Group(String),
 }
 

@@ -25,11 +25,12 @@ impl App {
         let target = self
             .navigation
             .get(self.nav_selected)
-            .context("Select a feed or smart list")?
+            .context("Select a feed, server or smart list")?
             .view
             .clone();
-        if !matches!(target, View::Feed(_) | View::Smart(_)) {
-            self.status = "Select a feed or smart list to remove".into();
+        if !matches!(target, View::Feed(_) | View::Smart(_) | View::Server(_)) {
+            self.status =
+                "Select a feed, server or smart list to remove".into();
             return Ok(true);
         }
         if self.pending_destination_delete.take().as_ref() == Some(&target) {
@@ -37,7 +38,8 @@ impl App {
         } else {
             self.pending_destination_delete = Some(target);
             self.status =
-                "d again removes this feed or smart list · Esc cancels".into();
+                "d again removes this feed, server or smart list · Esc cancels"
+                    .into();
         }
         Ok(true)
     }
@@ -52,8 +54,9 @@ impl App {
     pub(super) fn remove_destination(&mut self, target: View) -> Result<()> {
         let (edit, label) = match target {
             View::Feed(id) => (LibraryEdit::Unsubscribe(id), "Feed"),
+            View::Server(id) => (LibraryEdit::RemoveServer(id), "Server"),
             View::Smart(id) => (LibraryEdit::DeleteSmart(id), "Smart list"),
-            _ => anyhow::bail!("Select a feed or smart list"),
+            _ => anyhow::bail!("Select a feed, server or smart list"),
         };
         let active = target.same_destination(&self.view);
         self.save_reading_position()?;

@@ -1,6 +1,7 @@
 //! Noninteractive commands use the same persistence and exchange contracts.
 
 mod feeds;
+mod servers;
 
 use std::path::{Path, PathBuf};
 
@@ -43,6 +44,13 @@ pub(super) enum Command {
         /// Show only subscriptions with a recorded collection error.
         #[arg(long)]
         errors: bool,
+    },
+    /// List configured remote servers, status and token variable names.
+    Servers,
+    /// Add, remove, pause or resume a remote reader connection.
+    Server {
+        #[command(subcommand)]
+        command: servers::Edit,
     },
     /// Collect every active subscription.
     Sync,
@@ -125,6 +133,11 @@ pub(super) fn execute(
             install_reading(&store)?;
         }
         Command::Feeds { sort, errors } => feeds::print(&store, sort, errors)?,
+        Command::Servers => servers::print(&store)?,
+        Command::Server { command } => {
+            real_library(demo)?;
+            servers::edit(&store, command)?;
+        }
         Command::Sync => {
             real_library(demo)?;
             network_enabled(offline)?;
@@ -189,7 +202,9 @@ fn sync_subscriptions(path: &Path) -> Result<()> {
     let (feeds, failures) = source::collect_once(path)?;
     println!("Collected {feeds} feeds; {failures} failures.");
     if failures > 0 {
-        bail!("Some feeds failed; run lume feeds to inspect errors");
+        bail!(
+            "Collection failed; run lume feeds --errors and lume servers to inspect errors"
+        );
     }
     Ok(())
 }

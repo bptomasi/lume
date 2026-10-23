@@ -6,7 +6,7 @@ use anyhow::{Context, Result, bail, ensure};
 
 use crate::model::{BulkEdit, TagTarget};
 
-use super::{Action, App, Choice, ChoiceAction, NavItem, View};
+use super::{Action, App, Choice, ChoiceAction, View};
 
 impl App {
     pub(super) fn organization_command(
@@ -178,6 +178,7 @@ impl App {
     ) -> Result<()> {
         let group = match argument {
             "feeds" => "FEEDS",
+            "servers" => "SERVERS",
             "lists" | "smart" => "SMART LISTS",
             "folders" => "YOUR FOLDERS",
             "pinned" => "PINNED",
@@ -187,7 +188,7 @@ impl App {
                     .context("Select a navigation section")?
                     .group
             }
-            _ => bail!("Use :collapse feeds|lists|folders|pinned"),
+            _ => bail!("Use :collapse feeds|servers|lists|folders|pinned"),
         };
         if let Some(position) = self
             .workspace
@@ -204,91 +205,53 @@ impl App {
             self.workspace.collapsed_groups.push(group.into());
             self.view = View::Group(group.into());
         }
-        self.save_navigation()
+        self.save_navigation_projection()
     }
 
     fn reorder_navigation(&mut self, forward: bool) -> Result<()> {
-        let mut order = self
-            .navigation
+        ensure!(
+            !matches!(self.view, View::Group(_)),
+            "Select a destination to reorder"
+        );
+        let order = if self
+            .workspace
+            .pins
             .iter()
-            .map(|item| item.view.clone())
-            .collect::<Vec<_>>();
-        let index = self.nav_selected;
-        let next = if forward {
-            (index + 1).min(order.len().saturating_sub(1))
+            .any(|view| view.same_destination(&self.view))
+        {
+            &mut self.workspace.pins
         } else {
-            index.saturating_sub(1)
+            self.workspace.navigation_order =
+                self.navigation_sections.destinations();
+            &mut self.workspace.navigation_order
         };
+        let index = order
+            .iter()
+            .position(|view| view.same_destination(&self.view))
+            .context("Select a destination to reorder")?;
+        let next = index
+            .saturating_add_signed(if forward { 1 } else { -1 })
+            .min(order.len().saturating_sub(1));
         order.swap(index, next);
-        self.workspace.navigation_order = order;
         self.save_navigation()
     }
 
     fn save_navigation(&mut self) -> Result<()> {
+        self.navigation_sections
+            .customize(&self.workspace, &self.library);
+        self.save_navigation_projection()
+    }
+
+    fn save_navigation_projection(&mut self) -> Result<()> {
         self.save_reading_position()?;
         self.persist_preferences()?;
-        self.rebuild_navigation()?;
-        self.filter()
-    }
-
-    pub(super) fn customize_navigation(&mut self) {
-        self.navigation.sort_by_key(|item| {
-            if let Some(index) = self
-                .workspace
-                .pins
-                .iter()
-                .position(|view| view.same_destination(&item.view))
-            {
-                return (0, index);
-            }
-            (
-                1,
-                self.workspace
-                    .navigation_order
-                    .iter()
-                    .position(|view| view.same_destination(&item.view))
-                    .unwrap_or(usize::MAX),
-            )
-        });
-        for item in &mut self.navigation {
-            if self
-                .workspace
-                .pins
-                .iter()
-                .any(|view| view.same_destination(&item.view))
-            {
-                item.group = "PINNED";
-            }
+        let previous = self.view.clone();
+        self.project_navigation();
+        if !previous.same_destination(&self.view)
+            || matches!(self.view, View::Group(_))
+        {
+            self.filter()?;
         }
-        self.collapse_navigation_sections();
-    }
-
-    fn collapse_navigation_sections(&mut self) {
-        let mut collapsed = Vec::new();
-        for item in std::mem::take(&mut self.navigation) {
-            if !self
-                .workspace
-                .collapsed_groups
-                .iter()
-                .any(|group| group == item.group)
-            {
-                collapsed.push(item);
-                continue;
-            }
-            let view = View::Group(item.group.into());
-            if let Some(header) =
-                collapsed.iter_mut().find(|header| header.view == view)
-            {
-                header.count += item.count;
-            } else {
-                collapsed.push(NavItem {
-                    view,
-                    title: format!("▸ {}", item.group),
-                    group: item.group,
-                    count: item.count,
-                });
-            }
-        }
-        self.navigation = collapsed;
+        Ok(())
     }
 }

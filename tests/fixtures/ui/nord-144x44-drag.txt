@@ -15,7 +15,7 @@
 │  Grouped articles              │            let answer = 42;                                                                              │   
 │  For you                       │                use_it(answer);                                                                           │   
 │                                │                                                                                                          │   
-│  FEEDS                         │                                                                                                          │   
+│▾ FEEDS                         │                                                                                                          │   
 │  Systems Journal               │                                                                                                          │   
 │                                │                                                                                                          │   
 │                                │                                                                                                          │   
@@ -162,8 +162,7 @@
 16:140..141 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))
 16:141..144 Style::new().fg(Color::Reset).bg(Color::Rgb(31, 36, 45))
 17:0..1 Style::new().fg(Color::Rgb(45, 51, 63)).bg(Color::Rgb(31, 36, 45))
-17:1..8 Style::new().fg(Color::Rgb(94, 102, 113)).bg(Color::Rgb(31, 36, 45))
-17:8..33 Style::new().fg(Color::Rgb(141, 143, 146)).bg(Color::Rgb(31, 36, 45))
+17:1..33 Style::new().fg(Color::Rgb(94, 102, 113)).bg(Color::Rgb(31, 36, 45))
 17:33..34 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))
 17:34..140 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(31, 36, 45))
 17:140..141 Style::new().fg(Color::Rgb(136, 192, 208)).bg(Color::Rgb(31, 36, 45))

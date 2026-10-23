@@ -67,7 +67,7 @@ impl Store {
             let id = self
                 .connection
                 .query_row(
-                    "SELECT id FROM servers WHERE url = ?1",
+                    include_str!("../sql/servers/select_id.sql"),
                     [url.as_str()],
                     |row| row.get::<_, i64>(0),
                 )

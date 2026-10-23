@@ -228,14 +228,8 @@ impl App {
             self.open_notebook("", None)?;
             return Ok(());
         }
-        if let View::Group(group) = &self.view {
-            let group = group.clone();
-            self.toggle_navigation_group(match group.as_str() {
-                "FEEDS" => "feeds",
-                "SMART LISTS" => "lists",
-                "YOUR FOLDERS" => "folders",
-                _ => "pinned",
-            })?;
+        if matches!(self.view, View::Group(_)) {
+            self.toggle_navigation_group("")?;
         } else {
             self.focus = Focus::Articles;
         }

@@ -276,6 +276,36 @@ const COMMANDS: &[CommandSpec] = &[
         aliases: &[],
     },
     CommandSpec {
+        name: "server",
+        usage: "server URL TOKEN_ENV",
+        description: "Connect a Miniflux server using an external token variable",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "servers",
+        usage: "servers",
+        description: "Inspect server connections, errors and cached articles",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "unserver",
+        usage: "unserver",
+        description: "Remove the selected server connection; retain articles and notes",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "server-enable",
+        usage: "server-enable",
+        description: "Resume collection from the selected server",
+        aliases: &[],
+    },
+    CommandSpec {
+        name: "server-disable",
+        usage: "server-disable",
+        description: "Pause the selected server; keep cached articles readable",
+        aliases: &[],
+    },
+    CommandSpec {
         name: "discover",
         usage: "discover URL",
         description: "Find feeds advertised by a website",
@@ -584,7 +614,7 @@ const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         name: "collapse",
         usage: "collapse",
-        description: "Fold a sidebar section; accepts feeds/lists/folders/pinned",
+        description: "Fold a sidebar section; accepts feeds/servers/lists/folders/pinned",
         aliases: &[],
     },
     CommandSpec {

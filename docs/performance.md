@@ -24,12 +24,26 @@ make bench-recommendations
 The native benchmark also accepts focused flags, including
 `--configuration-only`, `--welcome-only`, `--code-viewport-only`, `--images-only`,
 `--tables-only`, `--lists-only`, `--rich-text-only`, `--recommendations-only`,
-`--pane-search-only`, `--query-editing-only` and `--fluency-only`. Add `--stress`
+`--pane-search-only`, `--query-editing-only`, `--library-sections-only` and
+`--fluency-only`. Add `--stress`
 for larger workloads.
 Setup precedes operation timers; resource reports identify process-wide
 memory/I/O scope.
 Routine reports go to ignored `.local/benchmarks/`. Promote reviewed evidence
 here only when useful for a release or a specific comparison.
+
+The section workload measures Enter through a full interactive TestBackend
+frame with 13,000 articles, 200 feeds and 46 smart lists. Its stress variant
+keeps 13,000 articles and widens the sidebar to 2,000 feeds. It verifies that
+folding retains every destination, keeps focus on the header and queues no
+catalog or article read. Fixture creation and the initial catalog counts are
+outside the operation timer. TestBackend timings exclude terminal presentation.
+
+Section counts and grouping are prepared when a catalog arrives. Folding only
+projects this cache; pinning and reordering rebuild its presentation without
+reading article counts. Refreshes still replace counts from a current database
+snapshot. Native failure scenarios make catalog queries unavailable and verify
+that keyboard and pointer folding remain usable.
 
 ## Retained evidence
 

@@ -80,6 +80,7 @@ impl App {
             App::panel_command,
             App::reading_command,
             App::organization_command,
+            App::server_command,
             App::study_command,
             App::settings_command,
             App::exchange_command,

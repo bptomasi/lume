@@ -206,7 +206,13 @@
   :trash          Deleted articles remain recoverable with u
   :pin            Pin/unpin selected sidebar destination
   :move-up / :move-down    Customize sidebar order
-  :collapse feeds|lists|folders|pinned    Fold/unfold a sidebar group
+  :server URL TOKEN_ENV                 Add a Miniflux connection
+  :servers                              Inspect connections and errors
+  :server-enable / :server-disable       Resume / pause selected server
+  :unserver                             Remove selected connection; keep articles
+  dd on a server                        Remove connection; keep articles and notes
+  Library section titles: click or select with j/k and Enter to fold/unfold
+  :collapse feeds|servers|lists|folders|pinned    Fold/unfold a sidebar group
   :tags NAME... / :highlight-tags NAME...    Independent tags
   :select-article / :select-page / :clear-selection
   :bulk read|unread|favorite|unfavorite|queue|unqueue

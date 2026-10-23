@@ -36,6 +36,18 @@ fn filtered_windows_keep_original_navigation_identities() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn selectable_section_titles_share_window_geometry_in_both_states() -> Result<()>
+{
+    let (_directory, mut app) = application()?;
+    assert_windows(&mut app);
+    app.focus = crate::app::Focus::Library;
+    app.set_view(View::Group("YOUR FOLDERS".into()))?;
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    assert_windows(&mut app);
+    Ok(())
+}
+
 fn assert_windows(app: &mut App) {
     let indices = app.navigation_indices().collect::<Vec<_>>();
     let mut expected = Vec::new();
@@ -44,7 +56,10 @@ fn assert_windows(app: &mut App) {
         let item = &app.navigation[*index];
         if item.group != group {
             group = item.group;
-            expected.extend([Row::Blank, Row::Heading(group)]);
+            expected.push(Row::Blank);
+            if !matches!(item.view, View::Group(_)) {
+                expected.push(Row::Heading(group));
+            }
         }
         expected.push(Row::Item(*index));
     }
@@ -83,4 +98,20 @@ fn application() -> Result<(tempfile::TempDir, App)> {
         store.create_collection(&format!("Destination {index}"))?;
     }
     Ok((directory, App::new(store, false)?))
+}
+
+#[test]
+fn narrow_section_controls_prioritize_the_title_over_the_aggregate_count() {
+    use unicode_width::UnicodeWidthStr;
+    let item = NavItem {
+        view: View::Group("SMART LISTS".into()),
+        title: "▾ SMART LISTS".into(),
+        group: "SMART LISTS",
+        count: 123_456,
+    };
+    for width in [14, 20, 28] {
+        let text = super::section_text(&item, width);
+        assert!(text.contains("SMART LISTS"));
+        assert!(text.width() <= usize::from(width));
+    }
 }

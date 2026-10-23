@@ -4,7 +4,7 @@ use ratatui::layout::Rect;
 
 use crate::app::App;
 
-/// Navigation identity under a screen row, excluding group labels and borders.
+/// Navigation identity under a row, including section controls; excludes borders.
 pub fn navigation_at(app: &App, area: Rect, row: u16) -> Option<usize> {
     let inner = super::pane_search::content(
         app,

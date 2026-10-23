@@ -75,7 +75,10 @@ fn run_session(
                 .transpose()?,
         )?;
         let worker = background.insert(worker);
-        if !offline && !app.library.feeds.is_empty() {
+        if !offline
+            && (!app.library.feeds.is_empty()
+                || app.library.servers.iter().any(|server| server.enabled))
+        {
             worker.refresh(app);
         }
         run_terminal(app, worker, terminal)

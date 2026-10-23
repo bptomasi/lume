@@ -6,6 +6,7 @@
 
 mod apply;
 mod bindings;
+mod remote;
 mod snapshot;
 
 use std::path::Path;

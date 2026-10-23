@@ -15,7 +15,7 @@
 │  Grouped ar    1 │╭ Annotations · 0 ──────────────────────────────────[≡]─[−]╮
 │  For you       0 ││                                                          │
 │                  ││  Your reading, annotated.                                │
-│  FEEDS           ││                                                          │
+│▾ FEEDS          1││                                                          │
 │  Systems Jo    1 ││  v selects a passage                                     │
 │                  ││  s saves a highlight                                     │
 │                  ││  n adds a passage note                                   │
@@ -141,8 +141,7 @@
 16:21..79 Style::new().fg(Color::Rgb(216, 222, 233)).bg(Color::Rgb(52, 60, 75))
 16:79..80 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
 17:0..1 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
-17:1..8 Style::new().fg(Color::Rgb(157, 170, 189)).bg(Color::Rgb(52, 60, 75))
-17:8..19 Style::new().fg(Color::Rgb(236, 239, 244)).bg(Color::Rgb(52, 60, 75))
+17:1..19 Style::new().fg(Color::Rgb(157, 170, 189)).bg(Color::Rgb(52, 60, 75))
 17:19..21 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))
 17:21..79 Style::new().fg(Color::Rgb(216, 222, 233)).bg(Color::Rgb(52, 60, 75))
 17:79..80 Style::new().fg(Color::Rgb(76, 86, 106)).bg(Color::Rgb(52, 60, 75))

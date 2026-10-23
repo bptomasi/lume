@@ -273,6 +273,7 @@ fn scope_clause(scope: &str) -> &'static str {
         "starred" => "a.starred = 1",
         "queue" => "a.queued = 1",
         "feed" => "a.feed_id = :id",
+        "server" => include_str!("sql/servers/select_scope.sql"),
         "since_visit" => ":id > 0 AND a.added_at > :id",
         "continue" => include_str!("sql/select_continue_predicate.sql"),
         "annotated" => {
@@ -295,6 +296,7 @@ fn scope(view: &View) -> (&'static str, i64) {
         View::Queue => ("queue", 0),
         View::Annotated => ("annotated", 0),
         View::Feed(id) => ("feed", *id),
+        View::Server(id) => ("server", *id),
         View::Collection(id) => ("collection", *id),
         View::Continue => ("continue", 0),
         View::SinceLastVisit(since) => ("since_visit", *since),

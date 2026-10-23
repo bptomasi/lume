@@ -15,7 +15,7 @@
 │  Grouped ar    1 │╭ Annotations · 0 ──────────────────────────────────[≡]─[−]╮
 │  For y╭─ Layout · Ctrl-w · Reader ─────────────────────────────────────────╮ │
 │       │ h j k l   Focus a pane       H J K L   Move a pane                 │ │
-│  FEEDS│ s         Split below        v         Split right                 │ │
+│▾ FEEDS│ s         Split below        v         Split right                 │ │
 │  Syste│ + / -     Resize split       c         Collapse                    │ │
 │       │ a         Open annotations   w         Cycle focus                 │ │
 │       │ u / r     Undo / redo layout =         Standard layout             │ │

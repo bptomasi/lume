@@ -73,7 +73,7 @@ impl Store {
                     (url.as_str(), &server.token_env, server.enabled),
                 )?;
                 self.connection.query_row(
-                    "SELECT id FROM servers WHERE url = ?1",
+                    include_str!("../sql/servers/select_id.sql"),
                     [url.as_str()],
                     |row| row.get(0),
                 )?
@@ -175,6 +175,11 @@ impl Store {
     }
 
     fn required_feed(&self, key: &str) -> Result<i64> {
+        if let Some((server, remote)) =
+            crate::config::server_feed_reference(key)?
+        {
+            return self.configuration_remote_feed(server, remote);
+        }
         self.configuration_id("feed", key)?
             .ok_or_else(|| anyhow::anyhow!("Unknown feed reference: {key}"))
     }

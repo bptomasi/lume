@@ -29,6 +29,7 @@ mod input;
 mod layouts;
 mod maintenance;
 mod navigation;
+mod navigation_sections;
 mod navigation_worker;
 mod note_actions;
 mod note_catalog;
@@ -43,6 +44,7 @@ mod panel_docking;
 mod panels;
 mod passages;
 mod performance;
+mod servers;
 pub use performance::Operation;
 mod personal_tasks;
 mod picker;
@@ -95,6 +97,7 @@ pub use crate::model::Pane as Focus;
 pub use crate::model::View;
 
 /// A selectable navigation row.
+#[derive(Clone)]
 pub struct NavItem {
     /// Destination filter.
     pub view: View,
@@ -250,6 +253,7 @@ pub struct App {
     pub library: Library,
     /// Navigation destinations in display order.
     pub navigation: Vec<NavItem>,
+    navigation_sections: navigation_sections::Sections,
     library_search: pane_search::LibrarySearch,
     picker_reads: Option<picker_reads::PickerReads>,
     performance: performance::Performance,
@@ -449,6 +453,7 @@ impl App {
             store,
             library,
             navigation: Vec::new(),
+            navigation_sections: navigation_sections::Sections::default(),
             library_search: pane_search::LibrarySearch::default(),
             picker_reads: None,
             performance: performance::Performance::default(),
