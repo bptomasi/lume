@@ -69,6 +69,15 @@ impl Store {
     /// # Errors
     /// Rejects foreign/corrupt/newer snapshots and existing destinations.
     pub fn restore_snapshot(snapshot: &Path, output: &Path) -> Result<()> {
+        Self::restore_database_snapshot(snapshot, output, false)
+    }
+
+    // Bundled callers verify/copy their assets before publishing the final tree.
+    pub(crate) fn restore_database_snapshot(
+        snapshot: &Path,
+        output: &Path,
+        preserve_offline: bool,
+    ) -> Result<()> {
         ensure!(!output.try_exists()?, "Restore destination already exists");
         let source = Connection::open_with_flags(
             snapshot,
@@ -90,7 +99,7 @@ impl Store {
             let mut destination = Connection::open(&database)?;
             copy(&source, &mut destination, &AtomicBool::new(false))?;
         }
-        prepare_restore(&database, staging.path())?;
+        prepare_restore(&database, staging.path(), preserve_offline)?;
         publish_restore(staging.path(), output)?;
         std::fs::File::open(parent)?.sync_all()?;
         Ok(())
@@ -152,9 +161,14 @@ fn validate(connection: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn prepare_restore(database: &Path, directory: &Path) -> Result<()> {
+fn prepare_restore(
+    database: &Path,
+    directory: &Path,
+    preserve_offline: bool,
+) -> Result<()> {
     let store = Store::open(database)?;
     validate(&store.connection)?;
+    store.prepare_offline_restore(preserve_offline)?;
     let config = store.capture_configuration()?;
     crate::config::export(&config, &directory.join("config.toml"))?;
     store

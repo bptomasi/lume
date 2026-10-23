@@ -292,7 +292,11 @@ lume restore new-offline-backup-directory new-library-directory
 Backup/restore remain available even if the active TOML is invalid. Restore
 validates bundle names, sizes and checksums in private staging before creating
 the final destination; migrations and configuration export apply only to its
-isolated database copy. Existing SQLite snapshot files remain supported.
+isolated database copy. Restored checkpoints never claim a worker is still
+running. When offline images were omitted, affected package entries become
+partial (or failed if their target is unavailable), report zero cached images
+and retain their targets for `:offline resume`. Bundles including offline files
+preserve captured availability. Existing SQLite snapshot files remain supported.
 
 ## Retention and recoverable caches
 

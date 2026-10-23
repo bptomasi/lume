@@ -240,7 +240,11 @@ pub fn restore(source: &Path, output: &Path) -> Result<()> {
         .context("Backup database entry")?;
     let staged_database = staging.path().join("snapshot.sqlite3");
     bundle::copy_checked(source, &staged_database, database, &cancel)?;
-    Store::restore_snapshot(&staged_database, &restored)?;
+    Store::restore_database_snapshot(
+        &staged_database,
+        &restored,
+        manifest.include_offline,
+    )?;
     let mut names = vec!["library.sqlite3".into(), "config.toml".into()];
     for file in manifest
         .files

@@ -7,6 +7,47 @@ use super::Store;
 use crate::model::OfflineState;
 
 impl Store {
+    pub(super) fn prepare_offline_restore(
+        &self,
+        preserve_images: bool,
+    ) -> Result<()> {
+        let Some(mut state) = self.offline_state()? else {
+            return Ok(());
+        };
+        let mut changed = state.running;
+        state.running = false;
+        for item in &mut state.items {
+            let bytes: Option<u64> = self
+                .connection
+                .query_row(
+                    include_str!("sql/select_restored_offline_bytes.sql"),
+                    (item.article, &item.url),
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if bytes.is_some() && (preserve_images || item.images == 0) {
+                continue;
+            }
+            item.status = if bytes.is_some() {
+                crate::model::OfflineStatus::Partial
+            } else {
+                crate::model::OfflineStatus::Failed
+            };
+            item.bytes = bytes.unwrap_or(0).min(item.bytes);
+            item.images = 0;
+            item.error = if bytes.is_some() {
+                "Offline images were omitted from this snapshot; use :offline resume to prepare them again."
+            } else {
+                "Offline target is unavailable in this snapshot; capture a new package."
+            }.into();
+            changed = true;
+        }
+        if changed {
+            self.save_offline_state(&state)?;
+        }
+        Ok(())
+    }
+
     /// Read the latest package without changing its interrupted/running state.
     ///
     /// # Errors
