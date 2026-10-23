@@ -161,6 +161,7 @@ fn cache_remote_article(
         &feed.title,
         &[article],
         &lume::model::RemoteFeedUpdate {
+            history: Default::default(),
             server_id: server,
             remote_id: 7,
             initialized: true,

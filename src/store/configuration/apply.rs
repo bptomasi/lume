@@ -90,6 +90,10 @@ impl Store {
                 |row| row.get(0),
             )?
         };
+        self.connection.execute(
+            include_str!("../sql/servers/update_sync_settings.sql"),
+            (id, serde_json::to_string(&server.sync)?),
+        )?;
         self.bind_configuration("server", id, &server.id)
     }
 
@@ -359,6 +363,7 @@ mod tests {
         let previous = Configuration::default();
         let mut config = previous.clone();
         config.servers.push(Server {
+            sync: Default::default(),
             id: "home".into(),
             url: "https://reader.example/base/".into(),
             token_env: "LUME_MINIFLUX_TOKEN".into(),

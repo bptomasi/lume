@@ -288,6 +288,12 @@ const COMMANDS: &[CommandSpec] = &[
         aliases: &[],
     },
     CommandSpec {
+        name: "server-history",
+        usage: "server-history",
+        description: "Restart configured history import; cached personal data stays intact",
+        aliases: &[],
+    },
+    CommandSpec {
         name: "unserver",
         usage: "unserver",
         description: "Remove the selected server connection; retain articles and notes",

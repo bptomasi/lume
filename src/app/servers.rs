@@ -16,6 +16,13 @@ impl App {
         match verb {
             "server" => return self.connect_server(argument).map(Some),
             "servers" => self.inspect_servers()?,
+            "server-history" => {
+                self.store.restart_server_history(self.selected_server()?)?;
+                self.reload()?;
+                self.status =
+                    "History restarted · cached articles retained".into();
+                return Ok(Some(Action::Refresh));
+            }
             "unserver" => {
                 self.remove_destination(View::Server(self.selected_server()?))?;
             }
@@ -111,7 +118,28 @@ impl App {
             !self.library.servers.is_empty(),
             "No servers · :server URL TOKEN_ENV adds a connection"
         );
-        let choices = self.library.servers.iter().map(server_choice).collect();
+        let choices = self
+            .library
+            .servers
+            .iter()
+            .map(|server| {
+                let mut choice = server_choice(server);
+                for feed in self.library.feeds.iter().filter(|feed| {
+                    feed.server
+                        .as_ref()
+                        .is_some_and(|remote| remote.server_id == server.id)
+                }) {
+                    if let Some(remote) = &feed.server {
+                        choice.detail.push_str(&format!(
+                            "\n{}: {}",
+                            feed.title,
+                            remote.sync_progress()
+                        ));
+                    }
+                }
+                choice
+            })
+            .collect();
         self.inspect(choices)
     }
 }

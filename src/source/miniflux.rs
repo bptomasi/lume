@@ -22,11 +22,9 @@ use crate::{
 
 use super::{MAX_FEED_BYTES, ParsedFeed, download::Download, link_url};
 
-/// Entries requested per page. Keeps one decoded JSON body below 16 MiB for
-/// ordinary sanitized content.
-const PAGE_ENTRIES: usize = 200;
-/// Pages visited per feed and sync. Also bounds a first observation to 2,000
-/// entries, matching the ordinary feed contract.
+mod pagination;
+use pagination::{Collected, collect_pages};
+#[cfg(test)]
 const MAX_PAGES: usize = 10;
 /// Largest normalized remote body accepted for one entry.
 const MAX_REMOTE_BODY: usize = 1024 * 1024;
@@ -132,7 +130,8 @@ fn request_entries(
     let sync_after_id = entries.after_id;
     let (articles, states, latest) =
         normalize_entries(server, entries.entries)?;
-    let last_changed = if sync_after_id > 0 {
+    let initialized = server.initialized || entries.complete;
+    let last_changed = if sync_after_id > 0 || !initialized {
         server.last_changed
     } else {
         latest
@@ -144,7 +143,8 @@ fn request_entries(
         remote: Some(RemoteFeedUpdate {
             server_id: server.server_id,
             remote_id: server.remote_id,
-            initialized: true,
+            initialized,
+            history: entries.history,
             last_changed,
             sync_after_id,
             sync_latest: latest,
@@ -153,77 +153,24 @@ fn request_entries(
     }))
 }
 
-struct Collected {
-    entries: BTreeMap<i64, RemoteEntry>,
-    after_id: i64,
-}
-
 fn fetch_pages(
     client: &ureq::Agent,
     server: &ServerFeed,
     token: &str,
     stopped: &AtomicBool,
 ) -> Result<Collected> {
-    collect_pages(server, stopped, |cursor| {
-        let url = entry_page_url(server, !server.initialized, cursor)?;
+    collect_pages(server, stopped, |cursor, limit| {
+        let url = entry_page_url(server, !server.initialized, cursor, limit)?;
         get_json(client, &url, token)
             .map_err(|error| annotate(error, &server.token_env, token))
     })
-}
-
-fn collect_pages(
-    server: &ServerFeed,
-    stopped: &AtomicBool,
-    mut fetch: impl FnMut(i64) -> Result<EntryPage>,
-) -> Result<Collected> {
-    let mut cursor = if server.initialized {
-        server.sync_after_id
-    } else {
-        0
-    };
-    let mut entries = BTreeMap::new();
-    for _ in 0..MAX_PAGES {
-        ensure!(!stopped.load(Ordering::Relaxed), "Collection cancelled");
-        let page = fetch(cursor)?;
-        ensure!(page.entries.len() <= PAGE_ENTRIES, "Oversized entry page");
-        let count = page.entries.len();
-        let visited = if server.initialized {
-            0
-        } else {
-            cursor as usize
-        };
-        let complete = count < PAGE_ENTRIES || visited + count >= page.total;
-        for entry in page.entries {
-            ensure!(entry.id > 0, "Remote entry needs a positive ID");
-            if server.initialized {
-                ensure!(
-                    entry.id > cursor,
-                    "Remote entry IDs are not ascending"
-                );
-                cursor = entry.id;
-            }
-            entries.entry(entry.id).or_insert(entry);
-        }
-        if !server.initialized {
-            cursor += count as i64;
-        }
-        if complete {
-            return Ok(Collected {
-                entries,
-                after_id: 0,
-            });
-        }
-    }
-    // Initial import deliberately keeps only the newest bounded set. Later
-    // passes resume against the same watermark, including timestamp ties.
-    let after_id = if server.initialized { cursor } else { 0 };
-    Ok(Collected { entries, after_id })
 }
 
 fn entry_page_url(
     server: &ServerFeed,
     initial: bool,
     cursor: i64,
+    limit: usize,
 ) -> Result<url::Url> {
     let mut url = endpoint_parts(
         &server.server_url,
@@ -231,12 +178,14 @@ fn entry_page_url(
     )?;
     {
         let mut query = url.query_pairs_mut();
-        query.append_pair("limit", &PAGE_ENTRIES.to_string());
+        query.append_pair("limit", &limit.to_string());
         if initial {
             query
-                .append_pair("offset", &cursor.to_string())
-                .append_pair("order", "published_at")
+                .append_pair("order", "id")
                 .append_pair("direction", "desc");
+            if cursor > 0 {
+                query.append_pair("before_entry_id", &cursor.to_string());
+            }
         } else {
             query
                 .append_pair("after_entry_id", &cursor.to_string())
@@ -476,18 +425,15 @@ mod tests {
     fn initial_and_incremental_page_urls_are_bounded_and_explicit() -> Result<()>
     {
         let initial_server = server(false, 0);
-        let initial = entry_page_url(&initial_server, true, 0)?;
+        let initial = entry_page_url(&initial_server, true, 0, 200)?;
         let query = parameters(&initial);
         assert_eq!(query.get("limit").map(String::as_str), Some("200"));
-        assert_eq!(query.get("offset").map(String::as_str), Some("0"));
-        assert_eq!(
-            query.get("order").map(String::as_str),
-            Some("published_at")
-        );
+        assert!(!query.contains_key("offset"));
+        assert_eq!(query.get("order").map(String::as_str), Some("id"));
         assert_eq!(query.get("direction").map(String::as_str), Some("desc"));
         assert!(!query.contains_key("changed_after"));
 
-        let incremental = entry_page_url(&server(true, 100), false, 200)?;
+        let incremental = entry_page_url(&server(true, 100), false, 200, 200)?;
         let query = parameters(&incremental);
         assert_eq!(
             query.get("after_entry_id").map(String::as_str),
@@ -510,12 +456,16 @@ mod tests {
     -> Result<()> {
         let mut remote = server(true, 100);
         let first =
-            collect_pages(&remote, &AtomicBool::new(false), synthetic_page)?;
+            collect_pages(&remote, &AtomicBool::new(false), |cursor, _| {
+                synthetic_page(cursor)
+            })?;
         assert_eq!(first.entries.len(), 2000);
         assert_eq!(first.after_id, 2000);
         remote.sync_after_id = first.after_id;
         let second =
-            collect_pages(&remote, &AtomicBool::new(false), synthetic_page)?;
+            collect_pages(&remote, &AtomicBool::new(false), |cursor, _| {
+                synthetic_page(cursor)
+            })?;
         assert_eq!(second.entries.len(), 1);
         assert_eq!(second.after_id, 0);
         assert!(second.entries.contains_key(&2001));
@@ -528,8 +478,9 @@ mod tests {
         let collected = collect_pages(
             &server(false, 0),
             &AtomicBool::new(false),
-            |offset| {
+            |before, _| {
                 calls += 1;
+                let offset = if before == 0 { 0 } else { 5001 - before };
                 Ok(EntryPage {
                     total: 5000,
                     entries: (5000 - offset - 199..=5000 - offset)
@@ -556,13 +507,13 @@ mod tests {
     #[test]
     fn oversized_pages_and_invalid_remote_identities_fail() -> Result<()> {
         let remote = server(true, 100);
-        let bad = collect_pages(&remote, &AtomicBool::new(false), |_| {
+        let bad = collect_pages(&remote, &AtomicBool::new(false), |_, _| {
             let mut page = synthetic_page(0)?;
             page.entries.push(entry(201));
             Ok(page)
         });
         assert!(bad.is_err());
-        let bad = collect_pages(&remote, &AtomicBool::new(false), |_| {
+        let bad = collect_pages(&remote, &AtomicBool::new(false), |_, _| {
             Ok(EntryPage {
                 total: 1,
                 entries: vec![entry(0)],
@@ -610,7 +561,7 @@ mod tests {
         let remote = server(true, 100);
         let mut calls = 0;
         let collected =
-            collect_pages(&remote, &AtomicBool::new(false), |cursor| {
+            collect_pages(&remote, &AtomicBool::new(false), |cursor, _| {
                 calls += 1;
                 if cursor == 0 {
                     synthetic_page(0)
@@ -634,7 +585,7 @@ mod tests {
         let remote = server(true, 100);
         let stopped = AtomicBool::new(false);
         let mut calls = 0;
-        let result = collect_pages(&remote, &stopped, |_| {
+        let result = collect_pages(&remote, &stopped, |_, _| {
             calls += 1;
             stopped.store(true, Ordering::Relaxed);
             synthetic_page(0)
@@ -642,7 +593,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(calls, 1);
         let mut calls = 0;
-        let result = collect_pages(&remote, &AtomicBool::new(false), |_| {
+        let result = collect_pages(&remote, &AtomicBool::new(false), |_, _| {
             calls += 1;
             synthetic_page(0)
         });
@@ -664,6 +615,68 @@ mod tests {
         );
         assert_eq!(retry_deadline(&error), 1234);
         assert!(error.to_string().contains("HTTP 429"));
+    }
+
+    #[test]
+    fn initial_history_resumes_by_identity_and_obeys_a_partial_last_page()
+    -> Result<()> {
+        let mut remote = server(false, 0);
+        remote.sync.initial_entries = 5;
+        remote.sync.entries_per_page = 2;
+        remote.sync.pages_per_sync = 1;
+        for (before, expected, ids) in
+            [(0, 2, vec![10, 9]), (9, 2, vec![8, 6]), (6, 1, vec![5])]
+        {
+            let collected = collect_pages(
+                &remote,
+                &AtomicBool::new(false),
+                |cursor, limit| {
+                    assert_eq!((cursor, limit), (before, expected));
+                    Ok(EntryPage {
+                        total: 10,
+                        entries: ids.iter().copied().map(entry).collect(),
+                    })
+                },
+            )?;
+            remote.history = collected.history;
+            assert_eq!(collected.complete, remote.history.loaded == 5);
+            assert_eq!(collected.after_id, 0);
+        }
+        assert_eq!(remote.history.loaded, 5);
+        assert_eq!(remote.history.before_id, 5);
+        let query = parameters(&entry_page_url(&remote, true, 6, 1)?);
+        assert_eq!(query.get("before_entry_id").map(String::as_str), Some("6"));
+        assert!(!query.contains_key("offset"));
+        Ok(())
+    }
+
+    #[test]
+    fn unlimited_history_completes_only_when_the_server_has_no_more_entries()
+    -> Result<()> {
+        let mut remote = server(false, 0);
+        remote.sync.initial_entries = 0;
+        remote.sync.entries_per_page = 2;
+        remote.sync.pages_per_sync = 1;
+        let first = collect_pages(&remote, &AtomicBool::new(false), |_, _| {
+            Ok(EntryPage {
+                total: 3,
+                entries: vec![entry(4), entry(3)],
+            })
+        })?;
+        assert!(!first.complete);
+        remote.history = first.history;
+        let last =
+            collect_pages(&remote, &AtomicBool::new(false), |cursor, _| {
+                assert_eq!(cursor, 3);
+                Ok(EntryPage {
+                    total: 1,
+                    entries: vec![entry(1)],
+                })
+            })?;
+        assert!(last.complete);
+        assert_eq!(last.history.loaded, 3);
+        assert_eq!(last.history.total, 3);
+        Ok(())
     }
 
     fn synthetic_page(offset: i64) -> Result<EntryPage> {
@@ -703,6 +716,8 @@ mod tests {
             sync_after_id: 0,
             sync_latest: last_changed,
             present: true,
+            sync: Default::default(),
+            history: Default::default(),
         }
     }
 

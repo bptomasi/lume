@@ -222,6 +222,12 @@ fn feed_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Feed> {
             present: row.get(13)?,
             sync_after_id: row.get(14)?,
             sync_latest: row.get(15)?,
+            sync: server_sync_row(row, 17)?,
+            history: crate::model::ServerHistory {
+                before_id: row.get(18)?,
+                loaded: row.get(19)?,
+                total: row.get(20)?,
+            },
         }),
         None => None,
     };
@@ -233,5 +239,18 @@ fn feed_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Feed> {
         modified: row.get(4)?,
         error: row.get(5)?,
         server,
+    })
+}
+
+pub(super) fn server_sync_row(
+    row: &rusqlite::Row<'_>,
+    index: usize,
+) -> rusqlite::Result<crate::model::ServerSync> {
+    serde_json::from_str(&row.get::<_, String>(index)?).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(
+            index,
+            rusqlite::types::Type::Text,
+            Box::new(error),
+        )
     })
 }

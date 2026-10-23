@@ -1,6 +1,8 @@
 //! Small data contracts shared by storage, collection and presentation.
 
 mod auto_read;
+mod server_sync;
+pub use server_sync::{ServerHistory, ServerSync};
 mod credentials;
 pub use auto_read::AutoReadSettings;
 pub use credentials::ApiToken;
@@ -120,6 +122,8 @@ pub struct Server {
     pub token: Option<ApiToken>,
     /// Whether collection through this server is enabled.
     pub enabled: bool,
+    /// Initial-history and per-refresh limits.
+    pub sync: ServerSync,
     /// Last server-level failure, empty after success or before the first try.
     pub error: String,
 }
@@ -139,6 +143,10 @@ pub struct ServerFeed {
     pub enabled: bool,
     /// Remote feed identity.
     pub remote_id: i64,
+    /// Initial-history and per-refresh limits.
+    pub sync: ServerSync,
+    /// Durable progress of the initial-history import.
+    pub history: ServerHistory,
     /// Whether a first successful entry page has been observed.
     pub initialized: bool,
     /// Latest observed remote `changed_at` second, zero before first sync.
@@ -167,6 +175,8 @@ pub struct RemoteFeedUpdate {
     pub server_id: i64,
     /// Remote feed identity.
     pub remote_id: i64,
+    /// Durable progress of the initial-history import.
+    pub history: ServerHistory,
     /// Whether this update completes the first observed page set.
     pub initialized: bool,
     /// Latest remote `changed_at` second in this update.

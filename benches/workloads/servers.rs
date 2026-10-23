@@ -101,6 +101,7 @@ fn seed(store: &mut Store, count: usize) -> Result<i64> {
             body_origin: FeedOrigin::Feed,
         };
         let update = RemoteFeedUpdate {
+            history: Default::default(),
             server_id: server,
             remote_id: remote.remote_id,
             initialized: true,

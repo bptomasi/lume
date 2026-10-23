@@ -95,6 +95,7 @@ impl Store {
                         .filter(|token| !token.is_empty())
                         .map(Into::into),
                     enabled: row.get(4)?,
+                    sync: super::super::ingest::server_sync_row(row, 6)?,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?)

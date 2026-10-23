@@ -4,6 +4,8 @@
 //! bind. Ordinary local checks do not start a server.
 
 mod common;
+#[path = "http/server_history.rs"]
+mod server_history;
 
 use std::{
     io::{Read, Write},

@@ -259,6 +259,7 @@ fn update(
     last_changed: i64,
 ) -> RemoteFeedUpdate {
     RemoteFeedUpdate {
+        history: Default::default(),
         server_id,
         remote_id: 7,
         initialized: true,
@@ -528,4 +529,54 @@ fn replacing_an_inline_key_clears_stale_health_and_preserves_private_storage()
         assert!(!format!("{saved:?}").contains(key));
     }
     Ok(())
+}
+
+#[test]
+fn history_checkpoint_survives_restart_and_reset_retains_personal_data()
+-> Result<()> {
+    let mut fixture = mirrored_store()?;
+    let mut remote = update(
+        fixture.server_id,
+        RemoteArticleState {
+            unread: true,
+            starred: false,
+        },
+        100,
+    );
+    remote.initialized = false;
+    remote.history = crate::model::ServerHistory {
+        before_id: 40,
+        loaded: 2,
+        total: 5,
+    };
+    fixture.store.ingest_remote(
+        &fixture.feed,
+        "Remote",
+        &[article("miniflux:1", "Kept")],
+        &remote,
+    )?;
+    let id = fixture.store.library()?.articles[0].id;
+    fixture.store.set_starred(id, true)?;
+    let reopened =
+        Store::open(&fixture._directory.path().join("library.sqlite3"))?;
+    let history = remote_scope(&reopened)?;
+    assert!(!history.initialized);
+    assert_eq!(history.history, remote.history);
+    assert!(history.sync_progress().contains("2 / 5"));
+    reopened.restart_server_history(fixture.server_id)?;
+    let reset = remote_scope(&reopened)?;
+    assert_eq!(reset.history.loaded, 0);
+    assert_eq!(reset.history.before_id, 0);
+    assert!(reopened.article(id)?.starred);
+    assert!(!reopened.body(id)?.is_empty());
+    assert!(reopened.restart_server_history(999).is_err());
+    Ok(())
+}
+
+fn remote_scope(store: &Store) -> Result<crate::model::ServerFeed> {
+    store
+        .feeds()?
+        .into_iter()
+        .find_map(|feed| feed.server)
+        .ok_or_else(|| anyhow::anyhow!("Missing remote scope"))
 }

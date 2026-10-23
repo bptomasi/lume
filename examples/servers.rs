@@ -82,6 +82,7 @@ fn cache_article(
         body_origin: FeedOrigin::Feed,
     };
     let update = RemoteFeedUpdate {
+        history: Default::default(),
         server_id: server,
         remote_id: remote,
         initialized: true,

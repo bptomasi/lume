@@ -6,6 +6,8 @@ use lume::store::Store;
 
 #[derive(Subcommand)]
 pub(crate) enum Edit {
+    /// Restart initial-history collection; cached articles and personal flags stay intact.
+    History { id: i64 },
     /// Connect a Miniflux server; credentials stay in the named environment variable.
     Add {
         /// Absolute HTTP(S) Miniflux root URL.
@@ -23,6 +25,12 @@ pub(crate) enum Edit {
 
 pub(super) fn edit(store: &Store, command: Edit) -> Result<()> {
     match command {
+        Edit::History { id } => {
+            store.restart_server_history(id)?;
+            println!(
+                "History checkpoint reset. Run lume sync to collect the configured history."
+            );
+        }
         Edit::Add { url, token_env } => {
             let id = store.add_server(&url, &token_env)?;
             println!("Server {id} saved. Run lume sync or press r.");
@@ -39,6 +47,7 @@ pub(super) fn edit(store: &Store, command: Edit) -> Result<()> {
 
 pub(super) fn print(store: &Store) -> Result<()> {
     let servers = store.servers()?;
+    let feeds = store.feeds()?;
     if servers.is_empty() {
         println!("No servers. Use lume server add URL TOKEN_ENV.");
     }
@@ -54,6 +63,19 @@ pub(super) fn print(store: &Store) -> Result<()> {
                 server.token_env.as_str()
             }
         );
+        for feed in &feeds {
+            if let Some(remote) = feed
+                .server
+                .as_ref()
+                .filter(|remote| remote.server_id == server.id)
+            {
+                println!(
+                    "  {}: {}",
+                    lume::content::label(&feed.title, 200),
+                    remote.sync_progress()
+                );
+            }
+        }
         if !server.error.is_empty() {
             println!("  {}", lume::content::label(&server.error, 500));
         }

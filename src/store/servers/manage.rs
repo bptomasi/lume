@@ -5,6 +5,24 @@ use anyhow::{Result, ensure};
 use crate::store::Store;
 
 impl Store {
+    /// Restart initial-history discovery without deleting cached or personal data.
+    ///
+    /// # Errors
+    /// Returns missing server or SQLite failures; subsequent refreshes resume it.
+    pub fn restart_server_history(&self, id: i64) -> Result<()> {
+        let transaction = self.write_transaction()?;
+        ensure!(
+            self.servers()?.iter().any(|server| server.id == id),
+            "Unknown server"
+        );
+        transaction.execute(
+            include_str!("../sql/servers/restart_history.sql"),
+            [id],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
+
     /// Add or reconnect a Miniflux server using an external token variable.
     ///
     /// # Errors

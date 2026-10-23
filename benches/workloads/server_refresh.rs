@@ -20,6 +20,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     let articles = articles(2000);
     let first = feeds.first().context("Seed feed")?;
     let remote = RemoteFeedUpdate {
+        history: Default::default(),
         server_id: server,
         remote_id: 1,
         initialized: true,

@@ -35,6 +35,7 @@ impl Store {
                         .map(Into::into),
                     enabled: row.get(3)?,
                     error: row.get(4)?,
+                    sync: super::ingest::server_sync_row(row, 6)?,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?)
@@ -134,6 +135,10 @@ impl Store {
                 remote.last_changed,
                 remote.sync_after_id,
                 remote.sync_latest,
+                remote.initialized,
+                remote.history.before_id,
+                remote.history.loaded,
+                remote.history.total,
             ))?;
         transaction.commit()?;
         Ok(())

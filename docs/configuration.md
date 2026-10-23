@@ -324,6 +324,31 @@ the first cleanup that needs it. Cancellation keeps completed index batches and
 never acknowledges an incomplete preview. Planning checks cancellation between
 256-article batches and smart-list queries.
 
+Per-server history import is configurable:
+
+```toml
+[servers.sync]
+initial_entries = 2000 # per feed; 0 imports all available history
+entries_per_page = 200 # 1–200
+pages_per_sync = 10    # 1–10; bounds one refresh to at most 2,000 records/feed
+```
+
+Each completed refresh commits its articles and history cursor together.
+Incomplete imports resume on the next refresh, including after restart. Initial
+history uses descending entry IDs; newer arrivals do not shift pending pages.
+`lume servers` and `:servers` show durable per-feed progress. Failed/cancelled
+page sets can repeat the bounded current set, without losing committed work or
+changing personal read/favorite state. Limits affect first imports. To revisit
+history for an existing server, select it and use `:server-history`, or run
+`lume server history ID` followed by `lume sync`; cached articles are retained.
+
+The [Miniflux API](https://miniflux.app/docs/api.html#get-entries) also offers
+all-feed collection. Lume retains per-feed cursors so an initial import cannot
+consume a shared history cap on a few busy feeds. A global incremental cursor
+would need separate feed-initialization and removal semantics before replacing
+these requests. Requests to one server remain sequential without publisher
+spacing; other hosts can collect concurrently.
+
 ### Storage reports
 
 `lume storage --details --unit MiB` and `:storage details MiB` break down

@@ -100,6 +100,9 @@ pub struct Server {
     /// Whether collection through this server is enabled.
     #[serde(default = "enabled")]
     pub enabled: bool,
+    /// Per-feed initial-history and bounded refresh settings.
+    #[serde(default)]
+    pub sync: crate::model::ServerSync,
 }
 
 /// A named definition with a stable ID; folders leave the query empty.
@@ -337,6 +340,7 @@ impl Configuration {
         let mut ids = BTreeSet::new();
         let mut urls = BTreeSet::new();
         for server in &self.servers {
+            server.sync.validate()?;
             validate_id(&server.id)?;
             ensure!(
                 ids.insert(&server.id),

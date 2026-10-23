@@ -213,6 +213,7 @@
   :server URL --token
                   Enter an API key in a masked prompt; save it in TOML.
   :servers                              Inspect connections and errors
+  :server-history Restart history for the selected server; refresh resumes it
   :server-enable / :server-disable       Resume / pause selected server
   :unserver                             Remove selected connection; keep articles
   dd on a server                        Remove connection; keep articles and notes
