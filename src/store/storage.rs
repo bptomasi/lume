@@ -41,6 +41,48 @@ impl Store {
         Ok(usage)
     }
 
+    pub(crate) fn storage_details(
+        &self,
+    ) -> Result<crate::storage::details::Details> {
+        self.read_snapshot(|store| {
+            let sources = store
+                .connection
+                .prepare_cached(include_str!("sql/select_storage_sources.sql"))?
+                .query_map([], |row| {
+                    Ok(crate::storage::details::SourceUsage {
+                        feed_id: row.get(0)?,
+                        title: row.get(1)?,
+                        server: row.get(2)?,
+                        articles: row.get(3)?,
+                        feed_bytes: row.get(4)?,
+                        full_bytes: row.get(5)?,
+                    })
+                })?
+                .collect::<rusqlite::Result<_>>()?;
+            let tables = store
+                .connection
+                .prepare_cached(include_str!("sql/select_storage_tables.sql"))?
+                .query_map([], |row| {
+                    Ok(crate::storage::details::TableUsage {
+                        name: row.get(0)?,
+                        allocated_bytes: row.get(1)?,
+                    })
+                })?
+                .collect::<rusqlite::Result<_>>()?;
+            let (fts_body_bytes, fts_note_bytes) = store.connection.query_row(
+                include_str!("sql/select_storage_fts.sql"),
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+            Ok(crate::storage::details::Details {
+                sources,
+                tables,
+                fts_body_bytes,
+                fts_note_bytes,
+            })
+        })
+    }
+
     pub(crate) fn cleanup_boundary(&self) -> Result<i64> {
         Ok(self.connection.query_row(
             "SELECT coalesce(max(article_id), 0) FROM article_documents",
@@ -90,22 +132,5 @@ impl Store {
             bytes,
             entries.last().map_or(after, |entry| entry.0),
         ))
-    }
-
-    pub(crate) fn visit_cached_bodies(
-        &self,
-        cancel: &std::sync::atomic::AtomicBool,
-        mut visit: impl FnMut(&str) -> Result<()>,
-    ) -> Result<()> {
-        let mut statement = self
-            .connection
-            .prepare(include_str!("sql/select_cached_bodies.sql"))?;
-        let mut rows = statement.query([])?;
-        while !cancel.load(std::sync::atomic::Ordering::Relaxed) {
-            let Some(row) = rows.next()? else { break };
-            let body: String = row.get(0)?;
-            visit(&body)?;
-        }
-        Ok(())
     }
 }

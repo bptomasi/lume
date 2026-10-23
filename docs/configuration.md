@@ -293,12 +293,15 @@ Inspect and acknowledge a policy before applying it:
 
 ```sh
 lume retention status
+lume retention explain 123
 lume retention preview
 lume retention apply
 ```
 
 The TUI supports `:retention status`, `:retention preview` (Enter applies),
-`:retention apply` and `:retention cancel`. CLI commands work offline. Preview
+`:retention apply`, `:retention explain [ID]` and `:retention cancel`.
+Explanation lists each personal protection and the effective expiry cutoff; it
+does not acknowledge a policy or remove data. CLI commands work offline. Preview
 counts all currently eligible content without removing it; application obeys
 both per-run budgets. Changing lifetimes, source overrides or smart-list
 protection requires another preview. Changing scheduling/budgets or enabling
@@ -314,7 +317,20 @@ failure. `:retention cancel` stops between batches.
 Cancelled automatic passes do not record a successful run or postpone the next
 attempt by the configured interval.
 
+Image retention maintains durable URL references for Feed and Full content.
+Only changed bodies are parsed in bounded background batches; generation checks
+reject stale publisher revisions. Existing libraries build the index lazily on
+the first cleanup that needs it. Cancellation keeps completed index batches and
+never acknowledges an incomplete preview. Planning checks cancellation between
+256-article batches and smart-list queries.
+
 ### Storage reports
+
+`lume storage --details --unit MiB` and `:storage details MiB` break down
+logical text by source and physical SQLite pages by table/index.
+`lume storage --json` exposes exact byte counts, including the Feed/Full body
+copy retained by the internal-content FTS table. Logical copies are diagnostic
+and are not added to filesystem totals. Inspection never enables compression.
 
 `:storage` uses readable binary units automatically. Use `:storage MiB`,
 `:storage GiB` or `:storage bytes` to select a fixed unit, and `:storage auto`

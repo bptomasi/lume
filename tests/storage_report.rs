@@ -87,3 +87,34 @@ fn manual_image_cleanup_handles_long_galleries_and_protects_pinned_files()
     assert_eq!(store.body(store.library()?.articles[0].id)?, body);
     Ok(())
 }
+
+#[test]
+fn detailed_accounting_measures_utf8_fts_and_archived_sources_without_writes()
+-> Result<()> {
+    let (_directory, mut store, feed) = common::seeded_store()?;
+    let mut parsed =
+        lume::source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
+    parsed.articles[0].body = "á漢字 text".into();
+    store.ingest(&feed, &feed.title, &parsed.articles)?;
+    store.unsubscribe(feed.id)?;
+    let details = storage::details::inspect(&store)?;
+    assert_eq!(details.sources.len(), 1);
+    assert_eq!(details.sources[0].articles, 1);
+    assert_eq!(details.sources[0].feed_bytes, "á漢字 text".len() as u64);
+    assert_eq!(details.fts_body_bytes, details.sources[0].feed_bytes + 1);
+    assert!(
+        details
+            .tables
+            .iter()
+            .any(|table| table.name == "articles" && table.allocated_bytes > 0)
+    );
+    assert!(
+        details
+            .text(Unit::MiB)
+            .contains("FTS INTERNAL CONTENT COPIES")
+    );
+    let json = serde_json::to_value(&details)?;
+    assert_eq!(json["sources"][0]["feed_id"], feed.id);
+    assert_eq!(store.body(store.library()?.articles[0].id)?, "á漢字 text");
+    Ok(())
+}

@@ -108,6 +108,7 @@ impl Store {
     pub(super) fn protect_retention_queries(
         &self,
         unprotected: &[String],
+        cancel: &std::sync::atomic::AtomicBool,
     ) -> Result<()> {
         let ignored = self
             .connection
@@ -118,8 +119,13 @@ impl Store {
                 row.get::<_, i64>(0)
             })?
             .collect::<rusqlite::Result<std::collections::BTreeSet<_>>>()?;
+        let mut unique = std::collections::HashSet::new();
         for list in self.smart_lists()? {
+            crate::retention::check_cancel(cancel)?;
             if ignored.contains(&list.id) {
+                continue;
+            }
+            if !unique.insert(serde_json::to_string(&list.filter)?) {
                 continue;
             }
             let query = ArticleQuery {

@@ -17,6 +17,7 @@ mod export;
 mod extraction;
 mod history;
 mod identity;
+mod image_references;
 mod ingest;
 mod layouts;
 mod migrations;

@@ -8,7 +8,7 @@ use anyhow::{Result, ensure};
 use refinery::{Migration, Runner};
 use rusqlite::{Connection, OptionalExtension, Transaction};
 
-pub(super) const LATEST_SCHEMA_VERSION: i64 = 21;
+pub(super) const LATEST_SCHEMA_VERSION: i64 = 22;
 
 pub(super) fn run(connection: &mut Connection) -> Result<()> {
     let version: i64 =
@@ -180,6 +180,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "V21__retain_owned_articles",
         include_str!("sql/migrations/V21__retain_owned_articles.sql"),
+    ),
+    (
+        "V22__index_image_references",
+        include_str!("sql/migrations/V22__index_image_references.sql"),
     ),
 ];
 

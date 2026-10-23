@@ -21,5 +21,6 @@ FROM articles AS a
 CROSS JOIN article_identity_clock AS clock
 JOIN temp.retention_sources AS p ON p.feed_id = a.feed_id
 LEFT JOIN article_documents AS d ON d.article_id = a.id
-WHERE NOT EXISTS (SELECT 1 FROM protected WHERE article_id = a.id)
+WHERE a.id > :after AND a.id <= :upper
+    AND NOT EXISTS (SELECT 1 FROM protected WHERE article_id = a.id)
     AND NOT EXISTS (SELECT 1 FROM temp.retention_smart WHERE article_id = a.id);

@@ -795,3 +795,62 @@ fn image_age_prefilter_honors_short_source_overrides_and_unlimited_shared_source
     assert!(image.is_file());
     Ok(())
 }
+
+#[test]
+fn explanations_report_personal_reasons_without_acknowledging_cleanup()
+-> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.policy(Policy {
+        read_days: Age(Some(90)),
+        ..Default::default()
+    })?;
+    fixture.store.set_starred(1, true)?;
+    fixture.store.set_queued(1, true)?;
+    let folder = fixture.store.create_collection("Keep")?;
+    fixture.store.add_member(folder, 1)?;
+    fixture.store.save_comment(1, None, "Private note")?;
+    let text = fixture.store.explain_retention(1, NOW)?;
+    for reason in [
+        "favorite",
+        "read-next queue",
+        "personal folder",
+        "annotation or highlight",
+    ] {
+        assert!(text.contains(reason), "{text}");
+    }
+    assert!(text.contains("Article: protected"));
+    assert!(
+        !fixture
+            .store
+            .retention_approved(&fixture.store.retention_policy()?)?
+    );
+    assert_eq!(fixture.store.view_count(&View::All)?, 24);
+    let eligible = fixture.store.explain_retention(2, NOW)?;
+    assert!(eligible.contains("Article: eligible"), "{eligible}");
+    assert!(fixture.store.explain_retention(999, NOW).is_err());
+    Ok(())
+}
+
+#[test]
+fn cancelled_planning_preserves_data_and_does_not_arm_policy() -> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.policy(Policy {
+        read_days: Age(Some(90)),
+        ..Default::default()
+    })?;
+    let report = retention::preview_cancellable(
+        &fixture.store,
+        &fixture.directory.path().join("images"),
+        NOW,
+        &AtomicBool::new(true),
+    )?;
+    assert!(report.cancelled);
+    assert!(
+        !fixture
+            .store
+            .retention_approved(&fixture.store.retention_policy()?)?
+    );
+    assert_eq!(fixture.store.view_count(&View::All)?, 24);
+    assert_eq!(fixture.preview()?.articles, 24);
+    Ok(())
+}

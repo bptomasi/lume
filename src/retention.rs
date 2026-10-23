@@ -13,6 +13,21 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+#[derive(Debug)]
+pub(crate) struct Canceled;
+impl std::fmt::Display for Canceled {
+    fn fmt(&self, output: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        output.write_str("Retention planning canceled")
+    }
+}
+impl std::error::Error for Canceled {}
+pub(crate) fn check_cancel(cancel: &AtomicBool) -> Result<()> {
+    if cancel.load(Ordering::Relaxed) {
+        return Err(Canceled.into());
+    }
+    Ok(())
+}
+
 /// Counts and logical bytes; reclaimed SQLite pages are reused, not vacuumed.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Report {
@@ -100,9 +115,42 @@ pub fn status(store: &Store) -> Result<String> {
 /// # Errors
 /// Returns query, image reference or filesystem errors before acknowledgement.
 pub fn preview(store: &Store, directory: &Path, now: i64) -> Result<Report> {
-    let plan = store.prepare_retention(store.retention_policy()?, now, None)?;
+    preview_cancellable(store, directory, now, &AtomicBool::new(false))
+}
+
+/// Preview on a maintenance lane with cooperative cancellation and resumable indexing.
+///
+/// # Errors
+/// Returns storage/reference errors without acknowledging an incomplete policy.
+pub fn preview_cancellable(
+    store: &Store,
+    directory: &Path,
+    now: i64,
+    cancel: &AtomicBool,
+) -> Result<Report> {
+    match preview_plan(store, directory, now, cancel) {
+        Err(error) if error.is::<Canceled>() => Ok(Report {
+            cancelled: true,
+            ..Default::default()
+        }),
+        result => result,
+    }
+}
+
+fn preview_plan(
+    store: &Store,
+    directory: &Path,
+    now: i64,
+    cancel: &AtomicBool,
+) -> Result<Report> {
+    let plan = store.prepare_retention_cancellable(
+        store.retention_policy()?,
+        now,
+        None,
+        cancel,
+    )?;
     let mut report = store.retention_counts()?;
-    let candidates = images::candidates(store, &plan, directory, now)?;
+    let candidates = images::candidates(store, &plan, directory, now, cancel)?;
     report.images = candidates.len();
     report.image_bytes = candidates.iter().map(|file| file.bytes).sum();
     if !store.retention_current(&plan)? {
@@ -124,6 +172,22 @@ pub fn apply(
     cancel: &AtomicBool,
     active_article: Option<i64>,
 ) -> Result<Report> {
+    match apply_plan(store, directory, now, cancel, active_article) {
+        Err(error) if error.is::<Canceled>() => Ok(Report {
+            cancelled: true,
+            ..Default::default()
+        }),
+        result => result,
+    }
+}
+
+fn apply_plan(
+    store: &Store,
+    directory: &Path,
+    now: i64,
+    cancel: &AtomicBool,
+    active_article: Option<i64>,
+) -> Result<Report> {
     if cancel.load(Ordering::Relaxed) {
         return Ok(Report {
             cancelled: true,
@@ -132,8 +196,13 @@ pub fn apply(
     }
     let policy = store.retention_policy()?;
     store.require_retention_preview(&policy)?;
-    let plan = store.prepare_retention(policy, now, active_article)?;
-    let files = images::candidates(store, &plan, directory, now)?;
+    let plan = store.prepare_retention_cancellable(
+        policy,
+        now,
+        active_article,
+        cancel,
+    )?;
+    let files = images::candidates(store, &plan, directory, now, cancel)?;
     let mut report = apply_articles(store, &plan, now, cancel)?;
     if !report.cancelled && !report.interrupted {
         images::remove(store, &plan, &files, cancel, &mut report)?;

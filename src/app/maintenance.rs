@@ -36,6 +36,7 @@ pub(super) enum Request {
     Release,
     OfflineStatus,
     Storage(crate::storage::Unit),
+    StorageDetails(crate::storage::Unit),
     Clean(Cleanup),
     Plan(u16),
     Start(ReadingSession),
@@ -51,6 +52,7 @@ pub(super) enum Request {
 
 #[derive(Clone, Copy, Debug)]
 pub(super) enum RetentionAction {
+    Explain(i64),
     Status,
     Preview,
     Apply,

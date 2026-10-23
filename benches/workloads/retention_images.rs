@@ -32,6 +32,22 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
             );
             Ok(())
         },
+    )?;
+    age_images(&images)?;
+    ensure!(
+        retention::preview(&store, &images, now)?.images == 32,
+        "Index lost expired references"
+    );
+    super::measure(
+        &format!("indexed old image retention ({count} articles, 32 files)"),
+        iterations,
+        || {
+            ensure!(
+                retention::preview(&store, &images, now)?.images == 32,
+                "Index changed expiry"
+            );
+            Ok(())
+        },
     )
 }
 
@@ -75,4 +91,17 @@ fn article(id: usize) -> IncomingArticle {
             .collect(),
         body_origin: FeedOrigin::Feed,
     }
+}
+
+fn age_images(images: &Path) -> Result<()> {
+    for entry in std::fs::read_dir(images)? {
+        let entry = entry?;
+        if entry.file_type()?.is_file() {
+            std::fs::File::open(entry.path())?.set_modified(
+                std::time::UNIX_EPOCH
+                    + std::time::Duration::from_secs(1_000_000_000),
+            )?;
+        }
+    }
+    Ok(())
 }

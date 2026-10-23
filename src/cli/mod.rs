@@ -3,6 +3,7 @@
 mod feeds;
 mod retention;
 mod servers;
+mod storage;
 
 use std::path::{Path, PathBuf};
 
@@ -105,6 +106,8 @@ pub(super) enum Command {
         #[arg(long, default_value_t = 50, value_parser = clap::value_parser!(u16).range(1..=500))]
         limit: u16,
     },
+    /// Inspect disk usage or explicit source/table/FTS diagnostics.
+    Storage(storage::Arguments),
     /// Snapshot committed articles, annotations and declarative preferences.
     Backup {
         /// New SQLite snapshot file; never overwrites an existing file.
@@ -140,6 +143,7 @@ pub(super) fn execute(
         }
         Command::Feeds { sort, errors } => feeds::print(&store, sort, errors)?,
         Command::Servers => servers::print(&store)?,
+        Command::Storage(arguments) => storage::run(&store, &path, arguments)?,
         Command::Retention { command } => {
             real_library(demo)?;
             retention::run(&store, &path, command)?;

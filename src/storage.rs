@@ -11,6 +11,7 @@ use anyhow::{Result, ensure};
 
 use crate::store::Store;
 
+pub mod details;
 pub(crate) mod report;
 mod units;
 pub use units::Unit;
@@ -123,6 +124,9 @@ fn clean_images(
     }
     let cached: BTreeSet<_> =
         candidates.iter().map(|(path, _, _)| path.clone()).collect();
+    if !store.refresh_image_references(cancel)? {
+        return Ok(0);
+    }
     let retained = retained_images(store, directory, &cached, cancel)?;
     let mut removed = 0;
     for (path, bytes, modified) in candidates {
@@ -146,29 +150,15 @@ fn retained_images(
     cancel: &AtomicBool,
 ) -> Result<BTreeSet<std::path::PathBuf>> {
     let mut retained = BTreeSet::new();
-    store.visit_cached_bodies(cancel, |body| {
-        for event in pulldown_cmark::Parser::new(body) {
-            if cancel.load(Ordering::Relaxed) {
-                break;
-            }
-            let pulldown_cmark::Event::Start(pulldown_cmark::Tag::Image {
-                dest_url,
-                ..
-            }) = event
-            else {
-                continue;
-            };
-            let address = crate::source::feed_url(&dest_url)?;
-            let path = crate::media::cache::path(directory, address.as_str());
-            if !cached.contains(&path) {
-                continue;
-            }
+    store.visit_image_urls(cancel, |address| {
+        let path = crate::media::cache::path(directory, address);
+        if cached.contains(&path) {
             retained.insert(path);
-            ensure!(
-                retained.len() <= 100_000,
-                "Image reference limit reached; no images were removed"
-            );
         }
+        ensure!(
+            retained.len() <= 100_000,
+            "Image reference limit reached; no images were removed"
+        );
         Ok(())
     })?;
     Ok(retained)

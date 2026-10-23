@@ -2,19 +2,37 @@
 
 use anyhow::{Result, ensure};
 
-use super::{Plan, fingerprint, protected_query};
+use super::{Plan, fingerprint};
 use crate::{
     config::retention::{Policy, Retention},
     store::Store,
 };
+use std::sync::atomic::AtomicBool;
 
 impl Store {
+    #[cfg(test)]
     pub(crate) fn prepare_retention(
         &self,
         policy: Retention,
         now: i64,
         active_article: Option<i64>,
     ) -> Result<Plan> {
+        self.prepare_retention_cancellable(
+            policy,
+            now,
+            active_article,
+            &AtomicBool::new(false),
+        )
+    }
+
+    pub(crate) fn prepare_retention_cancellable(
+        &self,
+        policy: Retention,
+        now: i64,
+        active_article: Option<i64>,
+        cancel: &AtomicBool,
+    ) -> Result<Plan> {
+        crate::retention::check_cancel(cancel)?;
         // Planning writes only TEMP tables. A read snapshot keeps large
         // previews from blocking personal edits on another WAL connection.
         let transaction = self.connection.unchecked_transaction()?;
@@ -37,12 +55,10 @@ impl Store {
             if policy.protect_smart_lists {
                 self.protect_retention_queries(
                     &policy.unprotected_smart_lists,
+                    cancel,
                 )?;
             }
-            let sql = protected_query(include_str!(
-                "../sql/retention/insert_candidates.sql"
-            ));
-            self.connection.prepare_cached(&sql)?.execute([])?;
+            self.plan_candidates(cancel)?;
         }
         let plan = Plan {
             fingerprint: fingerprint(&policy)?,
@@ -56,6 +72,39 @@ impl Store {
         };
         transaction.commit()?;
         Ok(plan)
+    }
+
+    fn plan_candidates(&self, cancel: &AtomicBool) -> Result<()> {
+        let protection = format!(
+            "{}\n{}",
+            include_str!("../sql/retention/insert_protected.sql"),
+            include_str!("../sql/retention/select_protected.sql")
+                .trim()
+                .trim_end_matches(';')
+        );
+        self.connection.execute(&format!("{protection})"), [])?;
+        let sql = format!(
+            "{}\n{}",
+            include_str!("../sql/retention/with_planned_protections.sql"),
+            include_str!("../sql/retention/insert_candidates.sql")
+        );
+        let mut insert = self.connection.prepare_cached(&sql)?;
+        let mut after = 0_i64;
+        loop {
+            crate::retention::check_cancel(cancel)?;
+            let upper: Option<i64> = self.connection.query_row(
+                include_str!("../sql/retention/select_planning_boundary.sql"),
+                [after],
+                |row| row.get(0),
+            )?;
+            let Some(upper) = upper else {
+                return Ok(());
+            };
+            insert.execute(
+                rusqlite::named_params! { ":after": after, ":upper": upper },
+            )?;
+            after = upper;
+        }
     }
 
     fn retention_sources(&self, policy: &Retention, now: i64) -> Result<()> {

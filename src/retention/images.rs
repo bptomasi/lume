@@ -5,7 +5,6 @@ use crate::{
     store::{RetentionPlan, Store},
 };
 use anyhow::{Result, ensure};
-use pulldown_cmark::{Event, Parser, Tag};
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
@@ -24,7 +23,9 @@ pub(super) fn candidates(
     plan: &RetentionPlan,
     directory: &Path,
     now: i64,
+    cancel: &AtomicBool,
 ) -> Result<Vec<File>> {
+    super::check_cancel(cancel)?;
     let Some(cutoff) = earliest_expiration(plan, now) else {
         return Ok(Vec::new());
     };
@@ -36,7 +37,7 @@ pub(super) fn candidates(
         return Ok(Vec::new());
     }
     let cached = files.iter().map(|(path, _, _)| path.clone()).collect();
-    let references = references(store, directory, &cached)?;
+    let references = references(store, directory, &cached, cancel)?;
     let fallback = plan
         .policy
         .defaults
@@ -96,31 +97,27 @@ fn references(
     store: &Store,
     directory: &Path,
     cached: &BTreeSet<PathBuf>,
+    cancel: &AtomicBool,
 ) -> Result<BTreeMap<PathBuf, i64>> {
     let mut references = BTreeMap::new();
-    store.visit_retention_images(|body, cutoff| {
-        // This only inventories local cache references. Offline download
-        // limits must not reject a long publisher gallery during retention.
-        for event in Parser::new(body) {
-            let Event::Start(Tag::Image { dest_url, .. }) = event else {
-                continue;
-            };
-            let address = crate::source::feed_url(&dest_url)?;
-            let path = crate::media::cache::path(directory, address.as_str());
-            if !cached.contains(&path) {
-                continue;
-            }
+    if !store.refresh_image_references(cancel)? {
+        return Err(super::Canceled.into());
+    }
+    store.visit_retention_images(|address, cutoff| {
+        super::check_cancel(cancel)?;
+        let path = crate::media::cache::path(directory, address);
+        if cached.contains(&path) {
             references
                 .entry(path)
                 .and_modify(|existing: &mut i64| {
-                    *existing = (*existing).min(cutoff);
+                    *existing = (*existing).min(cutoff)
                 })
                 .or_insert(cutoff);
-            ensure!(
-                references.len() <= 100_000,
-                "Image reference limit reached; retention removed no files"
-            );
         }
+        ensure!(
+            references.len() <= 100_000,
+            "Image reference limit reached; retention removed no files"
+        );
         Ok(())
     })?;
     Ok(references)

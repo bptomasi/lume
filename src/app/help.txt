@@ -409,6 +409,10 @@ DECLARATIVE CONFIGURATION
   :storage        Inspect feed, Full cache, notes, database/WAL and image usage
   :storage auto|MiB|GiB|bytes
                   Choose readable binary units or exact bytes; work stays off input
+  :storage details [auto|MiB|GiB|bytes]
+                  Inspect source bytes, SQLite objects and FTS content copies
+  :retention explain [ID]
+                  Explain protections and expiry; defaults to selected article
   :retention      Inspect opt-in retention; unlimited and inactive by default
   :retention preset [archive|cache-only|balanced|compact]
                   Compare presets or save editable global ages; automatic pauses

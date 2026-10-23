@@ -9,6 +9,8 @@ use std::{path::Path, sync::atomic::AtomicBool};
 pub(crate) enum Command {
     /// Explain activation and scheduling without scanning article bodies.
     Status,
+    /// Explain personal protections and current eligibility for an article.
+    Explain { article: i64 },
     /// Count eligible content and acknowledge this exact policy without deleting.
     Preview,
     /// Apply the previously previewed policy, preserving all personal protections.
@@ -31,6 +33,9 @@ pub(super) fn run(
         .join("images");
     let now = chrono::Utc::now().timestamp();
     match command.unwrap_or(Command::Status) {
+        Command::Explain { article } => {
+            print!("{}", store.explain_retention(article, now)?)
+        }
         Command::Status => print!("{}", retention::status(store)?),
         Command::Preset { name } => {
             if let Some(name) = name {

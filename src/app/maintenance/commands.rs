@@ -1,4 +1,4 @@
-use anyhow::{Result, bail, ensure};
+use anyhow::{Context, Result, bail, ensure};
 
 use super::{App, Request, RetentionAction};
 use crate::{
@@ -99,6 +99,17 @@ impl App {
     }
 
     fn storage_command(&mut self, argument: &str) -> Result<()> {
+        if argument == "details" || argument.starts_with("details ") {
+            let unit =
+                argument.strip_prefix("details").unwrap_or_default().trim();
+            return self.submit_maintenance(Request::StorageDetails(
+                if unit.is_empty() {
+                    crate::storage::Unit::Auto
+                } else {
+                    unit.parse()?
+                },
+            ));
+        }
         if argument == "cancel" {
             self.cancel_maintenance();
             return Ok(());
@@ -112,6 +123,10 @@ impl App {
             return self
                 .submit_maintenance(Request::Storage(argument.parse()?));
         }
+        self.confirm_cleanup(argument)
+    }
+
+    fn confirm_cleanup(&mut self, argument: &str) -> Result<()> {
         let scope = match argument {
             "clean images" => Cleanup::Images,
             "clean articles" => Cleanup::Articles,
@@ -155,6 +170,19 @@ Completed batches remain committed if cancellation/failure follows.
     ) -> Result<()> {
         if argument == "preset" || argument.starts_with("preset ") {
             return self.retention_preset(argument);
+        }
+        if argument == "explain" || argument.starts_with("explain ") {
+            let id =
+                argument.strip_prefix("explain").unwrap_or_default().trim();
+            let article = if id.is_empty() {
+                self.current().context("Select an article")?.id
+            } else {
+                id.parse()?
+            };
+            return self.submit_maintenance(Request::Retention {
+                action: RetentionAction::Explain(article),
+                article: Some(article),
+            });
         }
         if argument == "cancel" {
             self.cancel_maintenance();

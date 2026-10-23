@@ -1015,13 +1015,13 @@ const COMMANDS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "storage",
-        usage: "storage [auto|MiB|GiB|bytes|status|clean images|clean articles|clean all]",
+        usage: "storage [auto|MiB|GiB|bytes|details [UNIT]|status|clean images|clean articles|clean all]",
         description: "Inspect storage; preview explicit recoverable-cache cleanup",
         aliases: &[],
     },
     CommandSpec {
         name: "retention",
-        usage: "retention [status|preset [NAME]|preview|apply|cancel]",
+        usage: "retention [status|explain [ID]|preset [NAME]|preview|apply|cancel]",
         description: "Preview or apply opt-in retention with personal protections",
         aliases: &[],
     },

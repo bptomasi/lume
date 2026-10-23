@@ -18,3 +18,5 @@ CREATE TEMP TABLE IF NOT EXISTS retention_candidates (
 DELETE FROM retention_smart;
 DELETE FROM retention_sources;
 DELETE FROM retention_candidates;
+CREATE TEMP TABLE IF NOT EXISTS retention_protected (article_id INTEGER PRIMARY KEY);
+DELETE FROM retention_protected;

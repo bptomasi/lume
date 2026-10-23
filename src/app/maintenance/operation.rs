@@ -31,10 +31,9 @@ pub(super) fn perform(
             prepare(&store, &images, state, cancel, progress)
         }
         Request::Release => release(&store, &images),
-        Request::OfflineStatus => Ok(Outcome::Offline(
-            store
-                .offline_state()?
-                .context("No offline package; use :offline queue")?,
+        Request::OfflineStatus => offline_status(&store),
+        Request::StorageDetails(unit) => Ok(Outcome::Text(
+            crate::storage::details::inspect(&store)?.text(unit),
         )),
         Request::Storage(unit) => Ok(Outcome::Text(
             crate::storage::inspect_with_unit(&store, &images, unit)?,
@@ -60,14 +59,20 @@ fn retention(
 ) -> Result<Outcome> {
     let now = chrono::Utc::now().timestamp();
     let (report, preview) = match action {
+        RetentionAction::Explain(article) => {
+            return Ok(Outcome::RetentionStatus(
+                store.explain_retention(article, now)?,
+            ));
+        }
         RetentionAction::Status => {
             return Ok(Outcome::RetentionStatus(crate::retention::status(
                 store,
             )?));
         }
-        RetentionAction::Preview => {
-            (crate::retention::preview(store, images, now)?, true)
-        }
+        RetentionAction::Preview => (
+            crate::retention::preview_cancellable(store, images, now, cancel)?,
+            true,
+        ),
         RetentionAction::Apply => (
             crate::retention::apply(store, images, now, cancel, article)?,
             false,
@@ -159,5 +164,13 @@ fn release(store: &Store, images: &Path) -> Result<Outcome> {
             "cached article text remains."
         )
         .into(),
+    ))
+}
+
+fn offline_status(store: &Store) -> Result<Outcome> {
+    Ok(Outcome::Offline(
+        store
+            .offline_state()?
+            .context("No offline package; use :offline queue")?,
     ))
 }

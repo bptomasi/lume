@@ -5,6 +5,7 @@
 //! the next pass rebuilds protections. Personal data is rechecked in each batch.
 
 mod apply;
+mod explain;
 pub(crate) use apply::Step;
 mod plan;
 #[cfg(test)]
@@ -175,18 +176,14 @@ impl Store {
         mut visit: impl FnMut(&str, i64) -> Result<()>,
     ) -> Result<()> {
         let sql = protected_query(include_str!(
-            "sql/retention/select_image_bodies.sql"
+            "sql/retention/select_image_urls.sql"
         ));
         let mut statement = self.connection.prepare_cached(&sql)?;
         let mut rows = statement.query([])?;
         while let Some(row) = rows.next()? {
-            let feed: String = row.get(0)?;
-            let full: String = row.get(1)?;
-            let cutoff: i64 = row.get(2)?;
-            visit(&feed, cutoff)?;
-            if !full.is_empty() {
-                visit(&full, cutoff)?;
-            }
+            let url: String = row.get(0)?;
+            let cutoff: i64 = row.get(1)?;
+            visit(&url, cutoff)?;
         }
         Ok(())
     }
