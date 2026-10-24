@@ -10,7 +10,8 @@ independent and configurable, with no account or server required.
 
 ## Install
 
-Requires the pinned Rust toolchain, C build tools and Python 3 for installation.
+Building from source requires the pinned Rust toolchain, C build tools and
+Python 3 for installation.
 The installed application needs neither Python nor the source checkout.
 
 ```sh
@@ -20,6 +21,12 @@ lume
 
 Run `make` for available commands. `make upgrade` rebuilds this checkout and
 updates an existing installation, preserving configuration and reading data.
+
+Prebuilt Linux x86_64 downloads are available on the
+[Releases page](https://github.com/bptomasi/lume/releases). Choose the complete
+package or the direct executable and matching SHA-256 file; see the
+[download instructions](docs/release.md#downloads). These builds require glibc
+2.39 or newer.
 
 The binary is installed in `~/.local/bin`; add it to `PATH` if needed.
 Libraries live in `~/.local/lume`, independently of the working directory.

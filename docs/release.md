@@ -23,6 +23,30 @@ is not claimed reproducible across arbitrary hosts. No release is uploaded
 by this command. Manual CI dispatch retains the qualified package as an
 artifact. Tag pushes publish through the separate release job described below.
 
+## Downloads
+
+Each release offers the complete `.tar.gz` package and a direct executable,
+with a SHA-256 file for each. The direct Linux x86_64 download is named
+`lume-0.2.0-x86_64-unknown-linux-gnu`; it contains the exact executable verified
+inside the package, without rebuilding. The package retains all license notices,
+source obligations, installer and build manifest. GitHub also supplies its
+source-code ZIP/tarball links independently.
+
+To use the direct executable on Linux x86_64 with glibc 2.39 or newer, download
+it and its matching `.sha256` file from the release, then run:
+
+```sh
+sha256sum -c lume-0.2.0-x86_64-unknown-linux-gnu.sha256
+chmod +x lume-0.2.0-x86_64-unknown-linux-gnu
+./lume-0.2.0-x86_64-unknown-linux-gnu --version
+mkdir -p "$HOME/.local/bin"
+install -m 755 lume-0.2.0-x86_64-unknown-linux-gnu "$HOME/.local/bin/lume"
+```
+
+Use the complete package for installation with the accompanying notices and
+installer. Direct downloads need no Rust compiler, Python runtime or checkout.
+Other operating systems and architectures remain source builds.
+
 ## Versions and tags
 
 Use Semantic Versioning, starting with version **0.2.0** in `Cargo.toml` and
@@ -43,15 +67,16 @@ The workflow rejects a tag that disagrees with `Cargo.toml` before compiling.
 Publication requires local, license, advisory, real HTTP and real Foot checks,
 the release build and a clean-source package from that same workflow run.
 The publishing job verifies the remote tag revision, archive checksum, build
-manifest and executable hash before uploading the archive and checksum to a
-draft. It verifies the uploaded asset digests before making the release public.
+manifest and executable hash before uploading the package, direct executable
+and their checksums to a draft. It verifies the uploaded asset digests before making the release public.
 Prerelease tags produce prereleases; stable tags update the latest release.
 
 Only the publishing job receives repository write permission. A failed check
 leaves the tag without a published release. Fix the failure and rerun the
 workflow, or issue a new version if source changes are needed. Never move a
-published tag. Reruns accept an already published release only when its asset
-bytes match exactly; published assets are never replaced. An interrupted draft
+published tag. Reruns verify every existing published asset before writing. They may append
+missing verified assets, such as the direct binary derived from an earlier
+qualified package, but never replace published bytes. An interrupted draft
 can be completed by rerunning the same qualified revision.
 
 License updates require cargo-about 0.9.2 with its CLI feature:

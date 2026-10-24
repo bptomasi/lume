@@ -47,7 +47,12 @@ class ReleaseTests(unittest.TestCase):
                 bundle.addfile(member, io.BytesIO(data))
         checksum = archive.with_suffix(".gz.sha256")
         checksum.write_text(f"{release.digest(archive)}  {archive.name}\n")
-        return [archive, checksum]
+        executable = self.directory / name
+        executable.write_bytes(binary)
+        executable.chmod(0o755)
+        executable_checksum = executable.with_name(name + ".sha256")
+        executable_checksum.write_text(f"{release.digest(executable)}  {name}\n")
+        return [archive, checksum, executable, executable_checksum]
 
     def assets(self, files, draft=True):
         return dict(draft=draft, assets=[dict(
@@ -149,6 +154,94 @@ class ReleaseTests(unittest.TestCase):
               self.assertRaises(SystemExit)):
             release.main()
         github.assert_not_called()
+
+    def test_missing_direct_binary_is_derived_from_the_verified_archive(self):
+        files = self.package()
+        for path in files[2:]:
+            path.unlink()
+        actual = release.verify_package(self.directory, TAG, REVISION)
+        self.assertEqual(actual, files)
+        self.assertEqual(files[2].read_bytes(), b"qualified executable")
+        self.assertEqual(files[2].stat().st_mode & 0o777, 0o755)
+        self.assertEqual(files[3].read_text(),
+                         f"{release.digest(files[2])}  {files[2].name}\n")
+        self.assertEqual(release.verify_package(self.directory, TAG, REVISION), files)
+        self.assertFalse(list(self.directory.glob(".lume-binary-*")))
+
+    def test_invalid_archive_never_creates_a_direct_binary(self):
+        files = self.package(binary_sha256="0" * 64)
+        for path in files[2:]:
+            path.unlink()
+        with self.assertRaisesRegex(ValueError, "manifest"):
+            release.verify_package(self.directory, TAG, REVISION)
+        self.assertFalse(any(path.exists() for path in files[2:]))
+        self.assertFalse(list(self.directory.glob(".lume-binary-*")))
+
+    def test_existing_direct_assets_are_verified_and_never_overwritten(self):
+        files = self.package()
+        files[2].write_bytes(b"keep this existing file")
+        with self.assertRaisesRegex(ValueError, "direct binary"):
+            release.verify_package(self.directory, TAG, REVISION)
+        self.assertEqual(files[2].read_bytes(), b"keep this existing file")
+        files = self.package()
+        files[3].write_text("keep this checksum\n")
+        with self.assertRaisesRegex(ValueError, "checksum"):
+            release.verify_package(self.directory, TAG, REVISION)
+        self.assertEqual(files[3].read_text(), "keep this checksum\n")
+
+    def test_direct_asset_symlinks_are_rejected_without_following_them(self):
+        files = self.package()
+        outside = self.directory / "private-file"
+        outside.write_bytes(b"preserve private bytes")
+        for path in files[2:]:
+            path.unlink()
+            path.symlink_to(outside)
+            with self.assertRaisesRegex(ValueError, "regular file"):
+                release.verify_package(self.directory, TAG, REVISION)
+            path.unlink()
+        self.assertEqual(outside.read_bytes(), b"preserve private bytes")
+
+    def test_failed_materialization_cleans_temporary_files(self):
+        files = self.package()
+        for path in files[2:]:
+            path.unlink()
+        with patch.object(release.shutil, "copyfileobj", side_effect=OSError("disk full")):
+            with self.assertRaisesRegex(OSError, "disk full"):
+                release.verify_package(self.directory, TAG, REVISION)
+        self.assertFalse(any(path.exists() for path in files[2:]))
+        self.assertFalse(list(self.directory.glob(".lume-binary-*")))
+
+    def test_qualified_direct_binary_can_be_added_to_an_existing_release(self):
+        files = self.package()
+        states = [self.assets(files[:2], draft=False), self.assets(files, draft=False)]
+        with (patch.object(release, "release_metadata", side_effect=states),
+              patch.object(release, "github") as github):
+            github.return_value.stdout = REVISION
+            release.publish(REPOSITORY, TAG, REVISION, files)
+        calls = [call.args for call in github.call_args_list]
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[1][:3], ("release", "upload", TAG))
+        self.assertEqual(calls[1][3:5], tuple(map(str, files[2:])))
+        self.assertNotIn("--clobber", calls[1])
+
+    def test_missing_or_corrupt_appended_assets_do_not_report_success(self):
+        files = self.package()
+        incomplete = self.assets(files[:3], draft=False)
+        with (patch.object(release, "release_metadata",
+                           side_effect=[self.assets(files[:2], draft=False), incomplete]),
+              patch.object(release, "github") as github):
+            github.return_value.stdout = REVISION
+            with self.assertRaises(ValueError):
+                release.publish(REPOSITORY, TAG, REVISION, files)
+        changed = self.assets(files[:2], draft=False)
+        changed["assets"][0]["digest"] = "sha256:" + "0" * 64
+        with (patch.object(release, "release_metadata", return_value=changed),
+              patch.object(release, "github") as github):
+            github.return_value.stdout = REVISION
+            with self.assertRaises(ValueError):
+                release.publish(REPOSITORY, TAG, REVISION, files)
+            github.assert_called_once()
+
 
 
 if __name__ == "__main__":

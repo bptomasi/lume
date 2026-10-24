@@ -74,7 +74,7 @@ jobs:
       - name: Package the qualified revision
         if: ${{ success() && (github.event_name == 'workflow_dispatch' || github.ref_type == 'tag') }}
         run: make package PACKAGE_ARGS=--require-clean
-      - name: Retain standalone package
+      - name: Retain package, direct executable and checksums
         if: ${{ success() && (github.event_name == 'workflow_dispatch' || github.ref_type == 'tag') }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -111,7 +111,7 @@ jobs:
         with:
           name: lume-linux-x86_64
           path: dist
-      - name: Verify and publish the complete release
+      - name: Verify and publish package, executable and checksums
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}

@@ -21,6 +21,7 @@ import tomllib
 
 from dependency_inventory import verify, digest
 from advisories import qualify
+from publish_release import verify_package
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGET = "x86_64-unknown-linux-gnu"
@@ -168,7 +169,9 @@ def main():
         standalone(staging / "bin/lume", verification)
         epoch = int(git("show", "-s", "--format=%ct", "HEAD"))
         destination = archive(staging, arguments.output, f"lume-{version}-{TARGET}", epoch)
+    files = verify_package(arguments.output, f"v{version}", revision)
     print(f"Verified standalone package: {destination}")
+    print(f"Verified direct executable: {files[2]}")
 
 
 if __name__ == "__main__":

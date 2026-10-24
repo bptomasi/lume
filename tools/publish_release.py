@@ -1,7 +1,8 @@
-"""Validate tagged packages; publish complete drafts without replacing releases.
+"""Validate tagged packages and publish verified assets without replacing bytes.
 
 Validation is the default. GitHub writes require --publish and run only after
 the exact tag, archive bytes, build manifest and executable have been checked.
+Validation also stages the direct binary and its checksum from the archive.
 """
 
 import argparse
@@ -10,8 +11,10 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import tarfile
+import tempfile
 import tomllib
 
 
@@ -55,7 +58,46 @@ def verify_package(directory, tag, revision):
         with bundle.extractfile(binary) as stream:
             if hashlib.file_digest(stream, "sha256").hexdigest() != build["binary_sha256"]:
                 raise ValueError("Release executable does not match its manifest")
-    return [package, checksum]
+        exported = stage_binary(bundle, binary, directory / name, build["binary_sha256"])
+    return [package, checksum, *exported]
+
+
+def stage_binary(bundle, member, binary, expected):
+    checksum = binary.with_name(binary.name + ".sha256")
+    for path in (binary, checksum):
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise ValueError(f"Release asset must be a regular file: {path.name}")
+    text = f"{expected}  {binary.name}\n"
+    if checksum.exists() and checksum.read_text() != text:
+        raise ValueError("Direct binary checksum does not match its bytes")
+    if binary.exists():
+        if binary.stat().st_size != member.size or digest(binary) != expected:
+            raise ValueError("Existing direct binary differs from the qualified archive")
+    else:
+        materialize_binary(bundle, member, binary, expected)
+    binary.chmod(0o755)
+    if not checksum.exists():
+        with checksum.open("x") as stream:
+            stream.write(text)
+    return [binary, checksum]
+
+
+def materialize_binary(bundle, member, binary, expected):
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=binary.parent, prefix=".lume-binary-", delete=False) as target:
+            temporary = Path(target.name)
+            with bundle.extractfile(member) as source:
+                shutil.copyfileobj(source, target, length=1024 * 1024)
+        if digest(temporary) != expected:
+            raise ValueError("Extracted binary differs from its build manifest")
+        temporary.chmod(0o755)
+        # Same-directory hard linking publishes atomically without replacing a
+        # competing file. Only the validated executable member is extracted.
+        os.link(temporary, binary)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def github(*arguments, check=True):
@@ -72,15 +114,22 @@ def release_metadata(repository, tag):
     raise RuntimeError(f"Cannot inspect release: {result.stderr.strip()}")
 
 
-def verify_assets(release, files):
+def missing_assets(release, files):
     if release is None:
         raise ValueError("Release draft disappeared before publication")
     actual = {item["name"]: item.get("digest") for item in release["assets"]}
-    if set(actual) != {file.name for file in files}:
+    expected = {file.name: file for file in files}
+    if len(actual) != len(release["assets"]) or not set(actual) <= set(expected):
         raise ValueError("Release asset names differ from the qualified package")
-    for file in files:
-        if actual.get(file.name) != f"sha256:{digest(file)}":
-            raise ValueError(f"GitHub asset does not match local bytes: {file.name}")
+    for name, recorded in actual.items():
+        if recorded != f"sha256:{digest(expected[name])}":
+            raise ValueError(f"GitHub asset does not match local bytes: {name}")
+    return [file for file in files if file.name not in actual]
+
+
+def verify_assets(release, files):
+    if missing_assets(release, files):
+        raise ValueError("Release asset names differ from the qualified package")
 
 
 def publish(repository, tag, revision, files):
@@ -89,8 +138,13 @@ def publish(repository, tag, revision, files):
         raise ValueError("Remote tag moved after qualification; refusing to publish")
     release = release_metadata(repository, tag)
     if release and not release["draft"]:
-        verify_assets(release, files)
-        print(f"Release {tag} already has identical published assets")
+        missing = missing_assets(release, files)
+        if missing:
+            # Published bytes are immutable. Append only missing, independently
+            # verified assets and never send --clobber for a public release.
+            github("release", "upload", tag, *map(str, missing), "--repo", repository)
+            verify_assets(release_metadata(repository, tag), files)
+        print(f"Release {tag} has complete, verified published assets")
         return
     prerelease = "-" in tag
     if release is None:
