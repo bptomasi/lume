@@ -1,5 +1,4 @@
 use super::*;
-use anyhow::Context;
 use image::Rgb;
 
 #[test]
@@ -19,24 +18,19 @@ fn exact_indexing_preserves_all_256_colors_and_pixel_positions() -> Result<()> {
 }
 
 #[test]
-fn antialiased_edges_keep_every_representable_color_without_quantization()
--> Result<()> {
-    let image = RgbImage::from_fn(256, 2, |x, y| {
-        let value = x as u8;
-        Rgb([value.saturating_add(y as u8), value, value])
-    });
-    let raw: std::collections::BTreeSet<_> =
-        image.pixels().map(|p| p.0).collect();
-    assert!(raw.len() > 256);
-    let (palette, indices) =
-        exact_colors(&image).context("Representable edges")?;
-    assert!(palette.len() / 3 <= 256);
-    for (pixel, index) in image.pixels().zip(indices) {
-        let start = usize::from(index) * 3;
-        let encoded = [palette[start], palette[start + 1], palette[start + 2]];
-        assert_eq!(terminal_color(encoded), terminal_color(pixel.0));
+fn palette_compaction_preserves_every_displayed_edge_color() {
+    let colors: Vec<_> = (0_u8..=255).flat_map(|n| [n, n, n]).collect();
+    let indices: Vec<_> = (0_u8..=255).chain((0_u8..=255).rev()).collect();
+    let (palette, mapped) = compact(colors.clone(), indices.clone());
+    assert_eq!(palette.len() / 3, 101);
+    assert_eq!(mapped.len(), indices.len());
+    for (old, new) in indices.into_iter().zip(mapped) {
+        let old = usize::from(old) * 3;
+        let new = usize::from(new) * 3;
+        let before = [colors[old], colors[old + 1], colors[old + 2]];
+        let after = [palette[new], palette[new + 1], palette[new + 2]];
+        assert_eq!(terminal_color(before), terminal_color(after));
     }
-    Ok(())
 }
 
 #[test]

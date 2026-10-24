@@ -581,8 +581,8 @@ Subscription discovery uses the same connection check before publishing its
 feed set and server health atomically. A discovery response from an obsolete
 connection excludes that server from entry collection for the current pass.
 
-Native Sixel preparation preserves every representable color when the fitted
-image needs at most 256 registers. Richer images deduplicate conversion before the
+Native Sixel preparation directly indexes sources with at most 256 RGB colors.
+Richer images deduplicate color conversion before the
 qualified Oklab quantizer and Floyd–Steinberg diffusion. Resolution, source
 cropping and the palette budget remain independent of this optimization.
 Six-row band planning uses one bounded palette map and copies only a single
@@ -600,9 +600,10 @@ incremental drawing; image caches and reader state are retained. Real Foot
 qualification repeats mouse opening, closing and bidirectional scrolling three
 times and requires clearing before both cached inspector and reader pixels.
 
-Exact Sixel indexing compares the integer RGB percentages the terminal actually
-receives, using the qualified encoder's rounding. Distinct source RGB values
-with identical wire colors share a register without changing a displayed
-pixel. If these representable colors fit 256 registers, antialiased edges need
-neither perceptual quantization nor diffusion. Richer images keep the existing
-Oklab and Floyd–Steinberg path and the original pixel and palette budgets.
+Sixel palette compaction compares the integer RGB percentages the terminal
+actually receives, using the qualified encoder's rounding. Registers with
+identical wire colors merge without changing a displayed pixel. Compaction
+inspects at most 256 palette entries and remaps byte indices only if entries
+merge. The fast RGB indexing and Oklab/Floyd–Steinberg quantization paths keep
+their existing decisions, resolution and budgets. A per-pixel percentage hash
+index was rejected after optimized measurements showed a regression.
