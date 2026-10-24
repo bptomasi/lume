@@ -3,6 +3,7 @@
 mod background;
 mod images;
 mod input;
+mod presentation;
 mod welcome;
 
 use background::Background;
@@ -151,6 +152,7 @@ fn event_loop(
 ) -> Result<()> {
     let mut dirty = true;
     let mut welcome = true;
+    let mut presentation = presentation::Presentation::default();
     loop {
         if !welcome {
             dirty |= sync_mouse(guard, app);
@@ -169,7 +171,7 @@ fn event_loop(
         }
         dirty |= app.tick_pane_motion(Instant::now());
         if dirty {
-            draw_workspace(terminal, app, welcome)?;
+            draw_workspace(terminal, app, welcome, &mut presentation)?;
             dirty = false;
         }
         if !event::poll(poll_interval(app))? {
@@ -281,6 +283,7 @@ fn draw_workspace(
     terminal: &mut ratatui::DefaultTerminal,
     app: &mut App,
     welcome: bool,
+    presentation: &mut presentation::Presentation,
 ) -> Result<()> {
     app.begin_measurement(lume::app::Operation::Frame);
     if welcome {
@@ -295,12 +298,17 @@ fn draw_workspace(
     let pixels = images::pixels();
     app.update_image_cell_pixels(pixels);
     app.resize_workspace(full);
-    if app.uses_sixel_images() {
-        io::stdout().sync_update(|_| {
-            terminal.draw(|frame| ui::draw_interactive(frame, app))
-        })??;
+    let native_inspector = app.uses_native_image_inspector();
+    let sixel = app.uses_sixel_images();
+    let mut draw = || {
+        presentation.draw(terminal, native_inspector, |frame| {
+            ui::draw_interactive(frame, app)
+        })
+    };
+    if sixel {
+        io::stdout().sync_update(|_| draw())??;
     } else {
-        terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+        draw()?;
     }
     app.finish_measurement(lume::app::Operation::Frame);
     Ok(())

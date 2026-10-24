@@ -41,14 +41,14 @@ fn fixtures(stress: bool) -> Result<Vec<(&'static str, Vec<u8>)>> {
             ((x + y) * 255 / 1798) as u8,
         ])
     });
-    let mut bytes = Cursor::new(Vec::new());
-    DynamicImage::ImageRgb8(gradient).write_to(&mut bytes, ImageFormat::Png)?;
     let noise = RgbImage::from_fn(1200, 600, |x, y| {
         let seed = (x + y * 1200).wrapping_mul(2_654_435_761);
         Rgb([(seed >> 24) as u8, (seed >> 16) as u8, (seed >> 8) as u8])
     });
-    let mut detail = Cursor::new(Vec::new());
-    DynamicImage::ImageRgb8(noise).write_to(&mut detail, ImageFormat::Png)?;
+    let edges = RgbImage::from_fn(1200, 600, |x, y| {
+        let value = (x % 256) as u8;
+        Rgb([value.saturating_add((y % 2) as u8), value, value])
+    });
     // Keep source dimensions stable; stress expands the output pixel budget.
     let diagram = super::images::raster(false).context("Diagram fixture")?;
     Ok(vec![
@@ -57,10 +57,14 @@ fn fixtures(stress: bool) -> Result<Vec<(&'static str, Vec<u8>)>> {
             "inspector SVG text + Sixel",
             super::images::vector(stress).into_bytes(),
         ),
-        (
-            "inspector photographic gradient + Sixel",
-            bytes.into_inner(),
-        ),
-        ("inspector high-entropy detail + Sixel", detail.into_inner()),
+        ("inspector photographic gradient + Sixel", png(gradient)?),
+        ("inspector high-entropy detail + Sixel", png(noise)?),
+        ("inspector antialiased edges + Sixel", png(edges)?),
     ])
+}
+
+fn png(image: RgbImage) -> Result<Vec<u8>> {
+    let mut bytes = Cursor::new(Vec::new());
+    DynamicImage::ImageRgb8(image).write_to(&mut bytes, ImageFormat::Png)?;
+    Ok(bytes.into_inner())
 }

@@ -298,7 +298,41 @@ def inspect(directory, process, initial, cell_height):
         "return to inline strips",
         lambda: returned_frame(directory, zoomed["offset"], cell_height), process,
     )
-    return {"fit": dimensions(fitted), "zoom": dimensions(zoomed)}
+    reopened = reopen_inspection(directory, process, cell_height)
+    return {"fit": dimensions(fitted), "zoom": dimensions(zoomed),
+            "reopened_after_scroll": reopened}
+
+
+def reopen_inspection(directory, process, cell_height):
+    output = directory / "terminal-output.bin"
+    results = []
+    for movement in (b"\x05", b"\x19", b"\x05"):
+        before = output.stat().st_size
+        send(directory, movement)
+        scrolled = wait_for("scroll before reopening", lambda: native_frame(
+            directory, before), process)
+        before = output.stat().st_size
+        first = scrolled["strips"][0]
+        column, row = first["column"] + 2, first["row"] + 2
+        send(directory, f"\x1b[<0;{column};{row}M".encode())
+        send(directory, f"\x1b[<0;{column};{row}m".encode())
+        opened = wait_for("cached inspector reopens", lambda: inspector_frame(
+            directory, before, cell_height), process)
+        verify_native_transition(output.read_bytes()[before:])
+        before = output.stat().st_size
+        send(directory, b"\x1b")
+        wait_for("reader after cached inspection", lambda: returned_frame(
+            directory, before, cell_height), process)
+        verify_native_transition(output.read_bytes()[before:])
+        results.append(dimensions(opened))
+    return results
+
+
+def verify_native_transition(wire):
+    image = SIXEL.search(wire)
+    clear = wire.find(b"\x1b[2J")
+    if image is None or clear < 0 or clear > image.start():
+        raise RuntimeError("Native view transition did not clear stale pixels before drawing")
 
 
 def dimensions(current):

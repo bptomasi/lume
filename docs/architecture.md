@@ -581,8 +581,8 @@ Subscription discovery uses the same connection check before publishing its
 feed set and server health atomically. A discovery response from an obsolete
 connection excludes that server from entry collection for the current pass.
 
-Native Sixel preparation preserves exact RGB colors when the fitted image has
-at most 256 colors. Richer images deduplicate color conversion before the
+Native Sixel preparation preserves every representable color when the fitted
+image needs at most 256 registers. Richer images deduplicate conversion before the
 qualified Oklab quantizer and Floyd–Steinberg diffusion. Resolution, source
 cropping and the palette budget remain independent of this optimization.
 Six-row band planning uses one bounded palette map and copies only a single
@@ -591,3 +591,18 @@ and run-length encoding; no full palette map is copied for each sparse run.
 An independent test decoder reconstructs every indexed pixel across dense,
 sparse, partial and repeated bands. Physical display qualification remains a
 separate desktop-dependent gate.
+
+The terminal presenter treats entering or leaving a native image inspector as
+a pixel-surface boundary. It clears the physical surface and Ratatui's previous
+buffer inside the synchronized Sixel update, then commits the boundary state
+only after a successful draw. Cached pan, zoom and ordinary reader frames keep
+incremental drawing; image caches and reader state are retained. Real Foot
+qualification repeats mouse opening, closing and bidirectional scrolling three
+times and requires clearing before both cached inspector and reader pixels.
+
+Exact Sixel indexing compares the integer RGB percentages the terminal actually
+receives, using the qualified encoder's rounding. Distinct source RGB values
+with identical wire colors share a register without changing a displayed
+pixel. If these representable colors fit 256 registers, antialiased edges need
+neither perceptual quantization nor diffusion. Richer images keep the existing
+Oklab and Floyd–Steinberg path and the original pixel and palette budgets.

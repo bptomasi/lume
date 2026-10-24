@@ -219,6 +219,12 @@ impl App {
         self.images.protocol == ImageProtocol::Sixel
     }
 
+    /// Whether the inspector owns a native pixel surface outside text-cell diffs.
+    pub fn uses_native_image_inspector(&self) -> bool {
+        matches!(self.mode, super::Mode::Image(_))
+            && self.images.protocol != ImageProtocol::Blocks
+    }
+
     /// Retarget source jobs to the visible viewport before admitting more work.
     pub fn poll_images(&mut self) -> bool {
         self.images.waiting = false;

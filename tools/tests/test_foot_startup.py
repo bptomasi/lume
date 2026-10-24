@@ -73,6 +73,14 @@ class FootStartupTests(unittest.TestCase):
                 strip = self.driver.frame(directory)["strips"][0]
                 self.assertEqual((strip["row"], strip["column"]), (15, 22))
 
+    def test_native_transitions_require_clear_before_the_first_pixel_payload(self):
+        pixels = b'\x1bPq"1;1;20;20!20~\x1b\\'
+        self.driver.verify_native_transition(b"\x1b[2J" + pixels)
+        for wire in (pixels, pixels + b"\x1b[2J", b"\x1b[2J"):
+            with self.subTest(wire=wire):
+                with self.assertRaisesRegex(RuntimeError, "stale pixels"):
+                    self.driver.verify_native_transition(wire)
+
 
 if __name__ == "__main__":
     unittest.main()
