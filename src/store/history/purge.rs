@@ -12,6 +12,12 @@ enum Change {
     Replace(String),
 }
 
+enum Prune {
+    Keep,
+    Delete,
+    Updated,
+}
+
 struct Targets {
     articles: Vec<i64>,
     notes: Vec<i64>,
@@ -90,12 +96,21 @@ fn changes(
 }
 
 fn change(mut undo: Undo, targets: &Targets) -> Result<Change> {
-    let changed = match &mut undo {
+    Ok(match prune(&mut undo, targets) {
+        Prune::Keep => Change::Keep,
+        Prune::Delete => Change::Delete,
+        Prune::Updated => Change::Replace(serde_json::to_string(&undo)?),
+    })
+}
+
+fn prune(undo: &mut Undo, targets: &Targets) -> Prune {
+    let changed = match undo {
+        Undo::Batch(operations) => return prune_batch(operations, targets),
         Undo::DeletionBatch { articles } => {
             let previous = articles.len();
             articles.retain(|id| !targets.article(*id));
             if articles.is_empty() {
-                return Ok(Change::Delete);
+                return Prune::Delete;
             }
             articles.len() != previous
         }
@@ -111,17 +126,36 @@ fn change(mut undo: Undo, targets: &Targets) -> Result<Change> {
             prune_annotation(snapshot, targets)
         }
         _ => {
-            return Ok(if references(&undo, targets) {
-                Change::Delete
+            return if references(undo, targets) {
+                Prune::Delete
             } else {
-                Change::Keep
-            });
+                Prune::Keep
+            };
         }
     };
     if changed {
-        return Ok(Change::Replace(serde_json::to_string(&undo)?));
+        return Prune::Updated;
     }
-    Ok(Change::Keep)
+    Prune::Keep
+}
+
+fn prune_batch(operations: &mut Vec<Undo>, targets: &Targets) -> Prune {
+    let mut updated = false;
+    operations.retain_mut(|operation| match prune(operation, targets) {
+        Prune::Keep => true,
+        Prune::Delete => {
+            updated = true;
+            false
+        }
+        Prune::Updated => {
+            updated = true;
+            true
+        }
+    });
+    if operations.is_empty() {
+        return Prune::Delete;
+    }
+    if updated { Prune::Updated } else { Prune::Keep }
 }
 
 fn prune_annotation(

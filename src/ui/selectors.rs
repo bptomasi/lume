@@ -106,6 +106,7 @@ pub(super) fn smart(frame: &mut Frame<'_>, form: &SmartForm) {
     for (index, (label, checked)) in [
         ("Unread only", form.unread),
         ("Favorites only", form.starred),
+        ("Paused", form.paused),
     ]
     .iter()
     .enumerate()
@@ -180,10 +181,11 @@ fn compact_smart(frame: &mut Frame<'_>, form: &SmartForm, area: Rect) {
     let label = match form.field {
         0..=3 => SMART_FIELDS[form.field],
         4 => "Unread only · Space toggles",
-        _ => "Favorites only · Space toggles",
+        5 => "Favorites only · Space toggles",
+        _ => "Paused · Space toggles",
     };
     frame.render_widget(
-        Paragraph::new(format!(" {}/6 · {label}", form.field + 1))
+        Paragraph::new(format!(" {}/7 · {label}", form.field + 1))
             .style(Style::new().fg(AMBER)),
         Rect::new(area.x, area.y, area.width, 1),
     );
@@ -196,10 +198,10 @@ fn compact_smart(frame: &mut Frame<'_>, form: &SmartForm, area: Rect) {
     if form.field < 4 {
         frame.render_widget(&form.fields[form.field], body);
     } else {
-        let checked = if form.field == 4 {
-            form.unread
-        } else {
-            form.starred
+        let checked = match form.field {
+            4 => form.unread,
+            5 => form.starred,
+            _ => form.paused,
         };
         frame.render_widget(
             Paragraph::new(if checked {

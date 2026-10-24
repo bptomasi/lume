@@ -152,5 +152,29 @@ fn rejected_removal_preserves_pins_order_and_the_active_destination()
     let observer = Store::open(&path)?;
     assert_eq!(observer.feeds()?.len(), 1);
     assert_eq!(observer.library()?.articles.len(), 1);
+    rusqlite::Connection::open(&path)?.execute_batch(include_str!(
+        "../src/store/sql/deletion/test_allow_purge.sql"
+    ))?;
+    key(&mut app, KeyCode::Char('d'))?;
+    key(&mut app, KeyCode::Char('d'))?;
+    common::settle_notes(&mut app)?;
+    assert!(observer.feeds()?.is_empty());
+    app.end_session()
+}
+
+#[test]
+fn repeated_removal_before_acknowledgement_is_admitted_only_once() -> Result<()>
+{
+    let (directory, store, _) = common::seeded_store()?;
+    let server = store.add_server("https://reader.example", "TOKEN")?;
+    let path = directory.path().join("library.sqlite3");
+    let mut app = App::new(store, false)?;
+    app.enable_background_navigation(&path)?;
+    select(&mut app, View::Server(server))?;
+    for _ in 0..4 {
+        key(&mut app, KeyCode::Char('d'))?;
+    }
+    common::settle_notes(&mut app)?;
+    assert!(Store::open(&path)?.servers()?.is_empty());
     app.end_session()
 }

@@ -224,7 +224,11 @@ loading pages/bodies. One compact undo entry restores the batch. Grouped-view
 emptying includes duplicate occurrences. Smart lists and folders remove only
 their definitions; explicit source removal preserves durable personal context.
 Pins/order change only after commit acknowledgement, including failed writes
-and navigation while work is pending.
+and navigation while work is pending. Repeated removal of the same sidebar
+destination is rejected before admission until acknowledgement, including
+failure, releases it. Article edits retain their ordered individual semantics.
+Definition identity clocks prevent deleted folder, smart-list and note-query
+IDs from being reassigned; migration also reserves folder IDs held by undo.
 
 Permanent Trash cleanup records publisher/remote-alias tombstones and removes
 note versions, drafts, export snapshots and dangling checkpoint targets in one
@@ -234,9 +238,10 @@ article/note entries. Ownership indexes cover every foreign-key child lookup.
 The bounded undo journal is inspected one payload at a time using flat sorted
 ID buffers, skipped entirely when empty. Purging part of a bulk deletion prunes
 only those IDs from its inverse. Folder and annotation inverses retain their
-surviving memberships/links. Recoverable note history and indirect undo targets
-also protect articles from automatic retention, preventing foreign-key failures
-or lost versions.
+surviving memberships/links, including inside nested batches. Modified payloads
+are serialized once after recursive pruning. Recoverable note history and
+indirect undo targets also protect articles from automatic retention, preventing
+foreign-key failures or lost versions.
 
 `ui::layout` computes fixed columns and binary splits with bounded rectangle
 arithmetic. Rendering, focus and pointer hit testing share that geometry.

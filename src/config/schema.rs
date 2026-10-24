@@ -134,6 +134,9 @@ pub struct SmartList {
     pub id: String,
     /// Editable display name.
     pub name: String,
+    /// Keep the definition while suspending article matches.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub paused: bool,
     /// Boolean article search, including OR, NOT and exact phrases.
     #[serde(default)]
     pub query: String,

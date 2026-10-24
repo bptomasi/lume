@@ -158,13 +158,8 @@ impl Store {
                 filter.feed = None;
             }
             if single_removed || group_restricted && filter.feeds.is_empty() {
-                // An emptied source restriction must never become global.
-                // Keep the named list editable with an explicit empty query.
-                filter.text = if filter.text.is_empty() {
-                    "is:read AND is:unread".into()
-                } else {
-                    format!("({}) AND is:read AND is:unread", filter.text)
-                };
+                // A removed scope must not expand globally or rewrite the query.
+                filter.paused = true;
             }
             if filter != list.filter {
                 self.save_smart_list(&list.name, &filter)?;

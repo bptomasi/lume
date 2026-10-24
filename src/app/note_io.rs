@@ -114,6 +114,7 @@ impl App {
                 .record(super::Operation::Save, started.elapsed());
         }
         self.pending_note_deletes.remove(&completion.ticket);
+        self.finish_library_edit(completion.ticket);
         let pending = self.take_completed_write(completion.ticket);
         if self.complete_article_edit(
             completion.ticket,

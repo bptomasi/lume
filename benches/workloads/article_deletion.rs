@@ -16,6 +16,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     let path = directory.path().join("library.sqlite3");
     let mut store = Store::open(&path)?;
     seed(&mut store, if stress { 13_000 } else { 2000 })?;
+    paused_counts(&store, iterations)?;
     let observer = Store::open(&path)?;
     let mut app = App::new(store, false)?;
     synchronous(&mut app, &observer, iterations)?;
@@ -25,6 +26,30 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     app.end_session()?;
     batch_removal(iterations, if stress { 13_000 } else { 2000 })?;
     deletion_review(iterations.min(5))
+}
+
+fn paused_counts(store: &Store, iterations: usize) -> Result<()> {
+    let filter = SmartFilter {
+        text: format!("body:{}", "r".repeat(4091)),
+        paused: true,
+        ..Default::default()
+    };
+    store.save_smart_list("Paused boundary query", &filter)?;
+    let list = store
+        .smart_lists()?
+        .into_iter()
+        .find(|list| list.name == "Paused boundary query")
+        .context("Missing paused list")?;
+    let mut elapsed = Duration::ZERO;
+    for _ in 0..iterations {
+        let start = Instant::now();
+        let count = store.view_count(&View::Smart(list.id))?;
+        elapsed += start.elapsed();
+        ensure!(count == 0, "Paused query matched articles");
+    }
+    ensure!(list.filter == filter, "Pause changed saved criteria");
+    print_sample("paused 4 KiB smart-list count", elapsed, iterations);
+    store.delete_smart_list(list.id)
 }
 
 fn seed(store: &mut Store, count: usize) -> Result<()> {

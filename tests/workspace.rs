@@ -174,6 +174,7 @@ fn smart_lists_combine_criteria_and_invalid_search_is_rejected() -> Result<()> {
         "Saved thinking",
         &SmartFilter {
             text: "measure".into(),
+            paused: false,
             unread: true,
             starred: true,
             feed: Some(feed.id),

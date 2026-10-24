@@ -1,5 +1,5 @@
-INSERT INTO smart_lists (name, definition)
-VALUES (?1, ?2)
+INSERT INTO smart_lists (id, name, definition)
+VALUES ((SELECT last_id + 1 FROM definition_identity_clock WHERE kind = 'smart'), ?1, ?2)
 ON CONFLICT (name) DO UPDATE
 SET definition = excluded.definition,
     enabled = 1

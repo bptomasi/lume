@@ -10,17 +10,19 @@ use super::{
     Action, App, Focus, InputKind, Mode, PickerKind, View, WorkspaceCommand,
 };
 
-/// Four text fields plus unread/favorite switches, navigated with Tab.
+/// Four text fields plus unread/favorite/pause switches, navigated with Tab.
 #[derive(Clone, Debug)]
 pub struct SmartForm {
     /// Name, full-text terms, optional source and optional age.
     pub fields: Vec<TextArea<'static>>,
-    /// Active field, followed by the two boolean switches.
+    /// Active field, followed by the three boolean switches.
     pub field: usize,
     /// Restrict results to unread articles.
     pub unread: bool,
     /// Restrict results to favorites.
     pub starred: bool,
+    /// Keep the definition without matching articles.
+    pub paused: bool,
     /// Grouped source identities retained when editing a saved topic.
     pub feeds: Vec<i64>,
 }
@@ -259,6 +261,7 @@ impl App {
             field: 0,
             unread: filter.unread,
             starred: filter.starred,
+            paused: filter.paused,
             feeds: filter.feeds,
         }));
     }
@@ -285,12 +288,13 @@ impl App {
             return Ok(Action::None);
         }
         match key.code {
-            KeyCode::Tab | KeyCode::Enter => form.field = (form.field + 1) % 6,
-            KeyCode::BackTab => form.field = (form.field + 5) % 6,
+            KeyCode::Tab | KeyCode::Enter => form.field = (form.field + 1) % 7,
+            KeyCode::BackTab => form.field = (form.field + 6) % 7,
             KeyCode::Char(' ') if form.field == 4 => form.unread = !form.unread,
             KeyCode::Char(' ') if form.field == 5 => {
                 form.starred = !form.starred
             }
+            KeyCode::Char(' ') if form.field == 6 => form.paused = !form.paused,
             _ if form.field < 4 => {
                 let field = &mut form.fields[form.field];
                 if field.lines()[0].len() < 4096
@@ -314,6 +318,7 @@ impl App {
             .map(|field| field.lines().join(" "))
             .collect::<Vec<_>>();
         let filter = SmartFilter {
+            paused: form.paused,
             text: values[1].clone(),
             unread: form.unread,
             starred: form.starred,

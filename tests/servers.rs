@@ -454,6 +454,30 @@ fn removing_one_server_keeps_other_smart_list_sources() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn removing_a_server_preserves_a_query_at_its_byte_limit() -> Result<()> {
+    let (directory, store, id) = remote_library()?;
+    let query = format!("body:{}", "r".repeat(4091));
+    store.save_smart_list(
+        "Boundary",
+        &lume::model::SmartFilter {
+            text: query.clone(),
+            feed: Some(remote_feed_id(&store)?),
+            ..Default::default()
+        },
+    )?;
+    let path = directory.path().join("config.toml");
+    let session = config::Session::open(&store, &path)?;
+    store.remove_server(id)?;
+    session.flush()?;
+    let list = store.smart_lists()?.remove(0);
+    assert_eq!(list.filter.text, query);
+    assert!(list.filter.paused);
+    assert_eq!(store.view_count(&View::Smart(list.id))?, 0);
+    assert!(config::read_document(&path)?.smart_lists[0].paused);
+    Ok(())
+}
+
 fn remote_feed_id(store: &lume::store::Store) -> Result<i64> {
     Ok(store
         .feeds()?

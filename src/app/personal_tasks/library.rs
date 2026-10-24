@@ -119,6 +119,16 @@ fn tag_edit(
 }
 
 impl LibraryEdit {
+    pub(in crate::app) fn removal_target(&self) -> Option<crate::model::View> {
+        match self {
+            Self::Delete(Deletion::View(view)) => Some(view.clone()),
+            Self::Delete(Deletion::CleanTrash) => {
+                Some(crate::model::View::Trash)
+            }
+            _ => self.removed_view(),
+        }
+    }
+
     fn removed_view(&self) -> Option<crate::model::View> {
         use crate::model::View;
         match self {

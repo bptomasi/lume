@@ -129,9 +129,8 @@ remote connection definitions travel with TOML.
 Smart lists can restrict sources to remote feeds. TOML stores these restrictions
 as `server:<connection-id>:<remote-feed-id>`; restoring a configuration keeps the
 scope empty until that feed is discovered, then reuses the same local identity.
-A connection used by a smart list can be paused. To remove it, first remove
-that list's source restriction; removal reports the referencing list rather
-than leaving an invalid configuration.
+Removing a connection clears its smart-list source references. A list whose
+last source disappears is paused, preserving its original search criteria.
 
 Create an API key in Miniflux under *Settings → API Keys*. Set exactly one of
 `token_env` (the environment variable name) or `token` (the literal key):
@@ -174,7 +173,9 @@ keeping favorites, personal folders, Read
 next, annotations and other explicit personal saves. Matching a smart list
 alone does not protect an article from source removal. Lists restricted to
 removed server feeds lose those source references; if no source remains, the
-query is constrained to match nothing. Their original search text is retained.
+list is paused (`paused = true`), retaining its original search text without
+running the query. Choose another source and clear **Paused** in the smart-list
+editor, or set `paused = false` in TOML, to resume it.
 The first observation per feed reads up to 2,000 of the
 newest entries; later refreshes read changed entries in bounded pages and resume
 incomplete passes by remote entry ID, including timestamp ties. Deleting earlier
@@ -231,6 +232,7 @@ name = "Science"
 query = 'astronomy OR "climate change"'
 unread = true
 starred = false
+# paused = false      # Pause results without changing search criteria
 feeds = ["journal"]
 # feed = "journal"    # Optional single-source restriction
 # days = 30           # Optional maximum publication age

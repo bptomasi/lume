@@ -184,6 +184,7 @@ impl Store {
                 Ok(config::SmartList {
                     id,
                     name,
+                    paused: filter.paused,
                     query: filter.text,
                     unread: filter.unread,
                     starred: filter.starred,

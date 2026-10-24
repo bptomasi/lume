@@ -72,6 +72,9 @@ impl View {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct SmartFilter {
+    /// Keep the saved definition visible while matching no articles.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub paused: bool,
     /// Full-text terms, including bodies and annotations.
     #[serde(default)]
     pub text: String,
@@ -90,6 +93,12 @@ pub struct SmartFilter {
     /// Restrict to articles published within this many days.
     #[serde(default)]
     pub days: Option<u16>,
+}
+
+impl SmartFilter {
+    pub(crate) fn active_text(&self) -> &str {
+        if self.paused { "" } else { &self.text }
+    }
 }
 
 /// A named, durable smart list.

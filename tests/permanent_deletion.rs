@@ -37,7 +37,7 @@ fn seed(
 }
 
 #[test]
-fn permanent_deletion_removes_notes_drafts_search_and_related_undo_only()
+fn permanent_deletion_removes_notes_drafts_search_and_keeps_tombstones()
 -> Result<()> {
     let (directory, mut store, feed) = common::seeded_store()?;
     let ids = seed(&mut store, &feed, 1)?;
@@ -64,9 +64,6 @@ fn permanent_deletion_removes_notes_drafts_search_and_related_undo_only()
     assert!(store.note_drafts()?.is_empty());
     assert!(store.library()?.collections[0].articles.is_empty());
     assert_eq!(search(&store, View::Trash, "uniquepurgedannotation")?, 0);
-    assert!(store.undo()?);
-    assert!(!store.article(other)?.starred);
-    assert!(!store.undo()?);
     let refresh =
         lume::source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
     seed(&mut store, &feed, 1)?;
@@ -76,6 +73,27 @@ fn permanent_deletion_removes_notes_drafts_search_and_related_undo_only()
     let reopened = Store::open(&directory.path().join("library.sqlite3"))?;
     assert_eq!(reopened.view_count(&View::Trash)?, 0);
     assert!(reopened.article(target).is_err());
+    Ok(())
+}
+
+#[test]
+fn purging_membership_preserves_folder_creation_and_unrelated_flag_undo()
+-> Result<()> {
+    let (_directory, mut store, feed) = common::seeded_store()?;
+    let ids = seed(&mut store, &feed, 1)?;
+    let (target, other) = (ids[0], ids[1]);
+    store.clear_history()?;
+    store.set_starred(other, true)?;
+    store.save_collection("Keep collection", Some(target))?;
+    store.set_deleted(target, true)?;
+    assert!(store.purge_deleted(target)?);
+    assert!(store.undo()?);
+    assert!(store.library()?.collections.is_empty());
+    assert!(store.article(other)?.starred);
+    assert!(store.undo()?);
+    assert!(!store.article(other)?.starred);
+    assert!(!store.undo()?);
+    assert!(store.article(target).is_err());
     Ok(())
 }
 

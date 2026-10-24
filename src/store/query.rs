@@ -69,6 +69,9 @@ impl Criteria {
     }
 
     fn predicate(&self) -> String {
+        if self.filter.paused {
+            return include_str!("sql/select_no_matches.sql").into();
+        }
         let mut conditions = vec![scope_clause(self.scope)];
         if self.filter.unread {
             conditions.push("a.unread = 1");
@@ -375,7 +378,7 @@ impl Store {
             scope == "recommended",
         );
         let expression = crate::search::Expression::And(
-            Box::new(crate::search::parse(&filter.text)?),
+            Box::new(crate::search::parse(filter.active_text())?),
             Box::new(interactive),
         );
         let expression = if scope == "recommended" {

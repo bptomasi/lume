@@ -121,6 +121,45 @@ fn smart_form_saves_typed_criteria_and_layout_survives_restart() -> Result<()> {
 }
 
 #[test]
+fn smart_form_pause_survives_restart_and_can_resume() -> Result<()> {
+    let (directory, store, _feed) = common::seeded_store()?;
+    let observer = Store::open(&directory.path().join("library.sqlite3"))?;
+    let mut app = App::new(store, false)?;
+    text(&mut app, " s")?;
+    text(&mut app, "Temporary pause")?;
+    key(&mut app, KeyCode::BackTab, KeyModifiers::NONE)?;
+    text(&mut app, " ")?;
+    for (width, height) in [(144, 44), (50, 18)] {
+        let backend = ratatui::backend::TestBackend::new(width, height);
+        let mut terminal = ratatui::Terminal::new(backend)?;
+        terminal.draw(|frame| lume::ui::draw(frame, &app))?;
+        let pixels = terminal
+            .backend()
+            .buffer()
+            .content
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect::<String>();
+        assert!(pixels.contains("Paused"));
+    }
+    save(&mut app)?;
+    let list = app.library.smart_lists[0].id;
+    assert!(app.library.smart_lists[0].filter.paused);
+    assert_eq!(observer.view_count(&View::Smart(list))?, 0);
+    drop(app);
+    let store = Store::open(&directory.path().join("library.sqlite3"))?;
+    let mut app = App::new(store, false)?;
+    app.set_view(View::Smart(list))?;
+    text(&mut app, " s")?;
+    key(&mut app, KeyCode::BackTab, KeyModifiers::NONE)?;
+    text(&mut app, " ")?;
+    save(&mut app)?;
+    assert!(!app.library.smart_lists[0].filter.paused);
+    assert_eq!(observer.view_count(&View::Smart(list))?, 1);
+    Ok(())
+}
+
+#[test]
 fn external_editor_failure_retains_draft_and_success_reads_private_file()
 -> Result<()> {
     assert!(lume::external_editor::edit("Retain me", "/bin/false").is_err());

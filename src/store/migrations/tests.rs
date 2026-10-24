@@ -54,6 +54,34 @@ fn v7_library(path: &std::path::Path) -> Result<()> {
 }
 
 #[test]
+fn definition_upgrade_reserves_deleted_folder_identities() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("definitions.sqlite3");
+    v7_library(&path)?;
+    let mut connection = Connection::open(&path)?;
+    let migrations = MIGRATIONS
+        .iter()
+        .take(26)
+        .map(|(name, sql)| Migration::unapplied(name, sql))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Runner::new(&migrations)
+        .set_grouped(true)
+        .run(&mut connection)?;
+    connection.execute_batch(include_str!(
+        "../sql/test_setup_definition_identity_upgrade.sql"
+    ))?;
+    drop(connection);
+
+    let store = Store::open(&path)?;
+    assert_eq!(store.create_collection("After upgrade")?, 91);
+    assert_eq!(store.body(1)?, "Original body");
+    drop(store);
+    let store = Store::open(&path)?;
+    assert_eq!(store.create_collection("After reopen")?, 92);
+    Ok(())
+}
+
+#[test]
 fn notebook_upgrade_indexes_existing_notes_without_changing_owned_state()
 -> Result<()> {
     let directory = tempfile::tempdir()?;

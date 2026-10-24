@@ -3,15 +3,19 @@
 //! Admission precedes presentation. Failed writes trigger an authoritative
 //! catalog read; pending newer intentions overlay older database snapshots.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::Result;
 
-use super::{App, personal_tasks::Task};
+use super::{
+    App, View,
+    personal_tasks::{LibraryEdit, Outcome, Task},
+};
 
 #[derive(Default)]
 pub(super) struct ArticleEdits {
     pending: std::collections::BTreeMap<u64, CapturedEdit>,
+    removals: BTreeMap<u64, View>,
     changes: crate::search::Changes,
     failed: bool,
     pub(super) reconcile_required: bool,
@@ -72,26 +76,41 @@ impl App {
 
     pub(super) fn submit_library_edit(
         &mut self,
-        edit: super::personal_tasks::LibraryEdit,
+        edit: LibraryEdit,
     ) -> Result<()> {
         if let Some(writer) = &mut self.personal_writes {
-            writer.submit(Task::Library(edit))?;
+            let target = edit.removal_target();
+            if target.as_ref().is_some_and(|target| {
+                self.article_edits
+                    .removals
+                    .values()
+                    .any(|pending| pending.same_destination(target))
+            }) {
+                self.status = "Library removal already queued".into();
+                return Ok(());
+            }
+            let ticket = writer.submit(Task::Library(edit))?;
+            if let Some(target) = target {
+                self.article_edits.removals.insert(ticket, target);
+            }
         } else {
             let outcome = super::personal_tasks::operation::library_edit(
                 &self.store,
                 edit,
             )?;
             match outcome {
-                super::personal_tasks::Outcome::Deleted(result) => {
-                    self.finish_deletion(result)?
-                }
-                super::personal_tasks::Outcome::DefinitionRemoved(view) => {
+                Outcome::Deleted(result) => self.finish_deletion(result)?,
+                Outcome::DefinitionRemoved(view) => {
                     self.finish_definition_removal(view)?
                 }
                 _ => self.reload()?,
             }
         }
         Ok(())
+    }
+
+    pub(super) fn finish_library_edit(&mut self, ticket: u64) {
+        self.article_edits.removals.remove(&ticket);
     }
 
     pub(super) fn complete_article_edit(

@@ -4,6 +4,34 @@ use crate::store::Store;
 use anyhow::Result;
 use std::sync::atomic::AtomicBool;
 
+#[test]
+fn configuration_creation_never_reuses_a_deleted_folder_undo_identity()
+-> Result<()> {
+    let (_directory, store) = fixture()?;
+    let original = store.create_collection("Original")?;
+    store.clear_history()?;
+    store.delete_collection(original)?;
+    store.connection.execute(
+        include_str!("../sql/configuration/insert_folder.sql"),
+        ["External"],
+    )?;
+    let external = store.connection.last_insert_rowid();
+    assert_ne!(
+        original, external,
+        "A pending undo must not own a new folder"
+    );
+    assert!(store.undo()?);
+    let names = store
+        .library()?
+        .collections
+        .into_iter()
+        .map(|item| item.name)
+        .collect::<Vec<_>>();
+    assert!(names.contains(&"Original".into()));
+    assert!(names.contains(&"External".into()));
+    Ok(())
+}
+
 fn fixture() -> Result<(tempfile::TempDir, Store)> {
     let directory = tempfile::tempdir()?;
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
@@ -11,6 +39,22 @@ fn fixture() -> Result<(tempfile::TempDir, Store)> {
         "../sql/deletion/test_setup_cascades.sql"
     ))?;
     Ok((directory, store))
+}
+
+#[test]
+fn saved_query_identities_are_not_reused_after_deletion() -> Result<()> {
+    let (_directory, store) = fixture()?;
+    store.save_smart_list("Original", &Default::default())?;
+    let smart = store.smart_lists()?.remove(0).id;
+    store.delete_smart_list(smart)?;
+    store.save_smart_list("Replacement", &Default::default())?;
+    assert!(store.smart_lists()?.remove(0).id > smart);
+    store.save_note_collection("Original", "")?;
+    let notes = store.note_collections()?.remove(0).id;
+    store.delete_note_collection("Original")?;
+    store.save_note_collection("Replacement", "")?;
+    assert!(store.note_collections()?.remove(0).id > notes);
+    Ok(())
 }
 
 #[test]

@@ -106,11 +106,7 @@ impl Store {
         );
         self.validate_smart_sources(filter)?;
         self.connection.execute(
-            r#"
-            INSERT INTO smart_lists (name, definition) VALUES (?1, ?2)
-            ON CONFLICT (name) DO UPDATE
-            SET definition = excluded.definition, enabled = 1
-            "#,
+            include_str!("sql/configuration/insert_smart_list.sql"),
             (name, serde_json::to_string(filter)?),
         )?;
         Ok(())

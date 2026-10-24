@@ -218,7 +218,7 @@ fn collection(
         return Ok((id, Vec::new()));
     }
     transaction
-        .execute("INSERT INTO collections (name) VALUES (?1)", [name])?;
+        .execute(include_str!("sql/configuration/insert_folder.sql"), [name])?;
     let id = transaction.last_insert_rowid();
     Ok((id, vec![Undo::DeleteCollection(id)]))
 }

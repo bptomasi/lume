@@ -158,6 +158,10 @@ orphaned cache files. Completed cleanup batches remain committed after a later
 failure or cancellation. `:storage cancel` requests cancellation between
 batches. SQLite can reuse pages without shrinking its file.
 
+Moving an article to Trash keeps its cached images. Permanent deletion removes
+its image references; `:storage clean images`, followed by `Enter`, removes
+orphaned ordinary cache files. Shared and pinned offline images remain.
+
 `:performance on` enables bounded in-memory processing samples. Use
 `:performance status` for counts, p50/p95/p99/max in milliseconds and pending
 work; `off` stops sampling and `reset` clears it. Frame times include terminal

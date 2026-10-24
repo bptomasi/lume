@@ -389,6 +389,9 @@ pub(super) fn sensitive(
             let Some(list) = lists.iter().find(|list| list.id == *id) else {
                 return Ok(false);
             };
+            if list.filter.paused {
+                return Ok(false);
+            }
             Ok((list.filter.unread && changes.intersects(Changes::READ))
                 || (list.filter.starred
                     && changes.intersects(Changes::FAVORITE))

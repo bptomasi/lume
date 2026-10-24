@@ -234,3 +234,19 @@ fn purging_a_related_article_keeps_note_edit_undo_with_pruned_links()
     assert!(!store.undo()?);
     Ok(())
 }
+
+#[test]
+fn purging_one_owner_preserves_surviving_edits_in_a_nested_undo_batch()
+-> Result<()> {
+    let (_directory, store) = fixture(20)?;
+    let ids = [1, 2, 3].into();
+    store.edit_articles(&ids, &lume::model::BulkEdit::Favorite(true))?;
+    store.set_deleted(1, true)?;
+    store.purge_deleted(1)?;
+    assert!(store.undo()?, "The surviving batch must remain reversible");
+    assert!(!store.article(2)?.starred);
+    assert!(store.article(3)?.starred);
+    assert!(store.article(1).is_err());
+    assert!(!store.undo()?);
+    Ok(())
+}

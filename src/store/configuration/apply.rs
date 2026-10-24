@@ -154,6 +154,7 @@ impl Store {
 
     fn apply_configuration_smart(&self, list: &SmartList) -> Result<()> {
         let filter = SmartFilter {
+            paused: list.paused,
             text: list.query.clone(),
             unread: list.unread,
             starred: list.starred,
