@@ -692,3 +692,32 @@ this comparison; the development and release rows must not be used together
 to infer an implementation speedup. Release measurements still exclude
 network, disk, event polling, terminal transport and physical presentation.
 The retained JSON records the exact binary hashes and qualification results.
+
+## Cached inspector restoration and Sixel palette compaction
+
+The [optimized comparison and real Foot qualification](performance/sixel-reopen-review.json)
+cover code revision `1fa0935`. Entering and leaving native inspection clears
+stale pixel surfaces inside the synchronized update. Cached zoom and pan retain
+incremental drawing and their prepared images. The Foot driver repeats three
+mouse-open/close cycles after bidirectional scrolling and verifies clearing
+before both inspector and reader pixels. The previous binary failed that check;
+the final release passes, restores terminal state and preserves publisher text.
+
+Palette compaction merges registers only when their encoded RGB percentages
+are identical. It checks at most 256 palette entries; source resolution,
+quantization and diffusion remain unchanged. The independently decoded Foot
+fixture has identical RGB pixels at 1,120 by 336 pixels, while its twelve reader
+strips shrink from 39,711 to 36,421 bytes. This measures wire payload size, not
+terminal presentation latency.
+
+Three alternating independent processes per version and scenario run four
+checked preparations each. Median SVG-with-text preparation falls from 8.064
+to 7.208 ms at 120 by 40 cells and from 70.152 to 62.025 ms at 160 by 48 cells.
+Other workloads have smaller changes and mixed direction; all samples are
+retained in the JSON, and no universal speedup is claimed. Timers exclude
+network, disk, event polling, transport and compositor presentation.
+
+A per-pixel percentage hash index was rejected: its optimized antialiased-edge
+case regressed from 22.010 to 34.949 ms. The final implementation preserves the
+original RGB indexing and library quantizer, then compacts their finished
+palette. Development-profile timing alone did not predict that regression.

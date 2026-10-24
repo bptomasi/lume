@@ -1,0 +1,1048 @@
+{
+  "date": "2026-10-24",
+  "code_revision": "1fa0935788e3d68e1b23d0fbc501866c5ed65cd5",
+  "toolchain": "1.99.1",
+  "baseline_palette_revision": "c26a272",
+  "method": {
+    "profile": "release, thin LTO, one codegen unit",
+    "build_jobs": 2,
+    "processes_per_version_and_scenario": 3,
+    "iterations_per_process": 4,
+    "order": "Alternating before/after processes; reversed middle pair.",
+    "baseline": "Same final benchmark and encoder; palette module taken from c26a272. No source changes during timing.",
+    "source_pixels": [
+      1200,
+      600
+    ],
+    "normal_viewport_cells": [
+      120,
+      40
+    ],
+    "stress_viewport_cells": [
+      160,
+      48
+    ],
+    "cell_pixels": [
+      10,
+      20
+    ],
+    "warmup": "Source decode and font initialization before timing; fitting, palette preparation and Sixel encoding timed together.",
+    "limits": [
+      "Single-machine preparation timings exclude network, disk, event polling and terminal/compositor presentation.",
+      "Small timing differences in other workloads do not establish universal speedups.",
+      "Stress includes source upscaling and a denser SVG."
+    ]
+  },
+  "hashes": {
+    "binary": "242ae47707a4670f262534fbb6472330c563ab74833532874c525c9bf68e4157",
+    "benchmark_after": "688f2a0fa21327a43e554a5606dd90c7e06a8264e0e48e8811b6afe4c395f128",
+    "benchmark_before": "648671067e9a278a02508d0aa63f79bfd384c5ac226f29a94d496d20b31c34a0"
+  },
+  "summary": [
+    {
+      "stress": false,
+      "workload": "inspector exact-color raster + Sixel",
+      "before_median_ms": 2.55,
+      "after_median_ms": 2.594,
+      "change_percent": 1.725
+    },
+    {
+      "stress": false,
+      "workload": "inspector SVG text + Sixel",
+      "before_median_ms": 8.064,
+      "after_median_ms": 7.208,
+      "change_percent": -10.615
+    },
+    {
+      "stress": false,
+      "workload": "inspector photographic gradient + Sixel",
+      "before_median_ms": 34.639,
+      "after_median_ms": 34.158,
+      "change_percent": -1.389
+    },
+    {
+      "stress": false,
+      "workload": "inspector high-entropy detail + Sixel",
+      "before_median_ms": 97.15,
+      "after_median_ms": 97.143,
+      "change_percent": -0.007
+    },
+    {
+      "stress": false,
+      "workload": "inspector antialiased edges + Sixel",
+      "before_median_ms": 20.177,
+      "after_median_ms": 20.232,
+      "change_percent": 0.273
+    },
+    {
+      "stress": true,
+      "workload": "inspector exact-color raster + Sixel",
+      "before_median_ms": 38.636,
+      "after_median_ms": 40.859,
+      "change_percent": 5.754
+    },
+    {
+      "stress": true,
+      "workload": "inspector SVG text + Sixel",
+      "before_median_ms": 70.152,
+      "after_median_ms": 62.025,
+      "change_percent": -11.585
+    },
+    {
+      "stress": true,
+      "workload": "inspector photographic gradient + Sixel",
+      "before_median_ms": 88.443,
+      "after_median_ms": 89.077,
+      "change_percent": 0.717
+    },
+    {
+      "stress": true,
+      "workload": "inspector high-entropy detail + Sixel",
+      "before_median_ms": 206.221,
+      "after_median_ms": 214.525,
+      "change_percent": 4.027
+    },
+    {
+      "stress": true,
+      "workload": "inspector antialiased edges + Sixel",
+      "before_median_ms": 67.394,
+      "after_median_ms": 70.558,
+      "change_percent": 4.695
+    }
+  ],
+  "runs": [
+    {
+      "version": "before",
+      "stress": false,
+      "run": 1,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 10.2,
+          "mean_ms": 2.55
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 32.405,
+          "mean_ms": 8.101
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 143.628,
+          "mean_ms": 35.907
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 393.038,
+          "mean_ms": 98.259
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 80.148,
+          "mean_ms": 20.037
+        }
+      ]
+    },
+    {
+      "version": "after",
+      "stress": false,
+      "run": 1,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 10.563,
+          "mean_ms": 2.641
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 29.77,
+          "mean_ms": 7.443
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 133.85,
+          "mean_ms": 33.462
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 388.571,
+          "mean_ms": 97.143
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 80.927,
+          "mean_ms": 20.232
+        }
+      ]
+    },
+    {
+      "version": "after",
+      "stress": false,
+      "run": 2,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 10.304,
+          "mean_ms": 2.576
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 28.584,
+          "mean_ms": 7.146
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 136.631,
+          "mean_ms": 34.158
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 395.781,
+          "mean_ms": 98.945
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 82.684,
+          "mean_ms": 20.671
+        }
+      ]
+    },
+    {
+      "version": "before",
+      "stress": false,
+      "run": 2,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 10.236,
+          "mean_ms": 2.559
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 32.254,
+          "mean_ms": 8.064
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 130.874,
+          "mean_ms": 32.719
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 388.598,
+          "mean_ms": 97.15
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 80.964,
+          "mean_ms": 20.241
+        }
+      ]
+    },
+    {
+      "version": "before",
+      "stress": false,
+      "run": 3,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 9.966,
+          "mean_ms": 2.491
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 31.771,
+          "mean_ms": 7.943
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 138.556,
+          "mean_ms": 34.639
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 385.216,
+          "mean_ms": 96.304
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 80.71,
+          "mean_ms": 20.177
+        }
+      ]
+    },
+    {
+      "version": "after",
+      "stress": false,
+      "run": 3,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 10.377,
+          "mean_ms": 2.594
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 28.83,
+          "mean_ms": 7.208
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 137.169,
+          "mean_ms": 34.292
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 386.239,
+          "mean_ms": 96.56
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 79.506,
+          "mean_ms": 19.876
+        }
+      ]
+    },
+    {
+      "version": "before",
+      "stress": true,
+      "run": 1,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 152.421,
+          "mean_ms": 38.105
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 278.328,
+          "mean_ms": 69.582
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 353.773,
+          "mean_ms": 88.443
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 814.136,
+          "mean_ms": 203.534
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 269.434,
+          "mean_ms": 67.359
+        }
+      ]
+    },
+    {
+      "version": "after",
+      "stress": true,
+      "run": 1,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 163.434,
+          "mean_ms": 40.859
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 254.059,
+          "mean_ms": 63.515
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 360.817,
+          "mean_ms": 90.204
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 825.521,
+          "mean_ms": 206.38
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 285.69,
+          "mean_ms": 71.423
+        }
+      ]
+    },
+    {
+      "version": "after",
+      "stress": true,
+      "run": 2,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 164.318,
+          "mean_ms": 41.08
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 248.101,
+          "mean_ms": 62.025
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 351.867,
+          "mean_ms": 87.967
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 858.102,
+          "mean_ms": 214.525
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 270.781,
+          "mean_ms": 67.695
+        }
+      ]
+    },
+    {
+      "version": "before",
+      "stress": true,
+      "run": 2,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 157.349,
+          "mean_ms": 39.337
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 280.609,
+          "mean_ms": 70.152
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 351.262,
+          "mean_ms": 87.815
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 829.469,
+          "mean_ms": 207.367
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 277.778,
+          "mean_ms": 69.445
+        }
+      ]
+    },
+    {
+      "version": "before",
+      "stress": true,
+      "run": 3,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 154.544,
+          "mean_ms": 38.636
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 287.881,
+          "mean_ms": 71.97
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 358.851,
+          "mean_ms": 89.713
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 824.882,
+          "mean_ms": 206.221
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 269.575,
+          "mean_ms": 67.394
+        }
+      ]
+    },
+    {
+      "version": "after",
+      "stress": true,
+      "run": 3,
+      "metrics": [
+        {
+          "workload": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "total_ms": 153.833,
+          "mean_ms": 38.458
+        },
+        {
+          "workload": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "total_ms": 244.961,
+          "mean_ms": 61.24
+        },
+        {
+          "workload": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "total_ms": 356.307,
+          "mean_ms": 89.077
+        },
+        {
+          "workload": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "total_ms": 859.354,
+          "mean_ms": 214.839
+        },
+        {
+          "workload": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "total_ms": 282.231,
+          "mean_ms": 70.558
+        }
+      ]
+    }
+  ],
+  "rejected_experiment": {
+    "code_revision": "6ffdaf8",
+    "reason": "Per-pixel terminal-percentage hash indexing regressed in optimized preparation; replaced with bounded palette compaction.",
+    "runs": [
+      {
+        "version": "before",
+        "stress": false,
+        "run": 1,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 11.445,
+            "mean_ms": 2.861
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 35.509,
+            "mean_ms": 8.877
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 139.085,
+            "mean_ms": 34.771
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 412.477,
+            "mean_ms": 103.119
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 88.485,
+            "mean_ms": 22.121
+          }
+        ]
+      },
+      {
+        "version": "before",
+        "stress": false,
+        "run": 2,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 12.045,
+            "mean_ms": 3.011
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 35.507,
+            "mean_ms": 8.877
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 135.224,
+            "mean_ms": 33.806
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 396.764,
+            "mean_ms": 99.191
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 86.05,
+            "mean_ms": 21.512
+          }
+        ]
+      },
+      {
+        "version": "before",
+        "stress": false,
+        "run": 3,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 15.181,
+            "mean_ms": 3.795
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 33.298,
+            "mean_ms": 8.324
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 138.375,
+            "mean_ms": 34.594
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 422.334,
+            "mean_ms": 105.583
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 88.041,
+            "mean_ms": 22.01
+          }
+        ]
+      },
+      {
+        "version": "before",
+        "stress": true,
+        "run": 1,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 160.789,
+            "mean_ms": 40.197
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 279.481,
+            "mean_ms": 69.87
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 349.95,
+            "mean_ms": 87.487
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 847.41,
+            "mean_ms": 211.853
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 279.738,
+            "mean_ms": 69.935
+          }
+        ]
+      },
+      {
+        "version": "before",
+        "stress": true,
+        "run": 2,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 164.428,
+            "mean_ms": 41.107
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 293.578,
+            "mean_ms": 73.394
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 352.286,
+            "mean_ms": 88.071
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 838.711,
+            "mean_ms": 209.678
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 277.057,
+            "mean_ms": 69.264
+          }
+        ]
+      },
+      {
+        "version": "before",
+        "stress": true,
+        "run": 3,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 165.995,
+            "mean_ms": 41.499
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 277.226,
+            "mean_ms": 69.307
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 357.707,
+            "mean_ms": 89.427
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 836.123,
+            "mean_ms": 209.031
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 284.29,
+            "mean_ms": 71.072
+          }
+        ]
+      },
+      {
+        "version": "after",
+        "stress": false,
+        "run": 1,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 10.562,
+            "mean_ms": 2.64
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 34.047,
+            "mean_ms": 8.512
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 137.163,
+            "mean_ms": 34.291
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 411.065,
+            "mean_ms": 102.766
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 141.004,
+            "mean_ms": 35.251
+          }
+        ]
+      },
+      {
+        "version": "after",
+        "stress": false,
+        "run": 2,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 10.9,
+            "mean_ms": 2.725
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 33.837,
+            "mean_ms": 8.459
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 138.857,
+            "mean_ms": 34.714
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 399.898,
+            "mean_ms": 99.974
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 139.265,
+            "mean_ms": 34.816
+          }
+        ]
+      },
+      {
+        "version": "after",
+        "stress": false,
+        "run": 3,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 10.403,
+            "mean_ms": 2.601
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 33.533,
+            "mean_ms": 8.383
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 139.794,
+            "mean_ms": 34.948
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 387.484,
+            "mean_ms": 96.871
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 139.796,
+            "mean_ms": 34.949
+          }
+        ]
+      },
+      {
+        "version": "after",
+        "stress": true,
+        "run": 1,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 160.741,
+            "mean_ms": 40.185
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 291.447,
+            "mean_ms": 72.862
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 366.307,
+            "mean_ms": 91.577
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 843.388,
+            "mean_ms": 210.847
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 389.414,
+            "mean_ms": 97.354
+          }
+        ]
+      },
+      {
+        "version": "after",
+        "stress": true,
+        "run": 2,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 160.635,
+            "mean_ms": 40.159
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 282.353,
+            "mean_ms": 70.588
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 350.444,
+            "mean_ms": 87.611
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 900.158,
+            "mean_ms": 225.039
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 356.754,
+            "mean_ms": 89.188
+          }
+        ]
+      },
+      {
+        "version": "after",
+        "stress": true,
+        "run": 3,
+        "metrics": [
+          {
+            "workload": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 170.236,
+            "mean_ms": 42.559
+          },
+          {
+            "workload": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 295.746,
+            "mean_ms": 73.936
+          },
+          {
+            "workload": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 374.83,
+            "mean_ms": 93.708
+          },
+          {
+            "workload": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 831.963,
+            "mean_ms": 207.991
+          },
+          {
+            "workload": "inspector antialiased edges + Sixel",
+            "iterations": 4,
+            "total_ms": 346.154,
+            "mean_ms": 86.539
+          }
+        ]
+      }
+    ]
+  },
+  "foot": {
+    "passed": true,
+    "version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+    "lume": "lume 0.2.0 (1fa0935788e3d68e1b23d0fbc501866c5ed65cd5)",
+    "cached_reopen_cycles": 3,
+    "clear_before_inspector_and_reader_pixels": true,
+    "baseline_failure": "Native view transition did not clear stale pixels before drawing",
+    "cleanup": {
+      "returncode": 0,
+      "termios_restored": true
+    },
+    "publisher_content_preserved": true
+  },
+  "wire_fidelity": {
+    "decoded_size": [
+      1120,
+      336
+    ],
+    "rgb_pixels_identical": true,
+    "reader_strip_count": 12,
+    "before_bytes": 39711,
+    "after_bytes": 36421
+  },
+  "qualification": {
+    "make_check": "passed",
+    "rust_tests": 971,
+    "python_tests": 45,
+    "real_http_tests": 33,
+    "clippy_all_targets": "passed",
+    "format": "passed",
+    "release_build": "passed",
+    "real_foot": "passed"
+  },
+  "reproduce": [
+    "cargo build --locked --release --bin lume --bench reader",
+    "cargo bench --locked --bench reader -- --inspector-loading-only",
+    "cargo bench --locked --bench reader -- --inspector-loading-only --stress",
+    "python3 tools/qualify_foot.py --binary target/release/lume --artifacts /tmp/lume-foot-fresh-artifacts"
+  ]
+}
