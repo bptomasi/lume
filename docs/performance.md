@@ -776,6 +776,34 @@ setup. Physical allocation includes metadata and page occupancy; it is distinct
 from logical text duplication. No storage migration or compression is enabled
 by these measurements.
 
+## Deletion ownership review, 2026-10-24
+
+The [deletion review measurements](performance/deletion-review-2026-10-24.json)
+use 2,000-article SQLite fixtures and the pinned Rust 1.99.1 toolchain:
+
+```sh
+cargo bench --locked --profile dev --bench reader -j 2 -- --article-deletion-only
+```
+
+In a controlled comparison within the same binary, cascading notes, cards and
+export rows averaged 502.571 ms without the three ownership indexes and
+106.435 ms with them, a 4.722-fold difference over five fresh fixture clones.
+The benchmark checks that parent and dependent rows are removed. Moving all
+2,000 articles to Trash with one compact undo record averaged 13.955 ms;
+the inverse restores the complete article set and is correctness checked.
+These are local unoptimized measurements, not release latency targets or a
+whole-application speedup claim. Smaller before/after differences in the report
+may reflect noise; memory consumption was not measured.
+
+Source cleanup now uses indexed ownership checks within the chosen feed/server
+instead of materializing protections from unrelated sources. Single-article
+purge uses the primary key, empty cleanup performs no writes, and an empty undo
+journal requires no Rust identity buffers. Nonempty journals stream one payload
+at a time with flat sorted IDs. Native tests audit every foreign-key child
+index, rollback through dependent cascades, FTS removal, protected source data,
+shared images and stale cleanup snapshots. Sidebar view actions reuse matching
+SQL without preliminary counts, page limits or article-body allocation.
+
 ## Final pagination review, 2026-10-24
 
 The [pagination follow-up](performance/pagination-review-2026-10-24.json) fixes

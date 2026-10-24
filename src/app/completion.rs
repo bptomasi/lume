@@ -374,7 +374,7 @@ const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         name: "delete-smart",
         usage: "delete-smart",
-        description: "Remove the selected smart list",
+        description: "Remove the selected smart list; keep every matching article",
         aliases: &[],
     },
     CommandSpec {

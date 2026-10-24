@@ -16,6 +16,7 @@ pub(in crate::app) enum Deletion {
     Trash { article: i64, deleted: bool },
     Purge(i64),
     CleanTrash,
+    View(crate::model::View),
 }
 
 #[derive(Clone)]
@@ -49,7 +50,7 @@ pub(in crate::app) enum LibraryEdit {
 }
 
 pub(super) fn perform(store: &Store, edit: LibraryEdit) -> Result<Outcome> {
-    let definition = edit.is_definition();
+    let definition = edit.removed_view();
     match edit {
         LibraryEdit::Delete(edit) => return delete_articles(store, edit),
         LibraryEdit::Tags { target, tags } => {
@@ -76,8 +77,8 @@ pub(super) fn perform(store: &Store, edit: LibraryEdit) -> Result<Outcome> {
             store.set_named_memberships(article, &folders, &names)?;
         }
     }
-    if definition {
-        return Ok(Outcome::Definitions);
+    if let Some(view) = definition {
+        return Ok(Outcome::DefinitionRemoved(view));
     }
     Ok(Outcome::Changed {
         effect: UndoEffect::Library,
@@ -97,6 +98,10 @@ fn delete_articles(store: &Store, edit: Deletion) -> Result<Outcome> {
             DeletionOutcome::Purged(article)
         }
         Deletion::CleanTrash => DeletionOutcome::Cleaned(store.clean_trash()?),
+        Deletion::View(view) => DeletionOutcome::Trashed {
+            count: store.trash_view(&view)?,
+            view,
+        },
     };
     Ok(Outcome::Deleted(result))
 }
@@ -114,10 +119,14 @@ fn tag_edit(
 }
 
 impl LibraryEdit {
-    fn is_definition(&self) -> bool {
-        matches!(
-            self,
-            Self::Unsubscribe(_) | Self::RemoveServer(_) | Self::DeleteSmart(_)
-        )
+    fn removed_view(&self) -> Option<crate::model::View> {
+        use crate::model::View;
+        match self {
+            Self::Unsubscribe(id) => Some(View::Feed(*id)),
+            Self::RemoveServer(id) => Some(View::Server(*id)),
+            Self::DeleteSmart(id) => Some(View::Smart(*id)),
+            Self::DeleteFolder(id) => Some(View::Collection(*id)),
+            _ => None,
+        }
     }
 }

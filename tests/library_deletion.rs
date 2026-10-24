@@ -82,7 +82,7 @@ fn repeats_cancellation_and_target_changes_cannot_remove_another_definition()
             .any(|item| item.view == View::Smart(smart))
     );
     key(&mut app, KeyCode::Esc)?;
-    select(&mut app, View::All)?;
+    select(&mut app, View::Group("SMART LISTS".into()))?;
     for _ in 0..2 {
         key(&mut app, KeyCode::Char('d'))?;
     }
@@ -122,4 +122,35 @@ fn background_sidebar_removal_uses_the_ordered_write_lane() -> Result<()> {
     assert!(!app.status.contains("u undo"));
     app.end_session()?;
     Ok(())
+}
+
+#[test]
+fn rejected_removal_preserves_pins_order_and_the_active_destination()
+-> Result<()> {
+    let (directory, store, feed) = common::seeded_store()?;
+    let path = directory.path().join("library.sqlite3");
+    rusqlite::Connection::open(&path)?.execute_batch(include_str!(
+        "../src/store/sql/deletion/test_reject_purge.sql"
+    ))?;
+    let mut app = App::new(store, false)?;
+    let view = View::Feed(feed.id);
+    app.set_view(view.clone())?;
+    app.workspace.pins.push(view.clone());
+    app.workspace.navigation_order.push(view.clone());
+    app.save_session()?;
+    app.enable_background_navigation(&path)?;
+    select(&mut app, view.clone())?;
+    key(&mut app, KeyCode::Char('d'))?;
+    key(&mut app, KeyCode::Char('d'))?;
+    let error = common::settle_notes(&mut app)
+        .err()
+        .context("Deletion rejection")?;
+    assert!(error.to_string().contains("Controlled permanent deletion"));
+    assert_eq!(app.view, view);
+    assert!(app.workspace.pins.contains(&view));
+    assert!(app.workspace.navigation_order.contains(&view));
+    let observer = Store::open(&path)?;
+    assert_eq!(observer.feeds()?.len(), 1);
+    assert_eq!(observer.library()?.articles.len(), 1);
+    app.end_session()
 }

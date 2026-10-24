@@ -84,6 +84,7 @@ pub(super) enum DeletionOutcome {
     Trash { article: i64, deleted: bool },
     Purged(i64),
     Cleaned(usize),
+    Trashed { view: super::View, count: usize },
 }
 
 pub(super) enum Outcome {
@@ -105,7 +106,7 @@ pub(super) enum Outcome {
     Deleted(DeletionOutcome),
     Checkpoint,
     Collections,
-    Definitions,
+    DefinitionRemoved(super::View),
     SearchHistory(Vec<String>),
     Exported(crate::exchange::incremental::ExportReport),
 }

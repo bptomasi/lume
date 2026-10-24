@@ -42,6 +42,23 @@ pub enum View {
 }
 
 impl View {
+    /// Whether Library can send this entire built-in view to Trash.
+    pub fn can_trash_all(&self) -> bool {
+        matches!(
+            self,
+            Self::Inbox
+                | Self::All
+                | Self::Recommended
+                | Self::Read
+                | Self::Starred
+                | Self::Annotated
+                | Self::Queue
+                | Self::Continue
+                | Self::SinceLastVisit(_)
+                | Self::Grouped
+        )
+    }
+
     /// Compare persistent destination identity, ignoring a session's time boundary.
     pub fn same_destination(&self, other: &Self) -> bool {
         matches!(

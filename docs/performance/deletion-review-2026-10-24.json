@@ -1,0 +1,98 @@
+{
+  "measured_at_utc": "2026-10-24T23:16:39.794363+00:00",
+  "toolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "dev, unoptimized with debuginfo",
+  "fixture_articles": 2000,
+  "command": "cargo bench --locked --profile dev --bench reader -j 2 -- --article-deletion-only",
+  "baseline_revision": "c347578",
+  "after_revision": "source changes in the commit containing this report",
+  "before": {
+    "synchronous dd + committed frame": {
+      "iterations": 40,
+      "total_ms": 461.976,
+      "mean_ms": 11.549
+    },
+    "background dd + first committed frame": {
+      "iterations": 40,
+      "total_ms": 237.304,
+      "mean_ms": 5.933
+    },
+    "background dd + settled page and counts": {
+      "iterations": 40,
+      "total_ms": 365.54,
+      "mean_ms": 9.138
+    },
+    "background Trash dd + committed frame": {
+      "iterations": 40,
+      "total_ms": 276.215,
+      "mean_ms": 6.905
+    },
+    "bulk Trash cleanup": {
+      "iterations": 40,
+      "total_ms": 2572.713,
+      "mean_ms": 64.318
+    },
+    "feed removal + unsaved articles": {
+      "iterations": 40,
+      "total_ms": 2637.202,
+      "mean_ms": 65.93
+    }
+  },
+  "after": {
+    "synchronous dd + committed frame": {
+      "iterations": 40,
+      "total_ms": 443.21,
+      "mean_ms": 11.08
+    },
+    "background dd + first committed frame": {
+      "iterations": 40,
+      "total_ms": 227.948,
+      "mean_ms": 5.699
+    },
+    "background dd + settled page and counts": {
+      "iterations": 40,
+      "total_ms": 347.887,
+      "mean_ms": 8.697
+    },
+    "background Trash dd + committed frame": {
+      "iterations": 40,
+      "total_ms": 248.18,
+      "mean_ms": 6.204
+    },
+    "bulk Trash cleanup": {
+      "iterations": 40,
+      "total_ms": 2456.803,
+      "mean_ms": 61.42
+    },
+    "feed removal + unsaved articles": {
+      "iterations": 40,
+      "total_ms": 2516.475,
+      "mean_ms": 62.912
+    },
+    "unindexed note/card/export cascades": {
+      "iterations": 5,
+      "total_ms": 2512.856,
+      "mean_ms": 502.571
+    },
+    "indexed note/card/export cascades": {
+      "iterations": 5,
+      "total_ms": 532.174,
+      "mean_ms": 106.435
+    },
+    "whole-library move with one undo snapshot": {
+      "iterations": 5,
+      "total_ms": 69.774,
+      "mean_ms": 13.955
+    }
+  },
+  "controlled_cascade_factor": 4.722,
+  "method": "Fresh SQLite fixture clones; setup and assertions excluded from timed sections. The controlled cascade comparison changes only the three ownership indexes within the same binary. It verifies that parents and dependent notes, cards and export rows are gone.",
+  "limitations": "One local dev-profile run. These means are not release latency targets, percentile estimates, memory measurements, or whole-application speedup claims. Small differences between baseline and after may be noise.",
+  "validation": [
+    "make check with CARGO_BUILD_JOBS=2 and RUST_TEST_THREADS=2",
+    "Foreign-key integrity and leading-index audit",
+    "Cascade rollback, FTS, shared images and stale cleanup ownership tests",
+    "All built-in view scopes, grouped duplicates, pagination independence and compact undo",
+    "Indirect undo references, partial permanent deletion and rejected source removal preferences"
+  ]
+}

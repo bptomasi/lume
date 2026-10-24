@@ -190,7 +190,18 @@ portable terminal text, with unsupported layouts preserved as original LaTeX.
 In graphics mode, text commands and linear inline expressions retain paragraph
 flow; spatial notation and display equations can use local vector outlines.
 
-In Library, `dd` removes the selected feed subscription or smart list.
+In Library, `dd` sends every article in the selected built-in view to Trash:
+Inbox, All articles, Read next, Favorites, Read, Notebook, Continue reading,
+Since last visit, Grouped articles and For you. This acts on the full view,
+including articles beyond the current page, without applying an Articles search.
+Grouped articles includes all duplicate occurrences. Flags, personal folders
+and notes remain attached; one `u` restores the complete batch. Permanently
+deleting part of the batch keeps undo available for its surviving articles.
+On Trash, `dd` permanently empties the entire Trash, just like `:trash clean`.
+These are distinct from `dd` in Articles, which acts on one selected article.
+
+On a feed/server, `dd` removes the source and its unsaved articles. On a smart
+list or personal folder, it removes only the definition and keeps all articles.
 The two presses must refer to the same destination; Esc, another action or
 moving to another item cancels the pending removal. Autorepeat never confirms
 it. Removing a server or using `:unfeed` also deletes its unsaved articles.
@@ -198,6 +209,7 @@ Favorites, Read next, personal folders, notes/highlights, tags, drafts,
 exports and offline packages stay saved. Smart-list matches alone do not
 protect articles; deleted entries disappear from all matching queries.
 `:delete-smart` removes only the saved query and keeps its matching articles.
+Personal-folder removal remains reversible with `u`.
 Removing a server also removes its source references from smart lists. A list
 whose entire source scope was removed stays named and editable but matches
 nothing, rather than expanding into an unrestricted search.

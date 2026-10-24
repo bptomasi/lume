@@ -8,6 +8,8 @@ use anyhow::{Result, ensure};
 use rusqlite::Transaction;
 
 pub(super) mod purge;
+#[cfg(test)]
+mod tests;
 
 use super::{
     Store,
@@ -15,6 +17,23 @@ use super::{
 };
 
 impl Store {
+    /// Move an entire built-in view to Trash as one reversible transaction.
+    /// No page limit, interactive search, body loading or preliminary count applies.
+    ///
+    /// # Errors
+    /// Rejects non-library views or SQLite/history failures without partial edits.
+    pub fn trash_view(&self, view: &crate::model::View) -> Result<usize> {
+        ensure!(view.can_trash_all(), "Select a built-in Library view");
+        let transaction = self.write_transaction()?;
+        let articles = self.trash_matching(view)?;
+        let count = articles.len();
+        if count != 0 {
+            history::record(&transaction, &Undo::DeletionBatch { articles })?;
+        }
+        transaction.commit()?;
+        Ok(count)
+    }
+
     /// Read an article's durable deletion flag, including hidden articles.
     ///
     /// # Errors
@@ -54,6 +73,18 @@ impl Store {
         transaction.commit()?;
         Ok(true)
     }
+}
+
+pub(super) fn restore_batch(
+    transaction: &Transaction<'_>,
+    articles: &[i64],
+) -> Result<()> {
+    let count = transaction.execute(
+        include_str!("sql/deletion/restore_batch.sql"),
+        [serde_json::to_string(articles)?],
+    )?;
+    ensure!(count == articles.len(), "A batch article no longer exists");
+    Ok(())
 }
 
 pub(super) fn restore(

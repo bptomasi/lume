@@ -74,10 +74,18 @@ impl App {
     }
 
     fn clean_trash(&mut self) -> Result<()> {
-        self.submit_library_edit(LibraryEdit::Delete(Deletion::CleanTrash))?;
-        self.status = "Trash cleanup requested · permanent deletion".into();
-        if self.personal_writes.is_none() {
-            self.status = "Trash emptied · cannot undo".into();
+        self.remove_library_articles(View::Trash)
+    }
+
+    pub(super) fn remove_library_articles(&mut self, view: View) -> Result<()> {
+        let edit = if view == View::Trash {
+            Deletion::CleanTrash
+        } else {
+            Deletion::View(view)
+        };
+        self.submit_library_edit(LibraryEdit::Delete(edit))?;
+        if self.personal_writes.is_some() {
+            self.status = "Library deletion queued".into();
         }
         Ok(())
     }
@@ -139,12 +147,12 @@ impl App {
                 self.finish_article_purge(article)
             }
             DeletionOutcome::Cleaned(count) => {
-                self.reload()?;
-                self.status = format!(
-                    "Trash emptied · {count} articles permanently deleted · cannot undo"
-                );
-                Ok(())
+                self.finish_view_deletion(View::Trash, count,
+                    format!("Trash emptied · {count} articles permanently deleted · cannot undo"))
             }
+            DeletionOutcome::Trashed { view, count } => self.finish_view_deletion(
+                view, count, format!("{count} articles moved to Trash · u undo"),
+            ),
         }
     }
 
@@ -165,8 +173,6 @@ impl App {
         // Commit acknowledgement owns visibility. Counts and the next source
         // can be expensive; neither is a prerequisite for removing this row.
         let checkpoint = self.save_reading_position();
-        self.library_revision = self.library_revision.wrapping_add(1);
-        self.invalidate_notebook();
         if self.retained_article == Some(article) {
             self.retained_article = None;
         }
@@ -181,10 +187,45 @@ impl App {
                 self.clear_current();
             }
         }
-        self.refresh_catalog_page();
-        self.request_catalog(super::catalog_worker::Scope::Counts);
+        self.refresh_deleted_articles()?;
         self.status = status.into();
         checkpoint
+    }
+
+    fn finish_view_deletion(
+        &mut self,
+        view: View,
+        count: usize,
+        status: String,
+    ) -> Result<()> {
+        if count != 0 {
+            if self.view.same_destination(&view)
+                && matches!(self.mode, super::Mode::Normal)
+                && self.notebook.is_none()
+                && self.selection.is_none()
+            {
+                self.library.articles.clear();
+                self.visible.clear();
+                self.selected = 0;
+                self.page_total = 0;
+                self.retained_article = None;
+                self.clear_current();
+            }
+            self.refresh_deleted_articles()?;
+        }
+        self.status = status;
+        Ok(())
+    }
+
+    fn refresh_deleted_articles(&mut self) -> Result<()> {
+        if self.navigation_worker.is_none() {
+            return self.reload();
+        }
+        self.library_revision = self.library_revision.wrapping_add(1);
+        self.invalidate_notebook();
+        self.refresh_catalog_page();
+        self.request_catalog(super::catalog_worker::Scope::Counts);
+        Ok(())
     }
 
     fn remove_deleted_metadata(&mut self, article: i64) {

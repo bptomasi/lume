@@ -17,7 +17,11 @@
   Ctrl-w J / K    Move focused pane below / above a neighbor
   Ctrl-w u / r    Undo / redo layout changes (separate from article undo)
   Ctrl-w =        Restore Library / Articles / Reader with standard widths
-  dd in Library   Remove the selected feed or smart list; Esc cancels first d
+  dd in Library   Empty the selected built-in view into Trash; u undoes
+                  On Trash: permanently empty it; cannot undo
+                  Smart lists/folders: remove the definition, keep all articles
+                  Feeds/servers: remove source and unsaved articles
+                  Esc cancels the first d; autorepeat never confirms
                   Cached articles and private notes stay in the library.
   :layout-reset   Same reset; preserves article, notes and prose preferences
   :panel-dock annotations reader below   Dock using either axis

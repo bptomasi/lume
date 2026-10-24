@@ -1,6 +1,6 @@
 //! Two explicit key presses capture a sidebar definition, never an article.
 use super::{App, Focus, View, personal_tasks::LibraryEdit};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 impl App {
@@ -25,57 +25,94 @@ impl App {
         let target = self
             .navigation
             .get(self.nav_selected)
-            .context("Select a feed, server or smart list")?
-            .view
-            .clone();
-        if !matches!(target, View::Feed(_) | View::Smart(_) | View::Server(_)) {
+            .map(|item| item.view.clone())
+            .filter(deletable);
+        let Some(target) = target else {
             self.status =
-                "Select a feed, server or smart list to remove".into();
+                "Select a Library view, feed, server or smart list".into();
             return Ok(true);
-        }
+        };
         if self.pending_destination_delete.take().as_ref() == Some(&target) {
             self.remove_destination(target)?;
         } else {
-            let source = !matches!(target, View::Smart(_));
+            self.status = deletion_prompt(&target).into();
             self.pending_destination_delete = Some(target);
-            self.status = if source {
-                "d again removes source + unsaved articles · cannot undo · Esc cancels"
-            } else {
-                "d again removes this smart list · Esc cancels"
-            }.into();
         }
         Ok(true)
     }
 
-    pub(super) fn finish_definition_removal(&mut self) -> Result<()> {
-        self.reload()?;
-        self.status =
-            "Library item removed · saved articles and notes kept".into();
+    pub(super) fn remove_destination(&mut self, target: View) -> Result<()> {
+        if target.can_trash_all() || target == View::Trash {
+            return self.remove_library_articles(target);
+        }
+        let edit = match target {
+            View::Feed(id) => LibraryEdit::Unsubscribe(id),
+            View::Server(id) => LibraryEdit::RemoveServer(id),
+            View::Smart(id) => LibraryEdit::DeleteSmart(id),
+            View::Collection(id) => LibraryEdit::DeleteFolder(id),
+            _ => anyhow::bail!("Select a feed, server or smart list"),
+        };
+        self.save_reading_position()?;
+        self.submit_library_edit(edit)?;
+        if self.personal_writes.is_some() {
+            self.status = "Library removal queued".into();
+        }
         Ok(())
     }
 
-    pub(super) fn remove_destination(&mut self, target: View) -> Result<()> {
-        let (edit, label) = match target {
-            View::Feed(id) => (LibraryEdit::Unsubscribe(id), "Feed"),
-            View::Server(id) => (LibraryEdit::RemoveServer(id), "Server"),
-            View::Smart(id) => (LibraryEdit::DeleteSmart(id), "Smart list"),
-            _ => anyhow::bail!("Select a feed, server or smart list"),
-        };
+    pub(super) fn finish_definition_removal(
+        &mut self,
+        target: View,
+    ) -> Result<()> {
+        // Layout preferences change only after the captured removal commits.
+        // A rejected deletion must retain its pins, order and active view.
         let active = target.same_destination(&self.view);
-        self.save_reading_position()?;
-        self.submit_library_edit(edit)?;
         self.workspace
             .pins
             .retain(|view| !view.same_destination(&target));
         self.workspace
             .navigation_order
             .retain(|view| !view.same_destination(&target));
-        if active {
+        self.reload()?;
+        if active && self.view != View::All {
             self.set_view(View::All)?;
         }
         self.persist_preferences()?;
-        self.status =
-            format!("{label} removed · saved articles and notes kept");
+        self.status = match target {
+            View::Smart(_) => "Smart list removed · all articles kept".into(),
+            View::Collection(_) => {
+                "Folder removed · all articles kept · u undo".into()
+            }
+            _ => "Source removed · saved articles and notes kept".into(),
+        };
         Ok(())
+    }
+}
+
+fn deletable(view: &View) -> bool {
+    view.can_trash_all()
+        || matches!(
+            view,
+            View::Trash
+                | View::Feed(_)
+                | View::Smart(_)
+                | View::Server(_)
+                | View::Collection(_)
+        )
+}
+
+fn deletion_prompt(view: &View) -> &'static str {
+    match view {
+        View::Trash => {
+            "d again permanently empties Trash · cannot undo · Esc cancels"
+        }
+        View::Feed(_) | View::Server(_) => {
+            "d again removes source + unsaved articles · cannot undo · Esc cancels"
+        }
+        View::Smart(_) => "d again removes this smart list only · Esc cancels",
+        View::Collection(_) => {
+            "d again removes this folder only · articles kept · u undo · Esc cancels"
+        }
+        _ => "d again sends this entire view to Trash · u undo · Esc cancels",
     }
 }

@@ -1,66 +1,178 @@
 //! Remove only undo entries that could restore purged data or dangling edges.
 
-use std::collections::BTreeSet;
-
 use anyhow::Result;
 use rusqlite::Transaction;
 
 use super::Undo;
 use crate::model::TagTarget;
 
+enum Change {
+    Keep,
+    Delete,
+    Replace(String),
+}
+
+struct Targets {
+    articles: Vec<i64>,
+    notes: Vec<i64>,
+}
+
+impl Targets {
+    fn article(&self, id: i64) -> bool {
+        self.articles.binary_search(&id).is_ok()
+    }
+
+    fn note(&self, id: i64) -> bool {
+        self.notes.binary_search(&id).is_ok()
+    }
+}
+
 pub(in crate::store) fn forget_articles(
     transaction: &Transaction<'_>,
-    articles: &BTreeSet<i64>,
-    notes: &BTreeSet<i64>,
 ) -> Result<()> {
-    // The durable journal is bounded to 256 entries. Inspect it once per batch,
-    // retaining unrelated edits and whole-batch undo semantics.
-    let mut statement = transaction
-        .prepare_cached(include_str!("../sql/deletion/select_history.sql"))?;
-    let entries = statement
-        .query_map([], |row| {
-            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-        })?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    let mut delete = transaction
-        .prepare_cached(include_str!("../sql/deletion/delete_history.sql"))?;
-    for (id, payload) in entries {
-        let undo: Undo = serde_json::from_str(&payload)?;
-        if references(&undo, articles, notes) {
-            delete.execute([id])?;
+    // Empty history needs no Rust article/note identity buffers. Otherwise keep
+    // sorted flat IDs and inspect at most one private undo payload at a time.
+    let populated = transaction.query_row(
+        include_str!("../sql/deletion/select_has_history.sql"),
+        [],
+        |row| row.get::<_, bool>(0),
+    )?;
+    if !populated {
+        return Ok(());
+    }
+    let targets = Targets {
+        articles: identities(
+            transaction,
+            include_str!("../sql/deletion/select_articles.sql"),
+        )?,
+        notes: identities(
+            transaction,
+            include_str!("../sql/deletion/select_note_ids.sql"),
+        )?,
+    };
+    for (id, change) in changes(transaction, &targets)? {
+        match change {
+            Change::Delete => {
+                transaction.execute(
+                    include_str!("../sql/deletion/delete_history.sql"),
+                    [id],
+                )?;
+            }
+            Change::Replace(payload) => {
+                transaction.execute(
+                    include_str!("../sql/deletion/update_history.sql"),
+                    (id, payload),
+                )?;
+            }
+            Change::Keep => {}
         }
     }
     Ok(())
 }
 
-fn references(
-    undo: &Undo,
-    articles: &BTreeSet<i64>,
-    notes: &BTreeSet<i64>,
+fn changes(
+    transaction: &Transaction<'_>,
+    targets: &Targets,
+) -> Result<Vec<(i64, Change)>> {
+    let mut statement = transaction
+        .prepare_cached(include_str!("../sql/deletion/select_history.sql"))?;
+    let mut rows = statement.query([])?;
+    let mut changes = Vec::new();
+    while let Some(row) = rows.next()? {
+        let payload: String = row.get(1)?;
+        let undo = serde_json::from_str(&payload)?;
+        let change = change(undo, targets)?;
+        if !matches!(change, Change::Keep) {
+            changes.push((row.get(0)?, change));
+        }
+    }
+    Ok(changes)
+}
+
+fn change(mut undo: Undo, targets: &Targets) -> Result<Change> {
+    let changed = match &mut undo {
+        Undo::DeletionBatch { articles } => {
+            let previous = articles.len();
+            articles.retain(|id| !targets.article(*id));
+            if articles.is_empty() {
+                return Ok(Change::Delete);
+            }
+            articles.len() != previous
+        }
+        Undo::Collection(collection) => {
+            let previous = collection.articles.len();
+            collection.articles.retain(|id| !targets.article(*id));
+            collection.articles.len() != previous
+        }
+        Undo::Annotation(snapshot)
+            if !targets.article(snapshot.article)
+                && !targets.note(snapshot.comment.id) =>
+        {
+            prune_annotation(snapshot, targets)
+        }
+        _ => {
+            return Ok(if references(&undo, targets) {
+                Change::Delete
+            } else {
+                Change::Keep
+            });
+        }
+    };
+    if changed {
+        return Ok(Change::Replace(serde_json::to_string(&undo)?));
+    }
+    Ok(Change::Keep)
+}
+
+fn prune_annotation(
+    snapshot: &mut crate::model::AnnotationSnapshot,
+    targets: &Targets,
 ) -> bool {
+    let previous = (snapshot.links.len(), snapshot.metadata.references.len());
+    snapshot.links.retain(|id| !targets.article(*id));
+    snapshot
+        .metadata
+        .references
+        .retain(|(from, to)| !targets.note(*from) && !targets.note(*to));
+    previous != (snapshot.links.len(), snapshot.metadata.references.len())
+}
+
+fn identities(transaction: &Transaction<'_>, sql: &str) -> Result<Vec<i64>> {
+    Ok(transaction
+        .prepare_cached(sql)?
+        .query_map([], |row| row.get(0))?
+        .collect::<rusqlite::Result<_>>()?)
+}
+
+fn references(undo: &Undo, targets: &Targets) -> bool {
     match undo {
         Undo::Batch(edits) => {
-            edits.iter().any(|edit| references(edit, articles, notes))
+            edits.iter().any(|edit| references(edit, targets))
         }
         Undo::Annotation(snapshot) => {
-            articles.contains(&snapshot.article)
-                || notes.contains(&snapshot.comment.id)
-                || snapshot.links.iter().any(|id| articles.contains(id))
-                || snapshot.metadata.references.iter().any(|(from, to)| {
-                    notes.contains(from) || notes.contains(to)
-                })
+            targets.article(snapshot.article)
+                || targets.note(snapshot.comment.id)
+                || snapshot.links.iter().any(|id| targets.article(*id))
+                || snapshot
+                    .metadata
+                    .references
+                    .iter()
+                    .any(|(from, to)| targets.note(*from) || targets.note(*to))
         }
         Undo::Tags { target, .. } => match target {
-            TagTarget::Article(id) => articles.contains(id),
-            TagTarget::Comment(id) => notes.contains(id),
+            TagTarget::Article(id) => targets.article(*id),
+            TagTarget::Comment(id) => targets.note(*id),
         },
         Undo::Deletion { article, .. }
         | Undo::Flags { article, .. }
         | Undo::Comment { article, .. }
         | Undo::DeleteComment { article, .. }
-        | Undo::Memberships { article, .. } => articles.contains(article),
+        | Undo::Memberships { article, .. } => targets.article(*article),
+        Undo::DeletionBatch { articles } => {
+            articles.iter().any(|id| targets.article(*id))
+        }
         Undo::Collection(collection) => {
-            collection.articles.iter().any(|id| articles.contains(id))
+            collection.articles.iter().any(|id| targets.article(*id))
         }
         Undo::DeleteCollection(_) => false,
     }

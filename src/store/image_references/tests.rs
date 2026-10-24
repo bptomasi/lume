@@ -1,6 +1,28 @@
 //! Generations survive queue completion and protect against stale concurrent work.
 use super::*;
 use anyhow::Context;
+
+#[test]
+fn ownership_change_cancels_an_obsolete_image_cleanup_before_unlink()
+-> Result<()> {
+    let (directory, store, feed) = library()?;
+    store.refresh_image_references(&AtomicBool::new(false))?;
+    let version = store.retention_version()?;
+    let mut writer = Store::open(&directory.path().join("library.sqlite3"))?;
+    publish(&mut writer, &feed, "![New reference](shared.svg)")?;
+    let unlinked = AtomicBool::new(false);
+    assert_eq!(
+        store.image_cleanup_batch(version, || {
+            unlinked.store(true, Ordering::Relaxed);
+            Ok(1)
+        })?,
+        None
+    );
+    assert!(!unlinked.load(Ordering::Relaxed));
+    let version = store.retention_version()?;
+    assert_eq!(store.image_cleanup_batch(version, || Ok(1))?, Some(1));
+    Ok(())
+}
 fn library() -> Result<(tempfile::TempDir, Store, crate::model::Feed)> {
     let directory = tempfile::tempdir()?;
     let mut store = Store::open(&directory.path().join("library.sqlite3"))?;

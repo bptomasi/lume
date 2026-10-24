@@ -11,6 +11,8 @@ use anyhow::{Result, ensure};
 
 use crate::store::Store;
 
+type ImageFile = (std::path::PathBuf, u64, SystemTime);
+
 pub mod details;
 pub(crate) mod report;
 mod units;
@@ -153,27 +155,49 @@ fn clean_images(
     cancel: &AtomicBool,
 ) -> Result<usize> {
     let started = SystemTime::now();
-    let candidates = files(directory)?;
+    let mut candidates = files(directory)?;
     if candidates.is_empty() {
         return Ok(0);
     }
     let cached: BTreeSet<_> =
         candidates.iter().map(|(path, _, _)| path.clone()).collect();
+    let version = store.retention_version()?;
     if !store.refresh_image_references(cancel)? {
         return Ok(0);
     }
     let retained = retained_images(store, directory, &cached, cancel)?;
+    candidates.retain(|(path, _, modified)| {
+        !retained.contains(path) && *modified < started
+    });
+    remove_images(store, &candidates, version, cancel)
+}
+
+fn remove_images(
+    store: &Store,
+    candidates: &[ImageFile],
+    version: i64,
+    cancel: &AtomicBool,
+) -> Result<usize> {
     let mut removed = 0;
-    for (path, bytes, modified) in candidates {
+    for batch in candidates.chunks(32) {
         if cancel.load(Ordering::Relaxed) {
             break;
         }
-        if !retained.contains(&path)
-            && modified < started
-            && remove_unchanged(&path, bytes, modified)?
-        {
-            removed += 1;
-        }
+        let count = store.image_cleanup_batch(version, || {
+            let mut count = 0;
+            for (path, bytes, modified) in batch {
+                if cancel.load(Ordering::Relaxed) {
+                    break;
+                }
+                count +=
+                    usize::from(remove_unchanged(path, *bytes, *modified)?);
+            }
+            Ok(count)
+        })?;
+        let Some(count) = count else {
+            break;
+        };
+        removed += count;
     }
     Ok(removed)
 }

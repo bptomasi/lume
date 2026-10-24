@@ -23,7 +23,8 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     asynchronous(&mut app, &observer, iterations)?;
     permanent(&mut app, &observer, iterations)?;
     app.end_session()?;
-    batch_removal(iterations, if stress { 13_000 } else { 2000 })
+    batch_removal(iterations, if stress { 13_000 } else { 2000 })?;
+    deletion_review(iterations.min(5))
 }
 
 fn seed(store: &mut Store, count: usize) -> Result<()> {
@@ -242,4 +243,80 @@ fn cloned_store(
         ))?;
     }
     Ok((directory, store))
+}
+
+fn deletion_review(iterations: usize) -> Result<()> {
+    let (_directory, base) = cascade_fixture()?;
+    for indexed in [false, true] {
+        let mut elapsed = Duration::ZERO;
+        for _ in 0..iterations {
+            let (directory, store) = cloned_store(&base, true)?;
+            if !indexed {
+                rusqlite::Connection::open(
+                    directory.path().join("library.sqlite3"),
+                )?
+                .execute_batch(include_str!(
+                    "../../src/store/sql/deletion/bench_unindexed.sql"
+                ))?;
+            }
+            let start = Instant::now();
+            ensure!(store.clean_trash()? == 2000, "Cascade cleanup lost rows");
+            elapsed += start.elapsed();
+            ensure!(store.library()?.articles.is_empty(), "Parent survived");
+            let remaining: usize = rusqlite::Connection::open(
+                directory.path().join("library.sqlite3"))?.query_row(
+                    include_str!("../../src/store/sql/deletion/bench_remaining_dependents.sql"),
+                    [], |row| row.get(0),
+                )?;
+            ensure!(remaining == 0, "Dependent survived cascade");
+        }
+        print_sample(
+            if indexed {
+                "indexed note/card/export cascades"
+            } else {
+                "unindexed note/card/export cascades"
+            },
+            elapsed,
+            iterations,
+        );
+    }
+    bulk_view(iterations)
+}
+
+fn cascade_fixture() -> Result<(tempfile::TempDir, std::path::PathBuf)> {
+    let directory = tempfile::tempdir()?;
+    let base = directory.path().join("dependencies.db");
+    let mut store = Store::open(&base)?;
+    seed(&mut store, 2000)?;
+    drop(store);
+    let connection = rusqlite::Connection::open(&base)?;
+    connection.execute_batch(include_str!(
+        "../../src/store/sql/deletion/bench_dependencies.sql"
+    ))?;
+    drop(connection);
+    Ok((directory, base))
+}
+
+fn bulk_view(iterations: usize) -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let mut store = Store::open(&directory.path().join("bulk.db"))?;
+    seed(&mut store, 2000)?;
+    let mut elapsed = Duration::ZERO;
+    for _ in 0..iterations {
+        let start = Instant::now();
+        ensure!(store.trash_view(&View::All)? == 2000, "Bulk move lost rows");
+        elapsed += start.elapsed();
+        ensure!(
+            store.view_count(&View::Trash)? == 2000,
+            "Trash is incomplete"
+        );
+        ensure!(store.undo()?, "Bulk undo missing");
+        ensure!(store.view_count(&View::All)? == 2000, "Bulk undo lost rows");
+    }
+    print_sample(
+        "whole-library move with one undo snapshot",
+        elapsed,
+        iterations,
+    );
+    Ok(())
 }

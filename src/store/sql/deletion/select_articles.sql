@@ -1,1 +1,1 @@
-SELECT id FROM temp.purge_articles;
+SELECT id FROM temp.purge_articles ORDER BY id;

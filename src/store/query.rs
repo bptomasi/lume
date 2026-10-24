@@ -13,6 +13,7 @@ use super::{Store, article_row};
 
 mod cache;
 mod counts;
+mod deletion;
 pub(super) use cache::Cache;
 mod relevance;
 

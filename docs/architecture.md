@@ -218,6 +218,26 @@ navigation guards. Failed writes never remove a row. Grouped-page counts come
 from the authoritative query because another occurrence can replace a deleted
 representative. The synchronous adapter performs one catalog reload.
 
+Sidebar deletion captures a typed destination. Built-in views use the existing
+SQL predicates to update every match and return only IDs, without counting or
+loading pages/bodies. One compact undo entry restores the batch. Grouped-view
+emptying includes duplicate occurrences. Smart lists and folders remove only
+their definitions; explicit source removal preserves durable personal context.
+Pins/order change only after commit acknowledgement, including failed writes
+and navigation while work is pending.
+
+Permanent Trash cleanup records publisher/remote-alias tombstones and removes
+note versions, drafts, export snapshots and dangling checkpoint targets in one
+transaction. Foreign keys cascade notes, study cards, references, memberships,
+recommendations, server mappings and image-reference rows; FTS triggers remove
+article/note entries. Ownership indexes cover every foreign-key child lookup.
+The bounded undo journal is inspected one payload at a time using flat sorted
+ID buffers, skipped entirely when empty. Purging part of a bulk deletion prunes
+only those IDs from its inverse. Folder and annotation inverses retain their
+surviving memberships/links. Recoverable note history and indirect undo targets
+also protect articles from automatic retention, preventing foreign-key failures
+or lost versions.
+
 `ui::layout` computes fixed columns and binary splits with bounded rectangle
 arithmetic. Rendering, focus and pointer hit testing share that geometry.
 Each split reserves the combined minimum dimensions of its expanded children;
@@ -466,9 +486,12 @@ the budget available to later items.
 reclamation uses small IMMEDIATE transactions, protecting current personal,
 offline and session context, including recoverable note drafts. Clearing body
 bytes retains cache identities and
-fires the existing FTS/recommendation triggers. Image reclamation first scans
-remaining publisher bodies, then removes only unreferenced owned regular files
-older than that scan. It preserves symlinks, foreign files and pinned images.
+fires the existing FTS/recommendation triggers. Image reclamation drains the
+durable dirty-reference queue and reads indexed image URLs. It removes only
+unreferenced owned regular files older than the scan. Short, version-checked
+IMMEDIATE batches prevent new publisher references from racing with unlink;
+an obsolete snapshot stops reclamation. It preserves symlinks, foreign files
+and pinned images.
 SQLite page reuse is reported separately from physical file shrinkage. A
 multi-batch operation can partially complete; it is never presented as one
 filesystem/database transaction.

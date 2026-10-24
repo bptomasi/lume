@@ -155,7 +155,9 @@ impl App {
             }
             Outcome::Deleted(result) => self.finish_deletion(result)?,
             Outcome::Collections => self.invalidate_notebook(),
-            Outcome::Definitions => self.finish_definition_removal()?,
+            Outcome::DefinitionRemoved(view) => {
+                self.finish_definition_removal(view)?
+            }
             Outcome::SearchHistory(history) => {
                 if let Some(notebook) = &mut self.notebook {
                     notebook.install_recent(history);

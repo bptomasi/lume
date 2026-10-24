@@ -26,6 +26,9 @@ pub(super) enum Undo {
         article: i64,
         deleted: bool,
     },
+    DeletionBatch {
+        articles: Vec<i64>,
+    },
     Flags {
         article: i64,
         unread: bool,
@@ -181,6 +184,9 @@ fn restore(transaction: &Transaction<'_>, undo: Undo) -> Result<()> {
         }
         Undo::Deletion { article, deleted } => {
             super::deletion::restore(transaction, article, deleted)?;
+        }
+        Undo::DeletionBatch { articles } => {
+            super::deletion::restore_batch(transaction, &articles)?;
         }
         Undo::Flags {
             article,

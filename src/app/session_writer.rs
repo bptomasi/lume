@@ -278,9 +278,11 @@ fn save_pending(
                 SaveKey::Layout => "workspace and layout history",
             };
             unresolved.insert(key, write);
-            failed.store(unresolved.len(), Ordering::Release);
             let _ = errors
                 .try_send(format!("Could not save {operation}: {error:#}"));
+            // Observing failure must also make its queued diagnostic visible.
+            // Publishing the count first races with :save-status on the UI lane.
+            failed.store(unresolved.len(), Ordering::Release);
         }
     }
 }

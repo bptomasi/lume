@@ -10,6 +10,113 @@ use std::sync::atomic::AtomicBool;
 const NOW: i64 = 1_800_000_000;
 
 #[test]
+fn folder_and_note_link_undo_protect_their_indirect_article_owners()
+-> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.policy(Policy {
+        read_days: Age(Some(1)),
+        ..Default::default()
+    })?;
+    let folder = fixture.store.save_collection("Undo folder", Some(1))?;
+    fixture.store.clear_history()?;
+    fixture.store.delete_collection(folder)?;
+    let note = fixture.store.save_comment(2, None, "Linked note")?;
+    fixture.store.link_annotation(2, note, 3)?;
+    fixture.store.delete_comment(2, note)?;
+    assert_eq!(fixture.preview()?.articles, 21);
+    assert_eq!(fixture.apply()?.articles, 21);
+    assert!(fixture.store.undo()?);
+    assert!(fixture.store.undo()?);
+    assert!(fixture.store.undo()?);
+    assert!(fixture.store.undo()?);
+    assert!(
+        fixture
+            .store
+            .library()?
+            .collections
+            .iter()
+            .any(|item| item.id == folder)
+    );
+    Ok(())
+}
+
+#[test]
+fn source_removal_checks_personal_protections_without_protecting_undo_or_cursor()
+-> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture
+        .store
+        .connection
+        .execute_batch(include_str!("../sql/test_protect_retention.sql"))?;
+    fixture.store.connection.execute_batch(include_str!(
+        "../sql/deletion/test_source_protections.sql"
+    ))?;
+    fixture.offline_article(10)?;
+    let mut workspace = fixture.store.workspace()?;
+    workspace.article = Some(14);
+    fixture.store.save_workspace(&workspace)?;
+    fixture.store.unsubscribe(1)?;
+    let retained = fixture
+        .store
+        .library()?
+        .articles
+        .into_iter()
+        .map(|article| article.id)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(retained, [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13].into());
+    assert_eq!(fixture.store.workspace()?.article, None);
+    assert_eq!(
+        fixture
+            .store
+            .reading_session()?
+            .context("Session")?
+            .position,
+        0
+    );
+    assert_eq!(
+        fixture
+            .store
+            .offline_state()?
+            .context("Offline")?
+            .items
+            .len(),
+        1
+    );
+    Ok(())
+}
+
+#[test]
+fn historical_notes_remain_protected_without_live_comments() -> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.policy(Policy {
+        read_days: Age(Some(1)),
+        ..Default::default()
+    })?;
+    let note = fixture.store.save_comment(1, None, "Historical insight")?;
+    fixture.store.delete_comment(1, note)?;
+    fixture.store.clear_history()?;
+    assert_eq!(fixture.preview()?.articles, 23);
+    assert_eq!(fixture.apply()?.articles, 23);
+    assert!(fixture.store.article(1).is_ok());
+    Ok(())
+}
+
+#[test]
+fn retention_protects_bulk_undo_until_its_journal_entry_is_released()
+-> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.policy(Policy {
+        read_days: Age(Some(1)),
+        ..Default::default()
+    })?;
+    fixture.store.trash_view(&View::All)?;
+    assert_eq!(fixture.preview()?.articles, 0);
+    fixture.store.clear_history()?;
+    assert_eq!(fixture.preview()?.articles, 24);
+    Ok(())
+}
+
+#[test]
 fn presets_need_a_fresh_preview_and_repeated_selection_performs_no_writes()
 -> Result<()> {
     use crate::config::retention::presets::Preset;

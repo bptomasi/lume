@@ -168,8 +168,9 @@ that, Lume's local state is authoritative in this read-only mirror. Local
 read/starred changes are not sent back to Miniflux yet, and remote changes to
 already cached articles do not overwrite local state.
 
-Disabling a server stops collection and retains all cached articles. Removing
-one also deletes unsaved articles, keeping favorites, personal folders, Read
+Disabling a server stops collection and retains all cached articles. Explicit
+removal with `:unserver` or Library `dd` also deletes unsaved articles,
+keeping favorites, personal folders, Read
 next, annotations and other explicit personal saves. Matching a smart list
 alone does not protect an article from source removal. Lists restricted to
 removed server feeds lose those source references; if no source remains, the
@@ -363,7 +364,8 @@ at its successful download. Ordinary images expire only when their referencing
 articles and the files themselves are old enough; a fresh download survives.
 
 Favorites, queued articles, every personal folder membership (including hidden
-folders), notes, highlights, note-link targets, tags, saved web pages, recoverable
+folders), notes, highlights, retained annotation history, note-link targets,
+tags, saved web pages, recoverable
 drafts/undo, export manifests, offline-package items, remaining reading-session
 items and the current reader are always protected. These protections also keep
 their Full text and images. Active smart-list matches are protected by default;

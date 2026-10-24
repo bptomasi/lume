@@ -77,8 +77,19 @@ impl App {
         if let Some(writer) = &mut self.personal_writes {
             writer.submit(Task::Library(edit))?;
         } else {
-            super::personal_tasks::operation::library_edit(&self.store, edit)?;
-            self.reload()?;
+            let outcome = super::personal_tasks::operation::library_edit(
+                &self.store,
+                edit,
+            )?;
+            match outcome {
+                super::personal_tasks::Outcome::Deleted(result) => {
+                    self.finish_deletion(result)?
+                }
+                super::personal_tasks::Outcome::DefinitionRemoved(view) => {
+                    self.finish_definition_removal(view)?
+                }
+                _ => self.reload()?,
+            }
         }
         Ok(())
     }

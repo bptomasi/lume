@@ -21,6 +21,23 @@ struct Indexed {
 }
 
 impl Store {
+    /// Run a short unlink batch only while its ownership snapshot is current.
+    /// The write reservation prevents a publisher from adding a shared image
+    /// reference between the version check and filesystem removal.
+    pub(crate) fn image_cleanup_batch(
+        &self,
+        version: i64,
+        remove: impl FnOnce() -> Result<usize>,
+    ) -> Result<Option<usize>> {
+        let transaction = self.write_transaction()?;
+        if self.retention_version()? != version {
+            return Ok(None);
+        }
+        let removed = remove()?;
+        transaction.commit()?;
+        Ok(Some(removed))
+    }
+
     pub(crate) fn refresh_image_references(
         &self,
         cancel: &AtomicBool,
