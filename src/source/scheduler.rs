@@ -32,27 +32,13 @@ pub(super) fn refresh(
     progress: impl Fn(usize, usize),
 ) -> Result<Progress> {
     let mut store = Store::open(path)?;
-    let discovery = super::miniflux::sync_servers(&mut store, client, stopped)?;
-    let mut eligible = eligible_feeds(&store)?;
-    eligible.retain(|feed| {
-        feed.server.as_ref().is_none_or(|server| {
-            !discovery.obsolete.contains(&server.server_id)
-        })
-    });
-    let progress = collect_selected(
+    discovery::collect(
         &mut store,
         stopped,
         progress,
+        &|server| super::miniflux::discover(client, server, stopped),
         &|feed| download::fetch(client, feed, stopped),
-        eligible,
-    )?;
-    Ok(match progress {
-        Progress::Finished { feeds, failures } => Progress::Finished {
-            feeds,
-            failures: failures.saturating_add(discovery.failures),
-        },
-        progress => progress,
-    })
+    )
 }
 
 #[cfg(test)]
@@ -62,42 +48,30 @@ fn collect(
     progress: impl Fn(usize, usize),
     fetch: &(impl Fn(&Feed) -> Download + Sync),
 ) -> Result<Progress> {
-    collect_selected(store, stopped, progress, fetch, eligible_feeds(store)?)
+    let mut candidates: BTreeMap<i64, Vec<crate::model::RemoteFeedCandidate>> =
+        BTreeMap::new();
+    for feed in store.feeds()? {
+        if let Some(server) = feed.server {
+            candidates.entry(server.server_id).or_default().push(
+                crate::model::RemoteFeedCandidate {
+                    remote_id: server.remote_id,
+                    title: feed.title,
+                    remote_url: feed.url.clone(),
+                    local_url: feed.url,
+                },
+            );
+        }
+    }
+    discovery::collect(
+        store,
+        stopped,
+        progress,
+        &|server| Ok(candidates.get(&server.id).cloned().unwrap_or_default()),
+        fetch,
+    )
 }
 
-fn collect_selected(
-    store: &mut Store,
-    stopped: &AtomicBool,
-    progress: impl Fn(usize, usize),
-    fetch: &(impl Fn(&Feed) -> Download + Sync),
-    eligible: Vec<Feed>,
-) -> Result<Progress> {
-    let total = eligible.len();
-    let buckets = buckets(eligible);
-    thread::scope(|scope| {
-        let (sender, receiver) = mpsc::sync_channel(4);
-        for bucket in buckets {
-            let sender = sender.clone();
-            scope.spawn(move || lane(bucket, stopped, sender, fetch));
-        }
-        drop(sender);
-        let mut visited = 0;
-        let mut failures = 0;
-        for downloaded in receiver {
-            if stopped.load(Ordering::Relaxed) {
-                break;
-            }
-            visited += 1;
-            failures += usize::from(commit(store, downloaded)?);
-            progress(visited, total);
-        }
-        Ok(Progress::Finished {
-            feeds: visited,
-            failures,
-        })
-    })
-}
-
+#[cfg(test)]
 fn eligible_feeds(store: &Store) -> Result<Vec<Feed>> {
     let now = chrono::Utc::now().timestamp();
     let retries = store.domain_retries(now)?;
@@ -124,22 +98,6 @@ fn eligible_feeds(store: &Store) -> Result<Vec<Feed>> {
         .collect())
 }
 
-fn buckets(feeds: Vec<Feed>) -> Vec<Vec<Feed>> {
-    let mut domains: BTreeMap<String, Vec<Feed>> = BTreeMap::new();
-    for feed in feeds {
-        domains.entry(domain(&feed.url)).or_default().push(feed);
-    }
-    let mut buckets: Vec<Vec<Feed>> = (0..4).map(|_| Vec::new()).collect();
-    for group in domains.into_values() {
-        if let Some(bucket) =
-            buckets.iter_mut().min_by_key(|bucket| bucket.len())
-        {
-            bucket.extend(group);
-        }
-    }
-    buckets
-}
-
 pub(super) fn domain(address: &str) -> String {
     url::Url::parse(address)
         .ok()
@@ -159,52 +117,6 @@ fn due(
             .server
             .as_ref()
             .is_none_or(|server| server.enabled && server.present)
-}
-
-fn lane(
-    feeds: Vec<Feed>,
-    stopped: &AtomicBool,
-    sender: mpsc::SyncSender<Download>,
-    fetch: &(impl Fn(&Feed) -> Download + Sync),
-) {
-    let mut starts: BTreeMap<String, Instant> = BTreeMap::new();
-    let mut deadlines: BTreeMap<String, i64> = BTreeMap::new();
-    for feed in feeds {
-        if stopped.load(Ordering::Relaxed) {
-            return;
-        }
-        let host = domain(&feed.url);
-        let deadline = deadlines.get(&host).copied().unwrap_or(0);
-        let downloaded = if deadline > chrono::Utc::now().timestamp() {
-            Download {
-                feed,
-                result: Err(anyhow::anyhow!(
-                    "Domain Retry-After until {deadline}"
-                )),
-                retry_at: deadline,
-            }
-        } else {
-            if feed.server.is_none()
-                && let Some(previous) = starts.get(&host)
-            {
-                thread::sleep(
-                    Duration::from_millis(500)
-                        .saturating_sub(previous.elapsed()),
-                );
-            }
-            if stopped.load(Ordering::Relaxed) {
-                return;
-            }
-            starts.insert(host.clone(), Instant::now());
-            fetch(&feed)
-        };
-        if downloaded.retry_at > 0 {
-            deadlines.insert(host, downloaded.retry_at);
-        }
-        if stopped.load(Ordering::Relaxed) || sender.send(downloaded).is_err() {
-            return;
-        }
-    }
 }
 
 fn commit(store: &mut Store, downloaded: Download) -> Result<bool> {
@@ -251,6 +163,8 @@ fn commit(store: &mut Store, downloaded: Download) -> Result<bool> {
 
     Ok(false)
 }
+
+mod discovery;
 
 #[cfg(test)]
 mod tests;

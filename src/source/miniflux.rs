@@ -17,7 +17,6 @@ use crate::{
         Feed, FeedOrigin, IncomingArticle, RemoteArticleState,
         RemoteFeedCandidate, RemoteFeedUpdate, Server, ServerFeed,
     },
-    store::Store,
 };
 
 use super::{MAX_FEED_BYTES, ParsedFeed, download::Download, link_url};
@@ -29,66 +28,13 @@ const MAX_PAGES: usize = 10;
 /// Largest normalized remote body accepted for one entry.
 const MAX_REMOTE_BODY: usize = 1024 * 1024;
 
-pub(super) struct Discovery {
-    pub(super) failures: usize,
-    pub(super) obsolete: std::collections::BTreeSet<i64>,
-}
-
-/// Discover remote subscriptions for every enabled server.
-///
-/// Reports failures and obsolete connections to exclude from entry collection.
-/// Feed-level failures remain in the ordinary source health records.
-pub(super) fn sync_servers(
-    store: &mut Store,
-    client: &ureq::Agent,
-    stopped: &AtomicBool,
-) -> Result<Discovery> {
-    let servers = store.servers()?;
-    let mut retries = store.domain_retries(now())?;
-    let mut discovery = Discovery {
-        failures: 0,
-        obsolete: Default::default(),
-    };
-    for server in servers.into_iter().filter(|server| server.enabled) {
-        if stopped.load(Ordering::Relaxed) {
-            break;
-        }
-        let host = super::scheduler::domain(&server.url);
-        if retries.get(&host).is_some_and(|deadline| *deadline > now()) {
-            continue;
-        }
-        let result = sync_server(store, client, &server, stopped);
-        if stopped.load(Ordering::Relaxed) {
-            break;
-        }
-        if let Err(error) = &result {
-            let deadline = retry_deadline(error);
-            if deadline > now() {
-                store.record_domain_retry(&host, deadline, now())?;
-                retries.insert(host, deadline);
-            }
-            if store.record_collected_server_failure(
-                &server,
-                now(),
-                &format!("{error:#}"),
-            )? {
-                discovery.failures += 1;
-            } else {
-                discovery.obsolete.insert(server.id);
-            }
-        } else if matches!(result, Ok(false)) {
-            discovery.obsolete.insert(server.id);
-        }
-    }
-    Ok(discovery)
-}
-
-fn sync_server(
-    store: &mut Store,
+/// Fetch a server's subscriptions without holding or writing a connection.
+pub(super) fn discover(
     client: &ureq::Agent,
     server: &Server,
     stopped: &AtomicBool,
-) -> Result<bool> {
+) -> Result<Vec<RemoteFeedCandidate>> {
+    ensure!(!stopped.load(Ordering::Relaxed), "Collection cancelled");
     let token = token(server)?;
     let feeds: Vec<RemoteFeed> =
         get_json(client, &endpoint(server, "/v1/feeds")?, &token)
@@ -110,7 +56,7 @@ fn sync_server(
         })
         .collect::<Result<Vec<_>>>()?;
     ensure!(!stopped.load(Ordering::Relaxed), "Collection cancelled");
-    store.sync_collected_server_feeds(server, &candidates, now())
+    Ok(candidates)
 }
 
 /// Fetch one bounded entry page set for a mirrored feed.
@@ -382,7 +328,7 @@ impl std::fmt::Display for HttpFailure {
 
 impl std::error::Error for HttpFailure {}
 
-fn retry_deadline(error: &anyhow::Error) -> i64 {
+pub(super) fn retry_deadline(error: &anyhow::Error) -> i64 {
     error
         .downcast_ref::<HttpFailure>()
         .map_or(0, |error| error.retry_at)

@@ -121,6 +121,22 @@ impl Store {
             .collect::<rusqlite::Result<_>>()?)
     }
 
+    pub(crate) fn publisher_feeds(&self) -> Result<Vec<Feed>> {
+        Ok(self
+            .connection
+            .prepare_cached(include_str!("sql/select_publisher_feeds.sql"))?
+            .query_map([], feed_row)?
+            .collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub(crate) fn server_feeds(&self, server: i64) -> Result<Vec<Feed>> {
+        Ok(self
+            .connection
+            .prepare_cached(include_str!("sql/select_server_feeds.sql"))?
+            .query_map([server], feed_row)?
+            .collect::<rusqlite::Result<_>>()?)
+    }
+
     /// Ingest one complete, bounded feed while preserving personal state.
     ///
     /// # Errors

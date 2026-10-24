@@ -4,6 +4,8 @@
 //! bind. Ordinary local checks do not start a server.
 
 mod common;
+#[path = "http/discovery_isolation.rs"]
+mod discovery_isolation;
 #[path = "http/server_history.rs"]
 mod server_history;
 
