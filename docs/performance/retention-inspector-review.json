@@ -69,5 +69,101 @@
     "cargo test --locked --bench reader -- --retention-inspection-only",
     "cargo test --locked --bench reader -- --retention-inspection-only --stress",
     "cargo test --locked --bench reader -- --inspector-loading-only"
-  ]
+  ],
+  "environment_overrides": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "2",
+    "RUST_TEST_THREADS": "2"
+  },
+  "optimized_sixel_inspector": {
+    "revision": "f586a21b34bb4165d740a4afcc98fb96a8d4561d",
+    "profile": "release; thin LTO; one codegen unit; pinned toolchain 1.99.1",
+    "processes_per_case": 1,
+    "notes": [
+      "Same fixtures and checks as the unoptimized run.",
+      "No optimized baseline comparison or physical terminal latency is claimed."
+    ],
+    "binary_sha256": "3f3ff1196ada9a21c3b2d5d69d9efb8856fcb685e0cdb3520bf9eebb6a1f80ed",
+    "benchmark_sha256": "0ce4b7737347c5d4e53f330b577b87210957bc646da20a1187fa650a89e651dc",
+    "runs": [
+      {
+        "stress": false,
+        "viewport_cells": [
+          120,
+          40
+        ],
+        "samples": [
+          {
+            "fixture": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 9.658,
+            "mean_ms": 2.414
+          },
+          {
+            "fixture": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 31.592,
+            "mean_ms": 7.898
+          },
+          {
+            "fixture": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 129.197,
+            "mean_ms": 32.299
+          },
+          {
+            "fixture": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 372.416,
+            "mean_ms": 93.104
+          }
+        ]
+      },
+      {
+        "stress": true,
+        "viewport_cells": [
+          160,
+          48
+        ],
+        "samples": [
+          {
+            "fixture": "inspector exact-color raster + Sixel",
+            "iterations": 4,
+            "total_ms": 153.971,
+            "mean_ms": 38.493
+          },
+          {
+            "fixture": "inspector SVG text + Sixel",
+            "iterations": 4,
+            "total_ms": 275.741,
+            "mean_ms": 68.935
+          },
+          {
+            "fixture": "inspector photographic gradient + Sixel",
+            "iterations": 4,
+            "total_ms": 363.296,
+            "mean_ms": 90.824
+          },
+          {
+            "fixture": "inspector high-entropy detail + Sixel",
+            "iterations": 4,
+            "total_ms": 965.666,
+            "mean_ms": 241.416
+          }
+        ]
+      }
+    ]
+  },
+  "qualification": {
+    "rust_behavior_tests": 968,
+    "python_tests": 44,
+    "real_http_tests": 33,
+    "format": "passed",
+    "clippy_all_targets": "passed",
+    "benchmark_correctness": "passed",
+    "release_binary_and_benchmark": "passed",
+    "physical_terminal": "not measured"
+  }
 }

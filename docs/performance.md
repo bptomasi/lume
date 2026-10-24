@@ -681,3 +681,14 @@ completed baseline or speedup is reported for that fixture. Behavioral tests
 independently reconstruct emitted indexed pixels, including sparse colors,
 partial final bands and long repeated runs. No actual Foot display timing is
 claimed for this comparison.
+
+The optimized build of code revision `f586a21` prepares the same inspector
+fixtures in 2.414 ms (exact-color raster), 7.898 ms (SVG with text), 32.299 ms
+(gradient) and 93.104 ms (high-entropy detail). At the maximum 160 by 48 cell
+viewport, the corresponding costs are 38.493, 68.935, 90.824 and 241.416 ms.
+These are means of four iterations in one process per scenario. The larger
+viewport also requires source upscaling. There is no optimized baseline in
+this comparison; the development and release rows must not be used together
+to infer an implementation speedup. Release measurements still exclude
+network, disk, event polling, terminal transport and physical presentation.
+The retained JSON records the exact binary hashes and qualification results.
