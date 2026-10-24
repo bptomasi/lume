@@ -8,7 +8,7 @@ use anyhow::{Result, ensure};
 use refinery::{Migration, Runner};
 use rusqlite::{Connection, OptionalExtension, Transaction};
 
-pub(super) const LATEST_SCHEMA_VERSION: i64 = 24;
+pub(super) const LATEST_SCHEMA_VERSION: i64 = 25;
 
 pub(super) fn run(connection: &mut Connection) -> Result<()> {
     let version: i64 =
@@ -192,6 +192,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "V24__index_cached_image_buckets",
         include_str!("sql/migrations/V24__index_cached_image_buckets.sql"),
+    ),
+    (
+        "V25__index_note_article_ownership",
+        include_str!("sql/migrations/V25__index_note_article_ownership.sql"),
     ),
 ];
 

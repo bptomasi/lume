@@ -168,8 +168,13 @@ that, Lume's local state is authoritative in this read-only mirror. Local
 read/starred changes are not sent back to Miniflux yet, and remote changes to
 already cached articles do not overwrite local state.
 
-Disabling or removing a server stops collection but retains cached articles,
-notes and reading state. The first observation per feed reads up to 2,000 of the
+Disabling a server stops collection and retains all cached articles. Removing
+one also deletes unsaved articles, keeping favorites, personal folders, Read
+next, annotations and other explicit personal saves. Matching a smart list
+alone does not protect an article from source removal. Lists restricted to
+removed server feeds lose those source references; if no source remains, the
+query is constrained to match nothing. Their original search text is retained.
+The first observation per feed reads up to 2,000 of the
 newest entries; later refreshes read changed entries in bounded pages and resume
 incomplete passes by remote entry ID, including timestamp ties. Deleting earlier
 entries does not shift the saved cursor. Miniflux requests on one hostname run
@@ -366,10 +371,9 @@ their Full text and images. Active smart-list matches are protected by default;
 queries, or `protect_smart_lists = false` exempts all dynamic queries. Personal
 folders and the other protections still apply. Deleting a smart list also
 removes its exception and requires a fresh preview. Overrides reference local
-feed IDs or `server:<connection-id>:<remote-feed-id>`, never display names. Before
-removing a server with retention overrides, remove those overrides or pause
-the connection instead. This keeps the remaining cached articles' policy
-explicit.
+feed IDs or `server:<connection-id>:<remote-feed-id>`, never display names.
+Removing a server also removes retention overrides for its sources. Pausing
+it instead preserves the overrides and every cached article.
 
 Inspect and acknowledge a policy before applying it:
 

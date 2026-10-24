@@ -9,14 +9,18 @@ use crate::{
     store::Store,
 };
 
-use super::Outcome;
+use super::{DeletionOutcome, Outcome};
+
+#[derive(Clone)]
+pub(in crate::app) enum Deletion {
+    Trash { article: i64, deleted: bool },
+    Purge(i64),
+    CleanTrash,
+}
 
 #[derive(Clone)]
 pub(in crate::app) enum LibraryEdit {
-    Deleted {
-        article: i64,
-        deleted: bool,
-    },
+    Delete(Deletion),
     Tags {
         target: TagTarget,
         tags: Vec<String>,
@@ -47,9 +51,7 @@ pub(in crate::app) enum LibraryEdit {
 pub(super) fn perform(store: &Store, edit: LibraryEdit) -> Result<Outcome> {
     let definition = edit.is_definition();
     match edit {
-        LibraryEdit::Deleted { article, deleted } => {
-            return delete_article(store, article, deleted);
-        }
+        LibraryEdit::Delete(edit) => return delete_articles(store, edit),
         LibraryEdit::Tags { target, tags } => {
             return tag_edit(store, target, tags);
         }
@@ -83,15 +85,20 @@ pub(super) fn perform(store: &Store, edit: LibraryEdit) -> Result<Outcome> {
     })
 }
 
-fn delete_article(
-    store: &Store,
-    article: i64,
-    deleted: bool,
-) -> Result<Outcome> {
-    // Another connection may already have set this flag while our metadata
-    // still shows the row. Confirm durable state and reconcile it either way.
-    store.set_deleted(article, deleted)?;
-    Ok(Outcome::Deleted { article, deleted })
+fn delete_articles(store: &Store, edit: Deletion) -> Result<Outcome> {
+    let result = match edit {
+        Deletion::Trash { article, deleted } => {
+            // Reconcile stale metadata even if another connection set the flag.
+            store.set_deleted(article, deleted)?;
+            DeletionOutcome::Trash { article, deleted }
+        }
+        Deletion::Purge(article) => {
+            store.purge_deleted(article)?;
+            DeletionOutcome::Purged(article)
+        }
+        Deletion::CleanTrash => DeletionOutcome::Cleaned(store.clean_trash()?),
+    };
+    Ok(Outcome::Deleted(result))
 }
 
 fn tag_edit(

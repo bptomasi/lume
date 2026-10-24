@@ -6,7 +6,7 @@
 
 mod library;
 pub(super) mod operation;
-pub(super) use library::LibraryEdit;
+pub(super) use library::{Deletion, LibraryEdit};
 mod review;
 pub(super) use review::review;
 
@@ -80,6 +80,12 @@ pub(super) enum Edit {
     },
 }
 
+pub(super) enum DeletionOutcome {
+    Trash { article: i64, deleted: bool },
+    Purged(i64),
+    Cleaned(usize),
+}
+
 pub(super) enum Outcome {
     SavedPage {
         article: i64,
@@ -96,10 +102,7 @@ pub(super) enum Outcome {
     },
     Articles,
     Personal(crate::search::Changes),
-    Deleted {
-        article: i64,
-        deleted: bool,
-    },
+    Deleted(DeletionOutcome),
     Checkpoint,
     Collections,
     Definitions,

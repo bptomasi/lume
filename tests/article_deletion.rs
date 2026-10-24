@@ -450,3 +450,90 @@ fn changing_selected_article_requires_a_new_pair_for_the_new_identity()
     assert!(!observed.is_deleted(first)?);
     Ok(())
 }
+
+#[test]
+fn dd_in_trash_permanently_deletes_only_the_confirmed_article() -> Result<()> {
+    let (directory, mut app) = two_articles()?;
+    let observer = Store::open(&directory.path().join("library.sqlite3"))?;
+    let target = app.current().context("Target")?.id;
+    observer.set_deleted(target, true)?;
+    app.set_view(View::Trash)?;
+    app.focus = Focus::Articles;
+    keys(&mut app, "d")?;
+    assert!(app.status.contains("permanently"));
+    assert!(observer.article(target).is_ok());
+    press(&mut app, KeyCode::Esc)?;
+    assert!(observer.article(target).is_ok());
+    keys(&mut app, "dd")?;
+    assert!(observer.article(target).is_err());
+    assert!(app.current().is_none());
+    assert_eq!(app.page_total, 0);
+    press(&mut app, KeyCode::Char('u'))?;
+    assert!(observer.article(target).is_err());
+    assert_eq!(observer.view_count(&View::All)?, 1);
+    Ok(())
+}
+
+#[test]
+fn background_purge_updates_the_page_before_recounts() -> Result<()> {
+    let (directory, mut app) = two_articles()?;
+    let path = directory.path().join("library.sqlite3");
+    let observer = Store::open(&path)?;
+    let target = app.current().context("Target")?.id;
+    observer.set_deleted(target, true)?;
+    app.set_view(View::Trash)?;
+    app.enable_background_navigation(&path)?;
+    settle_library(&mut app)?;
+    app.focus = Focus::Articles;
+    keys(&mut app, "dd")?;
+    settle_writes(&mut app)?;
+    assert!(observer.article(target).is_err());
+    assert!(app.current().is_none());
+    assert_eq!(app.page_total, 0);
+    assert!(app.catalog_pending());
+    settle_library(&mut app)?;
+    app.end_session()
+}
+
+#[test]
+fn trash_clean_works_from_other_views_and_refreshes_navigation() -> Result<()> {
+    let (directory, mut app) = two_articles()?;
+    let path = directory.path().join("library.sqlite3");
+    let observer = Store::open(&path)?;
+    let target = app.current().context("Target")?.id;
+    observer.set_deleted(target, true)?;
+    app.set_view(View::All)?;
+    app.enable_background_navigation(&path)?;
+    settle_library(&mut app)?;
+    command(&mut app, "trash clean")?;
+    settle_library(&mut app)?;
+    assert_eq!(app.view, View::All);
+    assert_eq!(app.page_total, 1);
+    assert!(observer.article(target).is_err());
+    assert_eq!(observer.view_count(&View::Trash)?, 0);
+    assert!(command(&mut app, "trash typo").is_err());
+    app.end_session()
+}
+
+#[test]
+fn failed_background_purge_keeps_the_trashed_row_visible() -> Result<()> {
+    let (directory, mut app) = two_articles()?;
+    let path = directory.path().join("library.sqlite3");
+    let observer = Store::open(&path)?;
+    let target = app.current().context("Target")?.id;
+    observer.set_deleted(target, true)?;
+    app.set_view(View::Trash)?;
+    rusqlite::Connection::open(&path)?.execute_batch(include_str!(
+        "../src/store/sql/deletion/test_reject_purge.sql"
+    ))?;
+    app.enable_background_navigation(&path)?;
+    settle_library(&mut app)?;
+    app.focus = Focus::Articles;
+    keys(&mut app, "dd")?;
+    let error = settle_writes(&mut app).err().context("Purge rejection")?;
+    assert!(error.to_string().contains("Controlled permanent deletion"));
+    assert_eq!(app.current().map(|item| item.id), Some(target));
+    assert_eq!(app.page_total, 1);
+    assert!(observer.is_deleted(target)?);
+    app.end_session()
+}

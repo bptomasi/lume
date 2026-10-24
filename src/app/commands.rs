@@ -92,7 +92,7 @@ impl App {
                 return Ok(action);
             }
         }
-        if let Some(action) = self.article_command(verb)? {
+        if let Some(action) = self.article_command(verb, argument)? {
             return Ok(action);
         }
         self.library_command(verb, argument)

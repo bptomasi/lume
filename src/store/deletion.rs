@@ -7,6 +7,8 @@
 use anyhow::{Result, ensure};
 use rusqlite::Transaction;
 
+pub(super) mod purge;
+
 use super::{
     Store,
     history::{self, Undo},

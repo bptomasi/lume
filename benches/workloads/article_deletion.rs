@@ -21,7 +21,9 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     synchronous(&mut app, &observer, iterations)?;
     app.enable_background_navigation(&path)?;
     asynchronous(&mut app, &observer, iterations)?;
-    app.end_session()
+    permanent(&mut app, &observer, iterations)?;
+    app.end_session()?;
+    batch_removal(iterations, if stress { 13_000 } else { 2000 })
 }
 
 fn seed(store: &mut Store, count: usize) -> Result<()> {
@@ -156,4 +158,88 @@ fn print_sample(name: &str, elapsed: Duration, iterations: usize) {
         "{name}: {iterations} iterations, {millis:.3} ms total, {:.3} ms/iteration",
         millis / iterations as f64
     );
+}
+
+fn permanent(app: &mut App, observer: &Store, iterations: usize) -> Result<()> {
+    let mut elapsed = Duration::ZERO;
+    let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
+    for _ in 0..iterations {
+        app.set_view(View::All)?;
+        settle(app)?;
+        let article = remove(app)?;
+        settle(app)?;
+        app.set_view(View::Trash)?;
+        settle(app)?;
+        let start = Instant::now();
+        ensure!(remove(app)? == article, "Wrong permanent deletion target");
+        while app.current().is_some() {
+            tick(app)?;
+            ensure!(start.elapsed() < Duration::from_secs(10), "Purge stalled");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+        elapsed += start.elapsed();
+        ensure!(
+            observer.article(article).is_err(),
+            "Purge was not committed"
+        );
+        settle(app)?;
+        ensure!(app.page_total == 0, "Purged article stayed in Trash");
+    }
+    print_sample("background Trash dd + committed frame", elapsed, iterations);
+    Ok(())
+}
+
+fn batch_removal(iterations: usize, count: usize) -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let base = directory.path().join("base.db");
+    let mut store = Store::open(&base)?;
+    seed(&mut store, count)?;
+    let feed = store.feeds()?.remove(0).id;
+    drop(store); // Last connection checkpoints WAL before cloning the fixture.
+    for trash in [true, false] {
+        let mut elapsed = Duration::ZERO;
+        for _ in 0..iterations {
+            let (_directory, store) = cloned_store(&base, trash)?;
+            let start = Instant::now();
+            if trash {
+                ensure!(
+                    store.clean_trash()? == count,
+                    "Trash cleanup lost rows"
+                );
+            } else {
+                store.unsubscribe(feed)?;
+            }
+            elapsed += start.elapsed();
+            ensure!(
+                store.library()?.articles.is_empty(),
+                "Source retained unsaved rows"
+            );
+            ensure!(store.view_count(&View::Trash)? == 0, "Trash not empty");
+            ensure!(!store.undo()?, "Cleanup created undo history");
+        }
+        let label = if trash {
+            "bulk Trash cleanup"
+        } else {
+            "feed removal + unsaved articles"
+        };
+        print_sample(label, elapsed, iterations);
+    }
+    Ok(())
+}
+
+fn cloned_store(
+    base: &std::path::Path,
+    trash: bool,
+) -> Result<(tempfile::TempDir, Store)> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("library.sqlite3");
+    std::fs::copy(base, &path)?;
+    let store = Store::open(&path)?;
+    if trash {
+        rusqlite::Connection::open(&path)?.execute_batch(include_str!(
+            "../../src/store/sql/deletion/bench_trash.sql"
+        ))?;
+    }
+    Ok((directory, store))
 }

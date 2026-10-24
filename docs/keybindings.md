@@ -24,9 +24,12 @@ motions act on readable text and preserve Unicode grapheme boundaries.
 
 Commands requiring an article or selection enforce their context. Notes cannot
 be created against a hidden article from an unrelated panel. `dd` uses the
-focused target; article deletion goes to recoverable Trash, while note deletion
-retains the note undo contract. Check `?` for counted motions, jump history,
-find commands, editor search, tags, study cards and command variants.
+focused target; article deletion goes to recoverable Trash. In Trash, `dd`
+permanently deletes the article and its notes; the first `d` shows the warning
+and `Esc` cancels. `:trash clean` permanently empties Trash. Neither permanent
+operation can be undone. Refreshes do not reimport purged publisher identities.
+Note deletion retains the note undo contract. Check `?` for counted motions,
+jump history, find commands, editor search, tags, study cards and variants.
 
 Clicking an article only selects its preview. Enter opens the Reader without
 marking it read. By default, automatic marking requires 90% cumulative
@@ -190,8 +193,14 @@ flow; spatial notation and display equations can use local vector outlines.
 In Library, `dd` removes the selected feed subscription or smart list.
 The two presses must refer to the same destination; Esc, another action or
 moving to another item cancels the pending removal. Autorepeat never confirms
-it. Cached articles and annotations stay saved. `:unfeed` and `:delete-smart`
-use the same definition-removal operations.
+it. Removing a server or using `:unfeed` also deletes its unsaved articles.
+Favorites, Read next, personal folders, notes/highlights, tags, drafts,
+exports and offline packages stay saved. Smart-list matches alone do not
+protect articles; deleted entries disappear from all matching queries.
+`:delete-smart` removes only the saved query and keeps its matching articles.
+Removing a server also removes its source references from smart lists. A list
+whose entire source scope was removed stays named and editable but matches
+nothing, rather than expanding into an unrestricted search.
 
 In `:settings`, Enter edits the selected theme or numeric value and toggles
 boolean switches. Enter applies a typed value to the live preview; Esc cancels

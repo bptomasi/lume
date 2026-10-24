@@ -1,4 +1,4 @@
-//! Connection edits retain cached feeds, articles and stable portable identity.
+//! Connection edits retain saved personal context and stable portable identity.
 
 use anyhow::{Result, ensure};
 
@@ -111,19 +111,22 @@ impl Store {
         Ok(())
     }
 
-    /// Archive the definition without deleting cached or personal data.
+    /// Remove a connection and unsaved articles, preserving personal context.
     ///
     /// # Errors
-    /// Rejects missing connections, smart-list/retention references or
-    /// SQLite failures; changes are atomic.
+    /// Rejects missing connections or SQLite failures; changes are atomic.
     pub fn remove_server(&self, id: i64) -> Result<()> {
         let transaction = self.write_transaction()?;
         ensure!(
             self.servers()?.iter().any(|server| server.id == id),
             "Server no longer exists"
         );
-        self.ensure_server_unreferenced(id)?;
-        self.ensure_retention_server_unreferenced(id)?;
+        self.forget_server_scopes(id)?;
+        self.forget_retention_server(id)?;
+        super::super::deletion::purge::source(
+            &transaction,
+            super::super::deletion::purge::Source::Server(id),
+        )?;
         transaction.execute_batch(include_str!(
             "../sql/servers/insert_bindings.sql"
         ))?;
@@ -139,23 +142,33 @@ impl Store {
         Ok(())
     }
 
-    fn ensure_server_unreferenced(&self, id: i64) -> Result<()> {
+    fn forget_server_scopes(&self, id: i64) -> Result<()> {
         let feeds = self
             .connection
             .prepare_cached(include_str!("../sql/servers/select_feed_ids.sql"))?
             .query_map([id], |row| row.get::<_, i64>(0))?
             .collect::<rusqlite::Result<std::collections::BTreeSet<_>>>()?;
         for list in self.smart_lists()? {
-            ensure!(
-                !list
-                    .filter
-                    .feed
-                    .iter()
-                    .chain(&list.filter.feeds)
-                    .any(|feed| feeds.contains(feed)),
-                "Server is used by smart list '{}'; pause it or remove its source restriction first",
-                list.name
-            );
+            let mut filter = list.filter.clone();
+            let single_removed =
+                filter.feed.is_some_and(|id| feeds.contains(&id));
+            let group_restricted = !filter.feeds.is_empty();
+            filter.feeds.retain(|id| !feeds.contains(id));
+            if single_removed {
+                filter.feed = None;
+            }
+            if single_removed || group_restricted && filter.feeds.is_empty() {
+                // An emptied source restriction must never become global.
+                // Keep the named list editable with an explicit empty query.
+                filter.text = if filter.text.is_empty() {
+                    "is:read AND is:unread".into()
+                } else {
+                    format!("({}) AND is:read AND is:unread", filter.text)
+                };
+            }
+            if filter != list.filter {
+                self.save_smart_list(&list.name, &filter)?;
+            }
         }
         Ok(())
     }

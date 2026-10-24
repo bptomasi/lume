@@ -2,6 +2,7 @@
 
 use anyhow::{Result, anyhow};
 
+use super::personal_tasks::{Deletion, DeletionOutcome, LibraryEdit};
 use super::{Action, App, Choice, ChoiceAction, Focus, View};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
@@ -29,30 +30,56 @@ impl App {
             self.status = "Select an article first".into();
             return Ok(true);
         };
-        if self.view == View::Trash {
-            self.status =
-                "Already in Trash · :restore-article restores it".into();
-        } else if self.pending_article_delete.take() == Some(article) {
-            self.change_article_deleted(article, true)?;
+        if self.pending_article_delete.take() == Some(article) {
+            self.confirm_article_deletion(article)?;
         } else {
             self.pending_article_delete = Some(article);
-            self.status =
-                "d again moves this article to Trash · Esc cancels".into();
+            self.status = if self.view == View::Trash {
+                "d again permanently deletes this article · cannot undo · Esc cancels"
+            } else {
+                "d again moves this article to Trash · Esc cancels"
+            }.into();
         }
         Ok(true)
+    }
+
+    fn confirm_article_deletion(&mut self, article: i64) -> Result<()> {
+        if self.view == View::Trash {
+            self.submit_library_edit(LibraryEdit::Delete(Deletion::Purge(
+                article,
+            )))?;
+            self.status = "Article permanently deleted · cannot undo".into();
+        } else {
+            self.change_article_deleted(article, true)?;
+        }
+        Ok(())
     }
 
     pub(super) fn article_command(
         &mut self,
         verb: &str,
+        argument: &str,
     ) -> Result<Option<Action>> {
         match verb {
             "delete-article" => self.set_selected_deleted(true)?,
             "restore-article" => self.set_selected_deleted(false)?,
-            "trash" => self.set_view(View::Trash)?,
+            "trash" => match argument {
+                "" => self.set_view(View::Trash)?,
+                "clean" => self.clean_trash()?,
+                _ => anyhow::bail!("Usage: :trash [clean]"),
+            },
             _ => return Ok(None),
         }
         Ok(Some(Action::None))
+    }
+
+    fn clean_trash(&mut self) -> Result<()> {
+        self.submit_library_edit(LibraryEdit::Delete(Deletion::CleanTrash))?;
+        self.status = "Trash cleanup requested · permanent deletion".into();
+        if self.personal_writes.is_none() {
+            self.status = "Trash emptied · cannot undo".into();
+        }
+        Ok(())
     }
 
     pub(super) fn set_selected_deleted(&mut self, deleted: bool) -> Result<()> {
@@ -68,9 +95,10 @@ impl App {
         article: i64,
         deleted: bool,
     ) -> Result<()> {
-        self.submit_library_edit(
-            super::personal_tasks::LibraryEdit::Deleted { article, deleted },
-        )?;
+        self.submit_library_edit(LibraryEdit::Delete(Deletion::Trash {
+            article,
+            deleted,
+        }))?;
         if self.retained_article == Some(article) {
             self.retained_article = None;
         }
@@ -87,6 +115,53 @@ impl App {
         article: i64,
         deleted: bool,
     ) -> Result<()> {
+        let status = if deleted {
+            "Article moved to Trash · u undo · :trash to restore"
+        } else {
+            "Article restored · u undo"
+        };
+        self.finish_article_removal(
+            article,
+            deleted != (self.view == View::Trash),
+            status,
+        )
+    }
+
+    pub(super) fn finish_deletion(
+        &mut self,
+        result: DeletionOutcome,
+    ) -> Result<()> {
+        match result {
+            DeletionOutcome::Trash { article, deleted } => {
+                self.finish_article_deletion(article, deleted)
+            }
+            DeletionOutcome::Purged(article) => {
+                self.finish_article_purge(article)
+            }
+            DeletionOutcome::Cleaned(count) => {
+                self.reload()?;
+                self.status = format!(
+                    "Trash emptied · {count} articles permanently deleted · cannot undo"
+                );
+                Ok(())
+            }
+        }
+    }
+
+    fn finish_article_purge(&mut self, article: i64) -> Result<()> {
+        self.finish_article_removal(
+            article,
+            true,
+            "Article permanently deleted · cannot undo",
+        )
+    }
+
+    fn finish_article_removal(
+        &mut self,
+        article: i64,
+        remove: bool,
+        status: &str,
+    ) -> Result<()> {
         // Commit acknowledgement owns visibility. Counts and the next source
         // can be expensive; neither is a prerequisite for removing this row.
         let checkpoint = self.save_reading_position();
@@ -99,7 +174,7 @@ impl App {
             && self.selection.is_none()
             && self.notebook.is_none()
         {
-            if deleted != (self.view == View::Trash) {
+            if remove {
                 self.remove_deleted_metadata(article);
             }
             if self.current().is_none() {
@@ -108,11 +183,7 @@ impl App {
         }
         self.refresh_catalog_page();
         self.request_catalog(super::catalog_worker::Scope::Counts);
-        self.status = if deleted {
-            "Article moved to Trash · u undo · :trash to restore".into()
-        } else {
-            "Article restored · u undo".into()
-        };
+        self.status = status.into();
         checkpoint
     }
 

@@ -1,0 +1,4 @@
+CREATE TEMP TABLE IF NOT EXISTS purge_articles (id INTEGER PRIMARY KEY);
+CREATE TEMP TABLE IF NOT EXISTS purge_notes (id INTEGER PRIMARY KEY);
+DELETE FROM temp.purge_articles;
+DELETE FROM temp.purge_notes;

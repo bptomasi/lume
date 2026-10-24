@@ -36,10 +36,13 @@ impl App {
         if self.pending_destination_delete.take().as_ref() == Some(&target) {
             self.remove_destination(target)?;
         } else {
+            let source = !matches!(target, View::Smart(_));
             self.pending_destination_delete = Some(target);
-            self.status =
-                "d again removes this feed, server or smart list · Esc cancels"
-                    .into();
+            self.status = if source {
+                "d again removes source + unsaved articles · cannot undo · Esc cancels"
+            } else {
+                "d again removes this smart list · Esc cancels"
+            }.into();
         }
         Ok(true)
     }
@@ -47,7 +50,7 @@ impl App {
     pub(super) fn finish_definition_removal(&mut self) -> Result<()> {
         self.reload()?;
         self.status =
-            "Library definition removed · articles and notes kept".into();
+            "Library item removed · saved articles and notes kept".into();
         Ok(())
     }
 
@@ -71,7 +74,8 @@ impl App {
             self.set_view(View::All)?;
         }
         self.persist_preferences()?;
-        self.status = format!("{label} removed · articles and notes kept");
+        self.status =
+            format!("{label} removed · saved articles and notes kept");
         Ok(())
     }
 }

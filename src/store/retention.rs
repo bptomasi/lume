@@ -86,23 +86,17 @@ impl Store {
         self.save_retention_policy(&policy)
     }
 
-    pub(super) fn ensure_retention_server_unreferenced(
-        &self,
-        id: i64,
-    ) -> Result<()> {
-        let policy = self.retention_policy()?;
+    pub(super) fn forget_retention_server(&self, id: i64) -> Result<()> {
+        let mut policy = self.retention_policy()?;
         if policy.sources.is_empty() {
             return Ok(());
         }
         if let Some(key) = self.retention_definition_key("server", id)? {
             let prefix = format!("server:{key}:");
-            ensure!(
-                !policy
-                    .sources
-                    .iter()
-                    .any(|source| source.id.starts_with(&prefix)),
-                "Server has retention overrides; remove them or pause the server first"
-            );
+            policy
+                .sources
+                .retain(|source| !source.id.starts_with(&prefix));
+            self.save_retention_policy(&policy)?;
         }
         Ok(())
     }

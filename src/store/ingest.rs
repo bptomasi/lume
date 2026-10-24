@@ -99,13 +99,20 @@ impl Store {
         )?)
     }
 
-    /// Disable collection without deleting cached articles or annotations.
+    /// Remove a subscription and its unsaved cached articles atomically.
+    /// Personal folders, favorites, notes and other explicit saves survive.
     ///
     /// # Errors
     /// Returns SQLite errors.
     pub fn unsubscribe(&self, id: i64) -> Result<()> {
-        self.connection
-            .execute("UPDATE feeds SET enabled = 0 WHERE id = ?1", [id])?;
+        let transaction = self.write_transaction()?;
+        super::deletion::purge::source(
+            &transaction,
+            super::deletion::purge::Source::Feed(id),
+        )?;
+        transaction
+            .execute(include_str!("sql/deletion/archive_feed.sql"), [id])?;
+        transaction.commit()?;
         Ok(())
     }
 

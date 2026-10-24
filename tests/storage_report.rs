@@ -96,6 +96,7 @@ fn detailed_accounting_measures_utf8_fts_and_archived_sources_without_writes()
         lume::source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
     parsed.articles[0].body = "á漢字 text".into();
     store.ingest(&feed, &feed.title, &parsed.articles)?;
+    store.set_starred(store.library()?.articles[0].id, true)?;
     store.unsubscribe(feed.id)?;
     let details = storage::details::inspect(&store)?;
     assert_eq!(details.sources.len(), 1);

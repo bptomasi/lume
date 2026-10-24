@@ -153,9 +153,7 @@ impl App {
                     changes,
                 ));
             }
-            Outcome::Deleted { article, deleted } => {
-                self.finish_article_deletion(article, deleted)?;
-            }
+            Outcome::Deleted(result) => self.finish_deletion(result)?,
             Outcome::Collections => self.invalidate_notebook(),
             Outcome::Definitions => self.finish_definition_removal()?,
             Outcome::SearchHistory(history) => {

@@ -187,8 +187,8 @@ const COMMANDS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "trash",
-        usage: "trash",
-        description: "Browse deleted articles and restore them",
+        usage: "trash [clean]",
+        description: "Browse Trash; clean permanently deletes all its articles",
         aliases: &[],
     },
     CommandSpec {
@@ -296,7 +296,7 @@ const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         name: "unserver",
         usage: "unserver",
-        description: "Remove the selected server connection; retain articles and notes",
+        description: "Remove the server and unsaved articles; keep personal saves",
         aliases: &[],
     },
     CommandSpec {
@@ -320,7 +320,7 @@ const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         name: "unfeed",
         usage: "unfeed",
-        description: "Disable the selected feed; retain cached articles",
+        description: "Remove the feed and unsaved articles; keep personal saves",
         aliases: &[],
     },
     CommandSpec {

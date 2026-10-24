@@ -11,6 +11,9 @@ use crate::model::{Collection, Comment};
 
 use super::Store;
 
+mod purge;
+pub(super) use purge::forget_articles;
+
 #[derive(Serialize, Deserialize)]
 pub(super) enum Undo {
     Annotation(Box<crate::model::AnnotationSnapshot>),

@@ -205,8 +205,10 @@
   :read           Automatic Read folder; unread articles leave it
   s / :queue      Toggle queue membership / open Read next
   dd              In Articles: move the selected article to Trash; u undoes
+                  In Trash: permanently delete it, including notes; cannot undo
   D / Delete      Move article to Trash; :restore-article restores it
   :trash          Deleted articles remain recoverable with u
+  :trash clean    Permanently empty Trash, including notes; cannot undo
   :pin            Pin/unpin selected sidebar destination
   :move-up / :move-down    Customize sidebar order
   :server URL TOKEN_ENV                 Add a Miniflux connection
@@ -215,8 +217,8 @@
   :servers                              Inspect connections and errors
   :server-history Restart history for the selected server; refresh resumes it
   :server-enable / :server-disable       Resume / pause selected server
-  :unserver                             Remove selected connection; keep articles
-  dd on a server                        Remove connection; keep articles and notes
+  :unserver                             Remove connection and unsaved articles
+  dd on a server                        Same; saved articles and notes survive
   Library section titles: click or select with j/k and Enter to fold/unfold
   :collapse feeds|servers|lists|folders|pinned    Fold/unfold a sidebar group
   :tags NAME... / :highlight-tags NAME...    Independent tags
@@ -237,7 +239,7 @@
 
   ── SOURCES AND ARTICLE EXTRACTION ──────────────────────────────────
   :feed URL / :discover URL    Subscribe / discover an advertised feed
-  :unfeed         Archive subscription, preserving articles and notes
+  :unfeed         Remove subscription and unsaved articles; keep personal saves
   r / :refresh    Update sources in the background
   :source-health  Last attempt/success, error, retry deadline and rule
   :fetch          Retrieve the original article without blocking reading

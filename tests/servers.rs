@@ -382,7 +382,8 @@ fn verify_restored_scope(
 }
 
 #[test]
-fn removing_a_referenced_server_preserves_the_configuration() -> Result<()> {
+fn removing_a_referenced_server_keeps_its_list_empty_and_configuration_valid()
+-> Result<()> {
     let (directory, store, id) = remote_library()?;
     let path = directory.path().join("config.toml");
     let session = config::Session::open(&store, &path)?;
@@ -391,25 +392,22 @@ fn removing_a_referenced_server_preserves_the_configuration() -> Result<()> {
         "Remote scope",
         &lume::model::SmartFilter {
             feeds: vec![feed],
+            text: "body:rust".into(),
             ..Default::default()
         },
     )?;
     session.flush()?;
-    let original = std::fs::read_to_string(&path)?;
-    let error = store
-        .remove_server(id)
-        .err()
-        .context("Referenced removal")?;
-    assert!(error.to_string().contains("Remote scope"));
-    assert!(store.servers()?[0].enabled);
-    session.flush()?;
-    assert_eq!(std::fs::read_to_string(&path)?, original);
-    store.set_server_enabled(id, false)?;
-    session.flush()?;
-    store.save_smart_list("Remote scope", &Default::default())?;
     store.remove_server(id)?;
     session.flush()?;
     assert!(store.servers()?.is_empty());
+    let configuration = config::read_document(&path)?;
+    assert!(configuration.servers.is_empty());
+    assert_eq!(configuration.smart_lists.len(), 1);
+    let list = store.smart_lists()?.remove(0);
+    assert_eq!(list.name, "Remote scope");
+    assert!(list.filter.feeds.is_empty());
+    assert!(list.filter.text.contains("body:rust"));
+    assert_eq!(store.view_count(&View::Smart(list.id))?, 0);
     assert!(
         store
             .save_smart_list(
@@ -421,6 +419,38 @@ fn removing_a_referenced_server_preserves_the_configuration() -> Result<()> {
             )
             .is_err()
     );
+    Ok(())
+}
+
+#[test]
+fn removing_one_server_keeps_other_smart_list_sources() -> Result<()> {
+    let (directory, store, id) = remote_library()?;
+    let remote = remote_feed_id(&store)?;
+    let local = store
+        .feeds()?
+        .into_iter()
+        .find(|feed| feed.server.is_none())
+        .context("Local source")?
+        .id;
+    store.save_smart_list(
+        "Mixed",
+        &lume::model::SmartFilter {
+            feeds: vec![remote, local],
+            ..Default::default()
+        },
+    )?;
+    let path = directory.path().join("config.toml");
+    let session = config::Session::open(&store, &path)?;
+    store.remove_server(id)?;
+    session.flush()?;
+    let lists = store.smart_lists()?;
+    let mixed = lists
+        .iter()
+        .find(|list| list.name == "Mixed")
+        .context("Mixed")?;
+    assert_eq!(mixed.filter.feeds, vec![local]);
+    assert!(mixed.filter.text.is_empty());
+    config::read_document(&path)?;
     Ok(())
 }
 

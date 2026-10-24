@@ -16,6 +16,47 @@ struct Fixture {
 }
 
 impl Fixture {
+    fn ingest_distinct(
+        &mut self,
+        titles: &[&str],
+    ) -> Result<Vec<IncomingArticle>> {
+        let entries = titles
+            .iter()
+            .enumerate()
+            .map(|(index, title)| {
+                let mut entry =
+                    article(&format!("miniflux:{}", index + 1), title);
+                entry.url =
+                    format!("https://publisher.example/article/{index}");
+                entry
+            })
+            .collect::<Vec<_>>();
+        self.store.ingest_remote(
+            &self.feed,
+            "Journal",
+            &entries,
+            &update(
+                self.server_id,
+                RemoteArticleState {
+                    unread: true,
+                    starred: false,
+                },
+                100,
+            ),
+        )?;
+        Ok(entries)
+    }
+
+    fn article_id(&self, title: &str) -> Result<i64> {
+        self.store
+            .library()?
+            .articles
+            .iter()
+            .find(|item| item.title == title)
+            .map(|item| item.id)
+            .ok_or_else(|| anyhow::anyhow!("Missing fixture: {title}"))
+    }
+
     fn expire_unread(&self, article: i64) -> Result<()> {
         self.store.connection.execute(
             include_str!("../sql/test_age_retention.sql"),
@@ -360,6 +401,85 @@ fn removing_and_reconnecting_a_server_preserves_remote_notes() -> Result<()> {
 }
 
 #[test]
+fn removing_a_server_purges_unsaved_articles_and_keeps_favorites_and_notes()
+-> Result<()> {
+    let mut fixture = mirrored_store()?;
+    let entries =
+        fixture.ingest_distinct(&["Disposable", "Favorite", "Annotated"])?;
+    let remote = update(
+        fixture.server_id,
+        RemoteArticleState {
+            unread: true,
+            starred: false,
+        },
+        100,
+    );
+    let disposable = fixture.article_id("Disposable")?;
+    let favorite = fixture.article_id("Favorite")?;
+    let annotated = fixture.article_id("Annotated")?;
+    fixture.store.set_starred(favorite, true)?;
+    fixture.store.save_comment(annotated, None, "My note")?;
+    fixture
+        .store
+        .save_smart_list("Everything", &Default::default())?;
+    let list = fixture.store.smart_lists()?.remove(0).id;
+    fixture.store.remove_server(fixture.server_id)?;
+    assert!(fixture.store.article(disposable).is_err());
+    assert!(fixture.store.article(favorite)?.starred);
+    assert_eq!(fixture.store.comments(annotated)?.len(), 1);
+    assert_eq!(
+        fixture.store.view_count(&crate::model::View::Smart(list))?,
+        2
+    );
+    fixture
+        .store
+        .add_server("https://reader.example", "TOKEN")?;
+    fixture
+        .store
+        .ingest_remote(&fixture.feed, "Journal", &entries, &remote)?;
+    assert_eq!(fixture.store.view_count(&crate::model::View::All)?, 2);
+    Ok(())
+}
+
+#[test]
+fn failed_source_removal_rolls_back_article_cleanup_and_source_scopes()
+-> Result<()> {
+    let mut fixture = mirrored_store()?;
+    fixture.store.ingest_remote(
+        &fixture.feed,
+        "Journal",
+        &[article("miniflux:1", "Disposable")],
+        &update(
+            fixture.server_id,
+            RemoteArticleState {
+                unread: true,
+                starred: false,
+            },
+            100,
+        ),
+    )?;
+    fixture.store.save_smart_list(
+        "Scoped",
+        &crate::model::SmartFilter {
+            feed: Some(fixture.feed.id),
+            ..Default::default()
+        },
+    )?;
+    fixture
+        .store
+        .connection
+        .execute_batch(include_str!("../sql/deletion/test_reject_purge.sql"))?;
+    assert!(fixture.store.remove_server(fixture.server_id).is_err());
+    assert!(fixture.store.servers()?[0].enabled);
+    assert_eq!(fixture.store.library()?.articles.len(), 1);
+    assert_eq!(
+        fixture.store.smart_lists()?[0].filter.feed,
+        Some(fixture.feed.id)
+    );
+    Ok(())
+}
+
+#[test]
 fn partial_sync_cursors_survive_storage_and_complete_without_losing_watermark()
 -> Result<()> {
     let mut fixture = mirrored_store()?;
@@ -472,8 +592,8 @@ fn retention_tombstones_keep_remote_aliases_removed_after_publisher_changes()
 }
 
 #[test]
-fn removing_a_server_rejects_retention_references_without_partial_changes()
--> Result<()> {
+fn removing_a_server_removes_its_retention_references_atomically() -> Result<()>
+{
     let fixture = mirrored_store()?;
     let key = fixture.store.capture_configuration()?.servers[0].id.clone();
     let mut policy = crate::config::retention::Retention::default();
@@ -485,15 +605,10 @@ fn removing_a_server_rejects_retention_references_without_partial_changes()
         unread_days: None,
     });
     fixture.store.save_retention_policy(&policy)?;
-    assert!(fixture.store.remove_server(fixture.server_id).is_err());
-    assert!(fixture.store.servers()?[0].enabled);
-    assert_eq!(fixture.store.capture_configuration()?.retention, policy);
-    fixture.store.set_server_enabled(fixture.server_id, false)?;
-    assert!(!fixture.store.servers()?[0].enabled);
-    policy.sources.clear();
-    fixture.store.save_retention_policy(&policy)?;
     fixture.store.remove_server(fixture.server_id)?;
     assert!(fixture.store.servers()?.is_empty());
+    policy.sources.clear();
+    assert_eq!(fixture.store.capture_configuration()?.retention, policy);
     Ok(())
 }
 
