@@ -45,7 +45,8 @@ fn reference_pages(
     iterations: usize,
 ) -> Result<()> {
     let sql = format!(
-        "WITH candidates AS (SELECT a.id FROM articles AS a WHERE a.deleted = 0), matching AS MATERIALIZED ({})\n{}\n{}",
+        "WITH candidates AS ({}), matching AS MATERIALIZED ({})\n{}\n{}",
+        include_str!("../../src/store/sql/query/benchmark_candidates.sql"),
         include_str!("../../src/store/sql/query/benchmark_offset.sql"),
         include_str!("../../src/store/sql/select_article_metadata.sql"),
         include_str!("../../src/store/sql/select_page.sql")

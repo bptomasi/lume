@@ -87,6 +87,7 @@ check:
 		tools/bench_support.py tools/bench_recommendations.py tools/bench_images.py \
 		tools/qualify_foot.py tools/foot_terminal.py tools/bench_interaction.py \
 		tools/terminal_latency.py tools/latency_fixture.py tools/qualify_latency.py \
+		tools/bench_discovery.py \
 		tools/bench_code.py tools/bench_configuration.py tools/bench_reading.py \
 		tools/advisories.py tools/dependency_inventory.py tools/visual_dependencies.py \
 		tools/package_release.py tools/publish_release.py tools/qualify_wayland.py

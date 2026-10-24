@@ -1,0 +1,1937 @@
+{
+  "date": "2026-10-24",
+  "code_revision": "89123c6fe35316e449a0bfe20ff3af59ee70a0e4",
+  "baseline_revision": "1fa0935788e3d68e1b23d0fbc501866c5ed65cd5",
+  "toolchain": "1.99.1",
+  "method": {
+    "profile": "release; thin LTO; one codegen unit; pinned Rust; build jobs 2",
+    "image_processes_per_version_per_size": 3,
+    "image_iterations_per_process": 4,
+    "order": "Alternating before/after processes, reversed middle pair. No compilation or other qualification ran during measurements.",
+    "page_processes_per_size": 3,
+    "page_iterations_per_process": 40,
+    "page_reference": "SQL equivalent to the former OFFSET/recount path with identical metadata decoding; selected IDs, page lengths and totals checked on every iteration.",
+    "storage": "Fresh controlled Feed bodies of 2080 bytes; 2000 and 13000 articles. Each of eight diagnostics validates exact source and FTS bytes; no personal library was inspected.",
+    "discovery": "Three independent runs per binary; 100 quiet Miniflux feeds, one publisher, one other server delaying discovery by 800 ms. First successful feed persistence polled via existing owner SQL every 2 ms. Setup/adoption excluded; timing begins just after process launch.",
+    "limits": [
+      "Synthetic single-machine fixtures do not establish end-to-end latency for every library/network.",
+      "Page hints invalidate on any database revision; ranked/grouped/recommended ordering and direct jumps retain OFFSET fallback.",
+      "Cancellation is cooperative: third-party parsing, fitting and quantization calls finish before their next checkpoint.",
+      "Image preparation medians range from small improvements to small regressions; no direct encoding speedup is claimed.",
+      "Cache accounting is conservative and excludes separately bounded decoder sources and transient encoder pixels.",
+      "Global Miniflux batching was investigated and remains disabled pending an account-wide cursor design; implemented collection remains per feed."
+    ],
+    "benchmark_source": "SQL reference fragments were relocated to the owning sql/ directory before the final benchmark build; the source checksums below identify the measured harness."
+  },
+  "hashes": {
+    "before_app": "a6a1ca5d18b1ed8fd3af77fec67493a2945f2de9f36b78e14bce3a1475cef5ad",
+    "after_app": "8322e57eeca4be1ded30328e4747bbbc2b8e73b9095142dc46ebdead7684b3dc",
+    "before_benchmark": "688f2a0fa21327a43e554a5606dd90c7e06a8264e0e48e8811b6afe4c395f128",
+    "after_benchmark": "c795186db4eefcea18e296757f8c69c70ada60d5ddf03df3901fb45fd79b4199"
+  },
+  "pagination": [
+    {
+      "articles": 10000,
+      "offset": 9000,
+      "articles_per_page": 100,
+      "pages_per_iteration": 4,
+      "median_process_means_ms": {
+        "cached totals + adjacent keyset pages": 0.451,
+        "OFFSET + exact recount + metadata reference": 12.582
+      }
+    },
+    {
+      "articles": 100000,
+      "offset": 99000,
+      "articles_per_page": 100,
+      "pages_per_iteration": 4,
+      "median_process_means_ms": {
+        "cached totals + adjacent keyset pages": 1.397,
+        "OFFSET + exact recount + metadata reference": 153.84
+      }
+    }
+  ],
+  "discovery_summary": [
+    {
+      "version": "before",
+      "first_source_median_ms": 815.9377200063318,
+      "fast_sources_median_ms": 831.6521560191177,
+      "total_median_ms": 834.9483970087022,
+      "all_runs_fast_before_slow_reply": false,
+      "healthy_sources": 101,
+      "http_requests": 103
+    },
+    {
+      "version": "after",
+      "first_source_median_ms": 14.674650970846415,
+      "fast_sources_median_ms": 27.75075304089114,
+      "total_median_ms": 816.2357700057328,
+      "all_runs_fast_before_slow_reply": true,
+      "healthy_sources": 101,
+      "http_requests": 103
+    }
+  ],
+  "image_summary": [
+    {
+      "stress": false,
+      "operation": "inspector SVG text + Sixel",
+      "before_ms": 7.54,
+      "after_ms": 7.244,
+      "change_percent": -3.926
+    },
+    {
+      "stress": false,
+      "operation": "inspector antialiased edges + Sixel",
+      "before_ms": 19.948,
+      "after_ms": 20.608,
+      "change_percent": 3.309
+    },
+    {
+      "stress": false,
+      "operation": "inspector exact-color raster + Sixel",
+      "before_ms": 2.69,
+      "after_ms": 2.717,
+      "change_percent": 1.004
+    },
+    {
+      "stress": false,
+      "operation": "inspector high-entropy detail + Sixel",
+      "before_ms": 97.972,
+      "after_ms": 97.589,
+      "change_percent": -0.391
+    },
+    {
+      "stress": false,
+      "operation": "inspector photographic gradient + Sixel",
+      "before_ms": 34.1,
+      "after_ms": 34.5,
+      "change_percent": 1.173
+    },
+    {
+      "stress": true,
+      "operation": "inspector SVG text + Sixel",
+      "before_ms": 63.313,
+      "after_ms": 64.121,
+      "change_percent": 1.276
+    },
+    {
+      "stress": true,
+      "operation": "inspector antialiased edges + Sixel",
+      "before_ms": 72.198,
+      "after_ms": 72.786,
+      "change_percent": 0.814
+    },
+    {
+      "stress": true,
+      "operation": "inspector exact-color raster + Sixel",
+      "before_ms": 42.81,
+      "after_ms": 42.386,
+      "change_percent": -0.99
+    },
+    {
+      "stress": true,
+      "operation": "inspector high-entropy detail + Sixel",
+      "before_ms": 217.843,
+      "after_ms": 217.75,
+      "change_percent": -0.043
+    },
+    {
+      "stress": true,
+      "operation": "inspector photographic gradient + Sixel",
+      "before_ms": 89.847,
+      "after_ms": 90.746,
+      "change_percent": 1.001
+    }
+  ],
+  "workload_records": [
+    {
+      "version": "before",
+      "flag": "--inspector-loading-only",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 2.69
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 7.297
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 34.926
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 97.972
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 19.758
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 10.761 ms total, 2.690 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 29.188 ms total, 7.297 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 139.705 ms total, 34.926 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 391.890 ms total, 97.972 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 79.031 ms total, 19.758 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--inspector-loading-only",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 4.285
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 6.913
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 34.5
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 97.589
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 20.608
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 17.141 ms total, 4.285 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 27.652 ms total, 6.913 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 138.000 ms total, 34.500 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 390.355 ms total, 97.589 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 82.430 ms total, 20.608 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--inspector-loading-only",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 2.717
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 7.582
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 33.699
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 100.658
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 21.661
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 10.867 ms total, 2.717 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 30.328 ms total, 7.582 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 134.797 ms total, 33.699 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 402.630 ms total, 100.658 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 86.644 ms total, 21.661 ms/iteration\n"
+    },
+    {
+      "version": "before",
+      "flag": "--inspector-loading-only",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 2.78
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 7.873
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 33.6
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 99.689
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 20.628
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 11.119 ms total, 2.780 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 31.494 ms total, 7.873 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 134.400 ms total, 33.600 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 398.756 ms total, 99.689 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 82.511 ms total, 20.628 ms/iteration\n"
+    },
+    {
+      "version": "before",
+      "flag": "--inspector-loading-only",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 2.6
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 7.54
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 34.1
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 97.727
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 19.948
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 10.400 ms total, 2.600 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 30.159 ms total, 7.540 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 136.400 ms total, 34.100 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 390.909 ms total, 97.727 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 79.794 ms total, 19.948 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--inspector-loading-only",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 2.583
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 7.244
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 34.546
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 95.682
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 20.582
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 10.331 ms total, 2.583 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 28.976 ms total, 7.244 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 138.186 ms total, 34.546 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 382.727 ms total, 95.682 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 82.327 ms total, 20.582 ms/iteration\n"
+    },
+    {
+      "version": "before",
+      "flag": "--inspector-loading-only",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 39.453
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 62.201
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 91.74
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 218.738
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 75.946
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 157.813 ms total, 39.453 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 248.803 ms total, 62.201 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 366.961 ms total, 91.740 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 874.951 ms total, 218.738 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 303.783 ms total, 75.946 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--inspector-loading-only",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 44.238
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 67.777
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 92.317
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 230.167
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 72.786
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 176.952 ms total, 44.238 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 271.108 ms total, 67.777 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 369.269 ms total, 92.317 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 920.668 ms total, 230.167 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 291.143 ms total, 72.786 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--inspector-loading-only",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 42.386
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 64.121
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 90.746
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 217.75
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 71.837
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 169.545 ms total, 42.386 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 256.484 ms total, 64.121 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 362.985 ms total, 90.746 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 871.000 ms total, 217.750 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 287.347 ms total, 71.837 ms/iteration\n"
+    },
+    {
+      "version": "before",
+      "flag": "--inspector-loading-only",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 42.81
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 64.67
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 89.847
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 217.843
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 72.198
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 171.239 ms total, 42.810 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 258.678 ms total, 64.670 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 359.390 ms total, 89.847 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 871.374 ms total, 217.843 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 288.794 ms total, 72.198 ms/iteration\n"
+    },
+    {
+      "version": "before",
+      "flag": "--inspector-loading-only",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 44.49
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 63.313
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 89.471
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 209.479
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 70.642
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 177.959 ms total, 44.490 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 253.252 ms total, 63.313 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 357.884 ms total, 89.471 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 837.914 ms total, 209.479 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 282.569 ms total, 70.642 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--inspector-loading-only",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "inspector exact-color raster + Sixel",
+          "iterations": 4,
+          "mean_ms": 39.548
+        },
+        {
+          "operation": "inspector SVG text + Sixel",
+          "iterations": 4,
+          "mean_ms": 61.689
+        },
+        {
+          "operation": "inspector photographic gradient + Sixel",
+          "iterations": 4,
+          "mean_ms": 89.117
+        },
+        {
+          "operation": "inspector high-entropy detail + Sixel",
+          "iterations": 4,
+          "mean_ms": 216.916
+        },
+        {
+          "operation": "inspector antialiased edges + Sixel",
+          "iterations": 4,
+          "mean_ms": 74.461
+        }
+      ],
+      "stdout": "inspector exact-color raster + Sixel: 4 iterations, 158.192 ms total, 39.548 ms/iteration\ninspector SVG text + Sixel: 4 iterations, 246.758 ms total, 61.689 ms/iteration\ninspector photographic gradient + Sixel: 4 iterations, 356.469 ms total, 89.117 ms/iteration\ninspector high-entropy detail + Sixel: 4 iterations, 867.666 ms total, 216.916 ms/iteration\ninspector antialiased edges + Sixel: 4 iterations, 297.845 ms total, 74.461 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--page-navigation-only",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 12.582
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 0.436
+        }
+      ],
+      "stdout": "deep pagination · articles=10000 · offset=9000\nOFFSET + exact recount + metadata reference: 40 iterations, 503.281 ms total, 12.582 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 17.432 ms total, 0.436 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--page-navigation-only",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 12.585
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 0.451
+        }
+      ],
+      "stdout": "deep pagination · articles=10000 · offset=9000\nOFFSET + exact recount + metadata reference: 40 iterations, 503.381 ms total, 12.585 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 18.052 ms total, 0.451 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--page-navigation-only",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 12.261
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 0.458
+        }
+      ],
+      "stdout": "deep pagination · articles=10000 · offset=9000\nOFFSET + exact recount + metadata reference: 40 iterations, 490.424 ms total, 12.261 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 18.310 ms total, 0.458 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--storage-details-only",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "source/table/FTS snapshot diagnostics",
+          "iterations": 8,
+          "mean_ms": 6.894
+        }
+      ],
+      "stdout": "storage diagnostics · articles=2000 · publisher bytes=4160000\nFTS duplication: {\"publisher_body_bytes\":4160000,\"fts_body_ratio\":1.0,\"fts_content_allocated_bytes\":8216576,\"fts_other_allocated_bytes\":675840}\nsource/table/FTS snapshot diagnostics: 8 iterations, 55.151 ms total, 6.894 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--page-navigation-only",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 151.978
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 1.398
+        }
+      ],
+      "stdout": "deep pagination · articles=100000 · offset=99000\nOFFSET + exact recount + metadata reference: 40 iterations, 6079.113 ms total, 151.978 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 55.902 ms total, 1.398 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--page-navigation-only",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 153.84
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 1.397
+        }
+      ],
+      "stdout": "deep pagination · articles=100000 · offset=99000\nOFFSET + exact recount + metadata reference: 40 iterations, 6153.581 ms total, 153.840 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 55.869 ms total, 1.397 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--page-navigation-only",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 156.649
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 1.259
+        }
+      ],
+      "stdout": "deep pagination · articles=100000 · offset=99000\nOFFSET + exact recount + metadata reference: 40 iterations, 6265.962 ms total, 156.649 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 50.346 ms total, 1.259 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--storage-details-only",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "source/table/FTS snapshot diagnostics",
+          "iterations": 8,
+          "mean_ms": 51.928
+        }
+      ],
+      "stdout": "storage diagnostics · articles=13000 · publisher bytes=27040000\nFTS duplication: {\"publisher_body_bytes\":27040000,\"fts_body_ratio\":1.0,\"fts_content_allocated_bytes\":53370880,\"fts_other_allocated_bytes\":4222976}\nsource/table/FTS snapshot diagnostics: 8 iterations, 415.421 ms total, 51.928 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "flag": "--query-editing-only",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "query cursor round trip + cached frame",
+          "iterations": 800,
+          "mean_ms": 0.193
+        },
+        {
+          "operation": "replaceable views: newest page and reader delivery",
+          "iterations": 8,
+          "mean_ms": 4.196
+        }
+      ],
+      "stdout": "query editing input · articles=20000 · matches=20000\nquery cursor round trip + cached frame: 800 iterations, 154.563 ms total, 0.193 ms/iteration\nreplaceable views: newest page and reader delivery: 8 iterations, 33.572 ms total, 4.196 ms/iteration\n"
+    }
+  ],
+  "discovery_records": [
+    {
+      "version": "before",
+      "first_source_ms": 815.9377200063318,
+      "fast_sources_ms": 831.6521560191177,
+      "fast_complete_before_slow_reply": false,
+      "total_ms": 834.1251100064255,
+      "healthy_sources": 101,
+      "http_requests": 103
+    },
+    {
+      "version": "after",
+      "first_source_ms": 16.931189980823547,
+      "fast_sources_ms": 31.50260599795729,
+      "fast_complete_before_slow_reply": true,
+      "total_ms": 817.7567209932022,
+      "healthy_sources": 101,
+      "http_requests": 103
+    },
+    {
+      "version": "after",
+      "first_source_ms": 14.674650970846415,
+      "fast_sources_ms": 26.782135013490915,
+      "fast_complete_before_slow_reply": true,
+      "total_ms": 816.2357700057328,
+      "healthy_sources": 101,
+      "http_requests": 103
+    },
+    {
+      "version": "before",
+      "first_source_ms": 816.7518600239418,
+      "fast_sources_ms": 834.1830489807762,
+      "fast_complete_before_slow_reply": false,
+      "total_ms": 838.7556860106997,
+      "healthy_sources": 101,
+      "http_requests": 103
+    },
+    {
+      "version": "before",
+      "first_source_ms": 813.3067209855653,
+      "fast_sources_ms": 830.43401298346,
+      "fast_complete_before_slow_reply": false,
+      "total_ms": 834.9483970087022,
+      "healthy_sources": 101,
+      "http_requests": 103
+    },
+    {
+      "version": "after",
+      "first_source_ms": 12.315775034949183,
+      "fast_sources_ms": 27.75075304089114,
+      "fast_complete_before_slow_reply": true,
+      "total_ms": 815.4832110158168,
+      "healthy_sources": 101,
+      "http_requests": 103
+    }
+  ],
+  "foot": {
+    "passed": true,
+    "before": {
+      "geometry": {
+        "columns": 120,
+        "rows": 40,
+        "cell_pixels": [
+          10,
+          19
+        ]
+      },
+      "welcome": {
+        "native_pixel_art": true,
+        "entry_key_consumed": true
+      },
+      "decoded_strips": [
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "3150d20a682b16eb03bf420ddd49d9997f49cc42c738f098399c46dc3cc47c0d"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "3150d20a682b16eb03bf420ddd49d9997f49cc42c738f098399c46dc3cc47c0d"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "04afb11e4879d17bc34b512c98b42fd5c2503a00d4774b59bdc91642e9acd6f0"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "18a730238f956b894302bbb1dded46a61ce7986ef0ea56159d9d4c444105a912"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "0ea126f99fcc22dfec3bfe5a9b10ebba90ffe5a5d47d804edf55ed33e034cce1"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "3738f2f004dbaa0b142644ef39643f756ab3d7e0418dfe9833027504b509382c"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "4b3f531211e649eefde27783d594eff72f68a2ce8c783111df55bbbb7991f89b"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "bc227ac2ded9fce5a2b9a24cdf5b592039d86e770829513fcaeb78fa1118c590"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "18a730238f956b894302bbb1dded46a61ce7986ef0ea56159d9d4c444105a912"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "9df983955684401a9efa7b4b338144c8bba21eb0006d016de666addebb40cc35"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "3150d20a682b16eb03bf420ddd49d9997f49cc42c738f098399c46dc3cc47c0d"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "3150d20a682b16eb03bf420ddd49d9997f49cc42c738f098399c46dc3cc47c0d"
+        }
+      ],
+      "scroll_rows": [
+        [
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28
+        ],
+        [
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
+        ],
+        [
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        [
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ],
+        [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23
+        ],
+        [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        ],
+        [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20
+        ],
+        [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        ],
+        [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23
+        ],
+        [
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ],
+        [
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        [
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
+        ],
+        [
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27
+        ],
+        [
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28
+        ]
+      ],
+      "selection": {
+        "keyboard": [
+          {
+            "mode": "v",
+            "rows": [
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ]
+            ]
+          },
+          {
+            "mode": "V",
+            "rows": [
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ]
+            ]
+          }
+        ],
+        "mouse_down_scroll": [
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ]
+        ]
+      },
+      "reader_aliases": {
+        "keys": "ggIVvAy",
+        "yank": "Request ownership",
+        "host_clipboard": "disabled"
+      },
+      "help_search": {
+        "live_query": "resize",
+        "next_previous": true,
+        "escape_clears_first": true,
+        "unicode_formula": true
+      },
+      "inspector": {
+        "fit": [
+          [
+            1160,
+            348
+          ]
+        ],
+        "zoom": [
+          [
+            1160,
+            646
+          ]
+        ],
+        "reopened_after_scroll": [
+          [
+            [
+              1160,
+              348
+            ]
+          ],
+          [
+            [
+              1160,
+              348
+            ]
+          ],
+          [
+            [
+              1160,
+              348
+            ]
+          ]
+        ]
+      },
+      "reading_services": {
+        "linked_text_view": true,
+        "back_restores_images": true,
+        "diagnostics_opt_in": true
+      },
+      "preferences": {
+        "formula_policies": [
+          {
+            "enabled": false,
+            "visible": "$R{\\mathcal{I}}=\\text{Combine}\\circ\\text{Disintegrate}$",
+            "copied": "$R{\\mathcal{I}}=\\text{Combine}\\circ\\text{Disintegrate}$"
+          },
+          {
+            "enabled": true,
+            "visible": "Rℐ = Combine ∘ Disintegrate",
+            "copied": "Rℐ = Combine ∘ Disintegrate"
+          }
+        ],
+        "settings_enter_edit_ctrl_s_save": true
+      },
+      "graphic_formulas": {
+        "decoded_formula_images": [
+          {
+            "width": 49,
+            "height": 38
+          },
+          {
+            "width": 115,
+            "height": 38
+          }
+        ],
+        "inspector_zoom": true,
+        "original_latex_copy": true,
+        "returns_to_text": true
+      },
+      "cleanup": {
+        "returncode": 0,
+        "termios_restored": true
+      },
+      "publisher_content_preserved": true,
+      "passed": true,
+      "binary_sha256": "a6a1ca5d18b1ed8fd3af77fec67493a2945f2de9f36b78e14bce3a1475cef5ad",
+      "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+      "lume_version": "lume 0.2.0 (6df93b3948653722f3f87433bef427d42b91f4d9)",
+      "startup_output_milestones": {
+        "welcome_output_ms": 27.847326,
+        "library_output_ms": 255.317706,
+        "reader_output_ms": 255.474393
+      }
+    },
+    "after": {
+      "geometry": {
+        "columns": 120,
+        "rows": 40,
+        "cell_pixels": [
+          10,
+          19
+        ]
+      },
+      "welcome": {
+        "native_pixel_art": true,
+        "entry_key_consumed": true
+      },
+      "decoded_strips": [
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "3150d20a682b16eb03bf420ddd49d9997f49cc42c738f098399c46dc3cc47c0d"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "3150d20a682b16eb03bf420ddd49d9997f49cc42c738f098399c46dc3cc47c0d"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "04afb11e4879d17bc34b512c98b42fd5c2503a00d4774b59bdc91642e9acd6f0"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "18a730238f956b894302bbb1dded46a61ce7986ef0ea56159d9d4c444105a912"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "0ea126f99fcc22dfec3bfe5a9b10ebba90ffe5a5d47d804edf55ed33e034cce1"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "3738f2f004dbaa0b142644ef39643f756ab3d7e0418dfe9833027504b509382c"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "4b3f531211e649eefde27783d594eff72f68a2ce8c783111df55bbbb7991f89b"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "bc227ac2ded9fce5a2b9a24cdf5b592039d86e770829513fcaeb78fa1118c590"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "18a730238f956b894302bbb1dded46a61ce7986ef0ea56159d9d4c444105a912"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "9df983955684401a9efa7b4b338144c8bba21eb0006d016de666addebb40cc35"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "3150d20a682b16eb03bf420ddd49d9997f49cc42c738f098399c46dc3cc47c0d"
+        },
+        {
+          "size": [
+            760,
+            19
+          ],
+          "sha256": "3150d20a682b16eb03bf420ddd49d9997f49cc42c738f098399c46dc3cc47c0d"
+        }
+      ],
+      "scroll_rows": [
+        [
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28
+        ],
+        [
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
+        ],
+        [
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        [
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ],
+        [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23
+        ],
+        [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        ],
+        [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20
+        ],
+        [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        ],
+        [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23
+        ],
+        [
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ],
+        [
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        [
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
+        ],
+        [
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27
+        ],
+        [
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28
+        ]
+      ],
+      "selection": {
+        "keyboard": [
+          {
+            "mode": "v",
+            "rows": [
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ]
+            ]
+          },
+          {
+            "mode": "V",
+            "rows": [
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ],
+              [
+                760,
+                19
+              ]
+            ]
+          }
+        ],
+        "mouse_down_scroll": [
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ],
+          [
+            760,
+            19
+          ]
+        ]
+      },
+      "reader_aliases": {
+        "keys": "ggIVvAy",
+        "yank": "Request ownership",
+        "host_clipboard": "disabled"
+      },
+      "help_search": {
+        "live_query": "resize",
+        "next_previous": true,
+        "escape_clears_first": true,
+        "unicode_formula": true
+      },
+      "inspector": {
+        "fit": [
+          [
+            1160,
+            348
+          ]
+        ],
+        "zoom": [
+          [
+            1160,
+            646
+          ]
+        ],
+        "reopened_after_scroll": [
+          [
+            [
+              1160,
+              348
+            ]
+          ],
+          [
+            [
+              1160,
+              348
+            ]
+          ],
+          [
+            [
+              1160,
+              348
+            ]
+          ]
+        ]
+      },
+      "reading_services": {
+        "linked_text_view": true,
+        "back_restores_images": true,
+        "diagnostics_opt_in": true
+      },
+      "preferences": {
+        "formula_policies": [
+          {
+            "enabled": false,
+            "visible": "$R{\\mathcal{I}}=\\text{Combine}\\circ\\text{Disintegrate}$",
+            "copied": "$R{\\mathcal{I}}=\\text{Combine}\\circ\\text{Disintegrate}$"
+          },
+          {
+            "enabled": true,
+            "visible": "Rℐ = Combine ∘ Disintegrate",
+            "copied": "Rℐ = Combine ∘ Disintegrate"
+          }
+        ],
+        "settings_enter_edit_ctrl_s_save": true
+      },
+      "graphic_formulas": {
+        "decoded_formula_images": [
+          {
+            "width": 49,
+            "height": 38
+          },
+          {
+            "width": 115,
+            "height": 38
+          }
+        ],
+        "inspector_zoom": true,
+        "original_latex_copy": true,
+        "returns_to_text": true
+      },
+      "cleanup": {
+        "returncode": 0,
+        "termios_restored": true
+      },
+      "publisher_content_preserved": true,
+      "passed": true,
+      "binary_sha256": "8322e57eeca4be1ded30328e4747bbbc2b8e73b9095142dc46ebdead7684b3dc",
+      "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+      "lume_version": "lume 0.2.0 (89123c6fe35316e449a0bfe20ff3af59ee70a0e4)",
+      "startup_output_milestones": {
+        "welcome_output_ms": 21.259338,
+        "library_output_ms": 253.052861,
+        "reader_output_ms": 253.211489
+      }
+    },
+    "identical_decoded_strips": true,
+    "identical_inspector_geometry": true,
+    "identical_graphic_formula_results": true
+  },
+  "benchmark_source_sha256": {
+    "benches/workloads/page_navigation.rs": "730efdd5f3e1e6ca5008743f4beee840ef95066e2c90c8cbe77a2dce24d28c48",
+    "src/store/sql/query/benchmark_candidates.sql": "6c99713a7e56cd5f51662c0b65929e1d2e78e363d19359b746407aa77b781f22",
+    "src/store/sql/query/benchmark_offset.sql": "ea557c619995144d08362fac62dbfd2b966fb88c9a02ad2316e43c8d13ab2806",
+    "src/store/sql/query/benchmark_count.sql": "7f8b296b60fc2775fc5a347463c12bc0d84a636c446caf3d9821a26bb37fc55c",
+    "benches/workloads/inspector_loading.rs": "cd7f02f25068af63c87de1e27fd6370ad82d9bbc1a2409250d201af6442f0cec",
+    "benches/workloads/storage_details.rs": "3495d523cb104778ecec87727f9b480420cf0a28c67deb683349e0d2c769f3e1",
+    "tools/bench_discovery.py": "9b0133a24f781a6035e2fcdaf7b8399af095bd7802eccccdd233cca289c165e3"
+  },
+  "qualification": {
+    "make_check": "passed; fmt, all-target Clippy, license inventory, Rust and representative workload checks, Python tools",
+    "rust_tests": 988,
+    "ordinary_ignored_http_tests": 34,
+    "python_tests": 45,
+    "http_tests": 34,
+    "http": "passed; 34 explicit real loopback tests, including delayed discovery and image cancellation",
+    "release_build": "passed; exact Rust 1.99.1; binary and benchmark built with two jobs",
+    "foot": "passed for both binaries; identical decoded strip hashes; zoom, graphic formulas and three reopen cycles preserved",
+    "license_inventory": "Regenerated with cargo-about 0.9.2; 399 active and 4 inactive locked packages; manifest fingerprint corrected without changing qualified notices.",
+    "check_release": "Not run as a combined gate; no new advisory/security qualification is claimed."
+  }
+}

@@ -721,3 +721,57 @@ A per-pixel percentage hash index was rejected: its optimized antialiased-edge
 case regressed from 22.010 to 34.949 ms. The final implementation preserves the
 original RGB indexing and library quantizer, then compacts their finished
 palette. Development-profile timing alone did not predict that regression.
+
+## Cancellable work and deep pagination, 2026-10-24
+
+The seven priorities from the improvement audit are implemented or investigated
+in [the measured follow-up](performance/seven-priorities-2026-10-24.json).
+Generation cancellation can interrupt disposable SQLite work at 2,048 VM
+instruction checkpoints and checks Markdown/layout boundaries. Query owners retain their
+transaction boundaries; durable writes are never superseded. Four bounded page
+hints reuse totals only for identical criteria and an unchanged database
+snapshot. Adjacent date-ordered pages seek by publication time and ID. Ranked,
+grouped and recommended ordering and arbitrary jumps retain the existing path.
+
+Release measurements used Rust 1.99.1, thin LTO, one codegen unit and sequential
+processes. Page results include identical metadata decoding and check every
+page's identities, length and total. Three process means form each median:
+
+| Controlled workload | Reference/before | After |
+| --- | ---: | ---: |
+| Four deep pages, 10,000 articles | 12.582 ms | 0.451 ms |
+| Four deep pages, 100,000 articles | 153.840 ms | 1.397 ms |
+| First feed commit during another server's 800 ms discovery delay | 815.938 ms | 14.675 ms |
+| All 101 fast sources committed during that delay | 831.652 ms | 27.751 ms |
+| Complete collection pass, including the delayed server | 834.948 ms | 816.236 ms |
+
+The discovery fixture contains 100 quiet mirrored feeds, one publisher and a
+second server delaying discovery. Both versions make 103 requests and persist
+101 successful feed attempts; all three new runs finish the fast sources before
+the delayed discovery responds. Collection still uses per-feed history cursors.
+[The batch API review](server-collection.md) explains the separate account-wide
+watermark and backfill design needed before global entry collection can replace
+this path. Reproduce with `python3 tools/bench_discovery.py --before OLD_BINARY
+--after NEW_BINARY --output REPORT.json` on Linux with loopback sockets.
+
+Image jobs recheck their crop after fitting and between Sixel bands/strips,
+reusing the same source bytes when retargeted. Prepared-cache accounting includes
+native payload capacity, cell buffers and allocated queue slots. Visible entries
+that exceed the 32 MiB budget are deferred until the viewport changes or an
+explicit retry, avoiding reload loops. Decoder caches and temporary pixels have
+separate bounds. Direct inspector preparation process medians changed by about
+−4% through +3%; these measurements establish no direct encoding speedup.
+Independent Foot qualifications reconstructed identical decoded strips before
+and after, retained zoom/formula behavior, and passed three cached inspector
+reopen cycles after scrolling.
+
+Storage inspections have a separate replaceable read worker. SQL scans and
+streamed image-directory inventories are cancellable; backups/offline work keep
+their ordered lane. The new duplication diagnostic measured an FTS body ratio of
+1.000 for fresh fixtures with 2,000/13,000 articles and 2,080-byte Feed bodies.
+For 13,000 articles, 27,040,000 logical publisher-body bytes also appear in FTS;
+the FTS content table allocates 53,370,880 bytes and other article FTS objects
+4,222,976 bytes. Eight diagnostics averaged 51.928 ms for that fixture, excluding
+setup. Physical allocation includes metadata and page occupancy; it is distinct
+from logical text duplication. No storage migration or compression is enabled
+by these measurements.
