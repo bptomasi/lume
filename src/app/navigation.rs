@@ -119,14 +119,9 @@ impl App {
         if matches!(self.view, View::Group(_)) {
             return self.clear_section_page();
         }
-        let query = self.article_query();
-        let page = self.store.query_articles(&query)?;
-        self.page_total = page.total;
-        if page.articles.is_empty() && page.total > 0 {
-            self.page_offset =
-                (page.total - 1) / self.page_limit() * self.page_limit();
-            return self.filter_now();
-        }
+        let (offset, page) =
+            self.store.article_window(&self.article_query())?;
+        self.page_offset = offset;
         self.apply_page(page)
     }
 

@@ -89,3 +89,26 @@ fn rolled_back_writes_never_publish_page_hints() -> Result<()> {
     assert_eq!(store.query_articles(&query(0))?.total, 75);
     Ok(())
 }
+
+#[test]
+fn cache_keys_preserve_embedded_nuls_in_bound_search_values() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("keys.sqlite3");
+    let store = fixture(&path)?;
+    store
+        .connection
+        .execute(include_str!("../../sql/test_page_tags.sql"), [])?;
+    let mut request = query(0);
+    request.text = "tag:systems".into();
+    assert_eq!(store.query_articles(&request)?.total, 25);
+    request.text = "tag:systems\0different".into();
+    let expected = Store::open(&path)?.query_articles(&request)?;
+    assert_eq!(expected.total, 0);
+    let actual = store.query_articles(&request)?;
+    assert_eq!(actual.total, expected.total);
+    assert!(actual.articles.is_empty());
+    Ok(())
+}
+
+mod scopes;
+mod windows;

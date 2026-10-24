@@ -207,6 +207,28 @@ impl Store {
         })
     }
 
+    /// Resolve a stale navigation offset within the same query snapshot.
+    pub(crate) fn article_window(
+        &self,
+        query: &ArticleQuery,
+    ) -> Result<(usize, ArticlePage)> {
+        self.read_snapshot(|store| {
+            let criteria = store.criteria(query)?;
+            let page = store.read_page(query, &criteria)?;
+            if page.total == 0 {
+                return Ok((0, page));
+            }
+            if !page.articles.is_empty() {
+                return Ok((query.offset, page));
+            }
+            let mut query = query.clone();
+            let limit = query.limit.clamp(1, 500);
+            query.offset = (page.total - 1) / limit * limit;
+            let page = store.read_page(&query, &criteria)?;
+            Ok((query.offset, page))
+        })
+    }
+
     /// Locate a matching article and load its bounded page in one snapshot.
     ///
     /// # Errors
@@ -252,33 +274,39 @@ impl Store {
         query: &ArticleQuery,
         criteria: &Criteria,
     ) -> Result<ArticlePage> {
-        let predicate = criteria.predicate();
-        let mut count = self
-            .connection
-            .prepare_cached(&format!("SELECT count(*) FROM ({predicate})"))?;
-        bind(&mut count, criteria, query)?;
-        let key = format!(
-            "{}\nranked={}",
-            count.expanded_sql().context("Bound page criteria")?,
-            criteria.ranking.is_some()
-        );
+        let key = cache::Key::new(criteria, query, criteria.predicate())?;
         let epoch = cache::epoch(&self.connection)?;
         let cached = self.pages.borrow_mut().find(epoch, &key);
         let total = match cached.as_ref() {
             Some(entry) => entry.total,
-            None => {
-                count.raw_query().next()?.map_or(Ok(0), |row| row.get(0))?
-            }
+            None => self.page_count(query, criteria, key.predicate())?,
         };
         let seek = cached.as_ref().and_then(|entry| entry.seek(query));
         let seek = seek.filter(|_| {
             criteria.ranking.is_none()
                 && !matches!(criteria.scope, "recommended" | "grouped")
         });
-        let articles = self.page_rows(query, criteria, &predicate, seek)?;
+        let articles = if query.offset >= total {
+            Vec::new()
+        } else {
+            self.page_rows(query, criteria, key.predicate(), seek)?
+        };
         let page = ArticlePage { articles, total };
         self.pages.borrow_mut().remember(epoch, key, query, &page);
         Ok(page)
+    }
+
+    fn page_count(
+        &self,
+        query: &ArticleQuery,
+        criteria: &Criteria,
+        predicate: &str,
+    ) -> Result<usize> {
+        let mut count = self
+            .connection
+            .prepare_cached(&format!("SELECT count(*) FROM ({predicate})"))?;
+        bind(&mut count, criteria, query)?;
+        Ok(count.raw_query().next()?.map_or(Ok(0), |row| row.get(0))?)
     }
 
     fn page_rows(
@@ -415,21 +443,7 @@ fn bind(
     criteria: &Criteria,
     query: &ArticleQuery,
 ) -> Result<()> {
-    let limit = query.limit.clamp(1, 500) as i64;
-    let offset = i64::try_from(query.offset)?;
-    let values: &[(&str, &dyn ToSql)] = &[
-        (":scope", &criteria.scope),
-        (":id", &criteria.identity),
-        (":unread", &criteria.filter.unread),
-        (":starred", &criteria.filter.starred),
-        (":feed", &criteria.filter.feed),
-        (":feeds", &criteria.feeds),
-        (":since", &criteria.since),
-        (":retained", &query.retained),
-        (":limit", &limit),
-        (":offset", &offset),
-    ];
-    for (name, value) in values {
+    for (name, value) in filter_values(criteria, query) {
         // Count queries intentionally omit pagination parameters.
         if let Some(index) = statement.parameter_index(name)? {
             statement.raw_bind_parameter(index, value)?;
@@ -444,5 +458,28 @@ fn bind(
     if let Some(rank) = &criteria.ranking {
         relevance::bind(statement, rank)?;
     }
+    if let Some(index) = statement.parameter_index(":limit")? {
+        statement
+            .raw_bind_parameter(index, query.limit.clamp(1, 500) as i64)?;
+    }
+    if let Some(index) = statement.parameter_index(":offset")? {
+        statement.raw_bind_parameter(index, i64::try_from(query.offset)?)?;
+    }
     Ok(())
+}
+
+fn filter_values<'a>(
+    criteria: &'a Criteria,
+    query: &'a ArticleQuery,
+) -> [(&'static str, &'a dyn ToSql); 8] {
+    [
+        (":scope", &criteria.scope),
+        (":id", &criteria.identity),
+        (":unread", &criteria.filter.unread),
+        (":starred", &criteria.filter.starred),
+        (":feed", &criteria.filter.feed),
+        (":feeds", &criteria.feeds),
+        (":since", &criteria.since),
+        (":retained", &query.retained),
+    ]
 }

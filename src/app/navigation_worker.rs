@@ -150,7 +150,7 @@ fn read_search(
     query: ArticleQuery,
     selected: usize,
 ) -> Result<Completed> {
-    let (offset, page) = query_page(store, query)?;
+    let (offset, page) = store.article_window(&query)?;
     let selected = selected.min(page.articles.len().saturating_sub(1));
     Ok(Completed {
         article: page.articles.get(selected).map(|article| article.id),
@@ -164,20 +164,8 @@ fn read_page(
     query: ArticleQuery,
     selected: usize,
 ) -> Result<Completed> {
-    let (offset, page) = query_page(store, query)?;
+    let (offset, page) = store.article_window(&query)?;
     complete_page(store, offset, page, selected)
-}
-
-fn query_page(
-    store: &Store,
-    mut query: ArticleQuery,
-) -> Result<(usize, ArticlePage)> {
-    let mut page = store.query_articles(&query)?;
-    if page.articles.is_empty() && page.total > 0 {
-        query.offset = (page.total - 1) / query.limit * query.limit;
-        page = store.query_articles(&query)?;
-    }
-    Ok((query.offset, page))
 }
 
 fn complete_page(

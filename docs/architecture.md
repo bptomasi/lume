@@ -238,7 +238,12 @@ each tier, followed by publication time and identity for stable ties. Ranking
 uses only positive text from the active query. Saved-list filters, exclusions
 and destination scopes remain membership constraints. Empty and metadata-only
 queries keep the destination's normal order. Count queries do not score, and
-only the requested page loads article metadata. Identity-based page jumps use
+only the requested page loads article metadata. Page totals are cached against
+the read snapshot and complete typed bound values; expanded debug SQL is never
+a cache identity because it truncates embedded NULs. Adjacent date-ordered
+windows seek by publication time and ID. Empty/out-of-range pages skip metadata.
+Navigation resolves a stale offset to the last valid page under one snapshot,
+with the same clamped limit in synchronous and background paths. Identity-based page jumps use
 the same relevance order as pagination, including in the background worker.
 Both fields reserve rows inside their own panes. Renderers and pointer hit
 testing share that geometry. Cancel restores the sidebar destination by identity,

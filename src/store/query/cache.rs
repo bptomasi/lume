@@ -1,11 +1,17 @@
 //! Bounded page hints are valid only within an unchanged SQLite read snapshot.
 use crate::model::{ArticlePage, ArticleQuery};
+mod key;
 use anyhow::Result;
+pub(super) use key::Key;
 use rusqlite::{Connection, DatabaseName, TransactionState};
 
-#[derive(Clone)]
-pub(super) struct Entry {
-    key: String,
+struct Entry {
+    key: Key,
+    hint: Hint,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct Hint {
     pub(super) total: usize,
     offset: usize,
     limit: usize,
@@ -49,40 +55,45 @@ impl Cache {
     pub(super) fn find(
         &mut self,
         epoch: Option<(i64, u64)>,
-        key: &str,
-    ) -> Option<Entry> {
+        key: &Key,
+    ) -> Option<Hint> {
         if epoch.is_none() || self.epoch != epoch {
             self.entries.clear();
             self.epoch = epoch;
         }
-        self.entries.iter().find(|entry| entry.key == key).cloned()
+        self.entries
+            .iter()
+            .find(|entry| &entry.key == key)
+            .map(|entry| entry.hint)
     }
 
     pub(super) fn remember(
         &mut self,
         epoch: Option<(i64, u64)>,
-        key: String,
+        key: Key,
         query: &ArticleQuery,
         page: &ArticlePage,
     ) {
-        if epoch.is_none() || key.len() > 128 * 1024 {
+        if epoch.is_none() || key.bytes() > 128 * 1024 {
             return;
         }
         self.entries.retain(|entry| entry.key != key);
         self.entries.push_back(Entry {
             key,
-            total: page.total,
-            offset: query.offset,
-            limit: query.limit.clamp(1, 500),
-            count: page.articles.len(),
-            first: page
-                .articles
-                .first()
-                .map(|article| (article.published, article.id)),
-            last: page
-                .articles
-                .last()
-                .map(|article| (article.published, article.id)),
+            hint: Hint {
+                total: page.total,
+                offset: query.offset,
+                limit: query.limit.clamp(1, 500),
+                count: page.articles.len(),
+                first: page
+                    .articles
+                    .first()
+                    .map(|article| (article.published, article.id)),
+                last: page
+                    .articles
+                    .last()
+                    .map(|article| (article.published, article.id)),
+            },
         });
         while self.entries.len() > 4 {
             self.entries.pop_front();
@@ -90,7 +101,7 @@ impl Cache {
     }
 }
 
-impl Entry {
+impl Hint {
     pub(super) fn seek(&self, query: &ArticleQuery) -> Option<Seek> {
         if self.limit != query.limit.clamp(1, 500) || self.count == 0 {
             return None;

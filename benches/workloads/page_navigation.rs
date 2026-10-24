@@ -1,5 +1,5 @@
 //! Deep adjacent pages verify stable IDs and totals against direct OFFSET reads.
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
 use lume::{
     model::{ArticleQuery, FeedOrigin, IncomingArticle, View},
     store::Store,
@@ -29,8 +29,11 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
                 "Page bounds"
             );
             ensure!(
-                page.articles.first().context("First article")?.id
-                    == (count - offset) as i64,
+                page.articles
+                    .iter()
+                    .enumerate()
+                    .all(|(index, article)| article.id
+                        == (count - offset - index) as i64),
                 "Cursor drift"
             );
         }
@@ -71,7 +74,10 @@ fn reference_pages(
                     })?
                     .collect::<rusqlite::Result<Vec<_>>>()?;
                 ensure!(
-                    ids.first() == Some(&((count - offset) as i64))
+                    ids.iter()
+                        .enumerate()
+                        .all(|(index, id)| *id
+                            == (count - offset - index) as i64)
                         && ids.len() == 100
                         && total == count,
                     "Reference drift"
