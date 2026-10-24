@@ -61,6 +61,8 @@ mod motion_review;
 mod note_interactions;
 #[path = "workloads/note_study.rs"]
 mod note_study;
+#[path = "workloads/page_navigation.rs"]
+mod page_navigation;
 #[path = "workloads/pane_search.rs"]
 mod pane_search;
 #[path = "workloads/panes.rs"]
@@ -240,6 +242,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--fluency-only", fluency::run),
     ("--formulas-only", formulas::run),
     ("--query-editing-only", query_editing::run),
+    ("--page-navigation-only", page_navigation::run),
     ("--search-relevance-only", search_relevance::run),
     ("--smoothness-only", smoothness::run),
     ("--expansion-only", expansion::run),

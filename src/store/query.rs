@@ -11,7 +11,9 @@ use crate::model::{ArticlePage, ArticleQuery, SmartFilter, View};
 
 use super::{Store, article_row};
 
+mod cache;
 mod counts;
+pub(super) use cache::Cache;
 mod relevance;
 
 struct Criteria {
@@ -251,19 +253,61 @@ impl Store {
         criteria: &Criteria,
     ) -> Result<ArticlePage> {
         let predicate = criteria.predicate();
-        let count_sql = format!("SELECT count(*) FROM ({predicate})");
-        let mut count = self.connection.prepare_cached(&count_sql)?;
+        let mut count = self
+            .connection
+            .prepare_cached(&format!("SELECT count(*) FROM ({predicate})"))?;
         bind(&mut count, criteria, query)?;
-        let total =
-            count.raw_query().next()?.map_or(Ok(0), |row| row.get(0))?;
-        let page_sql = criteria.page_sql(&predicate);
-        let mut page = self.connection.prepare_cached(&page_sql)?;
+        let key = format!(
+            "{}\nranked={}",
+            count.expanded_sql().context("Bound page criteria")?,
+            criteria.ranking.is_some()
+        );
+        let epoch = cache::epoch(&self.connection)?;
+        let cached = self.pages.borrow_mut().find(epoch, &key);
+        let total = match cached.as_ref() {
+            Some(entry) => entry.total,
+            None => {
+                count.raw_query().next()?.map_or(Ok(0), |row| row.get(0))?
+            }
+        };
+        let seek = cached.as_ref().and_then(|entry| entry.seek(query));
+        let seek = seek.filter(|_| {
+            criteria.ranking.is_none()
+                && !matches!(criteria.scope, "recommended" | "grouped")
+        });
+        let articles = self.page_rows(query, criteria, &predicate, seek)?;
+        let page = ArticlePage { articles, total };
+        self.pages.borrow_mut().remember(epoch, key, query, &page);
+        Ok(page)
+    }
+
+    fn page_rows(
+        &self,
+        query: &ArticleQuery,
+        criteria: &Criteria,
+        predicate: &str,
+        seek: Option<cache::Seek>,
+    ) -> Result<Vec<crate::model::Article>> {
+        let sql = seek.as_ref().map_or_else(
+            || criteria.page_sql(predicate),
+            |seek| seek.sql(predicate),
+        );
+        let mut page = self.connection.prepare_cached(&sql)?;
         bind(&mut page, criteria, query)?;
-        let articles = page
+        if let Some(seek) = seek {
+            let date = page
+                .parameter_index(":cursor_date")?
+                .context("Cursor date")?;
+            let id = page
+                .parameter_index(":cursor_id")?
+                .context("Cursor identity")?;
+            page.raw_bind_parameter(date, seek.published)?;
+            page.raw_bind_parameter(id, seek.id)?;
+        }
+        Ok(page
             .raw_query()
             .mapped(article_row)
-            .collect::<rusqlite::Result<_>>()?;
-        Ok(ArticlePage { articles, total })
+            .collect::<rusqlite::Result<_>>()?)
     }
 
     /// Count one destination without an arbitrary historical window.

@@ -266,7 +266,10 @@ fn v12_justified_library(
     Runner::new(&migrations)
         .set_grouped(true)
         .run(&mut connection)?;
-    let legacy = Store { connection };
+    let legacy = Store {
+        connection,
+        pages: Default::default(),
+    };
     legacy.save_workspace(&crate::model::Workspace::default())?;
     legacy.reconcile_configuration(config)?;
     let mut workspace = legacy.workspace()?;

@@ -50,6 +50,7 @@ use crate::model::{Article, Collection, Library};
 /// A thread-owned SQLite connection. Do not share it behind an async lock.
 pub struct Store {
     connection: Connection,
+    pages: std::cell::RefCell<query::Cache>,
 }
 
 impl Store {
@@ -128,7 +129,10 @@ impl Store {
         migrations::run(&mut connection)?;
         migrations::backfill_reading_metadata(&mut connection)?;
         identity::claim(&connection)?;
-        Ok(Self { connection })
+        Ok(Self {
+            connection,
+            pages: Default::default(),
+        })
     }
 
     /// Read metadata without loading every article body into memory.
