@@ -120,15 +120,17 @@ impl ReaderImages {
             }
             !inspector || details <= 2
         });
-        while self.retained_bytes() > 32 * 1024 * 1024 {
+        let mut bytes = self.retained_bytes();
+        while bytes > 32 * 1024 * 1024 {
             let victim = self
                 .cache
                 .iter()
                 .rposition(|(key, _)| !self.visible.contains(key))
                 .unwrap_or_else(|| self.cache.len().saturating_sub(1));
-            let Some((key, _)) = self.cache.remove(victim) else {
+            let Some((key, value)) = self.cache.remove(victim) else {
                 break;
             };
+            bytes = bytes.saturating_sub(entry_bytes(&key, &value));
             if self.visible.contains(&key) && !self.deferred.contains(&key) {
                 self.deferred.push(key);
             }
@@ -137,17 +139,14 @@ impl ReaderImages {
 
     /// Conservative heap accounting for every prepared image protocol.
     pub fn retained_bytes(&self) -> usize {
-        self.cache
-            .iter()
-            .map(|(key, value)| {
-                std::mem::size_of::<ImageKey>()
-                    + key.url.capacity()
-                    + value.as_ref().map_or_else(
-                        String::capacity,
-                        Thumbnail::retained_bytes,
-                    )
-            })
-            .sum()
+        let slots = self.cache.capacity()
+            * std::mem::size_of::<(ImageKey, Result<Thumbnail, String>)>();
+        slots
+            + self
+                .cache
+                .iter()
+                .map(|(key, value)| entry_bytes(key, value))
+                .sum::<usize>()
     }
 
     fn viewport(&mut self, visible: Vec<ImageKey>) -> Vec<ImageKey> {
@@ -163,6 +162,15 @@ impl ReaderImages {
             .cloned()
             .collect()
     }
+}
+
+fn entry_bytes(key: &ImageKey, value: &Result<Thumbnail, String>) -> usize {
+    key.url.capacity()
+        + value.as_ref().map_or_else(String::capacity, |image| {
+            image
+                .retained_bytes()
+                .saturating_sub(std::mem::size_of::<Thumbnail>())
+        })
 }
 
 impl App {
