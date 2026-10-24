@@ -24,6 +24,8 @@ pub struct ReaderImages {
     pub enabled: bool,
     worker: Option<Worker>,
     pending: Vec<ImageKey>,
+    visible: Vec<ImageKey>,
+    deferred: Vec<ImageKey>,
     waiting: bool,
     cache: VecDeque<(ImageKey, Result<Thumbnail, String>)>,
     configuration: Option<(PathBuf, bool)>,
@@ -39,6 +41,8 @@ impl Default for ReaderImages {
             enabled: true,
             worker: None,
             pending: Vec::new(),
+            visible: Vec::new(),
+            deferred: Vec::new(),
             waiting: false,
             cache: VecDeque::new(),
             configuration: None,
@@ -80,6 +84,9 @@ impl ReaderImages {
         if let Some(error) = self.error(key) {
             return error;
         }
+        if self.deferred.contains(key) {
+            return "Image cache budget reached · scroll to retry · :image";
+        }
         if self.worker.is_none() {
             return "Images unavailable · :images retry · :image-open";
         }
@@ -103,7 +110,6 @@ impl ReaderImages {
         // images and two inspector crops. Avoid evicting visible formula rows.
         self.cache.truncate(40);
         let mut details = 0;
-        let mut bytes = 0;
         self.cache.retain(|(key, _)| {
             let inspector = key
                 .detail
@@ -114,16 +120,48 @@ impl ReaderImages {
             }
             !inspector || details <= 2
         });
-        self.cache.retain(|(_, value)| {
-            let size = value.as_ref().ok().map_or(0, |image| {
-                image.rows.as_ref().map_or(0, |rows| rows.bytes())
-            });
-            if bytes + size > 32 * 1024 * 1024 {
-                return false;
+        while self.retained_bytes() > 32 * 1024 * 1024 {
+            let victim = self
+                .cache
+                .iter()
+                .rposition(|(key, _)| !self.visible.contains(key))
+                .unwrap_or_else(|| self.cache.len().saturating_sub(1));
+            let Some((key, _)) = self.cache.remove(victim) else {
+                break;
+            };
+            if self.visible.contains(&key) && !self.deferred.contains(&key) {
+                self.deferred.push(key);
             }
-            bytes += size;
-            true
-        });
+        }
+    }
+
+    /// Conservative heap accounting for every prepared image protocol.
+    pub fn retained_bytes(&self) -> usize {
+        self.cache
+            .iter()
+            .map(|(key, value)| {
+                std::mem::size_of::<ImageKey>()
+                    + key.url.capacity()
+                    + value.as_ref().map_or_else(
+                        String::capacity,
+                        Thumbnail::retained_bytes,
+                    )
+            })
+            .sum()
+    }
+
+    fn viewport(&mut self, visible: Vec<ImageKey>) -> Vec<ImageKey> {
+        if self.visible != visible {
+            self.visible = visible;
+            self.deferred.clear();
+        }
+        self.visible
+            .iter()
+            .filter(|key| {
+                self.cached(key).is_none() && !self.deferred.contains(key)
+            })
+            .cloned()
+            .collect()
     }
 }
 
@@ -231,7 +269,8 @@ impl App {
         if self.images.worker.is_none() {
             return false;
         }
-        let wanted = self.wanted_image_keys();
+        let visible = self.visible_image_keys();
+        let wanted = self.images.viewport(visible);
         if let Some(worker) = &mut self.images.worker
             && let Err(error) = worker.retain(&wanted)
         {
@@ -263,16 +302,12 @@ impl App {
         changed
     }
 
-    fn wanted_image_keys(&self) -> Vec<ImageKey> {
+    fn visible_image_keys(&self) -> Vec<ImageKey> {
         if self.notebook.is_some() || self.navigation_loading {
             return Vec::new();
         }
         if matches!(self.mode, super::Mode::Image(_)) {
-            return self
-                .image_inspector_key()
-                .filter(|key| self.images.cached(key).is_none())
-                .into_iter()
-                .collect();
+            return self.image_inspector_key().into_iter().collect();
         }
         if !crate::ui::workspace_areas(self.screen, self.focus, &self.workspace)
             .reader
@@ -285,7 +320,6 @@ impl App {
             .iter()
             .filter(|slot| self.images.enabled || slot.formula.is_some())
             .filter_map(|slot| self.image_key(slot))
-            .filter(|key| self.images.cached(key).is_none())
             .collect()
     }
 
@@ -390,6 +424,7 @@ impl App {
             "on" => self.workspace.images.enabled = true,
             "off" => self.workspace.images.enabled = false,
             "retry" => {
+                self.images.deferred.clear();
                 self.images.cache.retain(|(_, value)| value.is_ok());
                 if self.images.worker.is_none()
                     && let Some((directory, offline)) =
@@ -411,3 +446,6 @@ impl App {
         Ok(Some(Action::None))
     }
 }
+
+#[cfg(test)]
+mod tests;

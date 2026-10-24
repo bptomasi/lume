@@ -34,25 +34,38 @@ pub struct SixelRows {
 }
 
 impl SixelRows {
-    pub(super) fn new(
+    pub(super) fn new_cancellable(
         image: DynamicImage,
         area: Rect,
         cell_height: u16,
+        cancel: Option<&crate::cancellation::Cancellation>,
     ) -> Result<Self> {
         let rgb = image.to_rgb8();
         let (palette, indexed) = palette::index(&rgb)?;
+        if let Some(cancel) = cancel {
+            cancel.check()?;
+        }
         let strip_area = Rect::new(0, 0, area.width, 1);
         let mut scratch = Buffer::empty(strip_area);
         let mut rows = Vec::with_capacity(usize::from(area.height));
         let mut bytes = rows.capacity() * std::mem::size_of::<Cell>();
         for row in 0..area.height {
+            if let Some(cancel) = cancel {
+                cancel.check()?;
+            }
             let y = u32::from(row) * u32::from(cell_height);
             let height = u32::from(cell_height).min(image.height() - y);
             let start = (y * image.width()) as usize;
             let end = start + (height * image.width()) as usize;
             let strip = &indexed[start..end];
-            let sixel =
-                encode(strip, image.width(), height, strip_area, &palette)?;
+            let sixel = encode(
+                strip,
+                image.width(),
+                height,
+                strip_area,
+                &palette,
+                cancel,
+            )?;
             Image::new(&Protocol::Sixel(sixel))
                 .render(strip_area, &mut scratch);
             let mut cell = std::mem::take(&mut scratch[(0, 0)]);
@@ -115,11 +128,27 @@ impl SixelRows {
 }
 
 /// The inspector uses the same color preparation as clipped reader images.
-pub(super) fn native(image: DynamicImage, area: Rect) -> Result<Protocol> {
+pub(super) fn native(
+    image: DynamicImage,
+    area: Rect,
+    cancel: Option<&crate::cancellation::Cancellation>,
+) -> Result<Protocol> {
+    if let Some(cancel) = cancel {
+        cancel.check()?;
+    }
     let rgb = image.to_rgb8();
     let (palette, indexed) = palette::index(&rgb)?;
-    let sixel =
-        encode(&indexed, image.width(), image.height(), area, &palette)?;
+    if let Some(cancel) = cancel {
+        cancel.check()?;
+    }
+    let sixel = encode(
+        &indexed,
+        image.width(),
+        image.height(),
+        area,
+        &palette,
+        cancel,
+    )?;
     ensure!(
         sixel.data.len() <= MAX_ENCODED_BYTES,
         "Native pixels exceed 8 MiB"
@@ -133,10 +162,13 @@ fn encode(
     height: u32,
     area: Rect,
     palette: &[u8],
+    cancel: Option<&crate::cancellation::Cancellation>,
 ) -> Result<Sixel> {
     let mut bytes = Vec::new();
-    encoding::write(&mut bytes, pixels, width, height, palette)
-        .map_err(|error| anyhow::anyhow!("{error}"))?;
+    encoding::write_cancellable(
+        &mut bytes, pixels, width, height, palette, cancel,
+    )
+    .map_err(|error| anyhow::anyhow!("{error}"))?;
     Ok(Sixel {
         data: String::from_utf8(bytes)?,
         area,

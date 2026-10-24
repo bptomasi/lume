@@ -5,12 +5,24 @@ use icy_sixel::{
     output::{sixel_node, sixel_output},
 };
 
+#[cfg(test)]
 pub(super) fn write(
     bytes: &mut Vec<u8>,
     pixels: &[u8],
     width: u32,
     height: u32,
     palette: &[u8],
+) -> SixelResult<()> {
+    write_cancellable(bytes, pixels, width, height, palette, None)
+}
+
+pub(super) fn write_cancellable(
+    bytes: &mut Vec<u8>,
+    pixels: &[u8],
+    width: u32,
+    height: u32,
+    palette: &[u8],
+    cancel: Option<&crate::cancellation::Cancellation>,
 ) -> SixelResult<()> {
     let mut output = sixel_output::new(bytes);
     output.encode_header(width as i32, height as i32)?;
@@ -21,6 +33,9 @@ pub(super) fn write(
     let width = width as usize;
     let mut map = vec![0; colors * width];
     for (band, pixels) in pixels.chunks(width * 6).enumerate() {
+        if cancel.is_some_and(crate::cancellation::Cancellation::is_cancelled) {
+            return Err("Image crop superseded".into());
+        }
         if band > 0 {
             output.putc('-');
         }

@@ -98,3 +98,37 @@ pub struct Thumbnail {
     /// Worker-encoded cell-height Sixel strips for clipped inline drawing.
     pub rows: Option<SixelRows>,
 }
+
+impl Thumbnail {
+    /// Conservative retained cache bytes: cells, payloads and dynamic labels.
+    /// Decoder source caches and temporary encoder pixels have separate bounds.
+    pub fn retained_bytes(&self) -> usize {
+        use ratatui_image::protocol::Protocol;
+        let cells = self.cells.content.capacity()
+            * std::mem::size_of::<ratatui::buffer::Cell>()
+            + self
+                .cells
+                .content
+                .iter()
+                .map(|cell| cell.symbol().len() * 2)
+                .sum::<usize>();
+        let native =
+            self.native.as_ref().map_or(0, |protocol| match protocol {
+                Protocol::Sixel(image) => image.data.capacity(),
+                Protocol::ITerm2(image) => image.data.capacity(),
+                // These opaque upstream formats are never produced by our native
+                // encoder. Charge their bounded worst case instead of zero.
+                Protocol::Kitty(_) | Protocol::Halfblocks(_) => {
+                    64 * 1024 * 1024
+                }
+            });
+        std::mem::size_of::<Self>()
+            + cells
+            + native
+            + self
+                .rows
+                .as_ref()
+                .map_or(0, |rows| rows.bytes().saturating_mul(2))
+            + self.cache_warning.as_ref().map_or(0, String::capacity)
+    }
+}

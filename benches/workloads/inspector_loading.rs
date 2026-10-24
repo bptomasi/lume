@@ -26,6 +26,16 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
             let image = decoder.render(&bytes, &key)?;
             ensure!(image.dimensions == (1200, 600), "Source changed");
             ensure!(image.native.is_some(), "Native inspector disappeared");
+            let payload = match &image.native {
+                Some(ratatui_image::protocol::Protocol::Sixel(sixel)) => {
+                    sixel.data.capacity()
+                }
+                _ => 0,
+            };
+            ensure!(
+                image.retained_bytes() > payload,
+                "Native buffer accounting missing"
+            );
             ensure!(image.cells.area.width == width, "Resolution changed");
             Ok(())
         })?;

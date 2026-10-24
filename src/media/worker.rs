@@ -144,21 +144,42 @@ fn render(
     bytes: &[u8],
     request: &Request,
 ) -> Result<Option<(ImageKey, Thumbnail)>> {
-    let (key, image, dimensions) = {
-        let mut decoder = decoder
-            .lock()
-            .map_err(|_| anyhow::anyhow!("Image decoder stopped"))?;
-        let Some(key) = request.key()? else {
-            return Ok(None);
+    render_with(decoder, bytes, request, super::decode::prepare_cancellable)
+}
+
+fn render_with(
+    decoder: &Mutex<Decoder>,
+    bytes: &[u8],
+    request: &Request,
+    mut prepare: impl FnMut(
+        image::DynamicImage,
+        (u32, u32),
+        &ImageKey,
+        Option<&crate::cancellation::Cancellation>,
+    ) -> Result<Thumbnail>,
+) -> Result<Option<(ImageKey, Thumbnail)>> {
+    loop {
+        let (key, cancel, image, dimensions) = {
+            let mut decoder = decoder
+                .lock()
+                .map_err(|_| anyhow::anyhow!("Image decoder stopped"))?;
+            let Some((key, cancel)) = request.snapshot()? else {
+                return Ok(None);
+            };
+            let (image, dimensions) = decoder.fit(bytes, &key)?;
+            (key, cancel, image, dimensions)
         };
-        let (image, dimensions) = decoder.fit(bytes, &key)?;
-        (key, image, dimensions)
-    };
-    if request.key()?.is_none() {
-        return Ok(None);
+        if cancel.is_cancelled() {
+            continue;
+        }
+        let image = prepare(image, dimensions, &key, Some(&cancel));
+        // A new crop shares these source bytes and the decoder's source cache.
+        // Never publish a partial or obsolete terminal payload.
+        if cancel.is_cancelled() {
+            continue;
+        }
+        return Ok(Some((key, image?)));
     }
-    let thumbnail = super::decode::prepare(image, dimensions, &key)?;
-    Ok(Some((key, thumbnail)))
 }
 
 fn load(

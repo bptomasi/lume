@@ -105,3 +105,35 @@ fn the_latest_crop_is_captured_after_waiting_for_the_shared_decoder()
     assert_eq!(actual, latest);
     Ok(())
 }
+
+#[test]
+fn an_encoding_replacement_reuses_source_bytes_and_delivers_only_the_latest_crop()
+-> Result<()> {
+    let request = Request::new(key("https://a.test/image", 40), None);
+    let latest = key("https://a.test/image", 80);
+    let mut attempts = 0;
+    let result = render_with(
+        &Mutex::new(Decoder::default()),
+        include_bytes!("../../../tests/fixtures/images/request-path.svg"),
+        &request,
+        |image, dimensions, key, cancel| {
+            attempts += 1;
+            if attempts == 1 {
+                request.retarget(Some(latest.clone()))?;
+                return Err(anyhow::anyhow!("Obsolete encoder interrupted"));
+            }
+            super::super::decode::prepare_cancellable(
+                image, dimensions, key, cancel,
+            )
+        },
+    )?
+    .context("Replacement result")?;
+    assert_eq!(attempts, 2);
+    assert_eq!(result.0, latest);
+    let (_, cancel) = request.snapshot()?.context("Current snapshot")?;
+    request.retarget(Some(latest))?;
+    assert!(!cancel.is_cancelled(), "Identical retarget restarted work");
+    request.retarget(None)?;
+    assert!(cancel.is_cancelled());
+    Ok(())
+}

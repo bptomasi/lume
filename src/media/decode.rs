@@ -53,6 +53,18 @@ pub(crate) fn prepare(
     dimensions: (u32, u32),
     key: &ImageKey,
 ) -> Result<Thumbnail> {
+    prepare_cancellable(image, dimensions, key, None)
+}
+
+pub(crate) fn prepare_cancellable(
+    image: DynamicImage,
+    dimensions: (u32, u32),
+    key: &ImageKey,
+    cancel: Option<&crate::cancellation::Cancellation>,
+) -> Result<Thumbnail> {
+    if let Some(cancel) = cancel {
+        cancel.check()?;
+    }
     let image = slice(image, key);
     let (cell_width, cell_height) = geometry::cell_pixels(key);
     let width = image.width().div_ceil(u32::from(cell_width)) as u16;
@@ -62,9 +74,12 @@ pub(crate) fn prepare(
     if key.detail.as_ref().is_some_and(|detail| {
         detail.protocol == ImageProtocol::Sixel && detail.slice.is_some()
     }) {
-        return inline_thumbnail(image, area, dimensions, cell_height);
+        return inline_thumbnail(image, area, dimensions, cell_height, cancel);
     }
-    let protocol = encode(image, area, key)?;
+    let protocol = encode(image, area, key, cancel)?;
+    if let Some(cancel) = cancel {
+        cancel.check()?;
+    }
     if !matches!(protocol, Protocol::Halfblocks(_)) {
         return Ok(Thumbnail {
             cells: Buffer::empty(protocol.area()),
@@ -74,17 +89,8 @@ pub(crate) fn prepare(
             rows: None,
         });
     }
-    let mut cells = Buffer::empty(area);
-    Image::new(&protocol).render(area, &mut cells);
-    // Keep every raster cell identifiable as literal image color. A full
-    // halfblock with identical colors is visually equal to a colored space.
-    for cell in &mut cells.content {
-        if cell.symbol() == " " {
-            cell.set_symbol("▀");
-        }
-    }
     Ok(Thumbnail {
-        cells,
+        cells: portable_cells(&protocol, area),
         dimensions,
         cache_warning: None,
         native: None,
@@ -92,27 +98,51 @@ pub(crate) fn prepare(
     })
 }
 
+fn portable_cells(protocol: &Protocol, area: Rect) -> Buffer {
+    let mut cells = Buffer::empty(area);
+    Image::new(protocol).render(area, &mut cells);
+    // Keep every raster cell identifiable as literal image color. A full
+    // halfblock with identical colors is visually equal to a colored space.
+    for cell in &mut cells.content {
+        if cell.symbol() == " " {
+            cell.set_symbol("▀");
+        }
+    }
+    cells
+}
+
 fn inline_thumbnail(
     image: DynamicImage,
     area: Rect,
     dimensions: (u32, u32),
     cell_height: u16,
+    cancel: Option<&crate::cancellation::Cancellation>,
 ) -> Result<Thumbnail> {
     Ok(Thumbnail {
         cells: Buffer::empty(area),
         dimensions,
         cache_warning: None,
         native: None,
-        rows: Some(super::SixelRows::new(image, area, cell_height)?),
+        rows: Some(super::SixelRows::new_cancellable(
+            image,
+            area,
+            cell_height,
+            cancel,
+        )?),
     })
 }
 
-fn encode(image: DynamicImage, area: Rect, key: &ImageKey) -> Result<Protocol> {
+fn encode(
+    image: DynamicImage,
+    area: Rect,
+    key: &ImageKey,
+    cancel: Option<&crate::cancellation::Cancellation>,
+) -> Result<Protocol> {
     let Some(detail) = &key.detail else {
         return Ok(Protocol::Halfblocks(Halfblocks::new(image, area)?));
     };
     if detail.protocol == ImageProtocol::Sixel {
-        return super::sixel::native(image, area);
+        return super::sixel::native(image, area, cancel);
     }
     let protocol = match detail.protocol {
         ImageProtocol::Blocks => {

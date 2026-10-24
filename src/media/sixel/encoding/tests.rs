@@ -129,3 +129,22 @@ fn fields(input: &mut &[u8]) -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn an_obsolete_crop_stops_before_emitting_its_first_sixel_band() {
+    let (revision, cancel) = crate::cancellation::test_token();
+    revision.store(1, std::sync::atomic::Ordering::Release);
+    let mut bytes = Vec::new();
+    assert!(
+        write_cancellable(
+            &mut bytes,
+            &[0; 120],
+            10,
+            12,
+            &[0, 0, 0],
+            Some(&cancel)
+        )
+        .is_err()
+    );
+    assert!(!bytes.ends_with(b"\x1b\\"), "A partial image was completed");
+}
