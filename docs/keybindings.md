@@ -102,7 +102,7 @@ integrated. `:images on` enables loading, `:images` inspects failures and
 `:images retry` retries them. `:image-protocol auto` restores automatic choice.
 
 Publisher `srcset` and lazy `data-srcset` images prefer the highest valid
-candidate up to 2560 pixels wide or 3× density, falling back to `data-src`/`src`.
+candidate up to 4096 pixels wide or 4× density, falling back to `data-src`/`src`.
 Downloads and decoded pixels retain their existing limits. Zoom and pan reuse
 one decoded raster (at most 32 MiB); SVGs render again at the requested size.
 Native inspection scales from the source with Lanczos filtering. Character

@@ -1,0 +1,708 @@
+{
+  "date": "2026-10-24",
+  "reviewed_revision": "6df93b3948653722f3f87433bef427d42b91f4d9",
+  "scope": "Static code and contract review plus four existing release workloads; no product behavior changes.",
+  "measurement_scope": {
+    "binary_sha256": "688f2a0fa21327a43e554a5606dd90c7e06a8264e0e48e8811b6afe4c395f128",
+    "compiled_code_revision": "1fa0935788e3d68e1b23d0fbc501866c5ed65cd5",
+    "processes_per_workload": 1,
+    "notes": [
+      "Direct invocation of an existing optimized benchmark; no compilation, full test suite, containers or real network.",
+      "Temporary generated libraries only; no personal library inspection.",
+      "Absolute local operation means, not before/after gains, p99 or physical terminal latency.",
+      "Fixture setup precedes operation timers. Server probes measure local storage only, not HTTP latency."
+    ]
+  },
+  "current_probes": [
+    {
+      "arguments": [
+        "--recent-layouts-only",
+        "--stress"
+      ],
+      "stdout": "three recent layouts: cached back navigation: 40 iterations, 34.029 ms total, 0.851 ms/iteration\n"
+    },
+    {
+      "arguments": [
+        "--read-catalog-only",
+        "--stress"
+      ],
+      "stdout": "automatic read + distinct catalog counts: 8 iterations, 24.067 ms total, 3.008 ms/iteration\n"
+    },
+    {
+      "arguments": [
+        "--retention-inspection-only",
+        "--stress"
+      ],
+      "stdout": "one retention explanation (10000 articles, 32 broad queries): 8 iterations, 35.221 ms total, 4.403 ms/iteration\n"
+    },
+    {
+      "arguments": [
+        "--server-refresh-only",
+        "--test"
+      ],
+      "stdout": "unchanged server discovery (2,000 cached articles): 2 iterations, 0.894 ms total, 0.447 ms/iteration\nunchanged remote page (2,000 entries): 2 iterations, 15.731 ms total, 7.865 ms/iteration\nguarded unchanged remote page + health (2,000 entries): 2 iterations, 15.061 ms total, 7.530 ms/iteration\n"
+    }
+  ],
+  "already_implemented": [
+    "Selective read/favorite/queue/tag/note invalidation",
+    "Cached collapsible library sections with keyboard and mouse",
+    "HTTP image cancellation and two bounded worker lanes",
+    "Three recent layouts under an approximate byte budget",
+    "Persistent generation-checked image references and cancellable retention planning",
+    "Retention presets, source overrides and per-article explanations",
+    "Miniflux initial history limits, durable resume and progress",
+    "Storage units and per-source/table/FTS diagnostics",
+    "Automatic backup rotation and optional offline assets",
+    "Native inspector transition clearing and lossless Sixel palette compaction",
+    "Local performance percentiles and manual note reanchoring"
+  ],
+  "recommended_first_batch": [
+    "P01",
+    "P02",
+    "P03",
+    "P04",
+    "P05"
+  ],
+  "findings": [
+    {
+      "id": "P01",
+      "kind": "performance",
+      "priority": "high",
+      "effort": "large",
+      "title": "Cancel active obsolete read projections",
+      "confirmed_observation": "Latest skips obsolete queued inputs and discards old results, but operation(job.input) runs to completion once admitted. Catalog/navigation SQL and layout preparation have no operation-scoped generation token.",
+      "proposed_improvement": "Pass cooperative cancellation into replaceable reads/layouts; consider connection-owned interruption for active read SQL. Keep durable personal writes on their separate ordered lane.",
+      "evidence": [
+        {
+          "path": "src/latest.rs",
+          "line": 45,
+          "match": "let result = operation(job.input);"
+        },
+        {
+          "path": "src/app/catalog_worker.rs",
+          "line": 49,
+          "match": "fn read_catalog("
+        },
+        {
+          "path": "src/reader/layout_worker.rs",
+          "line": 176,
+          "match": "fn prepare(request: Request)"
+        }
+      ],
+      "validation": "Rapidly replace a deliberately slow search or resize; verify newest-result latency, reduced completed obsolete work, WAL consistency and preservation of every committed write.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "P02",
+      "kind": "performance",
+      "priority": "high",
+      "effort": "large",
+      "title": "Separate page totals from page retrieval and evaluate seek pagination",
+      "confirmed_observation": "read_page executes an exact count for every request. Newest-first page identities use LIMIT/OFFSET, so deep browsing still skips earlier matches.",
+      "proposed_improvement": "Cache totals by complete predicate and database revision, with expiry for time-dependent filters. Prototype keyset cursors for sequential navigation while retaining exact arbitrary jumps and search relevance semantics.",
+      "evidence": [
+        {
+          "path": "src/store/query.rs",
+          "line": 248,
+          "match": "fn read_page("
+        },
+        {
+          "path": "src/store/sql/select_matching_page.sql",
+          "line": 5,
+          "match": "LIMIT :limit OFFSET :offset"
+        }
+      ],
+      "validation": "Compare first/deep pages at 10k/100k/1m rows with identical results, timestamp ties, concurrent refreshes, retained Inbox selections, grouped views, Boolean FTS and both directions.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "P03",
+      "kind": "performance",
+      "priority": "high",
+      "effort": "medium",
+      "title": "Retarget image CPU preparation before encoding obsolete crops",
+      "confirmed_observation": "Image rendering captures the request key before decoder.fit, then checks only whether the request still exists before preparing pixels. A different crop for the same URL can remain active while the old crop is encoded and later discarded.",
+      "proposed_improvement": "Recheck exact keys between fit and encoding; reuse already loaded bytes for the latest crop. Add cancellation checkpoints to bounded Sixel bands where useful, preserving the existing HTTP cancellation.",
+      "evidence": [
+        {
+          "path": "src/media/worker.rs",
+          "line": 142,
+          "match": "fn render("
+        },
+        {
+          "path": "src/app/images.rs",
+          "line": 301,
+          "match": "fn install_thumbnail("
+        }
+      ],
+      "validation": "Open an inspector during inline preparation and pan/zoom rapidly; count obsolete encodes, disk reads and HTTP calls, verify final pixels and ensure closing stops admission.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "P04",
+      "kind": "performance",
+      "priority": "high",
+      "effort": "large",
+      "title": "Isolate remote discovery and evaluate server-wide delta collection",
+      "confirmed_observation": "sync_servers discovers enabled servers sequentially. Scheduler refresh waits for all discovery before collecting publisher feeds. Entry collection requests /v1/feeds/{id}/entries separately for each remote feed.",
+      "proposed_improvement": "Use bounded independent discovery with a serialized guarded publication lane, so a slow connection does not delay unrelated feeds. Separately investigate a supported server-wide delta/batch API and its cursor contract before replacing per-feed requests.",
+      "evidence": [
+        {
+          "path": "src/source/miniflux.rs",
+          "line": 52,
+          "match": "for server in servers.into_iter()"
+        },
+        {
+          "path": "src/source/scheduler.rs",
+          "line": 35,
+          "match": "let discovery ="
+        },
+        {
+          "path": "src/source/miniflux.rs",
+          "line": 188,
+          "match": "&format!(\"/v1/feeds/{}/entries\""
+        }
+      ],
+      "validation": "Use delayed/failing servers and unrelated local HTTP sources; measure first-source completion and request counts, respecting Retry-After, connection changes, tombstones and resumed history cursors.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "P05",
+      "kind": "performance",
+      "priority": "medium",
+      "effort": "medium",
+      "title": "Account for every retained image allocation",
+      "confirmed_observation": "ReaderImages enforces 32 MiB using SixelRows bytes only. Thumbnail cell buffers and native Protocol payloads are outside that byte sum, although entry count and inspector-crop limits still bound retention.",
+      "proposed_improvement": "Add unified retained-byte accounting for row payloads, native data and buffers; expose a bounded memory preference with sensible defaults. Include active decoder/fit allocations in peak-RSS qualification.",
+      "evidence": [
+        {
+          "path": "src/app/images.rs",
+          "line": 99,
+          "match": "fn remember("
+        },
+        {
+          "path": "src/media/mod.rs",
+          "line": 89,
+          "match": "pub struct Thumbnail"
+        }
+      ],
+      "validation": "Exercise blocks/Sixel/iTerm2, 32 formula slots, two inspector crops and eviction; verify bounded retained bytes and RSS without requeue loops or eviction of needed visible rows.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "P06",
+      "kind": "performance",
+      "priority": "medium",
+      "effort": "medium",
+      "title": "Reduce image source rereads and fitting lock contention",
+      "confirmed_observation": "A prepared-key cache miss rereads original bytes from disk. Decoder reuse is digest-based, and crop/resize or SVG render still occurs while holding the shared decoder mutex; encoding is already outside it.",
+      "proposed_improvement": "Evaluate a small immutable original-byte cache and checkout of decoded source handles before expensive fitting. Bound retained and in-flight memory together, and preserve offline-original authority and file revision correctness.",
+      "evidence": [
+        {
+          "path": "src/media/worker.rs",
+          "line": 164,
+          "match": "fn load("
+        },
+        {
+          "path": "src/media/worker.rs",
+          "line": 154,
+          "match": "decoder.fit(bytes, &key)"
+        },
+        {
+          "path": "src/media/raster.rs",
+          "line": 30,
+          "match": "Sha256::digest(bytes)"
+        }
+      ],
+      "validation": "Measure repeated uncached pans on large JPEG/SVG sources, disk-read bytes, digest work and two-lane wait time; verify replaced files, offline release and peak memory.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "P07",
+      "kind": "performance",
+      "priority": "medium",
+      "effort": "medium",
+      "title": "Share immutable prepared layouts instead of cloning entire projections",
+      "confirmed_observation": "Rendered owns vectors of lines/mappings and a String. Layout cache hits return ready.rendered.clone(), cloning these owned fields rather than only a shared snapshot handle.",
+      "proposed_improvement": "Prototype immutable shared base projections with source-bound mutable selection/annotation overlays. Prioritize large documents only: the current cached-layout probe is already fast.",
+      "evidence": [
+        {
+          "path": "src/reader/mod.rs",
+          "line": 75,
+          "match": "pub struct Rendered"
+        },
+        {
+          "path": "src/reader/layout_worker.rs",
+          "line": 82,
+          "match": "ready.rendered.clone()"
+        }
+      ],
+      "validation": "Use recent-layout workloads plus dense annotations and resize; compare allocations, RSS and navigation latency while preserving source ranges and avoiding styles or personal marks crossing articles.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "P08",
+      "kind": "performance",
+      "priority": "medium",
+      "effort": "medium",
+      "title": "Optimize residual ordinary counts only after measuring larger libraries",
+      "confirmed_observation": "Selective invalidation and sharing of identical smart filters already exist. The remaining ordinary total query scans articles, and grouped destination counts scan all feeds/servers/collections when requested.",
+      "proposed_improvement": "Evaluate incremental ordinary counters or a revision-keyed totals cache for very large collections. Keep distinct complex smart-list counts selective and preserve external-write invalidation.",
+      "evidence": [
+        {
+          "path": "src/app/catalog_worker.rs",
+          "line": 87,
+          "match": "pub(super) fn selective_counts("
+        },
+        {
+          "path": "src/store/query/counts.rs",
+          "line": 47,
+          "match": "fn navigation_totals("
+        },
+        {
+          "path": "src/store/sql/select_navigation_totals.sql",
+          "line": 18,
+          "match": "FROM articles AS a;"
+        }
+      ],
+      "validation": "Benchmark mutation bursts at 100k+ rows and compare every cached count to authoritative queries after refreshes, undo, bulk edits and concurrent connections.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "P09",
+      "kind": "performance",
+      "priority": "medium",
+      "effort": "medium",
+      "title": "Make expensive storage diagnostics cancellable and independently scheduled",
+      "confirmed_observation": "Storage and StorageDetails share the single-admission maintenance lane with backups, offline preparation and retention. Diagnostics do not receive the cancellation token; details aggregate source bodies, dbstat and FTS content.",
+      "proposed_improvement": "Separate read-only diagnostics from durable maintenance admission, add cooperative/SQL cancellation and progress, and expose clear busy-operation ownership. Keep destructive maintenance serialized.",
+      "evidence": [
+        {
+          "path": "src/app/maintenance.rs",
+          "line": 90,
+          "match": "pub(super) struct Maintenance"
+        },
+        {
+          "path": "src/app/maintenance.rs",
+          "line": 156,
+          "match": "Maintenance is busy;"
+        },
+        {
+          "path": "src/app/maintenance/operation.rs",
+          "line": 30,
+          "match": "Request::StorageDetails(unit)"
+        },
+        {
+          "path": "src/store/storage.rs",
+          "line": 44,
+          "match": "pub(crate) fn storage_details("
+        }
+      ],
+      "validation": "Start a slow storage scan during a backup/offline job, cancel or close it, and verify reading remains responsive, reports have a coherent snapshot and cleanup cannot be reordered.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "P10",
+      "kind": "performance",
+      "priority": "medium",
+      "effort": "large",
+      "title": "Measure FTS duplication before redesigning disk storage",
+      "confirmed_observation": "article_search_content retains body text in addition to article/document storage. Existing storage details already expose those copies and SQLite object allocation. Compression remains a proposal.",
+      "proposed_improvement": "Collect actual per-table/source sizes, then compare external-content FTS and optional backup/SVG compression separately. Review dependencies and preserve legacy formats before adding a codec.",
+      "evidence": [
+        {
+          "path": "src/store/sql/select_storage_fts.sql",
+          "line": 2,
+          "match": "FROM article_search_content;"
+        },
+        {
+          "path": "src/store/sql/migrations/V4__cache_full_articles.sql",
+          "line": 36,
+          "match": "body = NEW.body"
+        },
+        {
+          "path": "docs/compression-review.md",
+          "line": 3,
+          "match": "This is an implementation proposal"
+        }
+      ],
+      "validation": "Verify exact search/ranking/snippets, updates/deletes, restore and retention; measure disk bytes, decode latency, RSS and cold/warm startup. Do not infer a codec win from its design.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "P11",
+      "kind": "performance",
+      "priority": "low",
+      "effort": "medium",
+      "title": "Make ordinary image cache policy less write-heavy and more adaptable",
+      "confirmed_observation": "Every ordinary image cache write enumerates and sorts cache files. Eviction uses modification time; reads do not refresh recency. The limits are fixed at 64 MiB and 128 files.",
+      "proposed_improvement": "Compare amortized pruning or a bounded manifest and explicit age/recency policies; expose useful byte/count settings. Preserve no-follow ownership checks, cross-process safety and pinned-cache separation.",
+      "evidence": [
+        {
+          "path": "src/media/cache.rs",
+          "line": 14,
+          "match": "const DISK_BUDGET"
+        },
+        {
+          "path": "src/media/cache.rs",
+          "line": 67,
+          "match": "fn prune("
+        },
+        {
+          "path": "src/media/cache.rs",
+          "line": 79,
+          "match": "files.sort();"
+        }
+      ],
+      "validation": "Measure a gallery download burst and repeated access to old images; verify limits, concurrent writers, foreign files, symlinks and retention interaction.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "F01",
+      "kind": "feature",
+      "priority": "high",
+      "effort": "large",
+      "title": "Offer explicit optional bidirectional Miniflux state sync",
+      "confirmed_observation": "The documented contract imports read/starred flags only on first observation. Later local edits stay local; this is deliberate mirror behavior, not a broken current contract.",
+      "proposed_improvement": "Keep mirror mode as the default. Add an explicit opt-in read/starred sync mode with a durable outbox, idempotent retries and conflict policy, plus clear local/remote status and source-specific refresh controls.",
+      "evidence": [
+        {
+          "path": "docs/configuration.md",
+          "line": 167,
+          "match": "Lume's local state is authoritative"
+        },
+        {
+          "path": "src/store/servers.rs",
+          "line": 3,
+          "match": "Personal flags change only"
+        }
+      ],
+      "validation": "Never write remotely without opt-in; test offline edits, restarts, repeated deliveries, remote conflicts, token changes and preservation of local notes.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "F02",
+      "kind": "feature",
+      "priority": "high",
+      "effort": "large",
+      "title": "Support named offline packages and reconcile pinned assets",
+      "confirmed_observation": "One offline_package settings value owns the latest checkpoint. New preparation replaces it while reusing the shared pinned directory. Old files count toward its 512 MiB/4096-file limit until explicit release.",
+      "proposed_improvement": "Add a package manager with named captures, per-package status/budgets and reference-counted shared assets. Define replacement/release semantics and preview stale pins before reclaiming them.",
+      "evidence": [
+        {
+          "path": "src/store/offline.rs",
+          "line": 59,
+          "match": "WHERE key = 'offline_package'"
+        },
+        {
+          "path": "src/offline.rs",
+          "line": 89,
+          "match": "store.save_offline_state(&state)?;"
+        },
+        {
+          "path": "src/offline/images.rs",
+          "line": 146,
+          "match": "Pinned cache limit reached; release the old package first"
+        }
+      ],
+      "validation": "Prepare overlapping and disjoint packages; verify cancel/resume, retention protection, shared image ownership, restore and byte accounting without deleting assets needed by another capture.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "F03",
+      "kind": "feature",
+      "priority": "medium",
+      "effort": "large",
+      "title": "Bring linked pages closer to the main Reader",
+      "confirmed_observation": "WebPage.prepare replaces images with text links and uses options.text_only(), so temporary linked pages lack the main Reader image/formula presentation.",
+      "proposed_improvement": "Reuse bounded Reader presentation for linked pages and allow explicit save/offline capture, preserving article identity, back/forward history and local annotations.",
+      "evidence": [
+        {
+          "path": "src/app/web_reading/page.rs",
+          "line": 56,
+          "match": "let source = text_images("
+        },
+        {
+          "path": "src/app/web_reading/page.rs",
+          "line": 60,
+          "match": "options.text_only(),"
+        },
+        {
+          "path": "docs/keybindings.md",
+          "line": 116,
+          "match": "They are text views with explicit image links;"
+        }
+      ],
+      "validation": "Test back/forward, fragment jumps, source offsets, images, formulas, cancellation and return to the original article without marking it read or moving its notes.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "F04",
+      "kind": "feature",
+      "priority": "medium",
+      "effort": "large",
+      "title": "Handle larger galleries and repeated formulas on demand",
+      "confirmed_observation": "Reader admission caps ordinary and graphical formula slots at 32 each. Formula conversion caches live in each document Builder, so repeated formulas across reflows/documents are not shared by that semantic cache.",
+      "proposed_improvement": "Explore viewport-based slot admission and a bounded shared semantic/vector formula cache; provide fallback reasons for unsupported syntax versus resource limits. Keep per-expression/document admission limits.",
+      "evidence": [
+        {
+          "path": "src/reader/mod.rs",
+          "line": 250,
+          "match": "< 32"
+        },
+        {
+          "path": "src/reader/mod.rs",
+          "line": 166,
+          "match": "math: math::Math::default()"
+        },
+        {
+          "path": "src/reader/math.rs",
+          "line": 21,
+          "match": "graphic_cache:"
+        },
+        {
+          "path": "src/reader/math/graphics.rs",
+          "line": 32,
+          "match": "let ast = parse(latex).ok()?;"
+        }
+      ],
+      "validation": "Use long galleries and formula-heavy papers; verify stable scrolling, limits, readable fallbacks, selections, budget charging on cache hits and exact source anchors.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "F05",
+      "kind": "feature",
+      "priority": "medium",
+      "effort": "large",
+      "title": "Choose responsive image variants for actual viewport and inspection",
+      "confirmed_observation": "HTML normalization chooses the highest accepted srcset candidate and emits one Markdown URL, discarding alternatives before viewport size is known.",
+      "proposed_improvement": "Preserve bounded picture/source/srcset metadata and select a supported variant for thumbnail versus inspector demand. Define explicit original/high-resolution access and recoverable lower-variant fallback.",
+      "evidence": [
+        {
+          "path": "src/content/images.rs",
+          "line": 33,
+          "match": "fn responsive_image("
+        },
+        {
+          "path": "src/content/images.rs",
+          "line": 52,
+          "match": ".max_by_key("
+        },
+        {
+          "path": "src/content/images.rs",
+          "line": 25,
+          "match": "let markdown = format!"
+        }
+      ],
+      "validation": "Compare downloaded bytes and readable fine detail across card/inspector widths, density descriptors, picture sources, unsupported formats, broken candidates and source revision changes.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "F06",
+      "kind": "feature",
+      "priority": "medium",
+      "effort": "medium",
+      "title": "Provide an interactive retention review and consistent protection explanations",
+      "confirmed_observation": "Retention preview returns totals and explain inspects one ID. Automatic retention evaluates smart-list protection; manual Full cleanup uses base personal protections, a documented narrower set.",
+      "proposed_improvement": "Add a paginated eligible/protected browser with effective source policy and reasons. Make the manual-versus-automatic distinction explicit, or deliberately unify policy after reviewing the contract.",
+      "evidence": [
+        {
+          "path": "src/retention.rs",
+          "line": 140,
+          "match": "fn preview_plan("
+        },
+        {
+          "path": "src/store/retention/explain.rs",
+          "line": 18,
+          "match": "pub fn explain_retention("
+        },
+        {
+          "path": "src/store/storage.rs",
+          "line": 104,
+          "match": "WITH protected AS MATERIALIZED"
+        },
+        {
+          "path": "src/store/retention/plan.rs",
+          "line": 67,
+          "match": "self.protect_retention_queries("
+        }
+      ],
+      "validation": "Compare preview rows with actual candidates, including smart exceptions, favorites, folders, active readers and concurrent edits; no inspection may acknowledge or activate cleanup.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "F07",
+      "kind": "feature",
+      "priority": "medium",
+      "effort": "large",
+      "title": "Extend backup recovery UX and capacity controls",
+      "confirmed_observation": "TUI backup commands expose status/now/cancel. Bundle verification and isolated restore already exist as library APIs; CLI restore is also present. Rotation is count-based, and SQLite copying has a fixed 30-second deadline.",
+      "proposed_improvement": "Expose bundle browsing/verification and safe restore guidance in the TUI, add optional byte/age rotation limits and progress/time-budget configuration. Qualify compression for cold backups separately.",
+      "evidence": [
+        {
+          "path": "src/app/maintenance/commands.rs",
+          "line": 35,
+          "match": "Use :backup status|now|cancel"
+        },
+        {
+          "path": "src/backups.rs",
+          "line": 269,
+          "match": "pub fn verify("
+        },
+        {
+          "path": "src/config/backups.rs",
+          "line": 15,
+          "match": "pub keep: u16"
+        },
+        {
+          "path": "src/store/backup.rs",
+          "line": 137,
+          "match": "Duration::from_secs(30)"
+        }
+      ],
+      "validation": "Use large databases and slow storage, low disk space, interrupted copies, checksums and failed rotation. Preserve no-overwrite restore and existing complete bundles.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "F08",
+      "kind": "feature",
+      "priority": "medium",
+      "effort": "medium",
+      "title": "Add live preview to existing smart-list editing and configurable article ordering",
+      "confirmed_observation": "A smart-list editing form already exists, but save_smart commits its filter directly. Normal pagination uses published/id descending; ArticleQuery has no user sort selector.",
+      "proposed_improvement": "Extend the existing form with cancellable preview/count and query examples, and add typed sort options per view or list. Keep recommendation/relevance ordering explicit.",
+      "evidence": [
+        {
+          "path": "src/app/workspace.rs",
+          "line": 307,
+          "match": "fn save_smart("
+        },
+        {
+          "path": "src/store/sql/select_matching_page.sql",
+          "line": 4,
+          "match": "ORDER BY a.published DESC"
+        },
+        {
+          "path": "src/app/navigation.rs",
+          "line": 147,
+          "match": "pub(super) fn article_query("
+        }
+      ],
+      "validation": "Check preview/save agreement, invalid Boolean input, changing counts, stable ties, selection preservation, revision-aware caches and sort-safe pagination.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "F09",
+      "kind": "feature",
+      "priority": "medium",
+      "effort": "medium",
+      "title": "Extend existing local performance diagnostics with job ownership",
+      "confirmed_observation": ":performance already exposes bounded processing samples and p50/p95/p99/max. Its operation categories do not separately identify SQL, HTTP, fit/encoding, cache hits or wasted canceled work.",
+      "proposed_improvement": "Add an opt-in activity view with current source/job/phase, queue age, cache counters, cancellation/obsolete-work counts and scoped timings. Keep collection local and bounded.",
+      "evidence": [
+        {
+          "path": "src/app/performance.rs",
+          "line": 14,
+          "match": "pub enum Operation"
+        },
+        {
+          "path": "src/app/performance.rs",
+          "line": 60,
+          "match": "fn report("
+        },
+        {
+          "path": "src/app/maintenance.rs",
+          "line": 85,
+          "match": "enum Update"
+        }
+      ],
+      "validation": "Verify disabled diagnostics add no timing/allocations, secrets stay redacted, memory is bounded, and processing timestamps are not presented as physical display latency.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    },
+    {
+      "id": "C01",
+      "kind": "documentation",
+      "priority": "low",
+      "effort": "small",
+      "title": "Correct responsive-image limits in key bindings",
+      "confirmed_observation": "The key-bindings guide said 2560 pixels/3x, while code and native fixtures accept 4096 pixels/4x.",
+      "proposed_improvement": "Update the guide to the implemented bounds; no functional change.",
+      "evidence": [
+        {
+          "path": "docs/keybindings.md",
+          "line": 105,
+          "match": "candidate up to "
+        },
+        {
+          "path": "src/content/images.rs",
+          "line": 66,
+          "match": "(1..=4096)"
+        },
+        {
+          "path": "tests/images.rs",
+          "line": 85,
+          "match": "fn responsive_images_choose_bounded_high_resolution_sources"
+        }
+      ],
+      "validation": "Check the published guide against the implementation and existing fixture; no build or behavior-test rerun is needed for the numeric documentation correction.",
+      "estimated_speedup": null,
+      "status": "fixed_documentation_only"
+    },
+    {
+      "id": "C02",
+      "kind": "consistency",
+      "priority": "medium",
+      "effort": "medium",
+      "title": "Make default graphical formula foreground follow the selected theme",
+      "confirmed_observation": "The vector renderer sets default glyph color to RGB(224,219,208). Nord/Gruvbox remap UI text colors, but prepared image pixels intentionally bypass that text remapping.",
+      "proposed_improvement": "Pass the theme default foreground into formula generation and its cache identity, preserving explicitly colored TeX and publisher image colors.",
+      "evidence": [
+        {
+          "path": "src/reader/math/graphics.rs",
+          "line": 40,
+          "match": ".with_color(Color::rgb("
+        },
+        {
+          "path": "src/ui/theme.rs",
+          "line": 37,
+          "match": "pub(super) fn apply("
+        },
+        {
+          "path": "src/ui/theme.rs",
+          "line": 51,
+          "match": "Raster cells retain publisher colors"
+        }
+      ],
+      "validation": "Switch among supported themes with cached formulas; verify glyph foreground, background, cache invalidation, explicit formula colors and unchanged source mappings.",
+      "estimated_speedup": null,
+      "status": "identified_not_implemented"
+    }
+  ],
+  "changes_in_this_audit": {
+    "product_code": false,
+    "documentation": [
+      "Corrected key-bindings responsive-image limits to 4096 pixels / 4x.",
+      "Added this evidence-linked prioritized audit."
+    ]
+  }
+}
