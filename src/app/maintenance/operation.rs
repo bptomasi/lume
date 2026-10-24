@@ -61,11 +61,8 @@ fn retention(
 ) -> Result<Outcome> {
     let now = chrono::Utc::now().timestamp();
     let (report, preview) = match action {
-        RetentionAction::Explain(article) => {
-            return Ok(Outcome::Report(
-                "Retention",
-                store.explain_retention(article, now)?,
-            ));
+        RetentionAction::Explain(id) => {
+            return explain(store, id, now, article, cancel);
         }
         RetentionAction::Status => {
             return Ok(Outcome::Report(
@@ -206,4 +203,23 @@ fn resume(
         .offline_state()?
         .context("No offline package to resume")?;
     prepare(store, images, state, cancel, progress)
+}
+
+fn explain(
+    store: &Store,
+    article: i64,
+    now: i64,
+    active: Option<i64>,
+    cancel: &AtomicBool,
+) -> Result<Outcome> {
+    let text = match store
+        .explain_retention_cancellable(article, now, active, cancel)
+    {
+        Err(error) if error.is::<crate::retention::Canceled>() => {
+            "Retention inspection cancelled; policy was not acknowledged."
+                .into()
+        }
+        result => result?,
+    };
+    Ok(Outcome::Report("Retention", text))
 }

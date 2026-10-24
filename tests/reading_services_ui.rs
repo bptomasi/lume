@@ -795,3 +795,40 @@ fn automatic_backup_keeps_normal_reading_and_does_not_repeat_on_each_poll()
     assert!(!app.maintenance_pending());
     Ok(())
 }
+
+#[test]
+fn retention_inspection_protects_the_active_article_and_does_not_mislabel_an_explicit_id()
+-> Result<()> {
+    let (_directory, mut store, feed) = common::seeded_store()?;
+    let mut parsed =
+        lume::source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
+    parsed.articles[0].external_id = "second-review-article".into();
+    parsed.articles[0].url = "https://publisher.test/second".into();
+    store.ingest(&feed, &feed.title, &parsed.articles)?;
+    let ids = store
+        .library()?
+        .articles
+        .iter()
+        .map(|article| article.id)
+        .collect::<Vec<_>>();
+    let mut app = App::new(store, false)?;
+    let active = app.current().context("Selected article")?.id;
+    let other = ids
+        .into_iter()
+        .find(|id| *id != active)
+        .context("Other article")?;
+    command(&mut app, &format!("retention explain {other}"))?;
+    settle(&mut app)?;
+    let Mode::Document(view) = &app.mode else {
+        anyhow::bail!("Missing inspection");
+    };
+    assert!(!view.lines.join("\n").contains("active reader"));
+    key(&mut app, KeyCode::Esc)?;
+    command(&mut app, "retention explain")?;
+    settle(&mut app)?;
+    let Mode::Document(view) = &app.mode else {
+        anyhow::bail!("Missing selected inspection");
+    };
+    assert!(view.lines.join("\n").contains("active reader"));
+    Ok(())
+}

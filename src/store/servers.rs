@@ -78,25 +78,49 @@ impl Store {
         server_id: i64,
         candidates: &[RemoteFeedCandidate],
     ) -> Result<()> {
-        ensure!(candidates.len() <= 5000, "Server exceeds 5,000 feeds");
-        let mut remote_ids = BTreeSet::new();
         let transaction = self.write_transaction()?;
-        for candidate in candidates {
-            upsert_server_feed(
-                &transaction,
-                server_id,
-                candidate,
-                &mut remote_ids,
-            )?;
-        }
-        transaction
-            .prepare_cached(include_str!("sql/servers/archive_feeds.sql"))?
-            .execute((server_id, serde_json::to_string(&remote_ids)?))?;
+        persist_discovery(&transaction, server_id, candidates)?;
         transaction.commit()?;
         Ok(())
     }
 
-    /// Ingest one remote batch, seeding flags only for first-seen articles.
+    /// Publish discovered subscriptions and health against the captured connection.
+    ///
+    /// # Errors
+    /// Returns invalid candidates or atomic storage failures; obsolete results return false.
+    pub fn sync_collected_server_feeds(
+        &mut self,
+        server: &Server,
+        candidates: &[RemoteFeedCandidate],
+        now: i64,
+    ) -> Result<bool> {
+        let transaction = self.write_transaction()?;
+        if !cursor::server_current(&transaction, server)? {
+            return Ok(false);
+        }
+        persist_discovery(&transaction, server.id, candidates)?;
+        self.record_server_attempt(server.id, now, "")?;
+        transaction.commit()?;
+        Ok(true)
+    }
+
+    pub(crate) fn record_collected_server_failure(
+        &self,
+        server: &Server,
+        now: i64,
+        error: &str,
+    ) -> Result<bool> {
+        let transaction = self.write_transaction()?;
+        if !cursor::server_current(&transaction, server)? {
+            return Ok(false);
+        }
+        self.record_server_attempt(server.id, now, error)?;
+        transaction.commit()?;
+        Ok(true)
+    }
+
+    /// Import a trusted remote batch, seeding flags only for first-seen articles.
+    /// Network collection uses `ingest_collected_remote` to reject obsolete pages.
     ///
     /// # Errors
     /// Returns invalid remote identities, oversized bodies or SQLite errors.
@@ -107,42 +131,96 @@ impl Store {
         articles: &[IncomingArticle],
         remote: &RemoteFeedUpdate,
     ) -> Result<()> {
-        ensure!(articles.len() <= 2000, "Feed exceeds 2,000 entries");
-        validate_remote_feed(feed, remote)?;
         let transaction = self.write_transaction()?;
-        transaction
-            .prepare_cached(include_str!("sql/servers/update_feed_title.sql"))?
-            .execute((title, feed.id))?;
-        let removed: bool = transaction
-            .prepare_cached(include_str!(
-                "sql/retention/select_has_tombstones.sql"
-            ))?
-            .query_row([feed.id], |row| row.get(0))?;
-        for article in articles {
-            ingest_remote_article(
-                &transaction,
-                feed,
-                article,
-                remote,
-                removed,
-            )?;
-        }
-        transaction
-            .prepare_cached(include_str!("sql/servers/update_cursor.sql"))?
-            .execute((
-                remote.server_id,
-                remote.remote_id,
-                remote.last_changed,
-                remote.sync_after_id,
-                remote.sync_latest,
-                remote.initialized,
-                remote.history.before_id,
-                remote.history.loaded,
-                remote.history.total,
-            ))?;
+        persist_remote(&transaction, feed, title, articles, remote)?;
         transaction.commit()?;
         Ok(())
     }
+
+    /// Commit a downloaded page only if its connection/cursor remains current.
+    /// Obsolete pages leave content, progress and source health untouched.
+    ///
+    /// # Errors
+    /// Returns malformed batches or atomic storage failures.
+    pub fn ingest_collected_remote(
+        &mut self,
+        feed: &Feed,
+        title: &str,
+        articles: &[IncomingArticle],
+        remote: &RemoteFeedUpdate,
+        now: i64,
+    ) -> Result<bool> {
+        let transaction = self.write_transaction()?;
+        if !cursor::current(&transaction, feed)? {
+            return Ok(false);
+        }
+        persist_remote(&transaction, feed, title, articles, remote)?;
+        self.record_source_attempt(feed.id, now, "", 0)?;
+        transaction.commit()?;
+        Ok(true)
+    }
+
+    pub(crate) fn record_collection_failure(
+        &self,
+        feed: &Feed,
+        now: i64,
+        error: &str,
+        retry_at: i64,
+    ) -> Result<bool> {
+        let transaction = self.write_transaction()?;
+        if !cursor::current(&transaction, feed)? {
+            return Ok(false);
+        }
+        let failures = self.source_failures(feed.id)?;
+        let delay = 60_i64.saturating_mul(1_i64 << failures.min(10));
+        self.record_source_attempt(
+            feed.id,
+            now,
+            error,
+            retry_at.max(now.saturating_add(delay)),
+        )?;
+        transaction.commit()?;
+        Ok(true)
+    }
+}
+
+fn persist_discovery(
+    transaction: &rusqlite::Transaction<'_>,
+    server_id: i64,
+    candidates: &[RemoteFeedCandidate],
+) -> Result<()> {
+    ensure!(candidates.len() <= 5000, "Server exceeds 5,000 feeds");
+    let mut remote_ids = BTreeSet::new();
+    for candidate in candidates {
+        upsert_server_feed(transaction, server_id, candidate, &mut remote_ids)?;
+    }
+    transaction
+        .prepare_cached(include_str!("sql/servers/archive_feeds.sql"))?
+        .execute((server_id, serde_json::to_string(&remote_ids)?))?;
+    Ok(())
+}
+
+fn persist_remote(
+    transaction: &rusqlite::Transaction<'_>,
+    feed: &Feed,
+    title: &str,
+    articles: &[IncomingArticle],
+    remote: &RemoteFeedUpdate,
+) -> Result<()> {
+    ensure!(articles.len() <= 2000, "Feed exceeds 2,000 entries");
+    validate_remote_feed(feed, remote)?;
+    transaction
+        .prepare_cached(include_str!("sql/servers/update_feed_title.sql"))?
+        .execute((title, feed.id))?;
+    let removed: bool = transaction
+        .prepare_cached(include_str!(
+            "sql/retention/select_has_tombstones.sql"
+        ))?
+        .query_row([feed.id], |row| row.get(0))?;
+    for article in articles {
+        ingest_remote_article(transaction, feed, article, remote, removed)?;
+    }
+    cursor::update(transaction, remote)
 }
 
 fn validate_remote_feed(feed: &Feed, remote: &RemoteFeedUpdate) -> Result<()> {
@@ -387,6 +465,7 @@ fn update_remote_article(
     Ok(())
 }
 
+mod cursor;
 mod manage;
 
 #[cfg(test)]

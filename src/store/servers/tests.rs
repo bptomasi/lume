@@ -580,3 +580,6 @@ fn remote_scope(store: &Store) -> Result<crate::model::ServerFeed> {
         .find_map(|feed| feed.server)
         .ok_or_else(|| anyhow::anyhow!("Missing remote scope"))
 }
+
+#[path = "collection_tests.rs"]
+mod collection;

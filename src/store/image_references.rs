@@ -17,7 +17,7 @@ struct Pending {
 struct Indexed {
     article: i64,
     generation: i64,
-    urls: Vec<(i64, String)>,
+    urls: Vec<(i64, String, String)>,
 }
 
 impl Store {
@@ -88,12 +88,7 @@ impl Store {
             let mut insert = transaction.prepare_cached(include_str!(
                 "sql/image_references/insert.sql"
             ))?;
-            for (source, url) in entry.urls {
-                let bucket = Sha256::digest(url.as_bytes())
-                    .iter()
-                    .take(8)
-                    .map(|byte| format!("{byte:02x}"))
-                    .collect::<String>();
+            for (source, url, bucket) in entry.urls {
                 insert.execute((entry.article, source, url, bucket))?;
             }
         }
@@ -123,30 +118,18 @@ impl Store {
 fn index(entry: Pending, cancel: &AtomicBool) -> Result<Indexed> {
     let mut urls = Vec::new();
     for (source, (base, body)) in entry.sources.into_iter().enumerate() {
-        let mut unique = BTreeSet::new();
-        let base = crate::source::feed_url(&base).ok();
-        for event in Parser::new(&body) {
+        let unique = image_urls(&base, &body, cancel)?;
+        for url in unique {
             if cancel.load(Ordering::Relaxed) {
                 break;
             }
-            let Event::Start(Tag::Image { dest_url, .. }) = event else {
-                continue;
-            };
-            let url = crate::source::feed_url(&dest_url).ok().or_else(|| {
-                crate::source::feed_url(
-                    base.as_ref()?.join(&dest_url).ok()?.as_str(),
-                )
-                .ok()
-            });
-            if let Some(url) = url {
-                unique.insert(url.to_string());
-            }
-            ensure!(
-                unique.len() <= 100_000,
-                "Article exceeds image reference limit"
-            );
+            let bucket = Sha256::digest(url.as_bytes())
+                .iter()
+                .take(8)
+                .map(|byte| format!("{byte:02x}"))
+                .collect();
+            urls.push((source as i64, url, bucket));
         }
-        urls.extend(unique.into_iter().map(|url| (source as i64, url)));
     }
     Ok(Indexed {
         article: entry.article,
@@ -157,3 +140,34 @@ fn index(entry: Pending, cancel: &AtomicBool) -> Result<Indexed> {
 
 #[cfg(test)]
 mod tests;
+
+fn image_urls(
+    base: &str,
+    body: &str,
+    cancel: &AtomicBool,
+) -> Result<BTreeSet<String>> {
+    let mut unique = BTreeSet::new();
+    let base = crate::source::feed_url(base).ok();
+    for event in Parser::new(body) {
+        if cancel.load(Ordering::Relaxed) {
+            break;
+        }
+        let Event::Start(Tag::Image { dest_url, .. }) = event else {
+            continue;
+        };
+        let url = crate::source::feed_url(&dest_url).ok().or_else(|| {
+            crate::source::feed_url(
+                base.as_ref()?.join(&dest_url).ok()?.as_str(),
+            )
+            .ok()
+        });
+        if let Some(url) = url {
+            unique.insert(url.to_string());
+        }
+        ensure!(
+            unique.len() <= 100_000,
+            "Article exceeds image reference limit"
+        );
+    }
+    Ok(unique)
+}

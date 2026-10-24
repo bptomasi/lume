@@ -98,7 +98,7 @@ fn verify_vector(
     Ok(())
 }
 
-fn raster(stress: bool) -> Result<Vec<u8>> {
+pub(super) fn raster(stress: bool) -> Result<Vec<u8>> {
     let (width, height) = if stress { (2400, 1200) } else { (1200, 600) };
     let image = RgbImage::from_fn(width, height, |x, _| {
         if x < width / 2 {
@@ -112,7 +112,7 @@ fn raster(stress: bool) -> Result<Vec<u8>> {
     Ok(bytes.into_inner())
 }
 
-fn vector(stress: bool) -> String {
+pub(super) fn vector(stress: bool) -> String {
     let count = if stress { 900 } else { 150 };
     let mut svg = String::from(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600">"#,

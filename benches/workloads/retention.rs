@@ -53,7 +53,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     Ok(())
 }
 
-fn prepare(path: &Path, count: usize) -> Result<Store> {
+pub(super) fn prepare(path: &Path, count: usize) -> Result<Store> {
     let database = path.join("library.sqlite3");
     let mut store = Store::open(&database)?;
     seed(&mut store, count)?;

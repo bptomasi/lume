@@ -32,27 +32,46 @@ pub(super) fn refresh(
     progress: impl Fn(usize, usize),
 ) -> Result<Progress> {
     let mut store = Store::open(path)?;
-    let server_failures =
-        super::miniflux::sync_servers(&mut store, client, stopped)?;
-    let progress = collect(&mut store, stopped, progress, &|feed| {
-        download::fetch(client, feed, stopped)
-    })?;
+    let discovery = super::miniflux::sync_servers(&mut store, client, stopped)?;
+    let mut eligible = eligible_feeds(&store)?;
+    eligible.retain(|feed| {
+        feed.server.as_ref().is_none_or(|server| {
+            !discovery.obsolete.contains(&server.server_id)
+        })
+    });
+    let progress = collect_selected(
+        &mut store,
+        stopped,
+        progress,
+        &|feed| download::fetch(client, feed, stopped),
+        eligible,
+    )?;
     Ok(match progress {
         Progress::Finished { feeds, failures } => Progress::Finished {
             feeds,
-            failures: failures.saturating_add(server_failures),
+            failures: failures.saturating_add(discovery.failures),
         },
         progress => progress,
     })
 }
 
+#[cfg(test)]
 fn collect(
     store: &mut Store,
     stopped: &AtomicBool,
     progress: impl Fn(usize, usize),
     fetch: &(impl Fn(&Feed) -> Download + Sync),
 ) -> Result<Progress> {
-    let eligible = eligible_feeds(store)?;
+    collect_selected(store, stopped, progress, fetch, eligible_feeds(store)?)
+}
+
+fn collect_selected(
+    store: &mut Store,
+    stopped: &AtomicBool,
+    progress: impl Fn(usize, usize),
+    fetch: &(impl Fn(&Feed) -> Download + Sync),
+    eligible: Vec<Feed>,
+) -> Result<Progress> {
     let total = eligible.len();
     let buckets = buckets(eligible);
     thread::scope(|scope| {
@@ -203,28 +222,33 @@ fn commit(store: &mut Store, downloaded: Download) -> Result<bool> {
                 &parsed.title
             };
             if let Some(remote) = parsed.remote.as_ref() {
-                store.ingest_remote(&feed, title, &parsed.articles, remote)?;
+                store.ingest_collected_remote(
+                    &feed,
+                    title,
+                    &parsed.articles,
+                    remote,
+                    now,
+                )?;
+                return Ok(false);
             } else {
                 store.ingest(&feed, title, &parsed.articles)?;
             }
         }
-        Ok(())
+        Ok(true)
     });
     match result {
-        Ok(()) => store.record_source_attempt(feed.id, now, "", 0)?,
+        Ok(true) => store.record_source_attempt(feed.id, now, "", 0)?,
+        Ok(false) => {}
         Err(error) => {
-            let failures = store.source_failures(feed.id)?;
-            let delay = 60_i64.saturating_mul(1_i64 << failures.min(10));
-            let retry_at = downloaded.retry_at.max(now.saturating_add(delay));
-            store.record_source_attempt(
-                feed.id,
+            return store.record_collection_failure(
+                &feed,
                 now,
                 &format!("{error:#}"),
-                retry_at,
-            )?;
-            return Ok(true);
+                downloaded.retry_at,
+            );
         }
     }
+
     Ok(false)
 }
 

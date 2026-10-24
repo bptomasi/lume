@@ -195,7 +195,7 @@ Completed batches remain committed if cancellation/failure follows.
             };
             return self.submit_maintenance(Request::Retention {
                 action: RetentionAction::Explain(article),
-                article: Some(article),
+                article: self.current().map(|current| current.id),
             });
         }
         if argument == "cancel" {

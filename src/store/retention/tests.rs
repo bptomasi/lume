@@ -889,3 +889,119 @@ fn short_digest_collisions_do_not_change_complete_image_path_ownership()
     assert!(fixture.store.article(2)?.starred);
     Ok(())
 }
+
+#[test]
+fn point_inspection_materializes_only_the_requested_article_and_checks_active_reader()
+-> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.policy(Policy {
+        read_days: Age(Some(90)),
+        ..Default::default()
+    })?;
+    let store = &fixture.store;
+    let cancel = AtomicBool::new(false);
+    let text = store.explain_retention_cancellable(2, NOW, Some(2), &cancel)?;
+    assert!(
+        text.contains("active reader") && text.contains("Article: protected")
+    );
+    let size: (i64, i64, i64) = store.connection.query_row(
+        include_str!("../sql/retention/test_inspection_size.sql"),
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )?;
+    assert_eq!(size, (1, 1, 0));
+    let text = store.explain_retention_cancellable(2, NOW, Some(3), &cancel)?;
+    assert!(!text.contains("active reader"));
+    assert!(text.contains("Article: eligible"));
+    assert!(!store.retention_approved(&store.retention_policy()?)?);
+    assert!(
+        store
+            .explain_retention_cancellable(2, NOW, None, &AtomicBool::new(true))
+            .err()
+            .is_some_and(|error| error.is::<retention::Canceled>())
+    );
+    Ok(())
+}
+
+#[test]
+fn unlimited_policy_explanations_still_identify_user_smart_list_protection()
+-> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture
+        .store
+        .save_smart_list("Personal query", &SmartFilter::default())?;
+    let text = fixture.store.explain_retention(2, NOW)?;
+    assert!(text.contains("matches a protected smart list"));
+    let size: (i64, i64, i64) = fixture.store.connection.query_row(
+        include_str!("../sql/retention/test_inspection_size.sql"),
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )?;
+    assert_eq!(size, (1, 0, 1));
+    assert!(
+        !fixture
+            .store
+            .retention_approved(&fixture.store.retention_policy()?)?
+    );
+    assert_eq!(fixture.store.view_count(&View::All)?, 24);
+    Ok(())
+}
+
+#[test]
+fn point_smart_protection_matches_full_boolean_search_with_distinct_note_ids()
+-> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.store.save_comment(2, None, "onlyinnote")?;
+    fixture.store.save_comment(3, None, "different note")?;
+    fixture.store.set_starred(3, true)?;
+    for expression in [
+        "Original",
+        "notes:onlyinnote",
+        "NOT notes:onlyinnote",
+        "(title:Article AND notes:onlyinnote) OR is:favorite",
+        "body:Original AND NOT is:favorite",
+        "onlyinnote OR title:Article",
+    ] {
+        let expected = comparison_matches(&fixture.store, expression)?;
+        for article in 1..=24 {
+            let text = fixture.store.explain_retention(article, NOW)?;
+            assert_eq!(
+                text.contains("matches a protected smart list"),
+                expected.contains(&article),
+                "{expression}: {article}"
+            );
+        }
+    }
+    Ok(())
+}
+
+fn comparison_matches(
+    store: &Store,
+    expression: &str,
+) -> Result<std::collections::BTreeSet<i64>> {
+    store.save_smart_list(
+        "Comparison",
+        &SmartFilter {
+            text: expression.into(),
+            ..Default::default()
+        },
+    )?;
+    let list = store
+        .smart_lists()?
+        .into_iter()
+        .find(|list| list.name == "Comparison")
+        .context("Comparison list")?
+        .id;
+    Ok(store
+        .query_articles(&ArticleQuery {
+            view: View::Smart(list),
+            text: String::new(),
+            offset: 0,
+            limit: 100,
+            retained: None,
+        })?
+        .articles
+        .into_iter()
+        .map(|article| article.id)
+        .collect())
+}

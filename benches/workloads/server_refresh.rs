@@ -34,16 +34,21 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     store.save_comment(id, None, "Keep this personal note")?;
     store.set_starred(id, true)?;
     discovery(&mut store, server, &candidates, iterations)?;
-    super::measure("unchanged remote page (2,000 entries)", iterations, || {
-        store.ingest_remote(first, &first.title, &articles, &remote)?;
-        ensure!(
-            store.view_count(&View::Server(server))? == 2000,
-            "Entries changed"
-        );
-        ensure!(store.article(id)?.starred, "Personal favorite lost");
-        ensure!(store.comments(id)?.len() == 1, "Personal note lost");
-        Ok(())
-    })
+    super::measure(
+        "unchanged remote page (2,000 entries)",
+        iterations,
+        || {
+            store.ingest_remote(first, &first.title, &articles, &remote)?;
+            ensure!(
+                store.view_count(&View::Server(server))? == 2000,
+                "Entries changed"
+            );
+            ensure!(store.article(id)?.starred, "Personal favorite lost");
+            ensure!(store.comments(id)?.len() == 1, "Personal note lost");
+            Ok(())
+        },
+    )?;
+    collected_refresh(&mut store, first, &articles, &remote, iterations)
 }
 
 fn discovery(
@@ -89,4 +94,39 @@ fn articles(count: usize) -> Vec<IncomingArticle> {
             body_origin: FeedOrigin::Feed,
         })
         .collect()
+}
+
+fn collected_refresh(
+    store: &mut Store,
+    original: &lume::model::Feed,
+    articles: &[IncomingArticle],
+    remote: &RemoteFeedUpdate,
+    iterations: usize,
+) -> Result<()> {
+    let captured = store
+        .feeds()?
+        .into_iter()
+        .find(|feed| feed.id == original.id)
+        .context("Captured feed")?;
+    super::measure(
+        "guarded unchanged remote page + health (2,000 entries)",
+        iterations,
+        || {
+            ensure!(
+                store.ingest_collected_remote(
+                    &captured,
+                    &captured.title,
+                    articles,
+                    remote,
+                    1000
+                )?,
+                "Current page was rejected"
+            );
+            ensure!(
+                store.view_count(&View::Server(remote.server_id))? == 2000,
+                "Entries changed"
+            );
+            Ok(())
+        },
+    )
 }

@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-24",
+  "baseline": "aa59d70",
+  "toolchain": "1.99.1",
+  "profile": "unoptimized test, debug=0, incremental=false",
+  "processes_per_case": 1,
+  "conditions": [
+    "Same checked workload before and after each implementation.",
+    "Two build jobs and two test threads; fixture setup excluded from timers.",
+    "Image sources warmed in Decoder; native encoding remains inside the timer.",
+    "Preparation costs exclude network, disk, event polling and terminal transport.",
+    "Single-process development measurements do not establish release or physical display latency."
+  ],
+  "retention": {
+    "iterations": 8,
+    "smart_lists": 32,
+    "samples": [
+      {
+        "articles": 1000,
+        "before_ms": 14.465,
+        "after_ms": 3.494
+      },
+      {
+        "articles": 10000,
+        "before_ms": 123.466,
+        "after_ms": 10.673
+      }
+    ]
+  },
+  "sixel_inspector": {
+    "iterations": 4,
+    "source_pixels": [
+      1200,
+      600
+    ],
+    "viewport_cells": [
+      120,
+      40
+    ],
+    "cell_pixels": [
+      10,
+      20
+    ],
+    "samples": [
+      {
+        "fixture": "exact-color raster",
+        "before_ms": 1008.884,
+        "after_ms": 44.267
+      },
+      {
+        "fixture": "SVG with text",
+        "before_ms": 1018.474,
+        "after_ms": 146.994
+      },
+      {
+        "fixture": "RGB gradient",
+        "before_ms": 1162.801,
+        "after_ms": 696.345
+      },
+      {
+        "fixture": "high-entropy RGB detail",
+        "before_ms": null,
+        "after_ms": 1690.433,
+        "baseline_status": "Aborted slow legacy encoder; no completed baseline timing."
+      }
+    ]
+  },
+  "reproduce": [
+    "cargo test --locked --bench reader -- --retention-inspection-only",
+    "cargo test --locked --bench reader -- --retention-inspection-only --stress",
+    "cargo test --locked --bench reader -- --inspector-loading-only"
+  ]
+}

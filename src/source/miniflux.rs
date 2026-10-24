@@ -29,18 +29,26 @@ const MAX_PAGES: usize = 10;
 /// Largest normalized remote body accepted for one entry.
 const MAX_REMOTE_BODY: usize = 1024 * 1024;
 
+pub(super) struct Discovery {
+    pub(super) failures: usize,
+    pub(super) obsolete: std::collections::BTreeSet<i64>,
+}
+
 /// Discover remote subscriptions for every enabled server.
 ///
-/// Returns the number of servers whose discovery failed. Feed-level failures
-/// remain in the ordinary source health records.
+/// Reports failures and obsolete connections to exclude from entry collection.
+/// Feed-level failures remain in the ordinary source health records.
 pub(super) fn sync_servers(
     store: &mut Store,
     client: &ureq::Agent,
     stopped: &AtomicBool,
-) -> Result<usize> {
+) -> Result<Discovery> {
     let servers = store.servers()?;
     let mut retries = store.domain_retries(now())?;
-    let mut failures = 0;
+    let mut discovery = Discovery {
+        failures: 0,
+        obsolete: Default::default(),
+    };
     for server in servers.into_iter().filter(|server| server.enabled) {
         if stopped.load(Ordering::Relaxed) {
             break;
@@ -54,22 +62,25 @@ pub(super) fn sync_servers(
             break;
         }
         if let Err(error) = &result {
-            failures += 1;
             let deadline = retry_deadline(error);
             if deadline > now() {
                 store.record_domain_retry(&host, deadline, now())?;
                 retries.insert(host, deadline);
             }
-            store.record_server_attempt(
-                server.id,
+            if store.record_collected_server_failure(
+                &server,
                 now(),
                 &format!("{error:#}"),
-            )?;
-        } else {
-            store.record_server_attempt(server.id, now(), "")?;
+            )? {
+                discovery.failures += 1;
+            } else {
+                discovery.obsolete.insert(server.id);
+            }
+        } else if matches!(result, Ok(false)) {
+            discovery.obsolete.insert(server.id);
         }
     }
-    Ok(failures)
+    Ok(discovery)
 }
 
 fn sync_server(
@@ -77,7 +88,7 @@ fn sync_server(
     client: &ureq::Agent,
     server: &Server,
     stopped: &AtomicBool,
-) -> Result<()> {
+) -> Result<bool> {
     let token = token(server)?;
     let feeds: Vec<RemoteFeed> =
         get_json(client, &endpoint(server, "/v1/feeds")?, &token)
@@ -99,7 +110,7 @@ fn sync_server(
         })
         .collect::<Result<Vec<_>>>()?;
     ensure!(!stopped.load(Ordering::Relaxed), "Collection cancelled");
-    store.sync_server_feeds(server.id, &candidates)
+    store.sync_collected_server_feeds(server, &candidates, now())
 }
 
 /// Fetch one bounded entry page set for a mirrored feed.

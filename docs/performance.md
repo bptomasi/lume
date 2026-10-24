@@ -648,3 +648,36 @@ and isolated restoration. Filesystem results depend on the host/cache/device.
 Reproduce with the focused `--recent-layouts-only`, `--read-catalog-only`,
 `--image-priority-only`, `--retention-images-only`, `--server-refresh-only` and
 `--backups-only` flags; add `--stress` for the larger retention fixture.
+
+## Retention inspection and native image preparation
+
+The [checked comparison](performance/retention-inspector-review.json) uses the
+same unoptimized build settings and workload before and after each change.
+These are single-process development measurements; they exclude network and
+physical terminal presentation and do not establish release latency.
+
+| Operation | Before | After |
+| --- | ---: | ---: |
+| Explain one article, 1,000 articles and 32 broad smart lists | 14.465 ms | 3.494 ms |
+| Explain one article, 10,000 articles and 32 broad smart lists | 123.466 ms | 10.673 ms |
+| Prepare full-resolution Sixel inspector, exact-color raster | 1,008.884 ms | 44.267 ms |
+| Prepare full-resolution Sixel inspector, SVG with text | 1,018.474 ms | 146.994 ms |
+| Prepare full-resolution Sixel inspector, smooth RGB gradient | 1,162.801 ms | 696.345 ms |
+
+Inspection materializes only the requested article's candidates and personal
+protections, and cancellation does not acknowledge a cleanup policy. Broad FTS
+predicates can still perform library-wide index work; inspection is not constant
+time. An experiment that restricted FTS subqueries independently was rejected
+because it increased the measured stress cost.
+
+Image fixtures use a 1,200 by 600 source and a 120 by 40 cell inspector with
+10 by 20 pixel cells. Source reuse is warmed before timing, while fitting,
+color preparation and native encoding are timed together. Exact-color indexing
+avoids quantization for diagrams; richer images retain Oklab quantization and
+Floyd–Steinberg diffusion. Six-row planning avoids cloning the entire palette
+map for every sparse run. The high-entropy fixture completes in 1,690.433 ms in
+this unoptimized build; its slow legacy-encoder run was interrupted, so no
+completed baseline or speedup is reported for that fixture. Behavioral tests
+independently reconstruct emitted indexed pixels, including sparse colors,
+partial final bands and long repeated runs. No actual Foot display timing is
+claimed for this comparison.

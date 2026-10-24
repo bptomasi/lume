@@ -1,0 +1,1 @@
+DROP TRIGGER reject_discovery_attempt;

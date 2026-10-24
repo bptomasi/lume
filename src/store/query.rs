@@ -109,6 +109,7 @@ impl Store {
         &self,
         unprotected: &[String],
         cancel: &std::sync::atomic::AtomicBool,
+        only: Option<i64>,
     ) -> Result<()> {
         let ignored = self
             .connection
@@ -128,23 +129,39 @@ impl Store {
             if !unique.insert(serde_json::to_string(&list.filter)?) {
                 continue;
             }
-            let query = ArticleQuery {
-                view: View::Smart(list.id),
-                text: String::new(),
-                offset: 0,
-                limit: 1,
-                retained: None,
-            };
-            let criteria = self.criteria(&query)?;
-            let sql = format!(
-                "{}\n{}",
-                include_str!("sql/retention/insert_smart.sql"),
-                criteria.predicate()
-            );
-            let mut statement = self.connection.prepare_cached(&sql)?;
-            bind(&mut statement, &criteria, &query)?;
-            statement.raw_execute()?;
+            self.protect_retention_list(list.id, only)?;
         }
+        Ok(())
+    }
+
+    fn protect_retention_list(&self, id: i64, only: Option<i64>) -> Result<()> {
+        let query = ArticleQuery {
+            view: View::Smart(id),
+            text: String::new(),
+            offset: 0,
+            limit: 1,
+            retained: None,
+        };
+        let criteria = self.criteria(&query)?;
+        let sql = format!(
+            "{}\n{}",
+            include_str!("sql/retention/insert_smart.sql"),
+            criteria.predicate()
+        );
+        let sql = if only.is_some() {
+            format!(
+                "{sql}\n{}",
+                include_str!("sql/retention/filter_smart_article.sql")
+            )
+        } else {
+            sql
+        };
+        let mut statement = self.connection.prepare_cached(&sql)?;
+        bind(&mut statement, &criteria, &query)?;
+        if let Some(index) = statement.parameter_index(":retention_article")? {
+            statement.raw_bind_parameter(index, only)?;
+        }
+        statement.raw_execute()?;
         Ok(())
     }
 

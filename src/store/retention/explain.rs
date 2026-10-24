@@ -1,6 +1,7 @@
 //! Explicit explanation uses the same authoritative protection predicates as apply.
-use super::{Store, protected_query};
+use super::Store;
 use anyhow::{Context, Result, ensure};
+use std::sync::atomic::AtomicBool;
 
 struct Explanation {
     title: String,
@@ -15,22 +16,66 @@ impl Store {
     /// # Errors
     /// Returns missing article, invalid policy or planning/storage failures.
     pub fn explain_retention(&self, article: i64, now: i64) -> Result<String> {
-        let plan = self.prepare_retention_cancellable(
+        self.explain_retention_cancellable(
+            article,
+            now,
+            None,
+            &AtomicBool::new(false),
+        )
+    }
+
+    /// Inspect one article without global candidate materialization or policy acknowledgement.
+    ///
+    /// # Errors
+    /// Returns cancellation, missing article, invalid policy or storage failures.
+    pub fn explain_retention_cancellable(
+        &self,
+        article: i64,
+        now: i64,
+        active: Option<i64>,
+        cancel: &AtomicBool,
+    ) -> Result<String> {
+        let plan = self.prepare_retention_scope(
             self.retention_policy()?,
             now,
             None,
-            &std::sync::atomic::AtomicBool::new(false),
+            cancel,
+            Some(article),
         )?;
-        let sql = protected_query(include_str!(
-            "../sql/retention/explain_reasons.sql"
-        ));
-        let reasons = self
-            .connection
+        self.read_snapshot(|store| {
+            let mut reasons = store.retention_reasons(article)?;
+            if active == Some(article) {
+                reasons.push("active reader".into());
+            }
+            let explanation = store.retention_explanation(article)?;
+            crate::retention::check_cancel(cancel)?;
+            ensure!(
+                store.retention_current(&plan)?,
+                "Library changed during inspection; inspect again"
+            );
+            Ok(explanation.text(article, &reasons))
+        })
+    }
+
+    fn retention_reasons(&self, article: i64) -> Result<Vec<String>> {
+        // Allow the article predicate to reach each canonical protection branch.
+        let sql = format!(
+            "{}\n{})\n{}",
+            include_str!("../sql/retention/with_inspection_protections.sql"),
+            include_str!("../sql/retention/select_protected.sql")
+                .trim()
+                .trim_end_matches(';'),
+            include_str!("../sql/retention/explain_reasons.sql")
+        );
+        self.connection
             .prepare_cached(&sql)?
             .query_map([article], |row| row.get::<_, String>(0))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        let explanation = self
-            .connection
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    fn retention_explanation(&self, article: i64) -> Result<Explanation> {
+        self.connection
             .query_row(
                 include_str!("../sql/retention/explain_article.sql"),
                 [article],
@@ -47,12 +92,7 @@ impl Store {
                     })
                 },
             )
-            .context("Article is missing from the library")?;
-        ensure!(
-            self.retention_current(&plan)?,
-            "Library changed during inspection; inspect again"
-        );
-        Ok(explanation.text(article, &reasons))
+            .context("Article is missing from the library")
     }
 }
 

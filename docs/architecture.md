@@ -559,3 +559,35 @@ snapshots in addition to the current layout, under an estimated 8 MiB retained
 budget. Styles have a separate revision; invalidation discards cached old colors.
 Personal annotations and current article identity are reapplied by the app and
 never stored in the base layout cache. Oversized layouts are not retained.
+
+Retention inspection restricts source cutoffs, smart-list membership and
+candidate/protection materialization to the requested article. The reasons and
+metadata share a read snapshot, with cooperative cancellation and the captured
+library version checked before delivery. Transient Reader protection comes
+from the selected article, independently of an explicit inspection target.
+Inspection also evaluates protection under unlimited lifetimes without arming
+cleanup. Reference hash prefixes are prepared before acquiring the write lease;
+only generation checks and index publication occur inside that lease.
+
+Downloaded server pages recheck their captured connection and pagination cursor
+under an IMMEDIATE transaction. Changed credentials/root/settings, disabled or
+removed subscriptions and advanced/restarted cursors discard obsolete results.
+Content, cursor and successful source health publish together; failure health
+also rechecks the captured context before writing. Personal reading edits do
+not invalidate a publisher response. Trusted local batch import retains its
+separate ingestion entry point.
+
+Subscription discovery uses the same connection check before publishing its
+feed set and server health atomically. A discovery response from an obsolete
+connection excludes that server from entry collection for the current pass.
+
+Native Sixel preparation preserves exact RGB colors when the fitted image has
+at most 256 colors. Richer images deduplicate color conversion before the
+qualified Oklab quantizer and Floyd–Steinberg diffusion. Resolution, source
+cropping and the palette budget remain independent of this optimization.
+Six-row band planning uses one bounded palette map and copies only a single
+color plane for each emission. icy_sixel still owns framing, palette encoding
+and run-length encoding; no full palette map is copied for each sparse run.
+An independent test decoder reconstructs every indexed pixel across dense,
+sparse, partial and repeated bands. Physical display qualification remains a
+separate desktop-dependent gate.

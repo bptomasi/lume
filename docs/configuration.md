@@ -382,8 +382,12 @@ lume retention apply
 
 The TUI supports `:retention status`, `:retention preview` (Enter applies),
 `:retention apply`, `:retention explain [ID]` and `:retention cancel`.
-Explanation lists each personal protection and the effective expiry cutoff; it
-does not acknowledge a policy or remove data. CLI commands work offline. Preview
+Explanation lists each personal protection and the effective expiry cutoff;
+`:retention explain` also identifies protection of the currently selected Reader
+article. An explicit ID does not turn that other article into an active Reader.
+Inspection evaluates only that article, includes smart-list matches even under
+an unlimited policy, and accepts `:retention cancel`. It does not acknowledge a
+policy or remove data. CLI commands work offline. Preview
 counts all currently eligible content without removing it; application obeys
 both per-run budgets. Changing lifetimes, source overrides or smart-list
 protection requires another preview. Changing scheduling/budgets or enabling

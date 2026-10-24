@@ -43,6 +43,8 @@ mod highlighting;
 mod image_priority;
 #[path = "workloads/images.rs"]
 mod images;
+#[path = "workloads/inspector_loading.rs"]
+mod inspector_loading;
 #[path = "workloads/interaction.rs"]
 mod interaction;
 #[path = "workloads/library_sections.rs"]
@@ -85,6 +87,8 @@ mod recovery_navigation;
 mod retention;
 #[path = "workloads/retention_images.rs"]
 mod retention_images;
+#[path = "workloads/retention_inspection.rs"]
+mod retention_inspection;
 #[path = "workloads/rich_text.rs"]
 mod rich_text;
 #[path = "workloads/search_relevance.rs"]
@@ -152,6 +156,8 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 }
 
 const COMPONENT_WORKLOADS: &[Workload] = &[
+    inspector_loading::run,
+    retention_inspection::run,
     active_reading::run,
     image_priority::run,
     read_catalog::run,
@@ -196,6 +202,8 @@ const COMPONENT_WORKLOADS: &[Workload] = &[
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--inspector-loading-only", inspector_loading::run),
+    ("--retention-inspection-only", retention_inspection::run),
     ("--backups-only", backups::run),
     ("--active-reading-only", active_reading::run),
     ("--image-priority-only", image_priority::run),

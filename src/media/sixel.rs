@@ -8,9 +8,7 @@
 //! can still hold text from an earlier frame, including partially covered edges.
 
 use anyhow::{Result, ensure};
-use icy_sixel::{PixelFormat, dither::sixel_dither, output::sixel_output};
 use image::DynamicImage;
-use quantette::{ImageRef, Pipeline, deps::palette::Srgb};
 use ratatui::{
     buffer::{Buffer, Cell},
     layout::Rect,
@@ -22,6 +20,8 @@ use ratatui_image::{
 };
 
 const MAX_ENCODED_BYTES: usize = 8 * 1024 * 1024;
+mod encoding;
+mod palette;
 
 /// Immutable cell-height Sixel strips, prepared outside the input/draw path.
 ///
@@ -40,8 +40,7 @@ impl SixelRows {
         cell_height: u16,
     ) -> Result<Self> {
         let rgb = image.to_rgb8();
-        let (mut palette, indexed) = indexed_pixels(&rgb)?;
-        palette.set_pixelformat(PixelFormat::PAL8);
+        let (palette, indexed) = palette::index(&rgb)?;
         let strip_area = Rect::new(0, 0, area.width, 1);
         let mut scratch = Buffer::empty(strip_area);
         let mut rows = Vec::with_capacity(usize::from(area.height));
@@ -51,14 +50,9 @@ impl SixelRows {
             let height = u32::from(cell_height).min(image.height() - y);
             let start = (y * image.width()) as usize;
             let end = start + (height * image.width()) as usize;
-            let mut strip = indexed[start..end].to_vec();
-            let sixel = encode(
-                &mut strip,
-                image.width(),
-                height,
-                strip_area,
-                &mut palette,
-            )?;
+            let strip = &indexed[start..end];
+            let sixel =
+                encode(strip, image.width(), height, strip_area, &palette)?;
             Image::new(&Protocol::Sixel(sixel))
                 .render(strip_area, &mut scratch);
             let mut cell = std::mem::take(&mut scratch[(0, 0)]);
@@ -120,42 +114,12 @@ impl SixelRows {
     }
 }
 
-fn indexed_pixels(image: &image::RgbImage) -> Result<(sixel_dither, Vec<u8>)> {
-    let pixels: Vec<_> = image
-        .pixels()
-        .map(|pixel| Srgb::new(pixel[0], pixel[1], pixel[2]))
-        .collect();
-    let input = ImageRef::new(image.width(), image.height(), &pixels)
-        .map_err(|error| anyhow::anyhow!("{error}"))?;
-    // Quantize and diffuse once, including the boundaries between strips.
-    let indexed = Pipeline::new()
-        .input_image(input)
-        .output_srgb8_indexed_image();
-    let mut palette = sixel_dither::new(indexed.palette().len() as i32)
-        .map_err(|error| anyhow::anyhow!("{error}"))?;
-    palette.set_palette(
-        indexed
-            .palette()
-            .iter()
-            .flat_map(|color| [color.red, color.green, color.blue])
-            .collect(),
-    );
-    palette.set_optimize_palette(false);
-    Ok((palette, indexed.indices().to_vec()))
-}
-
 /// The inspector uses the same color preparation as clipped reader images.
 pub(super) fn native(image: DynamicImage, area: Rect) -> Result<Protocol> {
     let rgb = image.to_rgb8();
-    let (mut palette, mut indexed) = indexed_pixels(&rgb)?;
-    palette.set_pixelformat(PixelFormat::PAL8);
-    let sixel = encode(
-        &mut indexed,
-        image.width(),
-        image.height(),
-        area,
-        &mut palette,
-    )?;
+    let (palette, indexed) = palette::index(&rgb)?;
+    let sixel =
+        encode(&indexed, image.width(), image.height(), area, &palette)?;
     ensure!(
         sixel.data.len() <= MAX_ENCODED_BYTES,
         "Native pixels exceed 8 MiB"
@@ -164,16 +128,15 @@ pub(super) fn native(image: DynamicImage, area: Rect) -> Result<Protocol> {
 }
 
 fn encode(
-    pixels: &mut [u8],
+    pixels: &[u8],
     width: u32,
     height: u32,
     area: Rect,
-    palette: &mut sixel_dither,
+    palette: &[u8],
 ) -> Result<Sixel> {
     let mut bytes = Vec::new();
-    sixel_output::new(&mut bytes)
-        .encode(pixels, width as i32, height as i32, 0, palette)
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    encoding::write(&mut bytes, pixels, width, height, palette)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
     Ok(Sixel {
         data: String::from_utf8(bytes)?,
         area,

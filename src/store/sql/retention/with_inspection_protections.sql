@@ -1,0 +1,1 @@
+WITH protected AS NOT MATERIALIZED (
