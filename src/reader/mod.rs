@@ -101,6 +101,7 @@ pub struct Rendered {
 
 struct Builder<'a> {
     source: &'a str,
+    cancel: Option<&'a crate::cancellation::Cancellation>,
     rendered: Rendered,
     spans: Vec<Span<'static>>,
     mappings: Vec<SourceMapping>,
@@ -143,41 +144,84 @@ pub(super) fn render_with(
     options: RenderOptions,
     highlight: &mut dyn FnMut(&str, &str) -> Vec<Line<'static>>,
 ) -> Rendered {
+    render_body(body, width, options, highlight, None)
+}
+
+pub(crate) fn render_cancellable(
+    body: &str,
+    width: usize,
+    options: RenderOptions,
+    highlight: &mut dyn FnMut(&str, &str) -> Vec<Line<'static>>,
+    cancel: &crate::cancellation::Cancellation,
+) -> anyhow::Result<Rendered> {
+    cancel.check()?;
+    let rendered = render_body(body, width, options, highlight, Some(cancel));
+    cancel.check()?;
+    Ok(rendered)
+}
+
+fn render_body<'a>(
+    body: &'a str,
+    width: usize,
+    options: RenderOptions,
+    highlight: &'a mut dyn FnMut(&str, &str) -> Vec<Line<'static>>,
+    cancel: Option<&'a crate::cancellation::Cancellation>,
+) -> Rendered {
     let input = legacy_lists::Input::new(body);
-    let mut builder = Builder {
-        source: body,
-        rendered: Rendered::default(),
-        spans: Vec::new(),
-        mappings: Vec::new(),
-        text_length: 0,
-        start: 0,
-        end: 0,
-        width: width.max(1),
-        styles: vec![Style::new().fg(TEXT)],
-        code: None,
-        paragraph: false,
-        quote: 0,
-        lists: lists::Lists::default(),
-        horizontal_group: None,
-        links: links::Links::default(),
-        image: None,
-        table: None,
-        table_bytes: 0,
-        math: math::Math::default(),
-        options,
-        highlight,
-    };
+    let mut builder = Builder::new(body, width, options, highlight, cancel);
     for (event, range) in Parser::new_ext(
         input.text(),
         Options::ENABLE_TABLES | Options::ENABLE_MATH,
     )
     .into_offset_iter()
     {
+        if builder.cancelled() {
+            return Rendered::default();
+        }
         builder.event(event, input.source_range(range));
     }
     builder.flush();
     builder.rendered.links = builder.links.finish();
     builder.rendered
+}
+
+impl<'a> Builder<'a> {
+    fn new(
+        body: &'a str,
+        width: usize,
+        options: RenderOptions,
+        highlight: &'a mut dyn FnMut(&str, &str) -> Vec<Line<'static>>,
+        cancel: Option<&'a crate::cancellation::Cancellation>,
+    ) -> Self {
+        Self {
+            source: body,
+            cancel,
+            rendered: Rendered::default(),
+            spans: Vec::new(),
+            mappings: Vec::new(),
+            text_length: 0,
+            start: 0,
+            end: 0,
+            width: width.max(1),
+            styles: vec![Style::new().fg(TEXT)],
+            code: None,
+            paragraph: false,
+            quote: 0,
+            lists: lists::Lists::default(),
+            horizontal_group: None,
+            links: links::Links::default(),
+            image: None,
+            table: None,
+            table_bytes: 0,
+            math: math::Math::default(),
+            options,
+            highlight,
+        }
+    }
+
+    fn cancelled(&self) -> bool {
+        self.cancel.is_some_and(|cancel| cancel.is_cancelled())
+    }
 }
 
 impl Builder<'_> {
@@ -533,13 +577,15 @@ impl Builder<'_> {
         let rows = textwrap::wrap(text, options);
         let count = rows.len();
         for (index, wrapped) in rows.into_iter().enumerate() {
+            if self.cancelled() {
+                break;
+            }
             let wrapped = if index == 0 {
                 wrapped.as_ref()
             } else {
                 wrapped.strip_prefix(&padding).unwrap_or(&wrapped)
             };
-            let offset = text[consumed..].find(wrapped).unwrap_or(0);
-            let start = consumed + offset;
+            let start = consumed + text[consumed..].find(wrapped).unwrap_or(0);
             let end = start + wrapped.len();
             let (line, source) = paragraph.row(start..end);
             self.push(
@@ -613,4 +659,31 @@ pub(crate) fn render_with_plain_links(body: &str) -> Vec<(String, String)> {
             .collect()
     })
     .links
+}
+
+#[cfg(test)]
+mod cancellation_tests {
+    use super::*;
+    use std::sync::atomic::Ordering;
+
+    #[test]
+    fn superseded_layout_stops_before_preparing_the_remaining_code_blocks() {
+        let (generation, cancel) = crate::cancellation::test_token();
+        let body = "```rust\nlet value = 1;\n```\n\n".repeat(100);
+        let mut calls = 0;
+        let result = render_cancellable(
+            &body,
+            80,
+            RenderOptions::default(),
+            &mut |_, _| {
+                calls += 1;
+                generation.store(1, Ordering::Release);
+                Vec::new()
+            },
+            &cancel,
+        );
+        assert!(result.is_err());
+        assert_eq!(calls, 1);
+        assert!(render(&body, 80).text.contains("let value = 1;"));
+    }
 }

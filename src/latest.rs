@@ -10,6 +10,7 @@ use std::sync::{
     mpsc,
 };
 
+use crate::cancellation::Cancellation;
 use anyhow::{Result, anyhow};
 
 struct Job<I> {
@@ -31,25 +32,20 @@ impl<I: Send + 'static, O: Send + 'static> Latest<I, O> {
         name: &str,
         mut operation: impl FnMut(I) -> Result<O> + Send + 'static,
     ) -> Result<Self> {
+        Self::start_cancellable(name, move |input, _| operation(input))
+    }
+
+    pub(crate) fn start_cancellable(
+        name: &str,
+        operation: impl FnMut(I, Cancellation) -> Result<O> + Send + 'static,
+    ) -> Result<Self> {
         let (requests, receiver) = mpsc::sync_channel::<Job<I>>(1);
         let (sender, results) = mpsc::sync_channel(1);
         let generation = Arc::new(AtomicU64::new(0));
         let current = generation.clone();
         std::thread::Builder::new()
             .name(name.into())
-            .spawn(move || {
-                while let Ok(job) = receiver.recv() {
-                    if current.load(Ordering::Acquire) != job.generation {
-                        continue;
-                    }
-                    let result = operation(job.input);
-                    if current.load(Ordering::Acquire) == job.generation
-                        && sender.send((job.generation, result)).is_err()
-                    {
-                        break;
-                    }
-                }
-            })?;
+            .spawn(move || run(receiver, sender, current, operation))?;
         Ok(Self {
             requests,
             results,
@@ -120,10 +116,72 @@ impl<I: Send + 'static, O: Send + 'static> Latest<I, O> {
     }
 }
 
+fn run<I, O>(
+    receiver: mpsc::Receiver<Job<I>>,
+    sender: mpsc::SyncSender<(u64, Result<O>)>,
+    current: Arc<AtomicU64>,
+    mut operation: impl FnMut(I, Cancellation) -> Result<O>,
+) {
+    while let Ok(job) = receiver.recv() {
+        if current.load(Ordering::Acquire) != job.generation {
+            continue;
+        }
+        let cancel = Cancellation::Generation(current.clone(), job.generation);
+        let result = operation(job.input, cancel);
+        if current.load(Ordering::Acquire) == job.generation
+            && sender.send((job.generation, result)).is_err()
+        {
+            break;
+        }
+    }
+}
+
+impl<I, O> Drop for Latest<I, O> {
+    fn drop(&mut self) {
+        self.generation.fetch_add(1, Ordering::AcqRel);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::time::{Duration, Instant};
+
+    #[test]
+    fn replacement_and_drop_cancel_the_active_generation() -> Result<()> {
+        let (started, ready) = mpsc::sync_channel(1);
+        let mut worker = Latest::start_cancellable(
+            "cancel-active",
+            move |value, cancel| {
+                if value == 1 {
+                    started.send(cancel.clone())?;
+                    while !cancel.is_cancelled() {
+                        std::thread::yield_now();
+                    }
+                    cancel.check()?;
+                }
+                Ok(value)
+            },
+        )?;
+        worker.submit(1);
+        let cancel = ready.recv_timeout(Duration::from_secs(5))?;
+        worker.submit(2);
+        assert!(cancel.is_cancelled());
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Some(result) = worker.poll() {
+                assert_eq!(result?, 2);
+                break;
+            }
+            assert!(Instant::now() < deadline);
+            std::thread::yield_now();
+        }
+        worker.submit(1);
+        let cancel = ready.recv_timeout(Duration::from_secs(5))?;
+        drop(worker);
+        assert!(cancel.is_cancelled());
+        Ok(())
+    }
 
     #[test]
     fn blocked_work_is_replaceable_and_drop_does_not_join() -> Result<()> {

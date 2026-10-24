@@ -55,12 +55,22 @@ impl Readers {
         let list_store = Store::open(path)?;
         let context_store = Store::open(path)?;
         Ok(Self {
-            list: Latest::start("lume-note-search", move |request| {
-                listing(&list_store, request)
-            })?,
-            context: Latest::start("lume-note-context", move |(id, width)| {
-                context(&context_store, id, width)
-            })?,
+            list: Latest::start_cancellable(
+                "lume-note-search",
+                move |request, cancel| {
+                    list_store.read_cancellable(cancel, |store| {
+                        listing(store, request)
+                    })
+                },
+            )?,
+            context: Latest::start_cancellable(
+                "lume-note-context",
+                move |(id, width), cancel| {
+                    context_store.read_cancellable(cancel, |store| {
+                        context(store, id, width)
+                    })
+                },
+            )?,
         })
     }
 }

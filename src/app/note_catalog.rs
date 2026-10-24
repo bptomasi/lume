@@ -32,20 +32,22 @@ impl NoteCatalog {
     pub(super) fn start(path: &std::path::Path) -> Result<Self> {
         let store = Store::open(path)?;
         Ok(Self {
-            worker: Latest::start(
+            worker: Latest::start_cancellable(
                 "lume-note-catalog",
-                move |request: Request| {
-                    let values = store.view_counts(&request.views)?;
-                    let counts =
-                        request.views.into_iter().zip(values).collect();
-                    let page = request
-                        .query
-                        .map(|query| {
-                            let page = store.query_articles(&query)?;
-                            Ok::<_, anyhow::Error>((query, page))
-                        })
-                        .transpose()?;
-                    Ok(Snapshot { counts, page })
+                move |request: Request, cancel| {
+                    store.read_cancellable(cancel, |store| {
+                        let values = store.view_counts(&request.views)?;
+                        let counts =
+                            request.views.into_iter().zip(values).collect();
+                        let page = request
+                            .query
+                            .map(|query| {
+                                let page = store.query_articles(&query)?;
+                                Ok::<_, anyhow::Error>((query, page))
+                            })
+                            .transpose()?;
+                        Ok(Snapshot { counts, page })
+                    })
                 },
             )?,
             ready: None,

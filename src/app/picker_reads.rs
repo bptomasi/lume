@@ -25,17 +25,25 @@ impl PickerReads {
         let mut list_store = None;
         let mut preview_store = None;
         Ok(Self {
-            list: Latest::start("lume-picker-search", move |query: String| {
-                super::picker::article_choices(
-                    connection(&mut list_store, &path)?,
-                    &query,
-                )
-            })?,
-            preview: Latest::start("lume-picker-preview", move |article| {
-                let body = connection(&mut preview_store, &preview_path)?
-                    .body(article)?;
-                Ok(body.chars().take(6000).collect())
-            })?,
+            list: Latest::start_cancellable(
+                "lume-picker-search",
+                move |query: String, cancel| {
+                    connection(&mut list_store, &path)?
+                        .read_cancellable(cancel, |store| {
+                            super::picker::article_choices(store, &query)
+                        })
+                },
+            )?,
+            preview: Latest::start_cancellable(
+                "lume-picker-preview",
+                move |article, cancel| {
+                    connection(&mut preview_store, &preview_path)?
+                        .read_cancellable(cancel, |store| {
+                            let body = store.body(article)?;
+                            Ok(body.chars().take(6000).collect())
+                        })
+                },
+            )?,
             query: None,
             article: None,
             cache: VecDeque::new(),

@@ -36,9 +36,13 @@ impl App {
         if self.note_inspector.is_none() {
             let store = Store::open(&self.store.database_path()?)?;
             self.note_inspector = Some(Inspector {
-                worker: Latest::start(
+                worker: Latest::start_cancellable(
                     "lume-note-inspection",
-                    move |request| prepare(&store, request),
+                    move |request, cancel| {
+                        store.read_cancellable(cancel, |store| {
+                            prepare(store, request)
+                        })
+                    },
                 )?,
             });
         }

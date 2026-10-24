@@ -327,3 +327,14 @@ retry Interrupted indefinitely. DNS and connector setup retain provider bounds.
 The integration is tied to this exact ureq version and must be requalified on
 upgrade. Real loopback fixtures qualify both occupied lanes being released
 before obsolete servers reply; cache, limits and crop reuse are also exercised.
+
+## Scoped SQLite read cancellation
+
+The pinned rusqlite 0.32.1 now enables `hooks` alongside `bundled` and `backup`.
+This adds no package or native library; it exposes SQLite's established progress
+callback through rusqlite's safe API. A disposable read owns its connection and
+installs a generation/flag predicate every 2,048 VM instructions. The scoped
+owner removes the callback on every return, including interruption. Personal
+writes never install this callback. Cancellation is cooperative, does not claim
+to preempt external library calls, and must preserve transaction rollback and
+connection reuse. Locked dependency versions and license obligations are unchanged.

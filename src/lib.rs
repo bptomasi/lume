@@ -28,3 +28,5 @@ mod latest;
 
 /// Local, explainable article recommendation policy.
 pub mod recommendation;
+
+mod cancellation;

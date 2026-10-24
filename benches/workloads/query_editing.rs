@@ -12,7 +12,7 @@ use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
 pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     let articles = if stress { 20_000 } else { 2000 };
-    let (_directory, mut app) = application(articles)?;
+    let (directory, mut app) = application(articles)?;
     let mut terminal = Terminal::new(TestBackend::new(160, 44))?;
     let selected = app.current().context("Search result missing")?.id;
     println!("query editing input · articles={articles} · matches={articles}");
@@ -30,6 +30,51 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
             ensure!(
                 app.current().map(|article| article.id) == Some(selected),
                 "Caret motion changed the selected article"
+            );
+            Ok(())
+        },
+    )?;
+    replacements(&mut app, directory.path(), articles, iterations)
+}
+
+fn replacements(
+    app: &mut App,
+    directory: &std::path::Path,
+    count: usize,
+    iterations: usize,
+) -> Result<()> {
+    app.key(KeyCode::Esc.into())?;
+    app.enable_background_navigation(&directory.join("queries.sqlite3"))?;
+    super::measure(
+        "replaceable views: newest page and reader delivery",
+        iterations.min(8),
+        || {
+            for view in [
+                lume::model::View::Read,
+                lume::model::View::All,
+                lume::model::View::Inbox,
+            ] {
+                app.set_view(view)?;
+            }
+            let deadline =
+                std::time::Instant::now() + std::time::Duration::from_secs(5);
+            loop {
+                app.poll_navigation()?;
+                app.poll_reader();
+                app.poll_note_workspace()?;
+                if !app.navigation_loading && !app.reader_pending() {
+                    break;
+                }
+                ensure!(
+                    std::time::Instant::now() < deadline,
+                    "Replacement did not finish"
+                );
+                std::thread::yield_now();
+            }
+            ensure!(app.page_total == count, "Newest page drifted");
+            ensure!(
+                app.reader_text.contains("A cached source"),
+                "Newest source disappeared"
             );
             Ok(())
         },

@@ -128,9 +128,14 @@ impl CatalogWorker {
     pub(super) fn start(path: &Path) -> Result<Self> {
         let store = Store::open(path)?;
         Ok(Self {
-            worker: Latest::start("lume-catalog", move |request| {
-                store.read_snapshot(|store| read_catalog(store, request))
-            })?,
+            worker: Latest::start_cancellable(
+                "lume-catalog",
+                move |request, cancel| {
+                    store.read_cancellable(cancel, |store| {
+                        read_catalog(store, request)
+                    })
+                },
+            )?,
             ready: None,
             revision: 0,
             scope: Scope::Counts,

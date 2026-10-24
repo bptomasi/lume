@@ -61,9 +61,12 @@ impl NavigationWorker {
     fn start(path: &Path) -> Result<Self> {
         let store = Store::open(path)?;
         Ok(Self {
-            worker: Latest::start("lume-navigation", move |request| {
-                store.read_snapshot(|store| read(store, request))
-            })?,
+            worker: Latest::start_cancellable(
+                "lume-navigation",
+                move |request, cancel| {
+                    store.read_cancellable(cancel, |store| read(store, request))
+                },
+            )?,
             ready: None,
             revision: 0,
             preserve_identity: false,

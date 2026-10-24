@@ -43,7 +43,7 @@ pub(super) struct LayoutWorker {
 impl LayoutWorker {
     pub(super) fn start(options: RenderOptions) -> Result<Self> {
         Ok(Self {
-            worker: Latest::start("lume-layout", prepare)?,
+            worker: Latest::start_cancellable("lume-layout", prepare)?,
             requested: None,
             ready: None,
             cache: cache::Cache::default(),
@@ -173,9 +173,12 @@ impl LayoutWorker {
     }
 }
 
-fn prepare(request: Request) -> Result<Completed> {
+fn prepare(
+    request: Request,
+    cancel: crate::cancellation::Cancellation,
+) -> Result<Completed> {
     let mut blocks = Vec::new();
-    let rendered = super::render_with(
+    let rendered = super::render_cancellable(
         &request.body,
         request.width,
         request.options,
@@ -191,6 +194,7 @@ fn prepare(request: Request) -> Result<Completed> {
                 .map(|(_, lines)| lines.to_vec())
                 .unwrap_or_else(|| {
                     text.split_inclusive('\n')
+                        .take_while(|_| !cancel.is_cancelled())
                         .map(|line| {
                             Line::raw(line.trim_end_matches('\n').to_owned())
                         })
@@ -199,7 +203,8 @@ fn prepare(request: Request) -> Result<Completed> {
             blocks.push(key);
             lines
         },
-    );
+        &cancel,
+    )?;
     Ok(Completed {
         body: request.body,
         width: request.width,
@@ -262,13 +267,16 @@ mod tests {
         let styles = vec![(key, cache.clone())];
         drop(cache);
 
-        let completed = prepare(Request {
-            body: Arc::from(format!("```rust\n{text}```")),
-            width: 60,
-            styles,
-            options: RenderOptions::default(),
-            revision: 0,
-        })?;
+        let completed = prepare(
+            Request {
+                body: Arc::from(format!("```rust\n{text}```")),
+                width: 60,
+                styles,
+                options: RenderOptions::default(),
+                revision: 0,
+            },
+            crate::cancellation::test_token().1,
+        )?;
 
         assert!(completed.rendered.lines.contains(&colored));
         assert!(completed.rendered.text.contains(text.trim_end()));
