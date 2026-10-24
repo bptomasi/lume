@@ -132,7 +132,8 @@ impl CatalogWorker {
                 "lume-catalog",
                 move |request, cancel| {
                     store.read_cancellable(cancel, |store| {
-                        read_catalog(store, request)
+                        store
+                            .read_snapshot(|store| read_catalog(store, request))
                     })
                 },
             )?,

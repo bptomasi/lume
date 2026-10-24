@@ -22,7 +22,9 @@ impl Store {
         self.connection
             .progress_handler(2048, Some(move || progress.is_cancelled()));
         let guard = Progress(&self.connection);
-        let result = self.read_snapshot(read);
+        // Query owners choose their own snapshot/transaction boundaries.
+        // Some readers already hold an unchecked SQLite read transaction.
+        let result = read(self);
         drop(guard);
         cancel.check()?;
         result

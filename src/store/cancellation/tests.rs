@@ -1,4 +1,4 @@
-//! SQLite interruption rolls back its read snapshot and removes the callback.
+//! Cancellation preserves query-owned transactions and removes its callback.
 use super::*;
 use crate::cancellation::{Canceled, test_token};
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
@@ -41,5 +41,26 @@ fn a_superseded_recursive_query_stops_and_the_connection_remains_usable()
         |row| row.get(0),
     )?;
     assert_eq!(resumed, 49_995_000);
+    Ok(())
+}
+
+#[test]
+fn cancellable_reads_leave_snapshot_ownership_with_the_query() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let store = Store::open(&directory.path().join("ownership.sqlite3"))?;
+    let (_, cancel) = test_token();
+    store.read_cancellable(cancel, |store| {
+        assert!(store.connection.is_autocommit());
+        let transaction = store.connection.unchecked_transaction()?;
+        let value: i64 = transaction.query_row(
+            include_str!("../sql/test_cancel_resume_read.sql"),
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(value, 49_995_000);
+        transaction.commit()?;
+        Ok(())
+    })?;
+    assert!(store.connection.is_autocommit());
     Ok(())
 }

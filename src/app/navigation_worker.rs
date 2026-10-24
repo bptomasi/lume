@@ -64,7 +64,9 @@ impl NavigationWorker {
             worker: Latest::start_cancellable(
                 "lume-navigation",
                 move |request, cancel| {
-                    store.read_cancellable(cancel, |store| read(store, request))
+                    store.read_cancellable(cancel, |store| {
+                        store.read_snapshot(|store| read(store, request))
+                    })
                 },
             )?,
             ready: None,
