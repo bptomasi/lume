@@ -5,6 +5,8 @@
 //! Escape closes the report; :offline cancel stops work between requests.
 
 mod commands;
+mod diagnostics;
+pub(super) use diagnostics::Diagnostics;
 mod operation;
 mod report;
 
@@ -92,6 +94,7 @@ pub(super) struct Maintenance {
     results: mpsc::Receiver<Update>,
     cancel: Arc<AtomicBool>,
     pending: bool,
+    cleaning: bool,
 }
 
 impl Maintenance {
@@ -118,6 +121,7 @@ impl Maintenance {
             results,
             cancel,
             pending: false,
+            cleaning: false,
         })
     }
 }
@@ -133,6 +137,15 @@ impl App {
         &mut self,
         request: Request,
     ) -> Result<()> {
+        match request {
+            Request::Storage(unit) => {
+                return self.submit_storage_diagnostic(unit, false);
+            }
+            Request::StorageDetails(unit) => {
+                return self.submit_storage_diagnostic(unit, true);
+            }
+            _ => {}
+        }
         self.admit_maintenance(request)?;
         self.show_document(
             "Working · Esc closes report",
@@ -156,11 +169,13 @@ impl App {
             "Maintenance is busy; :offline cancel requests cancellation"
         );
         worker.cancel.store(false, Ordering::Relaxed);
+        let cleaning = matches!(request, Request::Clean(_));
         worker
             .requests
             .try_send(request)
             .context("Maintenance request was not admitted")?;
         worker.pending = true;
+        worker.cleaning = cleaning;
         Ok(())
     }
 
@@ -169,13 +184,14 @@ impl App {
     /// # Errors
     /// Returns an acknowledged background failure; committed batches are retained.
     pub fn poll_maintenance(&mut self) -> Result<bool> {
+        let inspected = self.poll_storage_diagnostic()?;
         self.admit_automatic_maintenance()?;
         let Some(worker) = &mut self.maintenance else {
-            return Ok(false);
+            return Ok(inspected);
         };
         let update = match worker.results.try_recv() {
             Ok(update) => update,
-            Err(mpsc::TryRecvError::Empty) => return Ok(false),
+            Err(mpsc::TryRecvError::Empty) => return Ok(inspected),
             Err(mpsc::TryRecvError::Disconnected) => {
                 if worker.pending {
                     worker.pending = false;
@@ -183,11 +199,12 @@ impl App {
                         "Maintenance worker stopped before acknowledgement; inspect its checkpoint"
                     );
                 }
-                return Ok(false);
+                return Ok(inspected);
             }
         };
         if matches!(update, Update::Finished(_)) {
             worker.pending = false;
+            worker.cleaning = false;
         }
         let changed = !matches!(
             &update,
@@ -201,7 +218,7 @@ impl App {
             }))
         );
         self.apply_maintenance_update(update)?;
-        Ok(changed)
+        Ok(changed || inspected)
     }
 
     fn admit_automatic_maintenance(&mut self) -> Result<()> {
@@ -255,6 +272,14 @@ Inspect the current checkpoint before retrying."#
 
     /// Whether explicit maintenance still awaits acknowledgement.
     pub fn maintenance_pending(&self) -> bool {
+        self.durable_maintenance_pending()
+            || self
+                .storage_diagnostics
+                .as_ref()
+                .is_some_and(Diagnostics::pending)
+    }
+
+    pub(super) fn durable_maintenance_pending(&self) -> bool {
         self.maintenance
             .as_ref()
             .is_some_and(|worker| worker.pending)

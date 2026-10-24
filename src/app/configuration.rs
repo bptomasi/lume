@@ -46,7 +46,7 @@ impl App {
             .document
             .as_ref()
             .is_some_and(|update| update.backups.automatic)
-            || self.maintenance_pending()
+            || self.durable_maintenance_pending()
             || !self.configuration_idle()
         {
             return false;
@@ -72,7 +72,7 @@ impl App {
     pub(super) fn retention_due(&mut self) -> bool {
         if !self.configuration.document.as_ref().is_some_and(|update| {
             update.retention.automatic && update.retention.has_limits()
-        }) || self.maintenance_pending()
+        }) || self.durable_maintenance_pending()
             || !self.configuration_idle()
         {
             return false;

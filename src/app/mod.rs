@@ -266,6 +266,7 @@ pub struct App {
     web: web_reading::WebReading,
     network_enabled: bool,
     maintenance: Option<maintenance::Maintenance>,
+    storage_diagnostics: Option<maintenance::Diagnostics>,
     /// Selected navigation row.
     pub nav_selected: usize,
     /// Transient Library viewport: filtered entry position and leading rows.
@@ -469,6 +470,7 @@ impl App {
             web: web_reading::WebReading::default(),
             network_enabled: false,
             maintenance: None,
+            storage_diagnostics: None,
             nav_selected: 0,
             navigation_first: 0,
             navigation_skip: 0,

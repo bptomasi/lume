@@ -44,7 +44,17 @@ pub fn inspect_with_unit(
     images: &Path,
     unit: Unit,
 ) -> Result<String> {
-    let usage = store.storage_usage()?;
+    inspect_checked(store, images, unit, &|| Ok(()))
+}
+
+pub(crate) fn inspect_checked(
+    store: &Store,
+    images: &Path,
+    unit: Unit,
+    check: &dyn Fn() -> Result<()>,
+) -> Result<String> {
+    check()?;
+    let usage = store.read_snapshot(Store::storage_usage)?;
     let path = store.database_path()?;
     let mut sizes = [0; 5];
     for (index, suffix) in ["", "-wal", "-shm"].into_iter().enumerate() {
@@ -52,12 +62,37 @@ pub fn inspect_with_unit(
         file.push(suffix);
         sizes[index] = file_bytes(Path::new(&file))?;
     }
-    sizes[3] = files(images)?.iter().map(|entry| entry.1).sum();
-    sizes[4] = files(&images.join("offline"))?
-        .iter()
-        .map(|entry| entry.1)
-        .sum();
+    sizes[3] = image_file_bytes(images, check)?;
+    sizes[4] = image_file_bytes(&images.join("offline"), check)?;
+    check()?;
     Ok(report::text(&usage, sizes, unit))
+}
+
+fn image_file_bytes(
+    directory: &Path,
+    check: &dyn Fn() -> Result<()>,
+) -> Result<u64> {
+    check()?;
+    let entries = match std::fs::read_dir(directory) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(0);
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let mut bytes = 0u64;
+    for entry in entries {
+        check()?;
+        let entry = entry?;
+        if entry.file_type()?.is_file()
+            && crate::media::cache::owned_filename(
+                &entry.file_name().to_string_lossy(),
+            )
+        {
+            bytes = bytes.saturating_add(entry.metadata()?.len());
+        }
+    }
+    Ok(bytes)
 }
 
 fn file_bytes(path: &Path) -> Result<u64> {
@@ -235,6 +270,36 @@ mod tests {
             current.len(),
             current.modified()?
         )?);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod inspection_tests {
+    use super::*;
+
+    #[test]
+    fn cancelling_an_image_inventory_returns_no_partial_report_and_preserves_files()
+    -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let store = Store::open(&directory.path().join("library.sqlite3"))?;
+        let images = directory.path().join("images");
+        for index in 0..20 {
+            crate::media::cache::write(
+                &images,
+                &format!("https://images.example/{index}"),
+                b"pixels",
+            )?;
+        }
+        let visited = std::cell::Cell::new(0);
+        let check = || {
+            visited.set(visited.get() + 1);
+            ensure!(visited.get() < 10, "Inventory cancelled");
+            Ok(())
+        };
+        assert!(inspect_checked(&store, &images, Unit::Bytes, &check).is_err());
+        assert_eq!(files(&images)?.len(), 20);
+        assert!(inspect(&store, &images)?.contains("STORAGE"));
         Ok(())
     }
 }

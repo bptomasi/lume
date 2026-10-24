@@ -419,7 +419,18 @@ upgrade can rebuild references lazily; later plans reuse them.
 logical text by source and physical SQLite pages by table/index.
 `lume storage --json` exposes exact byte counts, including the Feed/Full body
 copy retained by the internal-content FTS table. Logical copies are diagnostic
-and are not added to filesystem totals. Inspection never enables compression.
+and are not added to filesystem totals. The `duplication` object reports the
+publisher-body total, FTS body amplification ratio and allocated content/other
+FTS pages. An empty publisher corpus has no ratio. Separators and metadata make
+logical byte ratios different from page allocation. Inspection never enables
+compression.
+
+Interactive storage inspections use their own replaceable read worker, so
+backups and offline preparation can continue independently. A newer storage
+request interrupts the previous inspection; `:storage cancel` stops the
+inspection and any active cache cleanup, leaving backups and offline preparation
+alone. SQLite scans and image-directory entries check cancellation. Esc
+closes the report without cancelling durable maintenance.
 
 `:storage` uses readable binary units automatically. Use `:storage MiB`,
 `:storage GiB` or `:storage bytes` to select a fixed unit, and `:storage auto`

@@ -103,6 +103,8 @@ mod servers;
 mod service_interaction;
 #[path = "workloads/smoothness.rs"]
 mod smoothness;
+#[path = "workloads/storage_details.rs"]
+mod storage_details;
 #[path = "workloads/tables.rs"]
 mod tables;
 #[path = "workloads/welcome.rs"]
@@ -197,6 +199,8 @@ const COMPONENT_WORKLOADS: &[Workload] = &[
     fluency::run,
     formulas::run,
     query_editing::run,
+    page_navigation::run,
+    storage_details::run,
     search_relevance::run,
     workspaces::run,
 ];
@@ -243,6 +247,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--formulas-only", formulas::run),
     ("--query-editing-only", query_editing::run),
     ("--page-navigation-only", page_navigation::run),
+    ("--storage-details-only", storage_details::run),
     ("--search-relevance-only", search_relevance::run),
     ("--smoothness-only", smoothness::run),
     ("--expansion-only", expansion::run),

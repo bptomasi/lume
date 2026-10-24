@@ -509,6 +509,10 @@ incomplete previews never acknowledge the policy or offer application.
 Protection explanations share the mutation owner's canonical predicates.
 Explicit storage diagnostics read logical source bytes, physical SQLite objects
 and internal-content FTS copies under one snapshot; they do not run per frame.
+Their replaceable read lane is independent of ordered maintenance. Generation
+cancellation interrupts SQLite scans and checks each owned image-directory
+entry; a cancelled inventory never publishes partial totals. Reports distinguish
+logical body amplification, content-table pages and other FTS pages.
 
 Per-server history settings bound both API response size and work per refresh.
 Initial imports persist descending entry-ID checkpoints together with their

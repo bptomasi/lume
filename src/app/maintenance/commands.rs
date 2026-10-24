@@ -125,9 +125,10 @@ impl App {
             ));
         }
         if argument == "cancel" {
-            self.cancel_maintenance();
+            self.cancel_storage_diagnostic();
             return Ok(());
         }
+
         if argument.is_empty() || argument == "status" {
             return self.submit_maintenance(Request::Storage(
                 crate::storage::Unit::Auto,

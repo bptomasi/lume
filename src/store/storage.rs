@@ -58,7 +58,7 @@ impl Store {
                         full_bytes: row.get(5)?,
                     })
                 })?
-                .collect::<rusqlite::Result<_>>()?;
+                .collect::<rusqlite::Result<Vec<_>>>()?;
             let tables = store
                 .connection
                 .prepare_cached(include_str!("sql/select_storage_tables.sql"))?
@@ -68,18 +68,18 @@ impl Store {
                         allocated_bytes: row.get(1)?,
                     })
                 })?
-                .collect::<rusqlite::Result<_>>()?;
+                .collect::<rusqlite::Result<Vec<_>>>()?;
             let (fts_body_bytes, fts_note_bytes) = store.connection.query_row(
                 include_str!("sql/select_storage_fts.sql"),
                 [],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )?;
-            Ok(crate::storage::details::Details {
+            Ok(crate::storage::details::Details::from_usage(
                 sources,
                 tables,
                 fts_body_bytes,
                 fts_note_bytes,
-            })
+            ))
         })
     }
 

@@ -102,6 +102,18 @@ fn detailed_accounting_measures_utf8_fts_and_archived_sources_without_writes()
     assert_eq!(details.sources[0].articles, 1);
     assert_eq!(details.sources[0].feed_bytes, "á漢字 text".len() as u64);
     assert_eq!(details.fts_body_bytes, details.sources[0].feed_bytes + 1);
+    assert_eq!(
+        details.duplication.publisher_body_bytes,
+        details.sources[0].feed_bytes
+    );
+    assert!(
+        details
+            .duplication
+            .fts_body_ratio
+            .is_some_and(|ratio| ratio > 1.0)
+    );
+    assert!(details.duplication.fts_content_allocated_bytes > 0);
+    assert!(details.duplication.fts_other_allocated_bytes > 0);
     assert!(
         details
             .tables
@@ -116,5 +128,22 @@ fn detailed_accounting_measures_utf8_fts_and_archived_sources_without_writes()
     let json = serde_json::to_value(&details)?;
     assert_eq!(json["sources"][0]["feed_id"], feed.id);
     assert_eq!(store.body(store.library()?.articles[0].id)?, "á漢字 text");
+    Ok(())
+}
+
+#[test]
+fn empty_storage_reports_no_body_ratio_without_inventing_a_saving() -> Result<()>
+{
+    let directory = tempfile::tempdir()?;
+    let store =
+        lume::store::Store::open(&directory.path().join("empty.sqlite3"))?;
+    let details = storage::details::inspect(&store)?;
+    assert_eq!(details.duplication.publisher_body_bytes, 0);
+    assert!(details.duplication.fts_body_ratio.is_none());
+    assert!(
+        details
+            .text(Unit::Bytes)
+            .contains("n/a (empty publisher text)")
+    );
     Ok(())
 }

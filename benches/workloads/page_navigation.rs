@@ -82,7 +82,15 @@ fn reference_pages(
     Ok(())
 }
 
-fn fixture(path: &std::path::Path, count: usize) -> Result<Store> {
+pub(super) fn fixture(path: &std::path::Path, count: usize) -> Result<Store> {
+    fixture_with_body(path, count, "Systems body")
+}
+
+pub(super) fn fixture_with_body(
+    path: &std::path::Path,
+    count: usize,
+    body: &str,
+) -> Result<Store> {
     let mut store = Store::open(path)?;
     store.subscribe("https://pages.example/feed")?;
     let feed = store.feeds()?.remove(0);
@@ -94,7 +102,7 @@ fn fixture(path: &std::path::Path, count: usize) -> Result<Store> {
                 url: format!("https://pages.example/{index}"),
                 author: String::new(),
                 published: index as i64,
-                body: "Systems body".into(),
+                body: body.into(),
                 body_origin: FeedOrigin::Feed,
             })
             .collect::<Vec<_>>();

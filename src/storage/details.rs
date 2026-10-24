@@ -1,7 +1,9 @@
 //! Explicit diagnostics distinguish logical source bytes from physical SQLite pages.
 use super::Unit;
+mod duplication;
 use crate::store::Store;
 use anyhow::Result;
+pub use duplication::Duplication;
 use serde::Serialize;
 
 /// Logical publisher/cache bytes owned by one subscription, including archives.
@@ -39,6 +41,8 @@ pub struct Details {
     pub fts_body_bytes: u64,
     /// Legacy note bytes retained in the article FTS table, if any.
     pub fts_note_bytes: u64,
+    /// Observed body amplification and physical FTS page breakdown.
+    pub duplication: Duplication,
 }
 
 /// Measure all source/object diagnostics in one WAL snapshot.
@@ -50,6 +54,23 @@ pub fn inspect(store: &Store) -> Result<Details> {
 }
 
 impl Details {
+    pub(crate) fn from_usage(
+        sources: Vec<SourceUsage>,
+        tables: Vec<TableUsage>,
+        fts_body_bytes: u64,
+        fts_note_bytes: u64,
+    ) -> Self {
+        let duplication =
+            Duplication::measure(&sources, &tables, fts_body_bytes);
+        Self {
+            sources,
+            tables,
+            fts_body_bytes,
+            fts_note_bytes,
+            duplication,
+        }
+    }
+
     /// Render exact accounting in the selected binary display unit.
     pub fn text(&self, unit: Unit) -> String {
         let mut text =
@@ -78,6 +99,7 @@ impl Details {
         }
         text.push_str(&format!("\nFTS INTERNAL CONTENT COPIES\nSearchable bodies: {}\nLegacy notes: {}\n\nFTS index pages also contain necessary search data.\nThese logical copies are not additional filesystem totals.\nCompression remains disabled.\n",
             unit.format(self.fts_body_bytes), unit.format(self.fts_note_bytes)));
+        text.push_str(&self.duplication.text(unit));
         text
     }
 }
