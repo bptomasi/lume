@@ -775,3 +775,26 @@ the FTS content table allocates 53,370,880 bytes and other article FTS objects
 setup. Physical allocation includes metadata and page occupancy; it is distinct
 from logical text duplication. No storage migration or compression is enabled
 by these measurements.
+
+## Final pagination review, 2026-10-24
+
+The [pagination follow-up](performance/pagination-review-2026-10-24.json) fixes
+a reproducible cache collision: SQLite's expanded debug SQL truncates bound
+text at NUL, so distinct tag searches could reuse a total despite returning no
+matching rows. Cache identities now retain complete typed bindings shared with
+the SQL binder. Hits copy only cursor hints and do not prepare COUNT statements.
+
+Both navigation paths resolve stale offsets in one read snapshot, reusing the
+same compiled criteria and effective 1–500 row limit. Empty libraries reset their
+offset; out-of-range pages skip metadata rather than sorting an impossible
+window. Authorizer guards verify these skipped queries. Native tests cover a
+writer deleting articles between counting and refilling, extreme offsets and
+limits, identity jumps, rollback and 450 full-metadata comparisons across scopes,
+filters and both directions. Ranked/grouped fallback ordering is preserved.
+
+Alternating release benchmarks retained essentially the same cached-window
+medians: 0.428 → 0.426 ms for 10,000 articles and 1.281 → 1.281 ms for 100,000.
+Each process measures 40 four-page iterations, including the initial cold OFFSET
+jump, with no writes during timing. The final harness checks every returned
+identity. Three independent process means per version/size form each median;
+these results establish no additional timing speedup from this correctness fix.

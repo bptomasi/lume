@@ -1,0 +1,341 @@
+{
+  "date": "2026-10-24",
+  "code_revision": "870fdd5750766a6165c3b8281e48b8c944af2c88",
+  "baseline": "Previously qualified release benchmark from seven-priorities-2026-10-24.json; matching SHA-256 verified.",
+  "toolchain": "1.99.1",
+  "fixes": [
+    "Use complete typed bindings instead of expanded debug SQL, which truncates NUL text and can collide across distinct searches.",
+    "Keep count, effective page size and stale-offset recovery inside one snapshot for both navigation paths.",
+    "Do not prepare cached COUNT queries or hydrate metadata for out-of-range pages; copy cursor hints without cloning stored key strings."
+  ],
+  "regressions": [
+    "Reproduced before the fix: tag:systems returned 25 matches; tag:systems\\u0000different incorrectly reused 25 although a cold read returned zero. The corrected cached read returns zero.",
+    "450 scope/filter/offset comparisons verify full article metadata against cold reads across both directions and ranked/grouped fallbacks.",
+    "External deletion during tail refill keeps the earlier count and page snapshot; the next read sees the committed deletion.",
+    "Zero, oversized and maximal offsets/limits, anchor jumps, empty libraries, retained Inbox rows, local/external changes and rollback are covered.",
+    "SQLite authorizer guards prove cached counts and impossible-page metadata are not prepared."
+  ],
+  "method": {
+    "profile": "release; thin LTO; one codegen unit; build jobs 2",
+    "processes_per_version_per_size": 3,
+    "iterations_per_process": 40,
+    "pages_per_iteration": 4,
+    "page_size": 100,
+    "offsets": [
+      9000,
+      99000
+    ],
+    "ordering": "Alternating before/after processes, reversed middle pair; no builds or other tests during measurements.",
+    "warmness": "Setup precedes timing. The first cached iteration includes the initial OFFSET jump; later iterations reuse page hints. No writes occur during the timed loop.",
+    "verification": "Final harness checks every article identity, page length and total; the previously qualified baseline checked the first identity, length and total.",
+    "limits": [
+      "Single-machine controlled fixtures are not application-wide latency guarantees.",
+      "Observed cached-page medians were essentially unchanged; no further speedup is claimed.",
+      "Database version invalidation remains conservative across unrelated commits."
+    ]
+  },
+  "hashes": {
+    "before_benchmark": "c795186db4eefcea18e296757f8c69c70ada60d5ddf03df3901fb45fd79b4199",
+    "after_benchmark": "02e30209ea70eafd603043d7a99a7e8e5cae9cba79a23e2c9fc2c31fc5e2a9f2",
+    "after_app": "710f6d037db1e597fa5a24d38cae78e9507c3f369850f9246577c5064958dc81"
+  },
+  "summary": [
+    {
+      "articles": 10000,
+      "operation": "OFFSET + exact recount + metadata reference",
+      "before_median_process_mean_ms": 12.01,
+      "after_median_process_mean_ms": 11.895,
+      "samples_ms": {
+        "before": [
+          12.01,
+          12.046,
+          11.874
+        ],
+        "after": [
+          12.051,
+          11.804,
+          11.895
+        ]
+      }
+    },
+    {
+      "articles": 10000,
+      "operation": "cached totals + adjacent keyset pages",
+      "before_median_process_mean_ms": 0.428,
+      "after_median_process_mean_ms": 0.426,
+      "samples_ms": {
+        "before": [
+          0.428,
+          0.452,
+          0.417
+        ],
+        "after": [
+          0.421,
+          0.473,
+          0.426
+        ]
+      }
+    },
+    {
+      "articles": 100000,
+      "operation": "OFFSET + exact recount + metadata reference",
+      "before_median_process_mean_ms": 152.037,
+      "after_median_process_mean_ms": 153.38,
+      "samples_ms": {
+        "before": [
+          151.893,
+          152.037,
+          153.287
+        ],
+        "after": [
+          152.646,
+          153.38,
+          154.195
+        ]
+      }
+    },
+    {
+      "articles": 100000,
+      "operation": "cached totals + adjacent keyset pages",
+      "before_median_process_mean_ms": 1.281,
+      "after_median_process_mean_ms": 1.281,
+      "samples_ms": {
+        "before": [
+          1.255,
+          1.281,
+          1.327
+        ],
+        "after": [
+          1.25,
+          1.281,
+          1.354
+        ]
+      }
+    }
+  ],
+  "records": [
+    {
+      "version": "before",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 12.01
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 0.428
+        }
+      ],
+      "stdout": "deep pagination · articles=10000 · offset=9000\nOFFSET + exact recount + metadata reference: 40 iterations, 480.415 ms total, 12.010 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 17.101 ms total, 0.428 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 12.051
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 0.421
+        }
+      ],
+      "stdout": "deep pagination · articles=10000 · offset=9000\nOFFSET + exact recount + metadata reference: 40 iterations, 482.059 ms total, 12.051 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 16.822 ms total, 0.421 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 11.804
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 0.473
+        }
+      ],
+      "stdout": "deep pagination · articles=10000 · offset=9000\nOFFSET + exact recount + metadata reference: 40 iterations, 472.142 ms total, 11.804 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 18.926 ms total, 0.473 ms/iteration\n"
+    },
+    {
+      "version": "before",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 12.046
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 0.452
+        }
+      ],
+      "stdout": "deep pagination · articles=10000 · offset=9000\nOFFSET + exact recount + metadata reference: 40 iterations, 481.852 ms total, 12.046 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 18.064 ms total, 0.452 ms/iteration\n"
+    },
+    {
+      "version": "before",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 11.874
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 0.417
+        }
+      ],
+      "stdout": "deep pagination · articles=10000 · offset=9000\nOFFSET + exact recount + metadata reference: 40 iterations, 474.954 ms total, 11.874 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 16.670 ms total, 0.417 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "stress": false,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 11.895
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 0.426
+        }
+      ],
+      "stdout": "deep pagination · articles=10000 · offset=9000\nOFFSET + exact recount + metadata reference: 40 iterations, 475.816 ms total, 11.895 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 17.030 ms total, 0.426 ms/iteration\n"
+    },
+    {
+      "version": "before",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 151.893
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 1.255
+        }
+      ],
+      "stdout": "deep pagination · articles=100000 · offset=99000\nOFFSET + exact recount + metadata reference: 40 iterations, 6075.738 ms total, 151.893 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 50.211 ms total, 1.255 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 152.646
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 1.25
+        }
+      ],
+      "stdout": "deep pagination · articles=100000 · offset=99000\nOFFSET + exact recount + metadata reference: 40 iterations, 6105.846 ms total, 152.646 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 49.983 ms total, 1.250 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 153.38
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 1.281
+        }
+      ],
+      "stdout": "deep pagination · articles=100000 · offset=99000\nOFFSET + exact recount + metadata reference: 40 iterations, 6135.187 ms total, 153.380 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 51.253 ms total, 1.281 ms/iteration\n"
+    },
+    {
+      "version": "before",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 152.037
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 1.281
+        }
+      ],
+      "stdout": "deep pagination · articles=100000 · offset=99000\nOFFSET + exact recount + metadata reference: 40 iterations, 6081.460 ms total, 152.037 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 51.225 ms total, 1.281 ms/iteration\n"
+    },
+    {
+      "version": "before",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 153.287
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 1.327
+        }
+      ],
+      "stdout": "deep pagination · articles=100000 · offset=99000\nOFFSET + exact recount + metadata reference: 40 iterations, 6131.465 ms total, 153.287 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 53.071 ms total, 1.327 ms/iteration\n"
+    },
+    {
+      "version": "after",
+      "stress": true,
+      "metrics": [
+        {
+          "operation": "OFFSET + exact recount + metadata reference",
+          "iterations": 40,
+          "mean_ms": 154.195
+        },
+        {
+          "operation": "cached totals + adjacent keyset pages",
+          "iterations": 40,
+          "mean_ms": 1.354
+        }
+      ],
+      "stdout": "deep pagination · articles=100000 · offset=99000\nOFFSET + exact recount + metadata reference: 40 iterations, 6167.800 ms total, 154.195 ms/iteration\ncached totals + adjacent keyset pages: 40 iterations, 54.142 ms total, 1.354 ms/iteration\n"
+    }
+  ],
+  "qualification": {
+    "make_check": "passed; 995 Rust tests, 45 Python tests, representative workloads, all-target Clippy, formatting and license inventory",
+    "release_build": "passed with pinned Rust 1.99.1",
+    "http": "passed; all 34 explicit real loopback cases"
+  },
+  "source_sha256": {
+    "src/store/query.rs": "e849da86cc77bad730d71758a8c578563a558b7031b54e022e046ab0bb2e59bb",
+    "src/store/query/cache.rs": "d1a5489679fb9b89377215c3e7620e7d3e3a5c9dbb3b7530f5a6100129458c1e",
+    "src/store/query/cache/key.rs": "4bb74b77334952af366b5e80bfe5097e50f33625168224fcf2b996488984f54a",
+    "src/app/navigation.rs": "c8f90243afa1e0c6699a7b8f0d0b64dbf1efa9fb4dab30da815d5fc3611f1585",
+    "src/app/navigation_worker.rs": "b34a0cbf231d0058ce773b7c2c6d0e31c75c5215468c647552bac4b364bb5784",
+    "benches/workloads/page_navigation.rs": "08a48309ec7f01a5d4e1e7eb60b2e46a4eaae873611f434c3c1e400c66d63829"
+  },
+  "reproduce": [
+    "cargo bench --locked --bench reader -- --page-navigation-only",
+    "cargo bench --locked --bench reader -- --page-navigation-only --stress",
+    "make check",
+    "make check-http"
+  ]
+}
