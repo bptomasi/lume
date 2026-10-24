@@ -243,6 +243,40 @@ class ReleaseTests(unittest.TestCase):
             github.assert_called_once()
 
 
+    def test_drafts_are_found_when_the_published_tag_endpoint_returns_404(self):
+        draft = dict(self.assets(self.package()), id=42, tag_name=TAG)
+        missing = subprocess.CompletedProcess([], 1, "", "HTTP 404 Not Found")
+        listed = subprocess.CompletedProcess([], 0, json.dumps([draft]), "")
+        with patch.object(release, "github", side_effect=[missing, listed]) as github:
+            self.assertEqual(release.release_metadata(REPOSITORY, TAG), draft)
+        self.assertEqual(github.call_args.args[1],
+                         f"repos/{REPOSITORY}/releases?per_page=100&page=1")
+
+    def test_draft_lookup_paginates_and_propagates_permission_failures(self):
+        missing = subprocess.CompletedProcess([], 1, "", "HTTP 404 Not Found")
+        page = subprocess.CompletedProcess([], 0, json.dumps([
+            dict(tag_name=f"v0.1.{index}") for index in range(100)]), "")
+        draft = dict(tag_name=TAG, draft=True, assets=[])
+        found = subprocess.CompletedProcess([], 0, json.dumps([draft]), "")
+        with patch.object(release, "github", side_effect=[missing, page, found]) as github:
+            self.assertEqual(release.release_metadata(REPOSITORY, TAG), draft)
+            self.assertIn("page=2", github.call_args.args[1])
+        denied = subprocess.CompletedProcess([], 1, "", "HTTP 403 Forbidden")
+        with patch.object(release, "github", side_effect=[missing, denied]):
+            with self.assertRaisesRegex(RuntimeError, "HTTP 403"):
+                release.release_metadata(REPOSITORY, TAG)
+
+    def test_missing_releases_and_ambiguous_drafts_are_distinct(self):
+        missing = subprocess.CompletedProcess([], 1, "", "HTTP 404 Not Found")
+        empty = subprocess.CompletedProcess([], 0, "[]", "")
+        with patch.object(release, "github", side_effect=[missing, empty]):
+            self.assertIsNone(release.release_metadata(REPOSITORY, TAG))
+        duplicate = subprocess.CompletedProcess([], 0, json.dumps([
+            dict(tag_name=TAG, id=1), dict(tag_name=TAG, id=2)]), "")
+        with patch.object(release, "github", side_effect=[missing, duplicate]):
+            with self.assertRaisesRegex(ValueError, "Multiple releases"):
+                release.release_metadata(REPOSITORY, TAG)
+
 
 if __name__ == "__main__":
     unittest.main()

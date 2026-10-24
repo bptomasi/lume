@@ -69,6 +69,8 @@ the release build and a clean-source package from that same workflow run.
 The publishing job verifies the remote tag revision, archive checksum, build
 manifest and executable hash before uploading the package, direct executable
 and their checksums to a draft. It verifies the uploaded asset digests before making the release public.
+Draft discovery uses the authenticated releases listing when the published-tag
+endpoint returns 404, so an existing or interrupted draft can be resumed.
 Prerelease tags produce prereleases; stable tags update the latest release.
 
 Only the publishing job receives repository write permission. A failed check

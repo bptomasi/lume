@@ -109,9 +109,24 @@ def release_metadata(repository, tag):
     result = github("api", f"repos/{repository}/releases/tags/{tag}", check=False)
     if result.returncode == 0:
         return json.loads(result.stdout)
-    if "HTTP 404" in result.stderr:
-        return None
-    raise RuntimeError(f"Cannot inspect release: {result.stderr.strip()}")
+    if "HTTP 404" not in result.stderr:
+        raise RuntimeError(f"Cannot inspect release: {result.stderr.strip()}")
+    # The tag endpoint returns published releases. Authenticated listing also
+    # exposes drafts, including the one just created by this publication job.
+    page = 1
+    while True:
+        result = github("api", f"repos/{repository}/releases?per_page=100&page={page}", check=False)
+        if result.returncode:
+            raise RuntimeError(f"Cannot inspect release drafts: {result.stderr.strip()}")
+        releases = json.loads(result.stdout)
+        matching = [release for release in releases if release["tag_name"] == tag]
+        if len(matching) > 1:
+            raise ValueError("Multiple releases match the requested tag")
+        if matching:
+            return matching[0]
+        if len(releases) < 100:
+            return None
+        page += 1
 
 
 def missing_assets(release, files):
