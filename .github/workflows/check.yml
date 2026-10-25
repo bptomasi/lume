@@ -17,6 +17,9 @@ concurrency:
 env:
   CARGO_BUILD_JOBS: 2
   RUST_TEST_THREADS: 2
+  # Fresh runners benefit from reusable artifacts, not large incremental state.
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
 
 jobs:
   reader:
@@ -34,17 +37,44 @@ jobs:
         run: python3 tools/publish_release.py --tag "$RELEASE_TAG" --check-tag-only
       - name: Install the pinned Rust toolchain
         run: rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt
-      - name: Restore compiler and security tool caches
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+      - name: Identify compiler cache compatibility
+        id: compiler
+        run: |
+          fingerprint=$(rustc -Vv | sha256sum | cut -d ' ' -f 1)
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+      - name: Restore Cargo downloads
+        id: cargo-downloads
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ~/.cargo/bin/cargo-audit
-            target
-          key: lume-${{ runner.os }}-rust-1.99.1-audit-0.22.2-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+          key: lume-v2-downloads-ubuntu24.04-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            lume-${{ runner.os }}-rust-1.99.1-audit-0.22.2-${{ hashFiles('Cargo.lock') }}-
+            lume-v2-downloads-ubuntu24.04-${{ runner.arch }}-
+      - name: Restore compiled Rust artifacts
+        id: cargo-build
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: target
+          key: lume-v2-build-ubuntu24.04-${{ runner.arch }}-${{ steps.compiler.outputs.fingerprint }}-debug0-${{ hashFiles('Cargo.lock', 'Cargo.toml', '.cargo/config', '.cargo/config.toml') }}-${{ github.sha }}
+          restore-keys: |
+            lume-v2-build-ubuntu24.04-${{ runner.arch }}-${{ steps.compiler.outputs.fingerprint }}-debug0-${{ hashFiles('Cargo.lock', 'Cargo.toml', '.cargo/config', '.cargo/config.toml') }}-
+            lume-v2-build-ubuntu24.04-${{ runner.arch }}-${{ steps.compiler.outputs.fingerprint }}-debug0-
+      - name: Restore pinned audit executable
+        id: audit-tool
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: lume-v2-audit-ubuntu24.04-${{ runner.arch }}-0.22.2
+      - name: Restore Python downloads
+        id: python-downloads
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ~/.cache/pip
+          key: lume-v2-pip-ubuntu24.04-${{ runner.arch }}-${{ hashFiles('tools/requirements-visual.txt') }}
+          restore-keys: |
+            lume-v2-pip-ubuntu24.04-${{ runner.arch }}-
       - name: Install SVG text and real Foot qualification tools
         run: |
           sudo apt-get update
@@ -57,6 +87,31 @@ jobs:
           fi
           python3 -m venv /tmp/lume-visual
           /tmp/lume-visual/bin/python -m pip install -r tools/requirements-visual.txt
+      - name: Fetch locked Linux dependencies on a download cache miss
+        if: steps.cargo-downloads.outputs.cache-hit != 'true'
+        run: cargo fetch --locked --target x86_64-unknown-linux-gnu
+      # Save downloads/tools before qualification so later failures retain them.
+      # Only the default branch writes shared caches; other refs restore them.
+      - name: Save Cargo downloads
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.cargo-downloads.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ steps.cargo-downloads.outputs.cache-primary-key }}
+      - name: Save pinned audit executable
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.audit-tool.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: ${{ steps.audit-tool.outputs.cache-primary-key }}
+      - name: Save Python downloads
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.python-downloads.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ~/.cache/pip
+          key: ${{ steps.python-downloads.outputs.cache-primary-key }}
       - name: Qualify local behavior
         run: make check
       - name: Qualify current dependency advisories
@@ -65,6 +120,12 @@ jobs:
         run: make check-http
       - name: Build the release binary
         run: make build
+      - name: Save compiled Rust artifacts before visual qualification
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.cargo-build.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: target
+          key: ${{ steps.cargo-build.outputs.cache-primary-key }}
       - name: Qualify Foot through native Wayland with an input seat
         run: |
           xvfb-run -a -s '-screen 0 1920x1440x24' \

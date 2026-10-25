@@ -198,8 +198,15 @@ The release workflow uses GitHub-maintained `actions/cache` v4 at
 `0057852bfaa89a56745cba8c7296529d2fc39830` and `actions/download-artifact` v4
 at `d3f86a106a0bac45b974a628896c90dbdf5c8093`, verified against their upstream
 tag refs. These MIT-licensed development actions add no runtime dependency.
-Cache restores include the runner OS, pinned Rust/security tool versions and
-lock hash; compilation and advisory checks still run after restoration.
+The pinned cache action's restore/save entrypoints separate Cargo downloads,
+compiled artifacts, cargo-audit and pip downloads. Build compatibility includes
+Ubuntu, architecture, actual compiler identity and manifest/configuration
+hashes. Only the default branch writes shared caches; other refs restore them.
+Downloads/tools are saved before checks and builds before Foot qualification,
+so later visual failures preserve completed uploads. Incremental output and dev
+debug symbols are disabled only in CI to bound archive size. Compilation and
+current advisory checks still run after restoration. No credentials, local
+libraries, virtualenvs, release packages or advisory results enter these caches.
 Release artifacts come from the successful prerequisite job in the same run.
 Only the publication job receives repository write permission. Updates require
 review of the upstream action code, permissions and release history.

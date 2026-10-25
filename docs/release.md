@@ -23,6 +23,28 @@ is not claimed reproducible across arbitrary hosts. No release is uploaded
 by this command. Manual CI dispatch retains the qualified package as an
 artifact. Tag pushes publish through the separate release job described below.
 
+## CI caches
+
+The default branch populates four independent caches: Cargo downloads, compiled
+Rust artifacts, the pinned cargo-audit executable, and pip downloads. Branches,
+pull requests and tags restore those caches through GitHub's default-branch
+fallback. Downloads/tools are saved before tests; compiled artifacts are saved
+after the release build and before Foot qualification. A later visual failure
+therefore retains completed cache uploads.
+
+Build keys include the actual compiler fingerprint, runner architecture,
+Ubuntu version, manifests/configuration and commit, with dependency-compatible
+and same-compiler fallbacks. Tool/download keys remain independent of source
+commits. Bump the `lume-v2` namespace when changing the cache layout or CI build
+policy. CI disables incremental output and dev debug symbols to limit cache
+size; debug assertions and the optimized release profile remain enabled.
+
+Every validation still runs after a cache hit, including fresh advisory checks,
+real HTTP, the release build and terminal qualification. Source edits still
+recompile Lume. Cold or evicted caches repopulate normally; runner system
+packages and the visual virtualenv are installed on each run. Hosted CI timing
+must be measured on subsequent warm runs, including cache transfer overhead.
+
 ## Downloads
 
 Each release offers the complete `.tar.gz` package and a direct executable,
