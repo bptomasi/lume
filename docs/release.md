@@ -27,7 +27,7 @@ artifact. Tag pushes publish through the separate release job described below.
 
 Each release offers the complete `.tar.gz` package and a direct executable,
 with a SHA-256 file for each. The direct Linux x86_64 download is named
-`lume-0.2.0-x86_64-unknown-linux-gnu`; it contains the exact executable verified
+`lume-0.2.1-x86_64-unknown-linux-gnu`; it contains the exact executable verified
 inside the package, without rebuilding. The package retains all license notices,
 source obligations, installer and build manifest. GitHub also supplies its
 source-code ZIP/tarball links independently.
@@ -36,11 +36,11 @@ To use the direct executable on Linux x86_64 with glibc 2.39 or newer, download
 it and its matching `.sha256` file from the release, then run:
 
 ```sh
-sha256sum -c lume-0.2.0-x86_64-unknown-linux-gnu.sha256
-chmod +x lume-0.2.0-x86_64-unknown-linux-gnu
-./lume-0.2.0-x86_64-unknown-linux-gnu --version
+sha256sum -c lume-0.2.1-x86_64-unknown-linux-gnu.sha256
+chmod +x lume-0.2.1-x86_64-unknown-linux-gnu
+./lume-0.2.1-x86_64-unknown-linux-gnu --version
 mkdir -p "$HOME/.local/bin"
-install -m 755 lume-0.2.0-x86_64-unknown-linux-gnu "$HOME/.local/bin/lume"
+install -m 755 lume-0.2.1-x86_64-unknown-linux-gnu "$HOME/.local/bin/lume"
 ```
 
 Use the complete package for installation with the accompanying notices and
@@ -49,8 +49,8 @@ Other operating systems and architectures remain source builds.
 
 ## Versions and tags
 
-Use Semantic Versioning, starting with version **0.2.0** in `Cargo.toml` and
-the annotated Git tag **v0.2.0**. Keep the root package version in `Cargo.lock`
+Use Semantic Versioning, currently version **0.2.1** in `Cargo.toml` and
+the annotated Git tag **v0.2.1**. Keep the root package version in `Cargo.lock`
 in agreement. Before 1.0, use a patch release for compatible fixes and a minor
 release for new capabilities or incompatible changes. Use `1.0.0` once the
 public configuration and command contracts have a stability commitment.
@@ -59,8 +59,8 @@ Prereleases use suffixes such as `0.3.0-rc.1` and `v0.3.0-rc.1`.
 After committing the intended revision and version, publish its tag:
 
 ```sh
-git tag -a v0.2.0 -m 'Lume 0.2.0'
-git push origin v0.2.0
+git tag -a v0.2.1 -m 'Lume 0.2.1'
+git push origin v0.2.1
 ```
 
 The workflow rejects a tag that disagrees with `Cargo.toml` before compiling.

@@ -216,6 +216,10 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--read-catalog-only", read_catalog::run),
     ("--recent-layouts-only", recent_layouts::run),
     ("--article-deletion-only", article_deletion::run),
+    (
+        "--definition-removal-only",
+        article_deletion::definition_removal,
+    ),
     ("--media-review-only", media_review::run),
     ("--motion-review-only", motion_review::run),
     ("--retention-images-only", retention_images::run),

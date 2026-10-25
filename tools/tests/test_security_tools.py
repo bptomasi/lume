@@ -1,6 +1,7 @@
 """License evidence, visual preflight and scoped advisory failures."""
 
 import datetime
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -8,6 +9,26 @@ from tools import advisories, dependency_inventory, visual_dependencies
 
 
 class AdvisoryTests(unittest.TestCase):
+    def test_database_failure_preserves_the_actual_audit_diagnostic(self):
+        result = subprocess.CompletedProcess(
+            ["cargo-audit"], 1, "", "could not fetch advisory database")
+        with self.assertRaisesRegex(RuntimeError, "could not fetch"):
+            advisories.audit_report(result)
+
+    def test_invalid_audit_output_and_failed_exit_are_rejected(self):
+        for status, output in [(0, "not JSON"), (2, "{}")]:
+            with self.subTest(status=status):
+                result = subprocess.CompletedProcess(
+                    ["cargo-audit"], status, output, "")
+                with self.assertRaises(RuntimeError):
+                    advisories.audit_report(result)
+
+    def test_findings_exit_keeps_the_report_for_policy_validation(self):
+        result = subprocess.CompletedProcess(
+            ["cargo-audit"], 1, '{"vulnerabilities":{"list":[]}}', "")
+        self.assertEqual(advisories.audit_report(result), {
+            "vulnerabilities": {"list": []}})
+
     def test_new_vulnerabilities_and_warnings_always_fail(self):
         for report in [
             {"vulnerabilities": {"list": [{"advisory": {"id": "NEW"}}]}},

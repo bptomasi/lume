@@ -378,6 +378,9 @@ pub(super) fn sensitive(
     changes: crate::search::Changes,
 ) -> Result<bool> {
     use crate::search::Changes;
+    if changes == Changes::default() {
+        return Ok(false);
+    }
     match view {
         View::Inbox | View::Read => Ok(changes.intersects(Changes::READ)),
         View::Starred => Ok(changes.intersects(Changes::FAVORITE)),

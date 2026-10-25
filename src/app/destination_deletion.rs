@@ -73,7 +73,7 @@ impl App {
         self.workspace
             .navigation_order
             .retain(|view| !view.same_destination(&target));
-        self.reload()?;
+        self.refresh_removed_definition(&target)?;
         if active && self.view != View::All {
             self.set_view(View::All)?;
         }
@@ -85,6 +85,23 @@ impl App {
             }
             _ => "Source removed · saved articles and notes kept".into(),
         };
+        Ok(())
+    }
+
+    fn refresh_removed_definition(&mut self, target: &View) -> Result<()> {
+        let changes = match target {
+            View::Smart(_) => crate::search::Changes::default(),
+            View::Collection(_) => crate::search::Changes::MEMBERSHIPS,
+            _ => return self.reload(),
+        };
+        if self.navigation_worker.is_none() {
+            return self.reload();
+        }
+        // Definition removal preserves publisher content. Reuse unaffected
+        // counts and pages; catalog publication owns any destination fallback.
+        self.library_revision = self.library_revision.wrapping_add(1);
+        self.invalidate_notebook();
+        self.request_catalog(super::catalog_worker::Scope::Changes(changes));
         Ok(())
     }
 }

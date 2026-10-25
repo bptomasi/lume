@@ -25,7 +25,49 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     permanent(&mut app, &observer, iterations)?;
     app.end_session()?;
     batch_removal(iterations, if stress { 13_000 } else { 2000 })?;
+    definition_removal(iterations, stress)?;
     deletion_review(iterations.min(5))
+}
+
+pub fn definition_removal(iterations: usize, stress: bool) -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let base = directory.path().join("definitions.db");
+    let mut store = Store::open(&base)?;
+    let count = if stress { 13_000 } else { 2000 };
+    seed(&mut store, count)?;
+    let smart = store.smart_lists()?.remove(0).id;
+    let folder = store.create_collection("Temporary folder")?;
+    drop(store);
+    for target in [View::Smart(smart), View::Collection(folder)] {
+        let mut elapsed = Duration::ZERO;
+        for _ in 0..iterations {
+            let (fixture, store) = cloned_store(&base, false)?;
+            let path = fixture.path().join("library.sqlite3");
+            let mut app = App::new(store, false)?;
+            app.enable_background_navigation(&path)?;
+            settle(&mut app)?;
+            app.focus = Focus::Library;
+            app.nav_selected = app
+                .navigation
+                .iter()
+                .position(|item| item.view == target)
+                .context("Definition")?;
+            let start = Instant::now();
+            app.key(KeyCode::Char('d').into())?;
+            app.key(KeyCode::Char('d').into())?;
+            settle(&mut app)?;
+            elapsed += start.elapsed();
+            ensure!(app.page_total == count, "Deletion changed article count");
+            ensure!(
+                !app.navigation.iter().any(|item| item.view == target),
+                "Definition survived deletion"
+            );
+            app.end_session()?;
+        }
+        let label = format!("{target:?} deletion + settled catalog");
+        print_sample(&label, elapsed, iterations);
+    }
+    Ok(())
 }
 
 fn paused_counts(store: &Store, iterations: usize) -> Result<()> {

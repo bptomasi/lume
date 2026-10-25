@@ -229,6 +229,11 @@ destination is rejected before admission until acknowledgement, including
 failure, releases it. Article edits retain their ordered individual semantics.
 Definition identity clocks prevent deleted folder, smart-list and note-query
 IDs from being reassigned; migration also reserves folder IDs held by undo.
+Background folder/smart-list removal refreshes definitions through the selective
+catalog lane, retaining unrelated counts and article pages. Folder removal
+invalidates membership-sensitive views; source removal still requests the full
+catalog because article visibility can change. An empty change set skips query
+dependency parsing. A pending broader refresh keeps its stronger scope.
 
 Permanent Trash cleanup records publisher/remote-alias tombstones and removes
 note versions, drafts, export snapshots and dangling checkpoint targets in one

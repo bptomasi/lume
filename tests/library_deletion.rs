@@ -24,6 +24,22 @@ fn select(app: &mut App, target: View) -> Result<()> {
     Ok(())
 }
 
+fn settle_catalog(app: &mut App) -> Result<()> {
+    let deadline =
+        std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        common::settle_notes(app)?;
+        if !app.catalog_pending() {
+            return Ok(());
+        }
+        anyhow::ensure!(
+            std::time::Instant::now() < deadline,
+            "Catalog timed out"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+}
+
 #[test]
 fn dd_removes_the_captured_feed_and_smart_list_and_publishes_configuration()
 -> Result<()> {
@@ -176,5 +192,71 @@ fn repeated_removal_before_acknowledgement_is_admitted_only_once() -> Result<()>
     }
     common::settle_notes(&mut app)?;
     assert!(Store::open(&path)?.servers()?.is_empty());
+    app.end_session()
+}
+
+#[test]
+fn removing_definitions_keeps_unrelated_search_counts_and_reader() -> Result<()>
+{
+    for folder in [false, true] {
+        let (directory, store, _) = common::seeded_store()?;
+        store.save_smart_list(
+            "Search",
+            &SmartFilter {
+                text: "systems".into(),
+                ..Default::default()
+            },
+        )?;
+        store.save_smart_list("Remove", &Default::default())?;
+        let target = if folder {
+            View::Collection(store.create_collection("Remove")?)
+        } else {
+            View::Smart(
+                store
+                    .smart_lists()?
+                    .into_iter()
+                    .find(|list| list.name == "Remove")
+                    .context("List")?
+                    .id,
+            )
+        };
+        let path = directory.path().join("library.sqlite3");
+        let mut app = App::new(store, false)?;
+        let reader = app.reader_text.clone();
+        app.enable_background_navigation(&path)?;
+        settle_catalog(&mut app)?;
+        rusqlite::Connection::open(&path)?.execute_batch(include_str!(
+            "../src/store/sql/test_drop_article_search.sql"
+        ))?;
+        select(&mut app, target.clone())?;
+        key(&mut app, KeyCode::Char('d'))?;
+        key(&mut app, KeyCode::Char('d'))?;
+        settle_catalog(&mut app)?;
+        assert!(!app.navigation.iter().any(|item| item.view == target));
+        assert_eq!(app.reader_text, reader);
+        assert_eq!(app.page_total, 1);
+        app.end_session()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn removing_the_active_smart_list_moves_to_all_articles() -> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    store.save_smart_list("Remove", &Default::default())?;
+    let target = View::Smart(store.smart_lists()?.remove(0).id);
+    let path = directory.path().join("library.sqlite3");
+    let mut app = App::new(store, false)?;
+    app.set_view(target.clone())?;
+    app.enable_background_navigation(&path)?;
+    settle_catalog(&mut app)?;
+    select(&mut app, target.clone())?;
+    key(&mut app, KeyCode::Char('d'))?;
+    key(&mut app, KeyCode::Char('d'))?;
+    settle_catalog(&mut app)?;
+    assert_eq!(app.view, View::All);
+    assert_eq!(app.page_total, 1);
+    assert!(!app.navigation.iter().any(|item| item.view == target));
+    assert!(app.current().is_some());
     app.end_session()
 }

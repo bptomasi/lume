@@ -38,6 +38,16 @@ def qualify(report, reviews, today):
         raise ValueError("; ".join(failures))
 
 
+def audit_report(result):
+    if result.returncode not in (0, 1):
+        raise RuntimeError(result.stderr or result.stdout)
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        message = result.stderr.strip() or "cargo-audit returned invalid JSON"
+        raise RuntimeError(message) from error
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cargo-audit", default="cargo-audit")
@@ -48,9 +58,7 @@ def main():
         raise ValueError(f"Use cargo-audit {VERSION}")
     result = subprocess.run([arguments.cargo_audit, "audit", "--json"],
                             cwd=ROOT, capture_output=True, text=True, check=False)
-    if result.returncode not in (0, 1):
-        raise RuntimeError(result.stderr or result.stdout)
-    report = json.loads(result.stdout)
+    report = audit_report(result)
     today = datetime.datetime.now(datetime.timezone.utc).date()
     report["qualification"] = {
         "date": today.isoformat(),

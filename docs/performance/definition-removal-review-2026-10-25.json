@@ -1,0 +1,66 @@
+{
+  "measured_at_utc": "2026-10-25T00:19:19.127428+00:00",
+  "toolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "dev, unoptimized with debuginfo",
+  "baseline_revision": "4ce3eb5 with the identical definition-removal workload",
+  "after_revision": "source changes in the commit containing this report",
+  "command": "cargo bench --locked --profile dev --bench reader -- --definition-removal-only",
+  "fixture_articles": 2000,
+  "fixture_smart_lists": 46,
+  "iterations_per_process": 40,
+  "process_order": [
+    "before",
+    "after",
+    "after",
+    "before",
+    "before",
+    "after"
+  ],
+  "timing": "Two dd presses through committed deletion and settled page/catalog workers; excludes fixture creation and app startup. Fresh app per iteration. No terminal drawing.",
+  "correctness": "Each iteration verifies unchanged article total and removed definition. Both binaries use the same workload.",
+  "binary_sha256": {
+    "before": "b20ebab93704bb581bab1ecf71f80ff14721f64a2177115c4cd6c8afb8866319",
+    "after": "8b18eae213136f0dbb535463bf99e4e651c6e1433ddc8f9ef7f593b46f1d296b"
+  },
+  "samples_mean_ms": {
+    "before": {
+      "Smart(1) deletion + settled catalog": [
+        16.026,
+        16.208,
+        15.542
+      ],
+      "Collection(1) deletion + settled catalog": [
+        15.88,
+        16.364,
+        15.535
+      ]
+    },
+    "after": {
+      "Smart(1) deletion + settled catalog": [
+        2.437,
+        2.448,
+        2.447
+      ],
+      "Collection(1) deletion + settled catalog": [
+        3.353,
+        3.426,
+        3.202
+      ]
+    }
+  },
+  "comparison": {
+    "Smart(1) deletion + settled catalog": {
+      "before_median_ms": 16.026,
+      "after_median_ms": 2.447,
+      "speedup": 6.549,
+      "reduction_percent": 84.73
+    },
+    "Collection(1) deletion + settled catalog": {
+      "before_median_ms": 15.88,
+      "after_median_ms": 3.353,
+      "speedup": 4.736,
+      "reduction_percent": 78.89
+    }
+  },
+  "limits": "Local dev-profile comparison, not a release-build or terminal-latency claim."
+}

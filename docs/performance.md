@@ -826,3 +826,18 @@ Each process measures 40 four-page iterations, including the initial cold OFFSET
 jump, with no writes during timing. The final harness checks every returned
 identity. Three independent process means per version/size form each median;
 these results establish no additional timing speedup from this correctness fix.
+
+## Definition removal review, 2026-10-25
+
+Background folder and smart-list deletion now reuses unrelated sidebar counts
+and article pages. Native failure tests remove the unrelated article FTS index
+to verify that these actions do not depend on it; active-list removal still
+opens All articles. Pending broader refreshes retain their stronger scope.
+
+The [alternating comparison](performance/definition-removal-review-2026-10-25.json)
+uses 2,000 articles, 46 smart lists and a fresh app per iteration. Three process
+means per version, each containing 40 committed removals and settled catalog
+updates, give median means of 16.026 → 2.447 ms for smart lists and
+15.880 → 3.353 ms for folders. Fixture creation and app startup are excluded.
+These are unoptimized dev-profile measurements without terminal drawing;
+they do not establish release-build or terminal-latency speedups.
