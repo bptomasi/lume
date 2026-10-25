@@ -2,6 +2,7 @@
 
 import importlib
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -80,6 +81,25 @@ class FootStartupTests(unittest.TestCase):
             with self.subTest(wire=wire):
                 with self.assertRaisesRegex(RuntimeError, "stale pixels"):
                     self.driver.verify_native_transition(wire)
+
+    def test_sixel_origin_follows_a_painted_sidebar_row(self):
+        # Reproduce v0.2.1 CI: a complete FEEDS row precedes the reader strip.
+        prefix = ("\x1b[21;1H│▾ FEEDS             1││"
+                  + " " * 34 + "││ ").encode()
+        content = prefix + b"\x1b[;m\x1b[57X"
+        cursor = re.search(rb"\x1b\[(\d+);(\d+)H", content)
+        self.assertEqual(
+            self.driver.strip_position(content, cursor, len(content)),
+            (20, 61),
+        )
+
+    def test_unsupported_cursor_motion_and_text_widths_fail_closed(self):
+        for suffix in (b"\x1b[5C", b"\t", "界".encode(), "a\u0301".encode()):
+            with self.subTest(suffix=suffix):
+                content = b"\x1b[21;1H" + suffix
+                cursor = re.search(rb"\x1b\[(\d+);(\d+)H", content)
+                with self.assertRaisesRegex(RuntimeError, "Unexpected content"):
+                    self.driver.strip_position(content, cursor, len(content))
 
 
 if __name__ == "__main__":

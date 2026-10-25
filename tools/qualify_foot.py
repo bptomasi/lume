@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
 
 from visual_dependencies import pillow
 from foot_terminal import relay
@@ -104,12 +105,16 @@ def frame(directory):
 
 
 def strip_position(content, cursor, offset):
-    # Ratatui can paint the blank margin after its last absolute cursor move.
+    # Ratatui can paint the sidebar/text after its last absolute cursor move.
     # ECH clears cells without advancing; SGR changes style without advancing.
-    # Our fixture permits only spaces and the single-cell pane border here.
-    margin = re.sub(rb"\x1b\[[0-?]*[ -/]*[@-~]", b"",
+    # This controlled fixture admits only printable, single-cell characters;
+    # reject cursor motion and unsupported widths instead of guessing origins.
+    margin = re.sub(rb"\x1b\[[0-?]*[ -/]*[mX]", b"",
                     content[cursor.end():offset]).decode("utf-8")
-    if any(character not in " │" for character in margin):
+    if any(not character.isprintable()
+           or unicodedata.combining(character)
+           or unicodedata.east_asian_width(character) in ("W", "F")
+           for character in margin):
         raise RuntimeError("Unexpected content before fixture Sixel position")
     return int(cursor[1]) - 1, int(cursor[2]) - 1 + len(margin)
 

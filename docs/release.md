@@ -96,8 +96,12 @@ endpoint returns 404, so an existing or interrupted draft can be resumed.
 Prerelease tags produce prereleases; stable tags update the latest release.
 
 Only the publishing job receives repository write permission. A failed check
-leaves the tag without a published release. Fix the failure and rerun the
-workflow, or issue a new version if source changes are needed. Never move a
+leaves the tag without a published release. The GitHub Tags page still offers
+automatic source archives; binary downloads appear on the published Releases
+page after qualification succeeds. Reruns use the tagged workflow and tools,
+so fixes committed only to `main` do not change an existing tag's qualification.
+Fix infrastructure failures and rerun the workflow, or issue a new version
+when source or qualification tooling must change. Never move a
 published tag. Reruns verify every existing published asset before writing. They may append
 missing verified assets, such as the direct binary derived from an earlier
 qualified package, but never replace published bytes. An interrupted draft
