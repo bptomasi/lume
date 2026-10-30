@@ -39,7 +39,7 @@ pub struct WebPage {
     pub(crate) columns: Vec<crate::reader::viewport::RowIndex>,
     pub(crate) rows: Vec<String>,
     horizontal: std::collections::BTreeMap<usize, usize>,
-    pub(super) index: DocumentIndex,
+    pub(super) index: Arc<DocumentIndex>,
     pub(super) words: crate::reader::motion::WordIndex,
     pub(super) row_goal: Option<usize>,
     pub(super) back: Vec<usize>,
@@ -50,21 +50,17 @@ impl WebPage {
     pub(super) fn prepare(
         document: Arc<WebDocument>,
         width: usize,
-        anchor: usize,
         options: crate::reader::RenderOptions,
+        index: Option<Arc<DocumentIndex>>,
     ) -> Self {
         let source = &document.body;
         let mut rendered =
             crate::reader::render_with_options(source, width, options);
         let base = crate::source::feed_url(&document.url).ok();
         super::super::images::resolve_urls(&mut rendered.images, base.as_ref());
-        let index = DocumentIndex::parse_with_options(source, options);
-        let cursor = crate::reader::to_display(
-            &rendered.mappings,
-            anchor..anchor.saturating_add(1),
-        )
-        .first()
-        .map_or(0, |range| range.start);
+        let index = index.unwrap_or_else(|| {
+            Arc::new(DocumentIndex::parse_with_options(source, options))
+        });
         let words = crate::reader::motion::WordIndex::new(&rendered.text);
         let rows = rendered
             .lines
@@ -77,7 +73,7 @@ impl WebPage {
             notice: None,
             document,
             rendered,
-            cursor,
+            cursor: 0,
             scroll: 0,
             selection: None,
             linewise: false,
@@ -96,14 +92,22 @@ impl WebPage {
 
     /// Display row containing the cursor, including empty rows.
     pub fn cursor_row(&self) -> usize {
+        self.row_at(self.cursor)
+    }
+
+    fn row_at(&self, offset: usize) -> usize {
         self.rendered
             .text_ranges
-            .partition_point(|range| range.end < self.cursor)
-            .min(self.rendered.lines.len().saturating_sub(1))
+            .partition_point(|range| range.start <= offset)
+            .saturating_sub(1)
     }
 
     pub(super) fn source_anchor(&self) -> usize {
-        let row = self.cursor_row();
+        self.source_at(self.cursor)
+    }
+
+    fn source_at(&self, offset: usize) -> usize {
+        let row = self.row_at(offset);
         // Generated image rows and paragraph separators have no text mapping.
         // Clamp to the preceding readable grapheme before projecting an anchor.
         let cursor = self
@@ -112,8 +116,8 @@ impl WebPage {
             .iter()
             .take(row.saturating_add(1))
             .rfind(|range| !range.is_empty())
-            .map_or(self.cursor, |range| {
-                self.cursor.min(crate::reader::cursor::previous(
+            .map_or(offset, |range| {
+                offset.min(crate::reader::cursor::previous(
                     &self.rendered.text,
                     range.end,
                 ))
@@ -141,12 +145,16 @@ impl WebPage {
     }
 
     pub(super) fn reveal(&mut self, height: usize) {
+        let height = height.max(1);
+        self.scroll = self
+            .scroll
+            .min(self.rendered.lines.len().saturating_sub(height));
         let row = self.cursor_row();
         if row < self.scroll {
             self.scroll = row;
         }
-        if row >= self.scroll.saturating_add(height.max(1)) {
-            self.scroll = row.saturating_sub(height.max(1) - 1);
+        if row >= self.scroll.saturating_add(height) {
+            self.scroll = row.saturating_sub(height - 1);
         }
         if let Some(Some(group)) = self.rendered.horizontal_groups.get(row)
             && let Some(range) = self.rendered.text_ranges.get(row)
@@ -168,29 +176,57 @@ impl WebPage {
     pub(super) fn inherit_view(&mut self, previous: &mut Self) {
         self.browser_url.clone_from(&previous.browser_url);
         self.notice.clone_from(&previous.notice);
-        self.seek_source(previous.source_anchor());
-        self.selection = previous.selection.and_then(|anchor| {
-            let source = crate::reader::to_source(
-                &previous.rendered.mappings,
-                anchor..anchor.saturating_add(1),
-            )?;
-            crate::reader::to_display(&self.rendered.mappings, source)
-                .first()
-                .map(|range| range.start)
-        });
+        self.cursor = self
+            .restore_position(previous, previous.cursor)
+            .unwrap_or(0);
+        self.selection = previous
+            .selection
+            .and_then(|anchor| self.restore_position(previous, anchor));
         self.linewise = previous.linewise;
         self.back = std::mem::take(&mut previous.back);
         self.forward = std::mem::take(&mut previous.forward);
     }
 
+    fn restore_position(
+        &self,
+        previous: &Self,
+        offset: usize,
+    ) -> Option<usize> {
+        let row = previous.row_at(offset);
+        let image = previous
+            .rendered
+            .images
+            .iter()
+            .find(|slot| row >= slot.caption && row < slot.rows.end);
+        let generated = image.and_then(|before| {
+            let slot = self
+                .rendered
+                .images
+                .iter()
+                .find(|slot| slot.source == before.source)?;
+            let target = (slot.caption + row - before.caption)
+                .min(slot.rows.end.saturating_sub(1));
+            let old = previous.rendered.text_ranges.get(row)?;
+            let new = self.rendered.text_ranges.get(target)?;
+            let byte =
+                new.start + offset.saturating_sub(old.start).min(new.len());
+            Some(crate::reader::cursor::boundary(&self.rendered.text, byte))
+        });
+        generated.or_else(|| self.source_position(previous.source_at(offset)))
+    }
+
+    pub(super) fn last_readable(&self) -> usize {
+        let end = self
+            .rendered
+            .text_ranges
+            .iter()
+            .rfind(|range| !range.is_empty())
+            .map_or(0, |range| range.end);
+        crate::reader::cursor::previous(&self.rendered.text, end)
+    }
+
     fn source_position(&self, anchor: usize) -> Option<usize> {
-        let display = crate::reader::to_display(
-            &self.rendered.mappings,
-            anchor..anchor.saturating_add(1),
-        );
-        display
-            .first()
-            .map(|range| range.start)
+        crate::reader::display_start(&self.rendered.mappings, anchor)
             .or_else(|| {
                 self.rendered.images.iter().find_map(|slot| {
                     slot.source
@@ -240,12 +276,8 @@ impl WebPage {
             return Some(start..end);
         }
         let rows = &self.rendered.text_ranges;
-        let first = rows
-            .partition_point(|range| range.end < start)
-            .min(rows.len().saturating_sub(1));
-        let last = rows
-            .partition_point(|range| range.end < anchor.max(self.cursor))
-            .min(rows.len().saturating_sub(1));
+        let first = self.row_at(start);
+        let last = self.row_at(anchor.max(self.cursor));
         Some(rows.get(first)?.start..rows.get(last)?.end)
     }
 
@@ -308,7 +340,7 @@ pub(super) fn load(
         .find_map(|line| line.strip_prefix("# "))
         .map_or_else(|| url.clone(), |title| crate::content::label(title, 160));
     let document = Arc::new(WebDocument { url, title, body });
-    let mut page = WebPage::prepare(document, width, 0, options);
+    let mut page = WebPage::prepare(document, width, options, None);
     page.browser_url = browser_url;
     if let Some(fragment) = fragment
         && page.jump_fragment(&fragment).is_err()

@@ -1,0 +1,80 @@
+{
+  "baseline_revision": "d9f247b",
+  "candidate": "Source changes in the commit containing this report",
+  "toolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "method": "Three alternating processes per revision; identical harness added before baseline build; medians of per-process means.",
+  "excludes": [
+    "fixture construction",
+    "HTTP",
+    "physical terminal presentation"
+  ],
+  "correctness_checks": [
+    "deep cursor anchor retained at each width",
+    "32 image slots retained",
+    "visual selection retained",
+    "prepared thumbnail retained"
+  ],
+  "profile": "dev, unoptimized, debug=0",
+  "fixture": {
+    "sections": 200,
+    "image_slots": 32,
+    "protocol": "Blocks",
+    "reflow_iterations_per_process": 40,
+    "selected_frames_per_process": 400
+  },
+  "runs": {
+    "baseline": [
+      {
+        "linked two-width reflow + anchor restoration": 68.51,
+        "linked selected cached-image frame": 2.976
+      },
+      {
+        "linked two-width reflow + anchor restoration": 69.855,
+        "linked selected cached-image frame": 3.041
+      },
+      {
+        "linked two-width reflow + anchor restoration": 71.726,
+        "linked selected cached-image frame": 3.147
+      }
+    ],
+    "current": [
+      {
+        "linked two-width reflow + anchor restoration": 39.618,
+        "linked selected cached-image frame": 2.914
+      },
+      {
+        "linked two-width reflow + anchor restoration": 37.586,
+        "linked selected cached-image frame": 2.893
+      },
+      {
+        "linked two-width reflow + anchor restoration": 61.65,
+        "linked selected cached-image frame": 4.49
+      }
+    ]
+  },
+  "median_ms": {
+    "linked two-width reflow + anchor restoration": {
+      "baseline": 69.855,
+      "current": 39.618,
+      "reduction_percent": 43.29
+    },
+    "linked selected cached-image frame": {
+      "baseline": 3.041,
+      "current": 2.914,
+      "reduction_percent": 4.18
+    }
+  },
+  "command": "CARGO_BUILD_JOBS=2 CARGO_PROFILE_DEV_DEBUG=0 RUST_TEST_THREADS=2 cargo bench --locked --offline --profile dev --bench reader -- --linked-review-only",
+  "process_order": [
+    "baseline",
+    "current",
+    "current",
+    "baseline",
+    "baseline",
+    "current"
+  ],
+  "binary_sha256": {
+    "baseline": "f2da4c9075b9f3f2fc4850846054f2f17cb84b22b7f176369bc4b5e1d1c4648c",
+    "current": "202ff261abdfdbfb2254a186eda47897c925b06ffe49bed59f0ed61ed21bb0a2"
+  }
+}

@@ -16,9 +16,13 @@ impl App {
     pub fn resize_workspace(&mut self, area: Rect) {
         self.pin_navigation_viewport();
         if self.screen != area {
+            let height_changed = self.screen.height != area.height;
             self.cancel_pointer();
             self.note_marks.delete = None;
             self.screen = area;
+            if height_changed {
+                self.resize_web_height();
+            }
         }
         let areas = ui::workspace_areas(area, self.focus, &self.workspace);
         if let Some(articles) = areas.articles {

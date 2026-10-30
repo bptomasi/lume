@@ -42,15 +42,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
             .style(Style::new().fg(MUTED)),
         Rect::new(area.x, screen.y + 1, area.width, 1),
     );
-    let lines = page
-        .rendered
-        .lines
-        .iter()
-        .enumerate()
-        .skip(page.scroll)
-        .take(usize::from(area.height))
-        .map(|(index, line)| row(page, index, line, area.width.into()))
-        .collect::<Vec<_>>();
+    let lines = visible_lines(page, area);
     draw_code_backgrounds(frame, page, area);
     frame.render_widget(Paragraph::new(lines), area);
     super::images::draw(frame, app, area);
@@ -100,41 +92,66 @@ fn draw_controls(frame: &mut Frame<'_>, screen: Rect, status: &str) {
     );
 }
 
-fn row(
-    page: &WebPage,
-    index: usize,
-    line: &Line<'static>,
-    width: usize,
-) -> Line<'static> {
-    let range = &page.rendered.text_ranges[index];
-    let text = &page.rows[index];
-    let cursor_row = page.cursor_row() == index;
-    let selected = page.selected_range();
-    let mut result = page.columns[index].project(
-        line,
-        text,
-        page.horizontal(index),
-        width,
-        |bytes, mut style| {
-            let source = range.start + bytes.start..range.start + bytes.end;
-            if selected.as_ref().is_some_and(|selection| {
-                source.start < selection.end && source.end > selection.start
-            }) {
-                style = style.bg(super::theme::AMBER).fg(BG);
-            }
-            if cursor_row && source.contains(&page.cursor) {
-                style = style.bg(TEXT).fg(PANEL);
-            }
-            style
-        },
-    );
-    if page.rendered.code.get(index) == Some(&true) {
-        result = result.style(Style::new().bg(RAISED));
-    }
-    if cursor_row && text.is_empty() {
+struct Rows<'a> {
+    page: &'a WebPage,
+    cursor_row: usize,
+    selected: Option<std::ops::Range<usize>>,
+}
+
+fn visible_lines(page: &WebPage, area: Rect) -> Vec<Line<'static>> {
+    let rows = Rows {
+        page,
+        cursor_row: page.cursor_row(),
+        selected: page.selected_range(),
+    };
+    page.rendered
+        .lines
+        .iter()
+        .enumerate()
+        .skip(page.scroll)
+        .take(usize::from(area.height))
+        .map(|(index, line)| rows.project(index, line, area.width.into()))
+        .collect()
+}
+
+impl Rows<'_> {
+    fn project(
+        &self,
+        index: usize,
+        line: &Line<'static>,
+        width: usize,
+    ) -> Line<'static> {
+        let page = self.page;
+        let range = &page.rendered.text_ranges[index];
+        let text = &page.rows[index];
+        let cursor_row = self.cursor_row == index;
+        let selected = &self.selected;
+        let mut result = page.columns[index].project(
+            line,
+            text,
+            page.horizontal(index),
+            width,
+            |bytes, mut style| {
+                let source = range.start + bytes.start..range.start + bytes.end;
+                if selected.as_ref().is_some_and(|selection| {
+                    source.start < selection.end && source.end > selection.start
+                }) {
+                    style = style.bg(super::theme::AMBER).fg(BG);
+                }
+                if cursor_row && source.contains(&page.cursor) {
+                    style = style.bg(TEXT).fg(PANEL);
+                }
+                style
+            },
+        );
+        if page.rendered.code.get(index) == Some(&true) {
+            result = result.style(Style::new().bg(RAISED));
+        }
+        if cursor_row && text.is_empty() {
+            result
+                .spans
+                .push(Span::styled(" ", Style::new().bg(TEXT).fg(PANEL)));
+        }
         result
-            .spans
-            .push(Span::styled(" ", Style::new().bg(TEXT).fg(PANEL)));
     }
-    result
 }

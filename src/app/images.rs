@@ -84,7 +84,12 @@ impl ReaderImages {
         if self.worker.is_none() {
             return "Images unavailable · :images retry · :image-open";
         }
-        if self.enabled || key.detail.is_some() {
+        if self.enabled
+            || key
+                .detail
+                .as_ref()
+                .is_some_and(|detail| detail.slice.is_none())
+        {
             return "Loading image…";
         }
         "Image loading paused"

@@ -207,9 +207,6 @@ impl App {
             self.pending_destination_delete = None;
             self.pending_article_delete = None;
         }
-        if matches!(self.mode, Mode::Web) && self.workspace.mouse {
-            return self.web_mouse(event);
-        }
         if !self.workspace.mouse
             || !event.modifiers.is_empty()
             || self.screen.width < 24
@@ -217,6 +214,9 @@ impl App {
         {
             self.cancel_pointer();
             return Ok(Action::None);
+        }
+        if matches!(self.mode, Mode::Web) {
+            return self.web_mouse(event);
         }
         if !matches!(self.mode, Mode::Normal) {
             return self.modal_pointer(event);

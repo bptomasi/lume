@@ -53,6 +53,18 @@ pub fn to_display(
         .collect()
 }
 
+/// First readable byte for a source anchor, without collecting other matches.
+pub(crate) fn display_start(
+    mappings: &[SourceMapping],
+    anchor: usize,
+) -> Option<usize> {
+    let source = anchor..anchor.saturating_add(1);
+    mappings.iter().find_map(|mapping| {
+        project(&mapping.source, &mapping.display, &source)
+            .map(|range| range.start)
+    })
+}
+
 /// Source interval index for projecting many annotations through one rendering.
 /// Supports overlapping and reordered tokens, including expanded table cells.
 pub struct SourceIndex<'a> {

@@ -327,3 +327,111 @@ fn linked_formula_pixels_and_image_caption_survive_resize() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn last_link_remains_followable_after_end_of_document_motion() -> Result<()> {
+    let (_directory, mut app) = fixture(
+        "## Target\n\nReadable context.\n\n[Last link](#target)",
+        ImageProtocol::Blocks,
+    )?;
+    command(&mut app, &format!("open-page {URL}"))?;
+    settle(&mut app)?;
+    key(&mut app, KeyCode::Char('G'))?;
+    assert_eq!(
+        app.web_page().context("Last link")?.cursor_link(),
+        Some("#target")
+    );
+    key(&mut app, KeyCode::Enter)?;
+    let page = app.web_page().context("Target")?;
+    assert!(page.rendered.text[page.cursor..].starts_with("Target"));
+    Ok(())
+}
+
+#[test]
+fn paused_sixel_images_report_pause_but_allow_explicit_inspection() -> Result<()>
+{
+    let (_directory, mut app) =
+        fixture("![Diagram](/diagram.svg)\n\nContext.", ImageProtocol::Sixel)?;
+    command(&mut app, "images off")?;
+    command(&mut app, &format!("open-page {URL}"))?;
+    settle(&mut app)?;
+    let request = image_key(&app)?;
+    assert!(app.images.thumbnail(&request).is_none());
+    assert!(app.images.placeholder(&request).contains("paused"));
+    key(&mut app, KeyCode::Enter)?;
+    settle(&mut app)?;
+    let inspector = app.image_inspector_key().context("Inspector")?;
+    assert!(app.images.thumbnail(&inspector).is_some());
+    key(&mut app, KeyCode::Esc)?;
+    assert!(matches!(app.mode, Mode::Web));
+    Ok(())
+}
+
+#[test]
+fn terminal_selection_modifiers_do_not_open_linked_image_inspection()
+-> Result<()> {
+    let (_directory, mut app) =
+        fixture("![Diagram](/diagram.svg)\n\nContext.", ImageProtocol::Sixel)?;
+    command(&mut app, &format!("open-page {URL}"))?;
+    settle(&mut app)?;
+    let page = app.web_page().context("Page")?;
+    let area = ui::web_content(Rect::new(0, 0, 100, 36), page.width);
+    app.mouse(MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: area.x,
+        row: area.y,
+        modifiers: KeyModifiers::SHIFT,
+    })?;
+    assert!(matches!(app.mode, Mode::Web));
+    assert!(app.web_page().context("Page")?.selection.is_none());
+    Ok(())
+}
+
+#[test]
+fn image_caption_selection_survives_reflow() -> Result<()> {
+    let (_directory, mut app) = fixture(
+        "![Diagram](/diagram.svg)\n\nContext.",
+        ImageProtocol::Blocks,
+    )?;
+    command(&mut app, &format!("open-page {URL}"))?;
+    settle(&mut app)?;
+    key(&mut app, KeyCode::Char('v'))?;
+    key(&mut app, KeyCode::Char('j'))?;
+    let page = app.web_page().context("Selected page")?;
+    let selected = page.rendered.text
+        [page.selected_range().context("Selection")?]
+    .to_owned();
+    let row = page.cursor_row();
+    app.resize_workspace(Rect::new(0, 0, 60, 36));
+    app.poll_web()?;
+    settle(&mut app)?;
+    let page = app.web_page().context("Reflowed page")?;
+    assert_eq!(page.cursor_row(), row);
+    assert_eq!(
+        page.rendered.text[page.selected_range().context("Selection")?],
+        selected
+    );
+    Ok(())
+}
+
+#[test]
+fn height_only_resize_keeps_linked_cursor_visible_without_reflow() -> Result<()>
+{
+    let (_directory, mut app) =
+        fixture(&"Readable context.\n\n".repeat(80), ImageProtocol::Blocks)?;
+    command(&mut app, &format!("open-page {URL}"))?;
+    settle(&mut app)?;
+    for _ in 0..20 {
+        key(&mut app, KeyCode::Char('j'))?;
+    }
+    let width = app.web_page().context("Page")?.width;
+    app.resize_workspace(Rect::new(0, 0, 100, 12));
+    app.poll_web()?;
+    assert!(!app.web_pending());
+    let page = app.web_page().context("Resized page")?;
+    assert_eq!(page.width, width);
+    assert!(
+        page.cursor_row() >= page.scroll && page.cursor_row() < page.scroll + 6
+    );
+    Ok(())
+}

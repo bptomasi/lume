@@ -24,8 +24,8 @@ enum Request {
     },
     Reflow {
         document: Arc<WebDocument>,
+        index: Option<Arc<crate::reader::index::DocumentIndex>>,
         width: usize,
-        anchor: usize,
         options: crate::reader::RenderOptions,
     },
 }
@@ -115,11 +115,11 @@ impl App {
                 ),
                 Request::Reflow {
                     document,
+                    index,
                     width,
-                    anchor,
                     options,
                 } => Ok(page::Loaded::Page(Box::new(WebPage::prepare(
-                    document, width, anchor, options,
+                    document, width, options, index,
                 )))),
             },
         )?);
@@ -219,12 +219,21 @@ impl App {
         if let Some(worker) = &mut self.web.worker {
             worker.submit(Request::Reflow {
                 document: page.document.clone(),
+                index: (page.options.latex_formulas == options.latex_formulas)
+                    .then(|| page.index.clone()),
                 width,
-                anchor: page.source_anchor(),
                 options,
             });
             self.web.requested_width = width;
             self.web.requested_options = options;
+        }
+    }
+
+    pub(super) fn resize_web_height(&mut self) {
+        if self.web.active
+            && let Some(page) = &mut self.web.current
+        {
+            page.reveal(usize::from(self.screen.height.saturating_sub(6)));
         }
     }
 
@@ -345,3 +354,6 @@ impl WebReading {
         self.browser_request = None;
     }
 }
+
+#[cfg(test)]
+mod tests;

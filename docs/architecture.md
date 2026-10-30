@@ -453,7 +453,10 @@ its unchanged candidate query. Rendering consumes prepared rows only.
 Linked readings own an independent `WebPage`, not a fabricated article identity.
 The existing HTTP extractor, Markdown parser and cursor/projection contracts
 prepare text on a worker. Page history retains at most eight prepared pages.
-Resizing requests replacement layout by source anchor. HTTP is disabled by the
+Width changes request replacement layout; source positions are restored only
+when it arrives, including movements made while layout was pending. The immutable
+link/heading index is shared until formula semantics change. Height-only resize
+clamps and reveals the cursor without rebuilding layout. HTTP is disabled by the
 runtime's offline/demo modes. The original Markdown supplies both layout and
 navigation indexes, preserving source offsets around images and formulas.
 Linked pages retain their own image slots; a borrowed active viewport shares

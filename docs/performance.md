@@ -131,8 +131,8 @@ RSS across these workloads ranges from 16,328 to 36,228 KiB, including setup.
 The retained report contains repeated wall time, CPU and filesystem I/O counts;
 it establishes current costs, without an equivalent previous speedup baseline.
 
-Native Foot qualification covers linked text views without parent-image
-leakage, back navigation restoring cached image strips, opt-in diagnostics,
+Native Foot qualification covers linked pages with their own native images,
+without parent-image leakage, back navigation restoring cached image strips, opt-in diagnostics,
 selection, zoom and terminal restoration. The controlled fixture's publisher
 text remains unchanged. Startup waits for prepared article content before
 issuing source-bound commands; it does not rely on a fixed loading delay.
@@ -841,3 +841,19 @@ updates, give median means of 16.026 → 2.447 ms for smart lists and
 15.880 → 3.353 ms for folders. Fixture creation and app startup are excluded.
 These are unoptimized dev-profile measurements without terminal drawing;
 they do not establish release-build or terminal-latency speedups.
+
+## Linked-page review, 2026-10-30
+
+The [linked-page review](performance/linked-page-review-2026-10-30.json)
+compares `d9f247b` with the reviewed implementation using identical workloads that
+check correctness and Rust 1.99.1. Three alternating processes per revision,
+with 200 sections and 32 image slots, measured median two-width reflow plus
+anchor restoration at 69.855 → 39.618 ms per pair (43.29% less time).
+Selected cached-image frames measured 3.041 → 2.914 ms (4.18% less time).
+These use the unoptimized dev profile with debug info disabled, a cached SVG,
+Blocks rendering and TestBackend; they exclude HTTP and physical presentation.
+Width-independent indexes are reused, position projection runs only at delivery,
+and cursor/selection state is computed once per drawn frame.
+Reproduce with `cargo bench --profile dev --bench reader -- --linked-review-only`
+and `CARGO_PROFILE_DEV_DEBUG=0`. Each process verifies the deep cursor anchor,
+image bounds, selection and the retained thumbnail.

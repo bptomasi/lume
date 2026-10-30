@@ -179,8 +179,7 @@ impl App {
         let Some(page) = &mut self.web.current else {
             return;
         };
-        let last =
-            cursor::previous(&page.rendered.text, page.rendered.text.len());
+        let last = page.last_readable();
         let text = &page.rendered.text;
         page.row_goal = None;
         let range = page

@@ -53,7 +53,8 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
 }
 
 pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
-    if matches!(app.mode, crate::app::Mode::Image(_))
+    if !app.uses_sixel_images()
+        || matches!(app.mode, crate::app::Mode::Image(_))
         || app.pane_motion_active()
         || (!app.web_active() && app.notebook.is_some())
         || (!app.web_active() && app.article_preparing() && !app.reader_stale())

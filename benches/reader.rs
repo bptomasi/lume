@@ -49,6 +49,8 @@ mod inspector_loading;
 mod interaction;
 #[path = "workloads/library_sections.rs"]
 mod library_sections;
+#[path = "workloads/linked_review.rs"]
+mod linked_review;
 #[path = "workloads/links.rs"]
 mod links;
 #[path = "workloads/lists.rs"]
@@ -179,6 +181,7 @@ const COMPONENT_WORKLOADS: &[Workload] = &[
     geometry::run,
     reading_services::run,
     service_interaction::run,
+    linked_review::run,
     recovery_navigation::run,
     annotation_projection::run,
     dense_annotations::run,
@@ -230,6 +233,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--geometry-only", geometry::run),
     ("--reading-services-only", reading_services::run),
     ("--service-interaction-only", service_interaction::run),
+    ("--linked-review-only", linked_review::run),
     ("--annotation-projection-only", annotation_projection::run),
     ("--recovery-navigation-only", recovery_navigation::run),
     ("--dense-annotations-only", dense_annotations::run),
