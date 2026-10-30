@@ -53,7 +53,11 @@ pub fn draw(frame: &mut Frame<'_>, app: &App) {
 /// Capture bounded pane pictures before hints and terminal output.
 pub fn draw_interactive(frame: &mut Frame<'_>, app: &mut App) {
     draw_base(frame, app);
-    if matches!(app.mode, crate::app::Mode::Image(_)) || app.web_active() {
+    if matches!(app.mode, crate::app::Mode::Image(_)) {
+        return;
+    }
+    if app.web_active() {
+        images::draw_native(frame, app);
         return;
     }
     app.capture_pane_frame(frame.buffer_mut());
@@ -62,16 +66,16 @@ pub fn draw_interactive(frame: &mut Frame<'_>, app: &mut App) {
 }
 
 fn draw_base(frame: &mut Frame<'_>, app: &App) {
+    if matches!(app.mode, crate::app::Mode::Image(_)) {
+        image_view::draw(frame, app);
+        return;
+    }
     if app.web_active() {
         web::draw(frame, app);
         if !matches!(app.mode, crate::app::Mode::Web) {
             overlays::draw(frame, app);
         }
         theme::apply(frame.buffer_mut(), &app.workspace.theme);
-        return;
-    }
-    if matches!(app.mode, crate::app::Mode::Image(_)) {
-        image_view::draw(frame, app);
         return;
     }
     draw_workspace(frame, app);

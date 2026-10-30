@@ -116,7 +116,10 @@ previews remain limited by terminal cells; they cannot reproduce pixel detail.
 `Enter` on a reader link opens a temporary page inside Lume. Same-page links
 jump directly to their section. `Ctrl-o` goes back, `Ctrl-i` goes forward, and
 `Esc` returns to the original article. Linked readings preserve that article's
-cursor and personal data. They are text views with explicit image links;
+cursor and personal data. Images use the Reader's cache, visible-only loading
+and rendering protocol, including inline Sixel in Foot. Click an image or press
+`Enter` on its caption to inspect it; `Esc` returns to the linked page.
+`:images on|off|retry`, `:image` and `:image-open` also work in linked pages.
 `o` opens the original in a browser. `:open-page URL` opens an address directly.
 `:open-link` follows the cursor just like `Enter`, including relative links and
 local sections. Missing sections on external pages show the page start with a

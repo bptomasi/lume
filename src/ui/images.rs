@@ -10,10 +10,8 @@ use ratatui::{
 use crate::app::App;
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
-    for slot in app
-        .images
-        .visible_slots(app.scroll, usize::from(column.height))
-    {
+    let viewport = app.image_viewport();
+    for slot in viewport.visible() {
         let Some(key) = app.image_key(slot) else {
             if slot.formula.is_some() {
                 continue;
@@ -21,7 +19,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
             message(
                 frame,
                 column,
-                app.scroll,
+                viewport.scroll,
                 slot.rows.start,
                 "Image URL unavailable",
             );
@@ -29,7 +27,12 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
         };
         if let Some(image) = app.images.thumbnail(&key) {
             if slot.formula.is_some() {
-                clear_formula_caption(frame, column, app.scroll, slot.caption);
+                clear_formula_caption(
+                    frame,
+                    column,
+                    viewport.scroll,
+                    slot.caption,
+                );
             }
             if image.rows.is_some() {
                 continue;
@@ -37,13 +40,13 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
             paint_thumbnail(
                 frame,
                 column,
-                app.scroll,
+                viewport.scroll,
                 slot.rows.start,
                 &image.cells,
             );
         } else if slot.formula.is_none() {
             let status = app.images.placeholder(&key);
-            message(frame, column, app.scroll, slot.rows.start, status);
+            message(frame, column, viewport.scroll, slot.rows.start, status);
         }
     }
     paint_cursor(frame, app, column);
@@ -51,21 +54,17 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
 
 pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
     if matches!(app.mode, crate::app::Mode::Image(_))
-        || app.web_active()
         || app.pane_motion_active()
-        || app.notebook.is_some()
-        || (app.article_preparing() && !app.reader_stale())
+        || (!app.web_active() && app.notebook.is_some())
+        || (!app.web_active() && app.article_preparing() && !app.reader_stale())
         || frame.area().width < 24
         || frame.area().height < 10
     {
         return;
     }
-    let Some(reader) =
-        super::workspace_areas(frame.area(), app.focus, &app.workspace).reader
-    else {
+    let Some(column) = native_column(app, frame.area()) else {
         return;
     };
-    let column = super::workspace_reader_content(reader, &app.workspace);
     let occlusions = [
         super::popup::Popup::from_mode(&app.mode)
             .map(|popup| popup.area(frame.area())),
@@ -75,20 +74,29 @@ pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
     .into_iter()
     .flatten()
     .collect::<Vec<_>>();
-    for slot in app
-        .images
-        .visible_slots(app.scroll, usize::from(column.height))
-    {
+    let viewport = app.image_viewport();
+    for slot in viewport.visible() {
         let Some(key) = app.image_key(slot) else {
             continue;
         };
         if let Some(image) = app.images.thumbnail(&key)
             && let Some(rows) = &image.rows
-            && let Some((area, first)) = native_area(app, slot, column, image)
+            && let Some((area, first)) =
+                native_area(viewport.scroll, slot, column, image)
         {
             rows.render_uncovered(area, first, frame.buffer_mut(), &occlusions);
         }
     }
+}
+
+fn native_column(app: &App, screen: Rect) -> Option<Rect> {
+    if app.web_active() {
+        return matches!(app.mode, crate::app::Mode::Web)
+            .then(|| super::web_content(screen, app.image_viewport().width));
+    }
+    let reader =
+        super::workspace_areas(screen, app.focus, &app.workspace).reader?;
+    Some(super::workspace_reader_content(reader, &app.workspace))
 }
 
 fn clear_formula_caption(
@@ -109,13 +117,13 @@ fn clear_formula_caption(
 }
 
 fn native_area(
-    app: &App,
+    scroll: usize,
     slot: &crate::reader::images::ImageSlot,
     column: Rect,
     image: &crate::media::Thumbnail,
 ) -> Option<(Rect, u16)> {
-    let first = app.scroll.saturating_sub(slot.rows.start);
-    let last = (app.scroll + usize::from(column.height))
+    let first = scroll.saturating_sub(slot.rows.start);
+    let last = (scroll + usize::from(column.height))
         .saturating_sub(slot.rows.start)
         .min(usize::from(image.cells.area.height));
     if first >= last
@@ -126,7 +134,7 @@ fn native_area(
     }
     let area = Rect::new(
         column.x + column.width.saturating_sub(image.cells.area.width) / 2,
-        column.y + slot.rows.start.saturating_sub(app.scroll) as u16,
+        column.y + slot.rows.start.saturating_sub(scroll) as u16,
         image.cells.area.width,
         (last - first) as u16,
     );
@@ -134,19 +142,33 @@ fn native_area(
 }
 
 fn paint_cursor(frame: &mut Frame<'_>, app: &App, column: Rect) {
-    if app.focus != crate::app::Focus::Reader
-        || !matches!(app.mode, crate::app::Mode::Normal)
-        || app.reader_cursor < app.scroll
-        || app.reader_cursor >= app.scroll + usize::from(column.height)
-        || !app
-            .images
-            .visible_slots(app.scroll, usize::from(column.height))
+    let viewport = app.image_viewport();
+    let row = if app.web_active() {
+        let Some(page) = app.web_page() else {
+            return;
+        };
+        if !matches!(app.mode, crate::app::Mode::Web) {
+            return;
+        }
+        page.cursor_row()
+    } else {
+        if app.focus != crate::app::Focus::Reader
+            || !matches!(app.mode, crate::app::Mode::Normal)
+        {
+            return;
+        }
+        app.reader_cursor
+    };
+    if row < viewport.scroll
+        || row >= viewport.scroll + usize::from(column.height)
+        || !viewport
+            .visible()
             .iter()
-            .any(|slot| slot.rows.contains(&app.reader_cursor))
+            .any(|slot| slot.rows.contains(&row))
     {
         return;
     }
-    let y = column.y + (app.reader_cursor - app.scroll) as u16;
+    let y = column.y + (row - viewport.scroll) as u16;
     if let Some(cell) = frame.buffer_mut().cell_mut((column.x, y)) {
         cell.set_symbol(" ").set_style(
             Style::new()

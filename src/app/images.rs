@@ -1,6 +1,7 @@
 //! Visible-image admission and exact thumbnail keys preserve reader identity.
 
 mod inspector;
+mod viewport;
 pub use inspector::ImageInspector;
 
 use std::{collections::VecDeque, path::PathBuf};
@@ -59,14 +60,7 @@ impl ReaderImages {
     /// Reader construction orders non-overlapping slots by their display rows.
     /// Binary bounds keep admission and drawing independent of offscreen images.
     pub fn visible_slots(&self, scroll: usize, height: usize) -> &[ImageSlot] {
-        if height == 0 {
-            return &[];
-        }
-        let first = self.slots.partition_point(|slot| slot.rows.end <= scroll);
-        let remaining = &self.slots[first..];
-        let bottom = scroll.saturating_add(height);
-        let count = remaining.partition_point(|slot| slot.caption < bottom);
-        &remaining[..count]
+        viewport::visible(&self.slots, scroll, height)
     }
 
     /// Ready cells for this exact URL, viewport and transparency background.
@@ -199,19 +193,8 @@ impl App {
             .map(|document| document.final_url.as_str())
             .filter(|url| !url.is_empty())
             .or_else(|| self.current().map(|article| article.url.as_str()));
-        let base =
-            address.and_then(|address| crate::source::feed_url(address).ok());
-        for slot in &mut self.images.slots {
-            if slot.formula.is_some() {
-                continue;
-            }
-            let url = crate::source::feed_url(&slot.url).ok().or_else(|| {
-                let base = base.as_ref()?;
-                crate::source::feed_url(base.join(&slot.url).ok()?.as_str())
-                    .ok()
-            });
-            slot.url = url.map_or_else(String::new, |url| url.to_string());
-        }
+        let base = address.and_then(|url| crate::source::feed_url(url).ok());
+        resolve_urls(&mut self.images.slots, base.as_ref());
     }
 
     /// Exact preparation key for an already resolved publisher image slot.
@@ -223,7 +206,7 @@ impl App {
         }
         Some(ImageKey {
             url: slot.url.clone(),
-            width: self.reader_width.clamp(1, 160) as u16,
+            width: self.image_viewport().width.clamp(1, 160) as u16,
             height: slot.rows.len().clamp(1, 48) as u16,
             background: crate::ui::image_background(&self.workspace.theme),
             detail: self.inline_pixel_detail(slot),
@@ -234,11 +217,11 @@ impl App {
         if self.images.protocol != ImageProtocol::Sixel {
             return None;
         }
-        let bottom = self.scroll + self.reader_height;
+        let viewport = self.image_viewport();
+        let bottom = viewport.scroll + viewport.height;
         let eligible = slot.formula.is_some()
-            || self
-                .images
-                .visible_slots(self.scroll, self.reader_height)
+            || viewport
+                .visible()
                 .iter()
                 .filter(|image| {
                     image.formula.is_none() && image.rows.start < bottom
@@ -311,20 +294,27 @@ impl App {
     }
 
     fn visible_image_keys(&self) -> Vec<ImageKey> {
-        if self.notebook.is_some() || self.navigation_loading {
-            return Vec::new();
-        }
         if matches!(self.mode, super::Mode::Image(_)) {
             return self.image_inspector_key().into_iter().collect();
         }
-        if !crate::ui::workspace_areas(self.screen, self.focus, &self.workspace)
+        if self.web_active() {
+            if !matches!(self.mode, super::Mode::Web) || self.web.opening {
+                return Vec::new();
+            }
+        } else if self.notebook.is_some()
+            || self.navigation_loading
+            || crate::ui::workspace_areas(
+                self.screen,
+                self.focus,
+                &self.workspace,
+            )
             .reader
-            .is_some()
+            .is_none()
         {
             return Vec::new();
         }
-        self.images
-            .visible_slots(self.scroll, self.reader_height)
+        self.image_viewport()
+            .visible()
             .iter()
             .filter(|slot| self.images.enabled || slot.formula.is_some())
             .filter_map(|slot| self.image_key(slot))
@@ -394,7 +384,7 @@ impl App {
         {
             return Some(formula.svg.clone());
         }
-        self.images
+        self.image_viewport()
             .slots
             .iter()
             .find(|slot| slot.url == key.url)?
@@ -452,6 +442,19 @@ impl App {
             if self.images.enabled { "on" } else { "paused" }
         );
         Ok(Some(Action::None))
+    }
+}
+
+pub(super) fn resolve_urls(slots: &mut [ImageSlot], base: Option<&url::Url>) {
+    for slot in slots {
+        if slot.formula.is_some() {
+            continue;
+        }
+        let url = crate::source::feed_url(&slot.url).ok().or_else(|| {
+            let base = base?;
+            crate::source::feed_url(base.join(&slot.url).ok()?.as_str()).ok()
+        });
+        slot.url = url.map_or_else(String::new, |url| url.to_string());
     }
 }
 

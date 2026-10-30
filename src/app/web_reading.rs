@@ -41,7 +41,7 @@ pub(super) struct WebReading {
     requested_width: usize,
     requested_options: crate::reader::RenderOptions,
     visit: u64,
-    opening: bool,
+    pub(super) opening: bool,
     mouse_anchor: Option<usize>,
 }
 
@@ -245,6 +245,11 @@ impl App {
         argument: &str,
     ) -> Result<Option<Action>> {
         match verb {
+            "image" | "image-open" | "images" | "image-protocol"
+                if self.web.active =>
+            {
+                return self.image_command(verb, argument);
+            }
             "latex-formulas" => self.set_formula_rendering(argument)?,
             "open-link" => {
                 if self.web.active {

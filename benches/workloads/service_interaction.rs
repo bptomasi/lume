@@ -80,9 +80,11 @@ fn selector(iterations: usize, stress: bool) -> Result<()> {
 fn web(iterations: usize, stress: bool) -> Result<()> {
     let (directory, store) = super::reading_services::fixture(1)?;
     let sections = if stress { 500 } else { 50 };
-    let body =
-        "## Section\n\nReadable linked content with **strong** words.\n\n"
-            .repeat(sections);
+    let body = concat!(
+        "## Section\n\nReadable linked content with **strong** words.\n\n",
+        "![Diagram](/diagram.svg)\n\n",
+    )
+    .repeat(sections);
     let document = WebDocument {
         url: "https://example.org/linked".into(),
         title: "Linked benchmark".into(),
@@ -124,6 +126,16 @@ fn linked_open(
                     .count()
                     == sections,
                 "Linked content lost"
+            );
+            let expected = sections.min(32);
+            ensure!(
+                page.rendered.images.len() == expected
+                    && page.rendered.images.iter().all(|slot| {
+                        slot.url == "https://example.org/diagram.svg"
+                            && page.document.body[slot.source.clone()]
+                                == *"![Diagram](/diagram.svg)"
+                    }),
+                "Linked images lost or source mapping drifted"
             );
             app.begin_measurement(Operation::Input);
             key(app, KeyCode::Char('l'))?;

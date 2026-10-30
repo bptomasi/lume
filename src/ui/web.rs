@@ -53,6 +53,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
         .collect::<Vec<_>>();
     draw_code_backgrounds(frame, page, area);
     frame.render_widget(Paragraph::new(lines), area);
+    super::images::draw(frame, app, area);
     draw_controls(frame, screen, &app.status);
 }
 

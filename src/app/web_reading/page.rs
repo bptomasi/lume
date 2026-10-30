@@ -53,13 +53,12 @@ impl WebPage {
         anchor: usize,
         options: crate::reader::RenderOptions,
     ) -> Self {
-        let source = text_images(&document.body);
-        let rendered = crate::reader::render_with_options(
-            &source,
-            width,
-            options.text_only(),
-        );
-        let index = DocumentIndex::parse_with_options(&source, options);
+        let source = &document.body;
+        let mut rendered =
+            crate::reader::render_with_options(source, width, options);
+        let base = crate::source::feed_url(&document.url).ok();
+        super::super::images::resolve_urls(&mut rendered.images, base.as_ref());
+        let index = DocumentIndex::parse_with_options(source, options);
         let cursor = crate::reader::to_display(
             &rendered.mappings,
             anchor..anchor.saturating_add(1),
@@ -104,11 +103,29 @@ impl WebPage {
     }
 
     pub(super) fn source_anchor(&self) -> usize {
+        let row = self.cursor_row();
+        // Generated image rows and paragraph separators have no text mapping.
+        // Clamp to the preceding readable grapheme before projecting an anchor.
+        let cursor = self
+            .rendered
+            .text_ranges
+            .iter()
+            .take(row.saturating_add(1))
+            .rfind(|range| !range.is_empty())
+            .map_or(self.cursor, |range| {
+                self.cursor.min(crate::reader::cursor::previous(
+                    &self.rendered.text,
+                    range.end,
+                ))
+            });
         crate::reader::to_source(
             &self.rendered.mappings,
-            self.cursor..self.cursor.saturating_add(1),
+            cursor..crate::reader::cursor::next(&self.rendered.text, cursor),
         )
-        .map_or(0, |range| range.start)
+        .map_or_else(
+            || self.rendered.ranges.get(row).map_or(0, |range| range.start),
+            |range| range.start,
+        )
     }
 
     /// Supported link at the precise cursor occurrence.
@@ -171,18 +188,28 @@ impl WebPage {
             &self.rendered.mappings,
             anchor..anchor.saturating_add(1),
         );
-        display.first().map(|range| range.start).or_else(|| {
-            // Heading markers/HTML anchors are intentionally invisible.
-            self.rendered
-                .mappings
-                .iter()
-                .filter(|mapping| {
-                    mapping.source.start >= anchor
-                        && !mapping.display.is_empty()
+        display
+            .first()
+            .map(|range| range.start)
+            .or_else(|| {
+                self.rendered.images.iter().find_map(|slot| {
+                    slot.source
+                        .contains(&anchor)
+                        .then(|| self.rendered.text_ranges[slot.caption].start)
                 })
-                .min_by_key(|mapping| mapping.source.start)
-                .map(|mapping| mapping.display.start)
-        })
+            })
+            .or_else(|| {
+                // Heading markers/HTML anchors are intentionally invisible.
+                self.rendered
+                    .mappings
+                    .iter()
+                    .filter(|mapping| {
+                        mapping.source.start >= anchor
+                            && !mapping.display.is_empty()
+                    })
+                    .min_by_key(|mapping| mapping.source.start)
+                    .map(|mapping| mapping.display.start)
+            })
     }
 
     pub(super) fn seek_source(&mut self, anchor: usize) {
@@ -322,29 +349,4 @@ fn fetch(
         url.as_str(),
         "",
     )
-}
-
-fn text_images(body: &str) -> String {
-    use pulldown_cmark::{Event, Parser, Tag};
-    let mut result = String::with_capacity(body.len());
-    let mut consumed = 0;
-    let mut images = 0;
-    for (event, range) in Parser::new(body).into_offset_iter() {
-        let Event::Start(Tag::Image { dest_url, .. }) = event else {
-            continue;
-        };
-        if range.start < consumed {
-            continue;
-        }
-        result.push_str(&body[consumed..range.start]);
-        if images < 128 && crate::source::link_url(&dest_url).is_ok() {
-            result.push_str(&format!("[Image]({dest_url})"));
-        } else {
-            result.push_str("[Image unavailable or limit reached]");
-        }
-        consumed = range.end;
-        images += 1;
-    }
-    result.push_str(&body[consumed..]);
-    result
 }

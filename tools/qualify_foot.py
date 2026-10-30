@@ -555,12 +555,18 @@ def reading_services(directory, process):
     before = frame(directory)["offset"]
     command(directory, "open-page https://journal.example/article")
     linked = wait_for(
-        "temporary linked reading without native image leakage",
-        lambda: service_frame(directory, before, b":save-page"), process,
+        "temporary linked reading",
+        lambda: service_frame(directory, before, b":save-page", allow_native=True),
+        process,
     )
+    pixels = wait_for(
+        "linked reading native images",
+        lambda: native_frame(directory, linked["offset"] - 1), process,
+    )
+    verify_linked_bounds(directory, pixels)
     send(directory, b"\x0f")
     wait_for("linked back restores native rows",
-             lambda: native_frame(directory, linked["offset"]), process)
+             lambda: native_frame(directory, pixels["offset"]), process)
     before = frame(directory)["offset"]
     command(directory, "performance on")
     enabled = wait_for(
@@ -578,8 +584,19 @@ def reading_services(directory, process):
     send(directory, b"\x1b")
     wait_for("final reading restored",
              lambda: native_frame(directory, disabled["offset"]), process)
-    return {"linked_text_view": True, "back_restores_images": True,
+    return {"linked_native_images": True, "back_restores_images": True,
             "diagnostics_opt_in": True}
+
+
+def verify_linked_bounds(directory, current):
+    geometry = json.loads((directory / "terminal.json").read_text())
+    cell_width, cell_height = geometry["cell_pixels"]
+    for strip in current["strips"]:
+        right = strip["column"] + (strip["width"] + cell_width - 1) // cell_width
+        if (strip["row"] < 3 or strip["row"] >= geometry["rows"] - 3
+                or strip["column"] < 2 or right > geometry["columns"] - 2
+                or strip["height"] > cell_height):
+            raise RuntimeError("Linked image overlaps page chrome or controls")
 
 
 def service_frame(directory, after, marker, *, allow_native=False):

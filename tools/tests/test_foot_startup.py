@@ -1,6 +1,7 @@
 """Foot qualification checks source readiness and explicit popup footprints."""
 
 import importlib
+import json
 from pathlib import Path
 import re
 import sys
@@ -62,6 +63,22 @@ class FootStartupTests(unittest.TestCase):
             self.assertIsNone(
                 self.driver.service_frame(None, 9, b"Wrong popup", allow_native=True),
             )
+
+    def test_linked_pixels_must_fit_between_header_and_controls(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "terminal.json").write_text(json.dumps({
+                "rows": 40, "columns": 120, "cell_pixels": [10, 20],
+            }))
+            valid = {"row": 3, "column": 2, "width": 1160, "height": 20}
+            self.driver.verify_linked_bounds(directory, {"strips": [valid]})
+            for changes in ({"row": 2}, {"row": 37}, {"column": 1},
+                            {"width": 1161}, {"height": 21}):
+                with self.subTest(changes=changes):
+                    with self.assertRaisesRegex(RuntimeError, "overlaps"):
+                        self.driver.verify_linked_bounds(
+                            directory, {"strips": [valid | changes]},
+                        )
 
     def test_sixel_origin_includes_painted_margins_but_not_erase_cells(self):
         with tempfile.TemporaryDirectory() as temporary:

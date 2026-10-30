@@ -454,8 +454,14 @@ Linked readings own an independent `WebPage`, not a fabricated article identity.
 The existing HTTP extractor, Markdown parser and cursor/projection contracts
 prepare text on a worker. Page history retains at most eight prepared pages.
 Resizing requests replacement layout by source anchor. HTTP is disabled by the
-runtime's offline/demo modes. Images become explicit links in this text view;
-the original Markdown remains intact for an explicit save. Save creates a real
+runtime's offline/demo modes. The original Markdown supplies both layout and
+navigation indexes, preserving source offsets around images and formulas.
+Linked pages retain their own image slots; a borrowed active viewport shares
+the bounded image worker, cache and rendering code with the Reader. Only visible
+slots are admitted, resolved against the linked page's final URL. History and
+resize reuse the same source anchors, while image inspection suspends the page.
+Native image rows are clipped to the linked column and hidden under overlays.
+The original Markdown remains intact for an explicit save. Save creates a real
 article in a disabled, noncollecting manual source and an ordinary Saved pages
 folder. Existing article bodies and personal fields remain untouched. A delayed
 save carries its captured visit generation, so it cannot redirect a later

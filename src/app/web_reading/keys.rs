@@ -15,6 +15,12 @@ impl App {
             MouseEventKind::ScrollDown => self.web_scroll(true, 1),
             MouseEventKind::ScrollUp => self.web_scroll(false, 1),
             MouseEventKind::Down(MouseButton::Left) => {
+                if let Some(page) = self.web_page() {
+                    let area = crate::ui::web_content(self.screen, page.width);
+                    if self.open_pointer_image_column(area, event) {
+                        return Ok(Action::None);
+                    }
+                }
                 self.web.mouse_anchor =
                     self.web_pointer_byte(event.column, event.row);
                 if let (Some(anchor), Some(page)) =
@@ -105,7 +111,7 @@ impl App {
             KeyCode::Char(':') => {
                 self.begin_input(InputKind::Command, String::new())
             }
-            KeyCode::Enter => return self.web_follow_link(),
+            KeyCode::Enter => return self.web_enter(),
             KeyCode::Char('?') => self.mode = Mode::Help,
             KeyCode::Char('o') => return Ok(self.web_browser()),
             KeyCode::Char('j') | KeyCode::Down => self.web_move_rows(true, 1),
@@ -116,6 +122,14 @@ impl App {
             code => self.web_motion(code),
         }
         Ok(Action::None)
+    }
+
+    fn web_enter(&mut self) -> Result<Action> {
+        if self.captured_image().is_ok() {
+            self.open_image_inspector()?;
+            return Ok(Action::None);
+        }
+        self.web_follow_link()
     }
 
     fn web_browser(&self) -> Action {

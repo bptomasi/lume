@@ -67,20 +67,26 @@ impl App {
     }
 
     pub(in crate::app) fn captured_image(&self) -> Result<ImageInspector> {
-        self.guard_stale_command("image")?;
-        ensure!(
-            self.focus == Focus::Reader && self.notebook.is_none(),
-            "Focus Reader before opening an image"
-        );
-        let slot = self
-            .images
-            .visible_slots(self.reader_cursor, 1)
-            .iter()
-            .find(|slot| {
-                self.reader_cursor >= slot.caption
-                    && self.reader_cursor < slot.rows.end
-            })
-            .context("Place the reader cursor on an image or its caption")?;
+        let row = if self.web_active() {
+            ensure!(!self.web.opening, "Wait for the linked page");
+            self.web_page()
+                .context("Wait for the linked page")?
+                .cursor_row()
+        } else {
+            self.guard_stale_command("image")?;
+            ensure!(
+                self.focus == Focus::Reader && self.notebook.is_none(),
+                "Focus Reader before opening an image"
+            );
+            self.reader_cursor
+        };
+        let slot =
+            super::viewport::visible(self.image_viewport().slots, row, 1)
+                .iter()
+                .find(|slot| row >= slot.caption && row < slot.rows.end)
+                .context(
+                    "Place the reader cursor on an image or its caption",
+                )?;
         let key = self.image_key(slot).context("Image URL is not HTTP(S)")?;
         Ok(ImageInspector {
             url: key.url,
@@ -162,7 +168,13 @@ impl App {
             return Ok(Action::None);
         };
         match key.code {
-            KeyCode::Esc | KeyCode::Char('q') => self.mode = Mode::Normal,
+            KeyCode::Esc | KeyCode::Char('q') => {
+                self.mode = if self.web_active() {
+                    Mode::Web
+                } else {
+                    Mode::Normal
+                };
+            }
             KeyCode::Char('y') if image.formula.is_some() => {
                 return Ok(image.original_action());
             }

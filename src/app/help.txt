@@ -394,7 +394,8 @@ DECLARATIVE CONFIGURATION
   :open-page URL  Open an address without adding a subscription or article
   :save-page      Save current linked page in the Saved pages folder
                   Existing articles keep their identity, body and notes.
-                  Linked pages show text; images appear as explicit links.
+                  Linked pages render visible images using the Reader cache.
+                  Click/Enter image inspects; Esc returns to the linked page.
                   o opens the current page in the system browser.
   :offline queue [MiB]    Prepare Read next: full text and original images
   :offline prepare [MiB]  Prepare the selected personal folder
