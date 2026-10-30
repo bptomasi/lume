@@ -38,13 +38,19 @@ fn exact_colors(image: &RgbImage) -> Option<(Vec<u8>, Vec<u8>)> {
             && color == pixel.0
         {
             index
-        } else if let Some(index) = lookup.get(&pixel.0) {
-            *index
         } else {
-            let index = u8::try_from(colors.len() / 3).ok()?;
-            colors.extend_from_slice(&pixel.0);
-            lookup.insert(pixel.0, index);
-            index
+            // SIXEL carries integer RGB percentages, not 8-bit channels.
+            // Distinct source samples may already have exactly the same
+            // displayed color; keep those edges without lossy quantization.
+            let encoded = terminal_color(pixel.0);
+            if let Some(index) = lookup.get(&encoded) {
+                *index
+            } else {
+                let index = u8::try_from(colors.len() / 3).ok()?;
+                colors.extend_from_slice(&pixel.0);
+                lookup.insert(encoded, index);
+                index
+            }
         };
         indices.push(index);
         previous = Some((pixel.0, index));

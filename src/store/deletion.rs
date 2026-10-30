@@ -53,7 +53,7 @@ impl Store {
     /// # Errors
     /// Returns missing-article or SQLite errors without a partial mutation.
     pub fn set_deleted(&self, article: i64, deleted: bool) -> Result<bool> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let previous: bool = transaction.query_row(
             "SELECT deleted FROM articles WHERE id = ?1",
             [article],

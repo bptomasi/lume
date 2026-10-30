@@ -37,7 +37,7 @@ impl Store {
         comment: i64,
         related: i64,
     ) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let previous = active_snapshot(&transaction, article, comment)?;
         ensure!(previous.links.len() < 128, "Annotation link limit is 128");
         let active: bool = transaction.query_row(
@@ -70,7 +70,7 @@ impl Store {
         answer: &str,
     ) -> Result<i64> {
         validate_card(question, answer)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let previous = active_snapshot(&transaction, article, comment)?;
         ensure!(
             previous.cards.len() < 16,
@@ -125,7 +125,7 @@ impl Store {
         baseline: Option<&str>,
     ) -> Result<i64> {
         validate_card(question, answer)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let previous = active_snapshot(&transaction, article, comment)?;
         ensure!(
             previous.cards.iter().any(|item| item.id == card),
@@ -176,7 +176,7 @@ impl Store {
         now: i64,
     ) -> Result<()> {
         let due = review_deadline(days, now)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let previous = active_snapshot(&transaction, article, comment)?;
         write_annotation_review(&transaction, previous, days, due)?;
         transaction.commit()?;
@@ -195,7 +195,7 @@ impl Store {
         now: i64,
     ) -> Result<()> {
         let due = review_deadline(days, now)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let previous = active_snapshot(
             &transaction,
             annotation.article,
@@ -222,7 +222,7 @@ impl Store {
         now: i64,
     ) -> Result<()> {
         let due = review_deadline(days, now)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let (article, comment) = transaction.query_row(
             include_str!("sql/select_study_card_owner.sql"),
             [card.id],

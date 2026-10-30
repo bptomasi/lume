@@ -857,3 +857,41 @@ and cursor/selection state is computed once per drawn frame.
 Reproduce with `cargo bench --profile dev --bench reader -- --linked-review-only`
 and `CARGO_PROFILE_DEV_DEBUG=0`. Each process verifies the deep cursor anchor,
 image bounds, selection and the retained thumbnail.
+
+## Database writes and image preparation, 2026-10-30
+
+The [comparison report](performance/database-images-review-2026-10-30.json)
+compares `6da2f9d` with this review using three alternating processes per revision
+and the same timed workloads. Rust 1.99.1 uses the unoptimized dev profile with
+debug info disabled. Timings exclude setup, HTTP and physical terminal drawing.
+Database workloads verify the resulting flags, tags, cached text and revisions;
+image workloads preserve source dimensions, viewport resolution and cache bounds.
+
+| Workload | Before (ms) | After (ms) | Time reduction |
+|---|---:|---:|---:|
+| 1,000 favorites: on, off, repeated off | 200.219 | 20.805 | 89.61% |
+| Repeat the same 64 tags | 2.482 | 0.158 | 93.63% |
+| Refresh eight unchanged 35,000-byte Full caches | 31.196 | 20.841 | 33.19% |
+| Inspector: exact-color raster | 87.025 | 48.199 | 44.61% |
+| Inspector: SVG text | 249.095 | 247.235 | 0.75% |
+| Inspector: photographic gradient | 1284.685 | 1217.956 | 5.19% |
+| Inspector: high-entropy detail | 3227.512 | 3200.935 | 0.82% |
+| Inspector: antialiased edges | 815.118 | 591.571 | 27.43% |
+
+Each database process measures 40 iterations with 2,000 articles and a
+1,000-article batch. Each image process measures two warmed preparations per
+case at 1,200 × 600 source pixels, retaining Lanczos3 native fitting and the
+256-color Sixel budget. SVG and high-entropy variations are small and do not
+establish a substantial speedup for those cases. Source copies and unnecessary
+quantization were removed without reducing resolution or increasing cache limits.
+
+Schema V28 only installs conditional search triggers; existing indexed bytes
+and personal state are retained. Failure tests cover competing writers, missing
+or trashed batch identities, unchanged undo entries, partial tag updates and
+upgrading a populated V27 library. Direct palette tests verify every represented
+pixel's terminal RGB percentages; richer gradients retain the existing error bound.
+
+Reproduce with `CARGO_PROFILE_DEV_DEBUG=0 cargo bench --locked --profile dev
+--bench reader -- --database-writes-only`, and use `--test
+--inspector-loading-only` for the image workload. The report retains all process
+means, invocation arguments and executable hashes.

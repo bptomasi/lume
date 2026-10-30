@@ -23,6 +23,8 @@ mod catalog;
 mod code_viewport;
 #[path = "workloads/configuration.rs"]
 mod configuration;
+#[path = "workloads/database_writes.rs"]
+mod database_writes;
 #[path = "workloads/dense_annotations.rs"]
 mod dense_annotations;
 #[path = "workloads/expansion.rs"]
@@ -182,6 +184,7 @@ const COMPONENT_WORKLOADS: &[Workload] = &[
     reading_services::run,
     service_interaction::run,
     linked_review::run,
+    database_writes::run,
     recovery_navigation::run,
     annotation_projection::run,
     dense_annotations::run,
@@ -234,6 +237,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--reading-services-only", reading_services::run),
     ("--service-interaction-only", service_interaction::run),
     ("--linked-review-only", linked_review::run),
+    ("--database-writes-only", database_writes::run),
     ("--annotation-projection-only", annotation_projection::run),
     ("--recovery-navigation-only", recovery_navigation::run),
     ("--dense-annotations-only", dense_annotations::run),

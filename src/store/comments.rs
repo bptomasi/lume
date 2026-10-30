@@ -50,7 +50,7 @@ impl Store {
         body: &str,
         baseline: Option<&str>,
     ) -> Result<i64> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let id = if let Some(id) = comment {
             update(&transaction, article, id, body, baseline)?;
             id
@@ -83,7 +83,7 @@ impl Store {
         kind: crate::model::NoteKind,
     ) -> Result<i64> {
         validate(body, "")?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let id = insert(
             &transaction,
             article,
@@ -158,7 +158,7 @@ impl Store {
     ) -> Result<i64> {
         validate(note, &passage.quote)?;
         ensure!(!passage.quote.trim().is_empty(), "Select a passage first");
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         validate_source(&transaction, article, passage)?;
         let id = insert(&transaction, article, note, passage)?;
         if kind != crate::model::NoteKind::Insight {
@@ -176,7 +176,7 @@ impl Store {
     /// # Errors
     /// Returns missing/wrong article identities or SQLite errors.
     pub fn delete_comment(&self, article: i64, comment: i64) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let previous = super::study::snapshot(&transaction, article, comment)?;
         history::record(&transaction, &Undo::Annotation(Box::new(previous)))?;
         transaction.execute(
@@ -216,6 +216,16 @@ fn update(
         "Saved note changed; recover the draft and compare versions before replacing it"
     );
     validate(body, &previous.comment.quote)?;
+    if body == previous.comment.body {
+        return super::notebook::clear_written_draft(
+            transaction,
+            &crate::model::DraftTarget::Note {
+                article,
+                note: Some(id),
+            },
+            body,
+        );
+    }
     history::record(transaction, &Undo::Annotation(Box::new(previous)))?;
     transaction.execute(
         include_str!("sql/update_comment_body.sql"),

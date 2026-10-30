@@ -183,6 +183,20 @@ configuration reconciliation. Publication errors remain visible and pending
 SQLite edits survive restart. Worker failures are reported rather than silently
 turning the file and library into unrelated configuration authorities.
 
+Personal mutations reserve SQLite write authority before reading baselines,
+undo payloads, tags, draft ownership or Full-cache targets. WAL readers remain
+independent. Recommendation refreshes first check for an empty dirty queue in a
+read snapshot; idle polls never reserve the writer. Nonempty bounded batches
+capture their actual queue only after obtaining write authority.
+
+Bulk flag edits validate all captured identities and Trash state before one
+conditional UPDATE. Undo retains only rows that changed. Tag replacement
+inserts/removes only the difference; repeated flags, bulk memberships, tags
+and unchanged note text do not consume an undo entry. Existing tags can be added again at the
+64-tag limit without error. Full-cache timestamp updates preserve text revision
+and progress, and guarded search triggers skip unchanged article, Full and feed
+text. Schema V28 installs those guards without rewriting indexed/user content.
+
 ## Reading, layout and images
 
 Normalized Markdown retains source offsets for cursor motion, Unicode selections,
@@ -343,7 +357,8 @@ source decoder lock, with at most two bounded fitted canvases in flight.
 Image source reuse is bounded independently from prepared terminal cells. Two
 raster entries share 32 MiB, with eviction before allocating a new decoded
 source; format headers and pixel/allocation admission are checked before that
-allocation. Opaque-source classification is retained instead of rescanning
+allocation. A full-source native fit borrows the cached raster instead of
+copying a redundant crop. Opaque-source classification is retained instead of rescanning
 alpha on every fit. Two SVG trees share a 512 KiB raw-input budget and preserve
 shared font setup. Raster sources survive intervening vector preparations.
 SVG paints directly onto an opaque theme canvas, avoiding an unpremultiply/
@@ -633,7 +648,10 @@ Subscription discovery uses the same connection check before publishing its
 feed set and server health atomically. A discovery response from an obsolete
 connection excludes that server from entry collection for the current pass.
 
-Native Sixel preparation directly indexes sources with at most 256 RGB colors.
+Native Sixel preparation directly indexes sources with at most 256 distinct
+displayable RGB percentage triples. Samples that differ only below the
+terminal color precision share one exact palette entry, preserving antialiased
+edges without lossy quantization.
 Richer images deduplicate color conversion before the
 qualified Oklab quantizer and Floyd–Steinberg diffusion. Resolution, source
 cropping and the palette budget remain independent of this optimization.

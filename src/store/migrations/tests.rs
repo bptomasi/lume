@@ -419,3 +419,46 @@ fn indexed_v23_library(path: &std::path::Path) -> Result<()> {
     ))?;
     Ok(())
 }
+
+#[test]
+fn search_guard_upgrade_preserves_existing_content_flags_notes_and_progress()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("upgrade.sqlite3");
+    let mut connection = Connection::open(&path)?;
+    connection.execute_batch(include_str!("../sql/create_schema.sql"))?;
+    let migrations = MIGRATIONS
+        .iter()
+        .take_while(|(name, _)| !name.starts_with("V28__"))
+        .map(|(name, sql)| Migration::unapplied(name, sql))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Runner::new(&migrations)
+        .set_grouped(true)
+        .run(&mut connection)?;
+    connection
+        .execute_batch(include_str!("../sql/test_search_upgrade_data.sql"))?;
+    drop(connection);
+    let store = Store::open(&path)?;
+    assert_eq!(store.body(1)?, "Old publisherword content.");
+    let article = store.article(1)?;
+    assert!(article.starred && !article.unread);
+    assert_eq!(store.comments(1)?[0].body, "Kept private note");
+    let full = store
+        .cached_document(1)?
+        .ok_or_else(|| anyhow::anyhow!("Full cache"))?;
+    assert_eq!((full.revision, full.progress), (3, 42));
+    assert!(full.body.contains("quartzcache"));
+    assert_eq!(
+        store
+            .query_articles(&crate::model::ArticleQuery {
+                view: crate::model::View::All,
+                text: "quartzcache".into(),
+                offset: 0,
+                limit: 10,
+                retained: None,
+            })?
+            .total,
+        1
+    );
+    Ok(())
+}

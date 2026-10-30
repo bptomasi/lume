@@ -29,7 +29,10 @@ impl Store {
     /// # Errors
     /// Returns validation/SQLite errors; the complete batch rolls back on failure.
     pub fn refresh_recommendations(&self) -> Result<RecommendationUpdate> {
-        let transaction = self.connection.unchecked_transaction()?;
+        if let Some(idle) = self.idle_recommendations()? {
+            return Ok(idle);
+        }
+        let transaction = self.write_transaction()?;
         let dirty = self
             .connection
             .prepare_cached(include_str!(
@@ -40,17 +43,9 @@ impl Store {
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         if dirty.is_empty() {
-            let total = self.connection.query_row(
-                "SELECT count(*) FROM recommendation_items",
-                [],
-                |row| row.get(0),
-            )?;
+            let idle = self.recommendation_idle_state()?;
             transaction.commit()?;
-            return Ok(RecommendationUpdate {
-                processed: 0,
-                remaining: false,
-                total,
-            });
+            return Ok(idle);
         }
         let profile = self.recommendation_profile()?;
         let changed = self.classify_dirty(&dirty, &profile)?;
@@ -71,13 +66,38 @@ impl Store {
         })
     }
 
+    // Idle polls remain ordinary WAL readers. A real batch reserves write
+    // authority before capturing its dirty queue and evidence dependencies.
+    fn idle_recommendations(&self) -> Result<Option<RecommendationUpdate>> {
+        self.read_snapshot(|store| {
+            if store.recommendations_dirty()? {
+                return Ok(None);
+            }
+            store.recommendation_idle_state().map(Some)
+        })
+    }
+
+    fn recommendation_idle_state(&self) -> Result<RecommendationUpdate> {
+        let total = self
+            .connection
+            .prepare_cached(include_str!(
+                "sql/recommendations/select_total.sql"
+            ))?
+            .query_row([], |row| row.get(0))?;
+        Ok(RecommendationUpdate {
+            processed: 0,
+            remaining: false,
+            total,
+        })
+    }
+
     /// Check the indexed dirty queue without scanning article content.
     ///
     /// # Errors
     /// Returns SQLite errors.
     pub fn recommendations_dirty(&self) -> Result<bool> {
         Ok(self.connection.query_row(
-            "SELECT EXISTS (SELECT 1 FROM recommendation_dirty)",
+            include_str!("sql/recommendations/select_dirty_exists.sql"),
             [],
             |row| row.get(0),
         )?)

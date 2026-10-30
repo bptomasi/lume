@@ -13,7 +13,7 @@ impl Store {
         article: i64,
         feedback: Option<RecommendationFeedback>,
     ) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         ensure!(
             !self.is_deleted(article)?,
             "Restore the article before rating it"

@@ -57,7 +57,7 @@ impl Store {
     ) -> Result<bool> {
         validate_document(document)?;
         crate::source::link_url(&target.url)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         if !current_target(&transaction, target)? {
             return Ok(false);
         }
@@ -76,7 +76,7 @@ impl Store {
         error: &str,
     ) -> Result<bool> {
         crate::source::link_url(&target.url)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         if !current_target(&transaction, target)? {
             return Ok(false);
         }
@@ -187,7 +187,7 @@ pub(super) fn write_document(
         ),
     )?;
     transaction.execute(
-        "UPDATE articles SET reading_minutes = ?1 WHERE id = ?2",
+        include_str!("sql/update_reading_minutes.sql"),
         (
             crate::content::reading_minutes(&document.body) as i64,
             target.article,

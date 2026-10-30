@@ -1,4 +1,7 @@
 //! Atomic captured batches and independent tag ownership, with persistent undo.
+//! Unchanged edits preserve the journal; tag updates touch only their difference.
+
+mod flags;
 
 use std::collections::BTreeSet;
 
@@ -27,9 +30,11 @@ impl Store {
     /// Returns invalid names, missing owners or SQLite failures.
     pub fn set_tags(&self, target: TagTarget, values: &[String]) -> Result<()> {
         let validated = validate_tags(values)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let previous = tags(&transaction, target)?;
-        replace_tags(&transaction, target, &validated)?;
+        if !apply_tags(&transaction, target, &previous, &validated)? {
+            return Ok(());
+        }
         history::record(
             &transaction,
             &Undo::Tags {
@@ -54,84 +59,87 @@ impl Store {
             !articles.is_empty() && articles.len() <= 1000,
             "Select 1–1,000 articles"
         );
-        let transaction = self.connection.unchecked_transaction()?;
-        let mut previous = Vec::new();
-        for article in articles {
-            let deleted: bool = transaction.query_row(
-                "SELECT deleted FROM articles WHERE id = ?1",
-                [article],
-                |row| row.get(0),
-            )?;
-            ensure!(!deleted, "An article moved to Trash; batch cancelled");
-            previous.push(apply_edit(&transaction, *article, edit)?);
+        let transaction = self.write_transaction()?;
+        let previous = match edit {
+            BulkEdit::Unread(value) => {
+                flags::apply(&transaction, articles, "unread", *value)?
+            }
+            BulkEdit::Favorite(value) => {
+                flags::apply(&transaction, articles, "starred", *value)?
+            }
+            BulkEdit::Queue(value) => {
+                flags::apply(&transaction, articles, "queued", *value)?
+            }
+            _ => edit_members(&transaction, articles, edit)?,
+        };
+        if !previous.is_empty() {
+            history::record(&transaction, &Undo::Batch(previous))?;
         }
-        history::record(&transaction, &Undo::Batch(previous))?;
         transaction.commit()?;
         Ok(())
     }
 }
 
-fn apply_edit(
+fn edit_members(
     transaction: &Transaction<'_>,
-    article: i64,
+    articles: &BTreeSet<i64>,
     edit: &BulkEdit,
-) -> Result<Undo> {
-    match edit {
-        BulkEdit::Unread(value) => flag(transaction, article, "unread", *value),
-        BulkEdit::Favorite(value) => {
-            flag(transaction, article, "starred", *value)
-        }
-        BulkEdit::Queue(value) => flag(transaction, article, "queued", *value),
-        BulkEdit::Folder(folder) => {
-            let lists = transaction
-                .prepare_cached(
-                    "SELECT collection_id FROM members WHERE article_id = ?1",
-                )?
-                .query_map([article], |row| row.get(0))?
-                .collect::<rusqlite::Result<_>>()?;
-            transaction.execute(
-                include_str!("sql/insert_list_member.sql"),
-                (folder, article),
-            )?;
-            Ok(Undo::Memberships { article, lists })
-        }
-        BulkEdit::Tag(tag) => {
-            let target = TagTarget::Article(article);
-            let previous = tags(transaction, target)?;
-            let mut combined = previous.clone();
-            combined.push(tag.clone());
-            replace_tags(transaction, target, &validate_tags(&combined)?)?;
-            Ok(Undo::Tags {
-                target,
-                tags: previous,
-            })
-        }
+) -> Result<Vec<Undo>> {
+    let mut previous = Vec::new();
+    for article in articles {
+        let deleted: bool = transaction.query_row(
+            include_str!("sql/select_article_deleted.sql"),
+            [article],
+            |row| row.get(0),
+        )?;
+        ensure!(!deleted, "An article moved to Trash; batch cancelled");
+        let undo = match edit {
+            BulkEdit::Folder(folder) => {
+                add_folder(transaction, *article, *folder)?
+            }
+            BulkEdit::Tag(tag) => add_tag(transaction, *article, tag)?,
+            _ => None,
+        };
+        previous.extend(undo);
     }
+    Ok(previous)
 }
 
-fn flag(
+fn add_folder(
     transaction: &Transaction<'_>,
     article: i64,
-    column: &str,
-    value: bool,
-) -> Result<Undo> {
-    let previous = transaction.query_row(
-        "SELECT unread, starred, queued FROM articles WHERE id = ?1",
-        [article],
-        |row| {
-            Ok(Undo::Flags {
-                article,
-                unread: row.get(0)?,
-                starred: row.get(1)?,
-                queued: row.get(2)?,
-            })
-        },
+    folder: i64,
+) -> Result<Option<Undo>> {
+    let lists = transaction
+        .prepare_cached(include_str!("sql/select_member_collections.sql"))?
+        .query_map([article], |row| row.get(0))?
+        .collect::<rusqlite::Result<_>>()?;
+    let changed = transaction.execute(
+        include_str!("sql/insert_list_member.sql"),
+        (folder, article),
     )?;
-    transaction.execute(
-        &format!("UPDATE articles SET {column} = ?1 WHERE id = ?2"),
-        (value, article),
-    )?;
-    Ok(previous)
+    Ok((changed > 0).then_some(Undo::Memberships { article, lists }))
+}
+
+fn add_tag(
+    transaction: &Transaction<'_>,
+    article: i64,
+    tag: &str,
+) -> Result<Option<Undo>> {
+    let target = TagTarget::Article(article);
+    let previous = tags(transaction, target)?;
+    let tag = validate_tags(&[tag.to_owned()])?;
+    if tag.iter().all(|value| previous.contains(value)) {
+        return Ok(None);
+    }
+    let mut combined = previous.clone();
+    combined.extend(tag);
+    let changed =
+        apply_tags(transaction, target, &previous, &validate_tags(&combined)?)?;
+    Ok(changed.then_some(Undo::Tags {
+        target,
+        tags: previous,
+    }))
 }
 
 pub(super) fn tags(
@@ -139,9 +147,9 @@ pub(super) fn tags(
     target: TagTarget,
 ) -> Result<Vec<String>> {
     let (table, column, id) = tag_owner(target);
-    let sql = format!(
-        "SELECT tag FROM {table} WHERE {column} = ?1 ORDER BY tag COLLATE NOCASE"
-    );
+    let sql = include_str!("sql/select_tags.sql")
+        .replace("{table}", table)
+        .replace("{column}", column);
     Ok(connection
         .prepare_cached(&sql)?
         .query_map([id], |row| row.get(0))?
@@ -153,25 +161,43 @@ pub(super) fn replace_tags(
     target: TagTarget,
     values: &[String],
 ) -> Result<()> {
+    let previous = tags(transaction, target)?;
+    apply_tags(transaction, target, &previous, values)?;
+    Ok(())
+}
+
+fn apply_tags(
+    transaction: &Transaction<'_>,
+    target: TagTarget,
+    previous: &[String],
+    values: &[String],
+) -> Result<bool> {
     let (table, column, id) = tag_owner(target);
     let owner = match target {
         TagTarget::Article(_) => "articles",
         TagTarget::Comment(_) => "comments",
     };
-    transaction.query_row(
-        &format!("SELECT id FROM {owner} WHERE id = ?1"),
-        [id],
-        |row| row.get::<_, i64>(0),
-    )?;
     transaction
-        .execute(&format!("DELETE FROM {table} WHERE {column} = ?1"), [id])?;
-    for value in values {
-        transaction.execute(
-            &format!("INSERT INTO {table} ({column}, tag) VALUES (?1, ?2)"),
-            (id, value),
-        )?;
+        .prepare_cached(
+            &include_str!("sql/select_tag_owner.sql").replace("{table}", owner),
+        )?
+        .query_row([id], |row| row.get::<_, i64>(0))?;
+    if previous == values {
+        return Ok(false);
     }
-    Ok(())
+    let delete = include_str!("sql/delete_tag.sql")
+        .replace("{table}", table)
+        .replace("{column}", column);
+    let insert = include_str!("sql/insert_tag.sql")
+        .replace("{table}", table)
+        .replace("{column}", column);
+    for value in previous.iter().filter(|value| !values.contains(value)) {
+        transaction.prepare_cached(&delete)?.execute((id, value))?;
+    }
+    for value in values.iter().filter(|value| !previous.contains(value)) {
+        transaction.prepare_cached(&insert)?.execute((id, value))?;
+    }
+    Ok(true)
 }
 
 fn tag_owner(target: TagTarget) -> (&'static str, &'static str, i64) {

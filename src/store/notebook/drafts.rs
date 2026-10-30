@@ -17,7 +17,7 @@ impl Store {
     pub fn save_note_draft(&self, draft: &NoteDraft) -> Result<()> {
         let target = encode_target(draft)?;
         let key = draft.target.key();
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let previous: Option<String> = transaction
             .query_row(
                 "SELECT target FROM note_drafts WHERE key = ?1",

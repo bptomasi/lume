@@ -119,12 +119,17 @@ fn crop_raster(source: &Source, key: &ImageKey) -> DynamicImage {
     let x = x.min(image.width() - 1);
     let y = y.min(image.height() - 1);
     // Crop before resizing: zoom cannot allocate an entire enlarged source.
-    let crop = image.crop_imm(
-        x,
-        y,
-        width.max(1).min(image.width() - x),
-        height.max(1).min(image.height() - y),
-    );
+    let width = width.max(1).min(image.width() - x);
+    let height = height.max(1).min(image.height() - y);
+    let crop = if x == 0
+        && y == 0
+        && width == image.width()
+        && height == image.height()
+    {
+        std::borrow::Cow::Borrowed(image)
+    } else {
+        std::borrow::Cow::Owned(image.crop_imm(x, y, width, height))
+    };
     matte(&crop, key, source.opaque).resize_exact(
         geometry.width,
         geometry.height,

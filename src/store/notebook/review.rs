@@ -48,7 +48,7 @@ impl Store {
         now: i64,
     ) -> Result<()> {
         let due = study::review_deadline(days, now)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let previous = study::active_snapshot(
             &transaction,
             annotation.article,

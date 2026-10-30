@@ -56,3 +56,31 @@ fn richer_images_use_bounded_quantization_without_truncating_pixels()
     assert!(squared_error / (128 * 64 * 3) < 100);
     Ok(())
 }
+
+#[test]
+fn antialiased_colors_that_fit_sixel_are_indexed_without_quantization()
+-> Result<()> {
+    let image = RgbImage::from_fn(256, 8, |x, y| {
+        let n = x as u8;
+        Rgb([n.saturating_add((y % 2) as u8), n, n])
+    });
+    let unique = image
+        .pixels()
+        .map(|p| p.0)
+        .collect::<std::collections::HashSet<_>>();
+    assert!(unique.len() > 256);
+    assert!(exact_colors(&image).is_some());
+    let (palette, indices) = index(&image)?;
+    for (pixel, index) in image.pixels().zip(indices) {
+        let start = usize::from(index) * 3;
+        assert_eq!(
+            terminal_color(pixel.0),
+            terminal_color([
+                palette[start],
+                palette[start + 1],
+                palette[start + 2]
+            ])
+        );
+    }
+    Ok(())
+}

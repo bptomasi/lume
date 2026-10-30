@@ -262,3 +262,6 @@ fn article_row(row: &Row<'_>) -> rusqlite::Result<Article> {
 
 pub(crate) use annotations::collection_name as validate_collection_name;
 pub(crate) use organization::validate_tags;
+
+#[cfg(test)]
+mod write_tests;

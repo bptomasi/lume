@@ -82,7 +82,7 @@ impl Store {
     /// # Errors
     /// Returns the same atomic recovery/ownership failures as `undo`.
     pub fn undo_effect(&self) -> Result<crate::model::UndoEffect> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let last: Option<(i64, String)> = transaction
             .query_row(
                 "SELECT id, payload FROM undo_log ORDER BY id DESC LIMIT 1",

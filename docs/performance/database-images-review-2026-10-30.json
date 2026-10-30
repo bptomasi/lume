@@ -1,0 +1,156 @@
+{
+  "baseline_revision": "6da2f9d with the identical database benchmark harness",
+  "candidate_revision": "Changes in the commit containing this report",
+  "toolchain": "rustc 1.99.1",
+  "profile": "unoptimized dev, CARGO_PROFILE_DEV_DEBUG=0",
+  "process_order": [
+    "before",
+    "after",
+    "after",
+    "before",
+    "before",
+    "after"
+  ],
+  "cases": {
+    "database": {
+      "arguments": [
+        "--database-writes-only"
+      ],
+      "iterations": 40,
+      "articles": 2000,
+      "batch_size": 1000,
+      "tags": 64,
+      "full_caches": 8,
+      "full_document_bytes": 35000
+    },
+    "images": {
+      "arguments": [
+        "--test",
+        "--inspector-loading-only"
+      ],
+      "iterations": 2,
+      "source_pixels": [
+        1200,
+        600
+      ],
+      "native_cell_pixels": [
+        10,
+        20
+      ]
+    }
+  },
+  "runs": {
+    "before": [
+      {
+        "1000 favorites on + off + unchanged batch": 200.219,
+        "unchanged 64-tag replacement": 2.656,
+        "inspector exact-color raster + Sixel": 87.025,
+        "inspector SVG text + Sixel": 241.334,
+        "inspector photographic gradient + Sixel": 1284.685,
+        "inspector high-entropy detail + Sixel": 3254.709,
+        "inspector antialiased edges + Sixel": 806.866,
+        "eight unchanged Full cache commits": 33.956
+      },
+      {
+        "1000 favorites on + off + unchanged batch": 200.923,
+        "unchanged 64-tag replacement": 2.482,
+        "inspector exact-color raster + Sixel": 92.174,
+        "inspector SVG text + Sixel": 250.491,
+        "inspector photographic gradient + Sixel": 1319.254,
+        "inspector high-entropy detail + Sixel": 3197.145,
+        "inspector antialiased edges + Sixel": 815.118,
+        "eight unchanged Full cache commits": 31.151
+      },
+      {
+        "1000 favorites on + off + unchanged batch": 197.946,
+        "unchanged 64-tag replacement": 2.449,
+        "inspector exact-color raster + Sixel": 83.475,
+        "inspector SVG text + Sixel": 249.095,
+        "inspector photographic gradient + Sixel": 1282.944,
+        "inspector high-entropy detail + Sixel": 3227.512,
+        "inspector antialiased edges + Sixel": 827.882,
+        "eight unchanged Full cache commits": 31.196
+      }
+    ],
+    "after": [
+      {
+        "1000 favorites on + off + unchanged batch": 20.805,
+        "unchanged 64-tag replacement": 0.158,
+        "inspector exact-color raster + Sixel": 47.356,
+        "inspector SVG text + Sixel": 247.235,
+        "inspector photographic gradient + Sixel": 1217.956,
+        "inspector high-entropy detail + Sixel": 3200.935,
+        "inspector antialiased edges + Sixel": 591.026,
+        "eight unchanged Full cache commits": 20.841
+      },
+      {
+        "1000 favorites on + off + unchanged batch": 20.583,
+        "unchanged 64-tag replacement": 0.157,
+        "inspector exact-color raster + Sixel": 48.882,
+        "inspector SVG text + Sixel": 253.21,
+        "inspector photographic gradient + Sixel": 1223.47,
+        "inspector high-entropy detail + Sixel": 3125.508,
+        "inspector antialiased edges + Sixel": 591.571,
+        "eight unchanged Full cache commits": 20.636
+      },
+      {
+        "1000 favorites on + off + unchanged batch": 21.131,
+        "unchanged 64-tag replacement": 0.197,
+        "inspector exact-color raster + Sixel": 48.199,
+        "inspector SVG text + Sixel": 246.566,
+        "inspector photographic gradient + Sixel": 1212.11,
+        "inspector high-entropy detail + Sixel": 3207.484,
+        "inspector antialiased edges + Sixel": 635.216,
+        "eight unchanged Full cache commits": 22.323
+      }
+    ]
+  },
+  "median_ms": {
+    "1000 favorites on + off + unchanged batch": {
+      "before": 200.219,
+      "after": 20.805,
+      "reduction_percent": 89.61
+    },
+    "unchanged 64-tag replacement": {
+      "before": 2.482,
+      "after": 0.158,
+      "reduction_percent": 93.63
+    },
+    "inspector exact-color raster + Sixel": {
+      "before": 87.025,
+      "after": 48.199,
+      "reduction_percent": 44.61
+    },
+    "inspector SVG text + Sixel": {
+      "before": 249.095,
+      "after": 247.235,
+      "reduction_percent": 0.75
+    },
+    "inspector photographic gradient + Sixel": {
+      "before": 1284.685,
+      "after": 1217.956,
+      "reduction_percent": 5.19
+    },
+    "inspector high-entropy detail + Sixel": {
+      "before": 3227.512,
+      "after": 3200.935,
+      "reduction_percent": 0.82
+    },
+    "inspector antialiased edges + Sixel": {
+      "before": 815.118,
+      "after": 591.571,
+      "reduction_percent": 27.43
+    },
+    "eight unchanged Full cache commits": {
+      "before": 31.196,
+      "after": 20.841,
+      "reduction_percent": 33.19
+    }
+  },
+  "binary_sha256": {
+    "before": "bb717679fde8549b0866f221d8b16de3cd7e2b1d280c1345b2431ab69168c328",
+    "after": "248559be771c9899773f70014cecf3bc63594cae9f25abdf26b2aa4fe95cfca1"
+  },
+  "scope": "Timings exclude fixture setup and HTTP; native images include source fitting, quantization and Sixel encoding. Database timings include state verification.",
+  "timing_label_note": "Full-cache timing label normalized to omit an inaccurate size abbreviation; timed operations and fixture bytes are unchanged."
+}

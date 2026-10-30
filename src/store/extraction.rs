@@ -40,7 +40,7 @@ impl Store {
         if deadline <= now {
             return Ok(());
         }
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let key = format!("collector_retry:{host}");
         let previous: Option<String> = transaction
             .query_row(
@@ -114,7 +114,7 @@ impl Store {
     pub fn confirm_article_rule(&self, preview: &RulePreview) -> Result<()> {
         crate::source::article::rules::validate_selector(&preview.selector)?;
         super::documents::validate_document(&preview.document)?;
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let target = &preview.target;
         ensure!(
             super::documents::current_target(&transaction, target)?

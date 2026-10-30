@@ -60,7 +60,7 @@ impl Store {
         current: &Comment,
         version: i64,
     ) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let before = self.annotation(article, current.id)?;
         ensure!(
             before.comment == *current,
@@ -92,7 +92,7 @@ impl Store {
         current: &Comment,
         passage: &Passage,
     ) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         let before = self.annotation(article, current.id)?;
         ensure!(!self.is_deleted(article)?, "Restore the article first");
         ensure!(

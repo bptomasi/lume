@@ -125,7 +125,7 @@ impl Store {
         note: i64,
         edit: impl FnOnce(&mut NoteMetadata),
     ) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.write_transaction()?;
         ensure!(!self.is_deleted(article)?, "Restore the article first");
         let before =
             super::super::study::snapshot(&transaction, article, note)?;
