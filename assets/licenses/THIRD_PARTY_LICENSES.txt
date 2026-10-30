@@ -5594,7 +5594,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 MIT License
-  pulldown-cmark 0.13.0 (https://github.com/raphlinus/pulldown-cmark)
+  pulldown-cmark 0.13.5 (https://github.com/raphlinus/pulldown-cmark)
 
 The MIT License
 

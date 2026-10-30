@@ -3,6 +3,50 @@
 use lume::reader;
 
 #[test]
+fn empty_wikilink_labels_stay_literal_without_duplicating_later_content() {
+    let prefix = "[[a|]] ".repeat(16);
+    let body = format!(
+        "{prefix}After [next](https://example.org/a). \
+        ![diagram](https://example.org/image.png)"
+    );
+    let rendered = reader::render(&body, 40);
+    let index = reader::index::DocumentIndex::parse(&body);
+    assert_eq!(rendered.text.matches("[[a|]]").count(), 16);
+    assert_eq!(rendered.text.matches("After").count(), 1);
+    assert_eq!(
+        rendered.links,
+        [("next".into(), "https://example.org/a".into())]
+    );
+    assert_eq!(rendered.images.len(), 1);
+    assert!(!index.limited);
+    assert!(
+        rendered
+            .ranges
+            .iter()
+            .all(|range| body.get(range.clone()).is_some())
+    );
+}
+
+#[test]
+fn spaces_after_a_reference_definition_preserve_unicode_source_offsets() {
+    let body = "[x]: https://example.org/a\n   \n[x] α\n";
+    let rendered = reader::render(body, 10);
+    let index = reader::index::DocumentIndex::parse(body);
+    assert!(!index.limited);
+    assert_eq!(rendered.text.trim(), "x α");
+    assert_eq!(
+        rendered.links,
+        [("x".into(), "https://example.org/a".into())]
+    );
+    assert!(
+        rendered
+            .ranges
+            .iter()
+            .all(|range| body.get(range.clone()).is_some())
+    );
+}
+
+#[test]
 fn link_labels_span_hard_breaks_without_including_preceding_text() {
     let body = "Long unrelated prefix [alpha  \nbeta **bold** `code`](https://example.org/a).";
 
