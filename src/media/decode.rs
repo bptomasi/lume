@@ -173,6 +173,9 @@ fn slice(image: DynamicImage, key: &ImageKey) -> DynamicImage {
         .min(image.height());
     let height = (u32::from(slice.rows) * u32::from(cell_height))
         .min(image.height() - start);
+    if start == 0 && height == image.height() {
+        return image;
+    }
     image.crop_imm(0, start, image.width(), height)
 }
 
@@ -201,4 +204,47 @@ fn composite(image: DynamicImage, key: &ImageKey) -> DynamicImage {
     );
     image::imageops::overlay(&mut canvas, &image.to_rgba8(), 0, 0);
     DynamicImage::ImageRgba8(canvas)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::media::{ImageDetail, ImageSlice};
+
+    #[test]
+    fn complete_slices_keep_owned_pixels_and_partial_slices_keep_exact_rows() {
+        let image =
+            DynamicImage::ImageRgba8(RgbaImage::from_fn(2, 4, |_, y| {
+                Rgba([y as u8 * 17, 0, 0, 255])
+            }));
+        let original = image.as_bytes().as_ptr();
+        let mut key = ImageKey {
+            url: "https://example.org/image".into(),
+            width: 2,
+            height: 4,
+            background: [0; 3],
+            detail: Some(ImageDetail {
+                zoom: 1,
+                pan: [0, 0],
+                protocol: ImageProtocol::Sixel,
+                cell_pixels: (1, 1),
+                slice: Some(ImageSlice {
+                    first_row: 0,
+                    rows: 4,
+                }),
+            }),
+        };
+        let whole = slice(image, &key);
+        assert_eq!(whole.as_bytes().as_ptr(), original);
+        if let Some(detail) = &mut key.detail {
+            detail.slice = Some(ImageSlice {
+                first_row: 1,
+                rows: 2,
+            });
+        }
+        let partial = slice(whole, &key);
+        assert_eq!((partial.width(), partial.height()), (2, 2));
+        assert_eq!(&partial.as_bytes()[..4], &[17, 0, 0, 255]);
+        assert_eq!(&partial.as_bytes()[8..12], &[34, 0, 0, 255]);
+    }
 }

@@ -5,6 +5,9 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, ensure};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 
+#[path = "build_support/revision.rs"]
+mod revision;
+
 fn main() -> Result<()> {
     record_revision()?;
     println!("cargo:rerun-if-changed=assets/syntax");
@@ -28,27 +31,15 @@ fn main() -> Result<()> {
 
 fn record_revision() -> Result<()> {
     println!("cargo:rerun-if-env-changed=LUME_BUILD_REVISION");
-    println!("cargo:rerun-if-changed=.git/HEAD");
-    println!("cargo:rerun-if-changed=.git/refs/heads/main");
-    let revision = std::env::var("LUME_BUILD_REVISION")
-        .ok()
-        .or_else(|| {
-            let output = std::process::Command::new("git")
-                .args(["rev-parse", "HEAD"])
-                .output()
-                .ok()?;
-            output.status.success().then(|| {
-                String::from_utf8_lossy(&output.stdout).trim().to_owned()
-            })
-        })
-        .unwrap_or_else(|| "unknown".into());
-    ensure!(
-        revision == "unknown"
-            || (revision.len() == 40
-                && revision.bytes().all(|byte| byte.is_ascii_hexdigit())),
-        "LUME_BUILD_REVISION must be a full Git revision"
-    );
-    println!("cargo:rustc-env=LUME_BUILD_REVISION={revision}");
+    let directory = std::env::var_os("CARGO_MANIFEST_DIR")
+        .map(PathBuf::from)
+        .context("Cargo must provide CARGO_MANIFEST_DIR")?;
+    let supplied = std::env::var("LUME_BUILD_REVISION").ok();
+    let metadata = revision::inspect(&directory, supplied.as_deref())?;
+    for path in metadata.watched {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
+    println!("cargo:rustc-env=LUME_BUILD_REVISION={}", metadata.revision);
     Ok(())
 }
 

@@ -57,24 +57,20 @@ fn full_cache(store: &Store, iterations: usize) -> Result<()> {
     for target in &targets {
         store.cache_document(target, &document)?;
     }
-    super::measure(
-        "eight unchanged Full cache commits",
-        iterations,
-        || {
-            for target in &targets {
-                ensure!(
-                    store.cache_document(target, &document)?,
-                    "Cache target disappeared"
-                );
-                let actual = store
-                    .cached_document(target.article)?
-                    .context("Full cache")?;
-                ensure!(
-                    actual.body == document.body && actual.revision == 1,
-                    "Cache or revision drifted"
-                );
-            }
-            Ok(())
-        },
-    )
+    super::measure("eight unchanged Full cache commits", iterations, || {
+        for target in &targets {
+            ensure!(
+                store.cache_document(target, &document)?,
+                "Cache target disappeared"
+            );
+            let actual = store
+                .cached_document(target.article)?
+                .context("Full cache")?;
+            ensure!(
+                actual.body == document.body && actual.revision == 1,
+                "Cache or revision drifted"
+            );
+        }
+        Ok(())
+    })
 }
