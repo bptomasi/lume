@@ -15,6 +15,17 @@ cache. Native and cell-height inline encodings are separate workloads at
 metrics imply terminal transfer, compositor presentation or physical latency.
 Avoid concurrent builds or heavy workloads when collecting retained timings.
 
+For real application admission and background-worker delivery, run:
+
+```sh
+CARGO_BUILD_JOBS=2 cargo bench --locked --bench reader -- --sixel-production-only
+```
+
+This checked workload opens the NASA photograph in the inline reader and image
+inspector through App commands, using an offline disk-cache entry. It verifies
+all production diagnostic stages and prints the actual `:performance` rows plus
+admission-to-ready inspector time. It does not measure physical display latency.
+
 The fixtures include the existing SVG diagram, grayscale antialiased vectors,
 an RGB gradient, a public-domain NASA photograph, deterministic high entropy,
 and RGBA gradients on dark/light mattes. See the fixture provenance in

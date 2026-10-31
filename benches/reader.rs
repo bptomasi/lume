@@ -164,6 +164,7 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 }
 
 const COMPONENT_WORKLOADS: &[Workload] = &[
+    images::production_profile,
     inspector_loading::run,
     retention_inspection::run,
     active_reading::run,
@@ -214,6 +215,7 @@ const COMPONENT_WORKLOADS: &[Workload] = &[
 type Workload = fn(usize, bool) -> Result<()>;
 
 const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
+    ("--sixel-production-only", images::production_profile),
     ("--inspector-loading-only", inspector_loading::run),
     ("--retention-inspection-only", retention_inspection::run),
     ("--backups-only", backups::run),

@@ -6,6 +6,10 @@ mod inspection;
 #[path = "sixel_images.rs"]
 mod sixel;
 
+#[path = "image_profiling.rs"]
+mod profiling;
+pub use profiling::run as production_profile;
+
 use std::{
     io::Cursor,
     time::{Duration, Instant},
