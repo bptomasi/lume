@@ -2,6 +2,7 @@
 //! New decoded bytes are admitted before allocation; oversized sources are used
 //! once without retention. Failed content never returns another source's pixels.
 
+use super::profiling::{self, Step};
 use super::{ImageKey, geometry};
 use anyhow::{Context, Result, ensure};
 use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, Limits};
@@ -40,10 +41,14 @@ impl RasterDecoder {
             self.cached.push_front(source);
             let source =
                 self.cached.front().context("Raster cache is empty")?;
-            return Ok(prepare(source, key));
+            return Ok(profiling::measure(Step::Resize, || {
+                prepare(source, key)
+            }));
         }
-        let source = self.decode(bytes, digest)?;
-        let prepared = prepare(&source, key);
+        let source =
+            profiling::measure(Step::Decode, || self.decode(bytes, digest))?;
+        let prepared =
+            profiling::measure(Step::Resize, || prepare(&source, key));
         if source.image.as_bytes().len() <= SOURCE_BUDGET {
             self.cached.push_front(source);
         }

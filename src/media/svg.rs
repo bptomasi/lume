@@ -7,6 +7,7 @@ use sha2::{Digest, Sha256};
 use std::collections::VecDeque;
 
 use super::ImageKey;
+use super::profiling::{self, Step};
 
 #[derive(Default)]
 pub(super) struct SvgDecoder {
@@ -27,31 +28,8 @@ impl SvgDecoder {
         key: &ImageKey,
     ) -> Result<(DynamicImage, (u32, u32))> {
         ensure!(bytes.len() <= 512 * 1024, "SVG exceeds 512 KiB");
-        let tree = self.tree(bytes)?;
-        let size = tree.size();
-        let dimensions =
-            (size.width().ceil() as u32, size.height().ceil() as u32);
-        let geometry =
-            super::geometry::Geometry::new((size.width(), size.height()), key);
-        let mut pixmap =
-            tiny_skia::Pixmap::new(geometry.width, geometry.height)
-                .context("Could not allocate SVG thumbnail")?;
-        let [red, green, blue] = key.background;
-        pixmap.fill(tiny_skia::Color::from_rgba8(red, green, blue, 255));
-        resvg::render(
-            tree,
-            tiny_skia::Transform::from_row(
-                geometry.scale,
-                0.0,
-                0.0,
-                geometry.scale,
-                -geometry.offset[0],
-                -geometry.offset[1],
-            ),
-            &mut pixmap.as_mut(),
-        );
-        let image = opaque_pixels(&pixmap)?;
-        Ok((image, dimensions))
+        let tree = profiling::measure(Step::Decode, || self.tree(bytes))?;
+        profiling::measure(Step::Resize, || render_tree(tree, key))
     }
 
     fn tree(&mut self, bytes: &[u8]) -> Result<&usvg::Tree> {
@@ -93,6 +71,34 @@ impl SvgDecoder {
             .map(|source| &source.tree)
             .context("SVG source was not prepared")
     }
+}
+
+fn render_tree(
+    tree: &usvg::Tree,
+    key: &ImageKey,
+) -> Result<(DynamicImage, (u32, u32))> {
+    let size = tree.size();
+    let dimensions = (size.width().ceil() as u32, size.height().ceil() as u32);
+    let geometry =
+        super::geometry::Geometry::new((size.width(), size.height()), key);
+    let mut pixmap = tiny_skia::Pixmap::new(geometry.width, geometry.height)
+        .context("Could not allocate SVG thumbnail")?;
+    let [red, green, blue] = key.background;
+    pixmap.fill(tiny_skia::Color::from_rgba8(red, green, blue, 255));
+    resvg::render(
+        tree,
+        tiny_skia::Transform::from_row(
+            geometry.scale,
+            0.0,
+            0.0,
+            geometry.scale,
+            -geometry.offset[0],
+            -geometry.offset[1],
+        ),
+        &mut pixmap.as_mut(),
+    );
+    let image = opaque_pixels(&pixmap)?;
+    Ok((image, dimensions))
 }
 
 fn parse(bytes: &[u8]) -> Result<roxmltree::Document<'_>> {

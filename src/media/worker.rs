@@ -19,6 +19,7 @@ mod request;
 use request::Request;
 
 pub(crate) struct Completion {
+    pub(crate) profile: Option<super::profiling::Sample>,
     pub(crate) key: ImageKey,
     pub(crate) result: Result<Thumbnail, String>,
 }
@@ -55,13 +56,16 @@ impl Worker {
         &mut self,
         key: ImageKey,
         generated: Option<Arc<[u8]>>,
+        measured: bool,
     ) -> Result<bool> {
         for job in &self.jobs {
             if job.url == key.url && job.retarget(Some(key.clone()))? {
                 return Ok(true);
             }
         }
-        let request = Arc::new(Request::new(key, generated));
+        let mut request = Request::new(key, generated);
+        request.measured = measured;
+        let request = Arc::new(request);
         match self.requests.try_send(request.clone()) {
             Ok(()) => {
                 self.jobs.push(request);
@@ -117,14 +121,17 @@ fn run(
         let Ok(request) = request else {
             break;
         };
-        let result = load(&directory, offline, &mut client, &decoder, &request);
+        let (result, profile) =
+            load_measured(&directory, offline, &mut client, &decoder, &request);
         let completion = match result {
             Ok(Some((key, image))) => Some(Completion {
+                profile,
                 key,
                 result: Ok(image),
             }),
             Ok(None) => None,
             Err(error) => request.key().ok().flatten().map(|key| Completion {
+                profile,
                 key,
                 result: Err(format!("{error:#}")),
             }),
@@ -136,6 +143,26 @@ fn run(
         {
             break;
         }
+    }
+}
+
+fn load_measured(
+    directory: &std::path::Path,
+    offline: bool,
+    client: &mut Option<http::Client>,
+    decoder: &Mutex<Decoder>,
+    request: &Request,
+) -> (
+    Result<Option<(ImageKey, Thumbnail)>>,
+    Option<super::profiling::Sample>,
+) {
+    let mut work = || load(directory, offline, client, decoder, request);
+    if request.measured {
+        let (result, sample) =
+            super::profiling::capture(Default::default(), work);
+        (result, Some(sample))
+    } else {
+        (work(), None)
     }
 }
 

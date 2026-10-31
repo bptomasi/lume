@@ -8,6 +8,7 @@ pub mod cache;
 mod decode;
 mod fonts;
 mod geometry;
+pub mod profiling;
 mod raster;
 mod sixel;
 mod svg;

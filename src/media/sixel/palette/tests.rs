@@ -1,5 +1,32 @@
 use super::*;
+use crate::media::profiling::{Quantizer, Step, capture};
 use image::Rgb;
+
+#[test]
+fn staged_quantization_is_byte_identical_to_the_reviewed_pipeline() -> Result<()>
+{
+    for kind in 0..3 {
+        let image = RgbImage::from_fn(64, 48, |x, y| {
+            let noise = x.wrapping_mul(1_664_525).wrapping_add(y * 1_013_904);
+            match kind {
+                0 => Rgb([(x * 4) as u8, (y * 5) as u8, (x + y) as u8]),
+                1 => {
+                    Rgb([noise as u8, (noise >> 8) as u8, (noise >> 16) as u8])
+                }
+                _ => Rgb([23, (x % 8 * 32) as u8, (y % 8 * 32) as u8]),
+            }
+        });
+        let (baseline, _) = capture(Quantizer::Reference, || index(&image));
+        let (staged, sample) = capture(Quantizer::WuDedup, || index(&image));
+        assert_eq!(baseline?, staged?);
+        assert_eq!(sample.calls[Step::Exact as usize], 1);
+        if kind != 2 {
+            assert_eq!(sample.calls[Step::Quantize as usize], 1);
+            assert_eq!(sample.calls[Step::Dither as usize], 1);
+        }
+    }
+    Ok(())
+}
 
 #[test]
 fn exact_indexing_preserves_all_256_colors_and_pixel_positions() -> Result<()> {

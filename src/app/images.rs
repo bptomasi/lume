@@ -346,6 +346,9 @@ impl App {
         if !wanted.contains(&completed.key) {
             return false;
         }
+        if let Some(sample) = &completed.profile {
+            self.performance.record_image(sample);
+        }
         if let Ok(image) = &completed.result
             && let Some(warning) = &image.cache_warning
         {
@@ -369,7 +372,11 @@ impl App {
         if let Some(key) = next {
             let generated = self.generated_image(&key);
             if let Some(worker) = &mut self.images.worker {
-                match worker.submit(key.clone(), generated) {
+                match worker.submit(
+                    key.clone(),
+                    generated,
+                    self.performance.is_enabled(),
+                ) {
                     Ok(true) => self.images.pending.push(key),
                     Ok(false) => self.images.waiting = true,
                     Err(error) => {

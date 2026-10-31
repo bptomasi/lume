@@ -655,6 +655,28 @@ edges without lossy quantization.
 Richer images deduplicate color conversion before the
 qualified Oklab quantizer and Floyd–Steinberg diffusion. Resolution, source
 cropping and the palette budget remain independent of this optimization.
+The public Quantette stages are composed explicitly to measure color preparation,
+Wu palette construction and continuous diffusion independently. RGB input is
+borrowed through Palette's checked cast and the final index vector is consumed,
+avoiding the former three-byte-per-pixel RGB copy and one-byte index copy.
+Byte-for-byte reference tests retain the original Pipeline as the oracle.
+
+`:performance on` admits thread-scoped image measurements for new worker jobs.
+`:performance status` shows decode, fit/matte, exact-color detection, color
+preparation, palette, diffusion/mapping and encoding samples. A cache hit that
+does not decode supplies no artificial zero-time decode sample. ImageWork also
+includes disk/HTTP and shared decoder wait; individual stages do not. Samples
+remain bounded to 512 per operation, with no URLs, image bytes or telemetry.
+Disabled measurements read no clocks. The scoped experimental quantizers in
+`media::profiling` are developer comparisons, not persisted application policy.
+
+`make bench-sixel` exercises this same production decoder and both native and
+cell-height Sixel encoders. It compares the original Pipeline, the buffer-reusing
+equivalent, direct Oklab conversion, disabled diffusion and icy_sixel RGB
+median-cut. Independent ImageMagick decoding checks pixels and partial strips;
+the optimized default must preserve both wire bytes and decoded colors. Timing,
+process RSS, encoded bytes, RGB/PSNR and Oklab error, plus eight-pixel neighborhood
+error, are reported separately. See [the measurement method](performance/sixel-method.md).
 Six-row band planning uses one bounded palette map and copies only a single
 color plane for each emission. icy_sixel still owns framing, palette encoding
 and run-length encoding; no full palette map is copied for each sparse run.

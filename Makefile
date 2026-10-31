@@ -19,6 +19,7 @@ MIGRATE_FROM ?=
 .PHONY: lint test bench build run demo clean
 .PHONY: install upgrade test-tools bench-tools bench-notes bench-recommendations
 .PHONY: bench-reading bench-images bench-interaction bench-code check-image-display check-foot
+.PHONY: bench-sixel
 .PHONY: check-latency bench-configuration check-licenses check-security licenses package
 
 # Serialize composition even when a caller uses make -j.
@@ -43,6 +44,7 @@ help:
 		'  check                 Run all local checks; no services required' \
 		'  check-release         Local, current security, HTTP and release build' \
 		'  check-security        Current RustSec gate; requires cargo-audit 0.22.2' \
+		'  bench-sixel           Profile Sixel stages, memory and emitted color fidelity' \
 		'  licenses              Refresh complete notices with cargo-about 0.9.2' \
 		'  package               Verify and package standalone Linux executable' \
 		'  fmt / format          Check / apply Rust formatting' \
@@ -85,6 +87,7 @@ check:
 	$(PYTHON) -m py_compile tools/render_preview.py tools/terminal_support.py \
 		tools/install.py tools/bench_install.py tools/bench_notes.py \
 		tools/bench_support.py tools/bench_recommendations.py tools/bench_images.py \
+		tools/bench_sixel.py \
 		tools/qualify_foot.py tools/foot_terminal.py tools/bench_interaction.py \
 		tools/terminal_latency.py tools/latency_fixture.py tools/qualify_latency.py \
 		tools/bench_discovery.py \
@@ -150,6 +153,9 @@ bench-reading:
 
 bench-images:
 	$(PYTHON) tools/bench_images.py
+
+bench-sixel:
+	$(PYTHON) tools/bench_sixel.py $(SIXEL_ARGS)
 
 bench-code:
 	$(PYTHON) tools/bench_code.py --output .local/benchmarks/code-viewport.json

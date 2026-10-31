@@ -2,6 +2,39 @@
 use super::*;
 use anyhow::Result;
 
+#[test]
+fn production_image_measurements_are_opt_in_and_separate_real_stages()
+-> Result<()> {
+    use crate::media::{ImageDetail, ImageProtocol, profiling::Step};
+    let directory = tempfile::tempdir()?;
+    let mut target = key("https://a.test/profile", 40);
+    target.detail = Some(ImageDetail {
+        zoom: 1,
+        pan: [0; 2],
+        protocol: ImageProtocol::Sixel,
+        cell_pixels: (2, 4),
+        slice: None,
+    });
+    let bytes =
+        include_bytes!("../../../tests/fixtures/images/request-path.svg");
+    let mut request = Request::new(target, Some(Arc::from(bytes.as_slice())));
+    let decoder = Mutex::new(Decoder::default());
+    let (result, profile) =
+        load_measured(directory.path(), true, &mut None, &decoder, &request);
+    assert!(result?.is_some());
+    assert!(profile.is_none());
+    request.measured = true;
+    let (result, profile) =
+        load_measured(directory.path(), true, &mut None, &decoder, &request);
+    assert!(result?.is_some());
+    let sample = profile.context("Image profile missing")?;
+    for stage in [Step::Decode, Step::Resize, Step::Exact, Step::Encode] {
+        assert!(sample.calls[stage as usize] > 0);
+    }
+    assert_eq!(sample.calls[Step::Pipeline as usize], 0);
+    assert!(sample.total_ns >= sample.stages_ns.iter().sum());
+    Ok(())
+}
 fn key(url: &str, width: u16) -> ImageKey {
     ImageKey {
         url: url.into(),
@@ -44,10 +77,10 @@ fn crop_changes_share_one_source_job_and_full_queues_are_retryable()
     let (mut worker, receiver, _sender) = worker();
     let first = key("https://a.test/image", 40);
     let latest = key("https://a.test/image", 80);
-    assert!(worker.submit(first, None)?);
-    assert!(worker.submit(latest.clone(), None)?);
-    assert!(worker.submit(key("https://b.test/image", 40), None)?);
-    assert!(!worker.submit(key("https://c.test/image", 40), None)?);
+    assert!(worker.submit(first, None, false)?);
+    assert!(worker.submit(latest.clone(), None, false)?);
+    assert!(worker.submit(key("https://b.test/image", 40), None, false)?);
+    assert!(!worker.submit(key("https://c.test/image", 40), None, false)?);
     let request = receiver.try_recv()?;
     assert_eq!(request.key()?, Some(latest));
     assert!(receiver.try_recv().is_ok());

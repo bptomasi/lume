@@ -24,6 +24,24 @@ pub enum Operation {
     Preview,
     /// Ordered personal write, including queue wait and result delivery.
     Save,
+    /// Image source decode/orientation or vector parsing.
+    ImageDecode,
+    /// Image matte, crop, resampling or vector rasterization.
+    ImageFit,
+    /// RGB ownership and palette compaction.
+    ImagePixels,
+    /// Exact terminal-color detection.
+    ImageExact,
+    /// Deduplication and Oklab preparation.
+    ImageColors,
+    /// Wu histogram, palette and color map construction.
+    ImagePalette,
+    /// Indexed mapping and error diffusion.
+    ImageDither,
+    /// Sixel protocol encoding.
+    ImageEncode,
+    /// Image work including cache/HTTP and decoder wait, excluding UI queue wait.
+    ImageWork,
 }
 
 #[derive(Default)]
@@ -34,6 +52,38 @@ pub(super) struct Performance {
 }
 
 impl Performance {
+    pub(super) fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub(super) fn record_image(
+        &mut self,
+        sample: &crate::media::profiling::Sample,
+    ) {
+        use crate::media::profiling::Step;
+        for (step, operation) in [
+            (Step::Decode, Operation::ImageDecode),
+            (Step::Resize, Operation::ImageFit),
+            (Step::Pixels, Operation::ImagePixels),
+            (Step::Exact, Operation::ImageExact),
+            (Step::Colors, Operation::ImageColors),
+            (Step::Quantize, Operation::ImagePalette),
+            (Step::Dither, Operation::ImageDither),
+            (Step::Encode, Operation::ImageEncode),
+        ] {
+            if sample.calls[step as usize] > 0 {
+                self.record(
+                    operation,
+                    Duration::from_nanos(sample.stages_ns[step as usize]),
+                );
+            }
+        }
+        self.record(
+            Operation::ImageWork,
+            Duration::from_nanos(sample.total_ns),
+        );
+    }
+
     pub(super) fn begin(&mut self, operation: Operation) {
         if self.enabled {
             self.started.insert(operation, Instant::now());
@@ -159,5 +209,25 @@ mod tests {
         for value in ["355.000", "586.000", "606.000", "611.000"] {
             assert!(report.contains(value), "Missing percentile {value}");
         }
+    }
+
+    #[test]
+    fn image_profiles_skip_absent_stages_and_do_not_record_when_disabled() {
+        use crate::media::profiling::{Sample, Step};
+        let mut sample = Sample {
+            total_ns: 9_000_000,
+            ..Sample::default()
+        };
+        sample.calls[Step::Encode as usize] = 12;
+        sample.stages_ns[Step::Encode as usize] = 4_000_000;
+        let mut performance = Performance::default();
+        performance.record_image(&sample);
+        assert!(performance.samples.is_empty());
+        performance.enabled = true;
+        performance.record_image(&sample);
+        assert_eq!(performance.samples[&Operation::ImageEncode].len(), 1);
+        assert_eq!(performance.samples[&Operation::ImageEncode][0], 4_000);
+        assert!(!performance.samples.contains_key(&Operation::ImageDecode));
+        assert!(performance.report().contains("ImageWork"));
     }
 }

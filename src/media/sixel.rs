@@ -7,6 +7,7 @@
 //! Each strip erases its full cell width before painting pixels: skipped cells
 //! can still hold text from an earlier frame, including partially covered edges.
 
+use super::profiling::{self, Step};
 use anyhow::{Result, ensure};
 use image::DynamicImage;
 use ratatui::{
@@ -40,7 +41,7 @@ impl SixelRows {
         cell_height: u16,
         cancel: Option<&crate::cancellation::Cancellation>,
     ) -> Result<Self> {
-        let rgb = image.to_rgb8();
+        let rgb = profiling::measure(Step::Pixels, || image.to_rgb8());
         let (palette, indexed) = palette::index(&rgb)?;
         if let Some(cancel) = cancel {
             cancel.check()?;
@@ -136,7 +137,7 @@ pub(super) fn native(
     if let Some(cancel) = cancel {
         cancel.check()?;
     }
-    let rgb = image.to_rgb8();
+    let rgb = profiling::measure(Step::Pixels, || image.to_rgb8());
     let (palette, indexed) = palette::index(&rgb)?;
     if let Some(cancel) = cancel {
         cancel.check()?;
@@ -165,9 +166,11 @@ fn encode(
     cancel: Option<&crate::cancellation::Cancellation>,
 ) -> Result<Sixel> {
     let mut bytes = Vec::new();
-    encoding::write_cancellable(
-        &mut bytes, pixels, width, height, palette, cancel,
-    )
+    profiling::measure(Step::Encode, || {
+        encoding::write_cancellable(
+            &mut bytes, pixels, width, height, palette, cancel,
+        )
+    })
     .map_err(|error| anyhow::anyhow!("{error}"))?;
     Ok(Sixel {
         data: String::from_utf8(bytes)?,

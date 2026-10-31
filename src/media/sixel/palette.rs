@@ -1,31 +1,20 @@
 //! Keep exact diagram colors; quantize richer images once across all strips.
+use crate::media::profiling::{self, Step};
 use anyhow::Result;
 use image::RgbImage;
-use quantette::{ImageRef, Pipeline, deps::palette::Srgb};
 use std::collections::HashMap;
 
+mod quantize;
+
 pub(super) fn index(image: &RgbImage) -> Result<(Vec<u8>, Vec<u8>)> {
-    if let Some(exact) = exact_colors(image) {
+    if let Some(exact) = profiling::measure(Step::Exact, || exact_colors(image))
+    {
         return Ok(compact(exact.0, exact.1));
     }
-    let pixels: Vec<_> = image
-        .pixels()
-        .map(|pixel| Srgb::new(pixel[0], pixel[1], pixel[2]))
-        .collect();
-    let input = ImageRef::new(image.width(), image.height(), &pixels)
-        .map_err(|error| anyhow::anyhow!("{error}"))?;
-    // Deduplication avoids repeated Oklab conversion without disabling
-    // per-pixel Floyd–Steinberg diffusion or reducing the 256-color budget.
-    let indexed = Pipeline::new()
-        .dedup(true)
-        .input_image(input)
-        .output_srgb8_indexed_image();
-    let colors = indexed
-        .palette()
-        .iter()
-        .flat_map(|color| [color.red, color.green, color.blue])
-        .collect();
-    Ok(compact(colors, indexed.indices().to_vec()))
+    let (colors, indices) = quantize::run(image, profiling::quantizer())?;
+    Ok(profiling::measure(Step::Pixels, || {
+        compact(colors, indices)
+    }))
 }
 
 fn exact_colors(image: &RgbImage) -> Option<(Vec<u8>, Vec<u8>)> {

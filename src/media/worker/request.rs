@@ -7,6 +7,7 @@ use std::sync::{
 };
 
 pub(super) struct Request {
+    pub(super) measured: bool,
     pub(super) url: String,
     pub(super) generated: Option<Arc<[u8]>>,
     state: Mutex<State>,
@@ -22,6 +23,7 @@ struct State {
 impl Request {
     pub(super) fn new(key: ImageKey, generated: Option<Arc<[u8]>>) -> Self {
         Self {
+            measured: false,
             url: key.url.clone(),
             generated,
             revision: Arc::new(AtomicU64::new(0)),
