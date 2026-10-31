@@ -57,11 +57,11 @@ def decode(directory, sample):
     return hashlib.sha256(canvas.tobytes()).hexdigest()
 
 
-def run(binary, directory, case, strategy, layout, light, size):
-    directory.mkdir(parents=True)
+def run(binary, directory, case, strategy, layout, light, size, repeats=2):
+    directory.mkdir(parents=True, exist_ok=True)
     arguments = [str(binary), "--case", case, "--strategy", strategy,
                  "--width", str(size[0]), "--height", str(size[1]),
-                 "--output", str(directory)]
+                 "--output", str(directory), "--repeats", str(repeats)]
     if layout == "inline":
         arguments.append("--inline")
     if light:
@@ -166,20 +166,30 @@ def main():
                         default=Path(".local/benchmarks/sixel/report.json"))
     parser.add_argument("--binary", type=Path)
     parser.add_argument("--runs", type=int, default=3, choices=range(1, 11))
+    parser.add_argument("--repeats", type=int, default=2, choices=range(2, 21))
+    parser.add_argument("--strategies", nargs="+", choices=STRATEGIES,
+                        default=STRATEGIES)
     parser.add_argument("--cases", nargs="+", choices=CASES, default=CASES)
     parser.add_argument("--layouts", nargs="+", choices=("native", "inline"),
                         default=("native", "inline"))
     parser.add_argument("--width", type=int, default=120)
     parser.add_argument("--height", type=int, default=36)
     args = parser.parse_args()
+    if not {"reference", "dedup"}.issubset(args.strategies):
+        parser.error("Include reference and dedup to qualify default fidelity")
     binary = (args.binary or build()).resolve()
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     report = {"measured_at": datetime.now(timezone.utc).isoformat(),
               "platform": platform.platform(),
               "rust": subprocess.check_output(["rustc", "--version"], text=True).strip(),
+              "pillow": getattr(pillow(), "__version__", "unknown"),
+              "imagemagick": subprocess.check_output(["convert", "-version"], text=True).splitlines()[0],
               "revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "source_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
+              "parameters": {"width": args.width, "height": args.height,
+                             "runs": args.runs, "repeats": args.repeats,
+                             "strategies": args.strategies},
               "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
               "scope": __doc__, "runs": []}
     for case in args.cases:
@@ -187,12 +197,12 @@ def main():
             for layout in args.layouts:
                 for index in range(args.runs):
                     samples = []
-                    offset = index % len(STRATEGIES)
-                    order = STRATEGIES[offset:] + STRATEGIES[:offset]
+                    offset = index % len(args.strategies)
+                    order = args.strategies[offset:] + args.strategies[:offset]
                     for strategy in order:
                         name = f'{case}-{layout}-{"light" if light else "dark"}-{strategy}-{index}'
                         sample = run(binary, output.parent / name, case, strategy,
-                                     layout, light, (args.width, args.height))
+                                     layout, light, (args.width, args.height), args.repeats)
                         sample["run"] = index
                         samples.append(sample)
                     qualify(samples)

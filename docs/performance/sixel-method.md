@@ -101,3 +101,15 @@ target/release/examples/sixel_profile --input /path/image.png \
 Available experiments are `reference`, `dedup`, `direct`, `undithered` and
 `median-cut`. They add no dependencies or dependency features. The latter two
 are quality/cost controls, not automatic production fallbacks.
+
+The longer repeated control can be reproduced without rebuilding the example:
+
+```sh
+python tools/bench_sixel.py --binary target/release/examples/sixel_profile \
+  --cases gradient photo entropy --layouts native \
+  --strategies reference dedup direct --runs 3 --repeats 20 \
+  --output /tmp/lume-sixel-long/report.json
+```
+
+Use the pinned visual Python environment for this command too. The driver
+overwrites its own named outputs on repeated runs and retains raw timing arrays.

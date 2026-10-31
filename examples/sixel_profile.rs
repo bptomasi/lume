@@ -143,7 +143,12 @@ fn publish(
     for (index, bytes) in payloads.iter().enumerate() {
         fs::write(args.output.join(format!("strip-{index:03}.six")), bytes)?;
     }
-    let report = json!({"case": args.case, "strategy": args.strategy,
+    let case = if args.input.is_some() {
+        "local-input"
+    } else {
+        &args.case
+    };
+    let report = json!({"case": case, "strategy": args.strategy,
         "inline": args.inline, "zoom": args.zoom, "light": args.light,
         "source_bytes": source.len(), "source_sha256": hex_digest(source),
         "fitted_dimensions": reference.dimensions(),
