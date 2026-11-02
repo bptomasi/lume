@@ -13,6 +13,7 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -39,6 +40,14 @@ IDENTITY = ("source_sha256", "reference_sha256", "fitted_dimensions",
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def prepare_output(directory):
+    """Claim a fresh directory before exporting or running either executable."""
+    try:
+        directory.mkdir(parents=True)
+    except FileExistsError as error:
+        raise ValueError("Use a new benchmark output directory") from error
 
 
 def verify_natural_source(case, source):
@@ -132,7 +141,9 @@ def validate_sample(sample, source, repeats):
     for entry in sample["samples"]:
         timing = entry["timing"]
         if (timing["total_ns"] <= 0
-                or len(timing["stages_ns"]) != len(sample["stages"])):
+                or len(timing["stages_ns"]) != len(sample["stages"])
+                or any(type(value) is not int or value < 0 for value in
+                       [timing["total_ns"], *timing["stages_ns"]])):
             raise ValueError("Incomplete stage timing")
 
 
@@ -190,8 +201,9 @@ def milliseconds(sample, cache, stage=None):
 
 
 def reduction(old, new):
-    if old <= 0:
-        raise ValueError("Cannot compare zero-duration stage")
+    if (not math.isfinite(old) or not math.isfinite(new)
+            or old <= 0 or new <= 0):
+        raise ValueError("Compare only finite, positive measured durations")
     return (1 - new / old) * 100
 
 
@@ -227,7 +239,7 @@ def summarize_pair(baselines, candidates):
 
 
 def execute(args):
-    args.output.mkdir(parents=True, exist_ok=True)
+    prepare_output(args.output)
     binaries = {"baseline": args.baseline, **{name: args.candidate
                                             for name in args.encoders}}
     hashes = {name: digest(binary) for name, binary in binaries.items()}

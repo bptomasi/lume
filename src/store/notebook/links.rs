@@ -20,13 +20,18 @@ pub(crate) fn replace_references(
             targets.push(target);
         }
     }
-    transaction
-        .execute("DELETE FROM note_references WHERE source_id = ?1", [note])?;
+    transaction.execute(
+        include_str!("../sql/notebook/delete_note_outgoing_references.sql"),
+        [note],
+    )?;
+    if targets.is_empty() {
+        return Ok(());
+    }
+    let mut insert = transaction.prepare_cached(include_str!(
+        "../sql/notebook/insert_note_reference.sql"
+    ))?;
     for target in targets {
-        transaction.execute(
-            "INSERT INTO note_references (source_id, target_id) VALUES (?1, ?2)",
-            (note, target),
-        )?;
+        insert.execute((note, target))?;
     }
     Ok(())
 }
@@ -48,11 +53,7 @@ fn live_target(
     // remain possible; restoring the target can restore its captured edges.
     if live.is_some() {
         let incoming: usize = transaction.query_row(
-            r#"
-            SELECT count(*)
-            FROM note_references
-            WHERE target_id = ?1 AND source_id <> ?2
-            "#,
+            include_str!("../sql/notebook/count_note_other_backlinks.sql"),
             (target, note),
             |row| row.get(0),
         )?;
@@ -92,18 +93,37 @@ pub(crate) fn restore_references(
 ) -> Result<()> {
     ensure!(references.len() <= 256, "Invalid saved note references");
     transaction.execute(
-        "DELETE FROM note_references WHERE source_id = ?1 OR target_id = ?1",
+        include_str!("../sql/notebook/delete_note_references.sql"),
         [note],
     )?;
+    if references.is_empty() {
+        return Ok(());
+    }
+    let mut insert = transaction.prepare_cached(include_str!(
+        "../sql/notebook/restore_note_reference.sql"
+    ))?;
     for (source, target) in references {
         ensure!(
             *source == note || *target == note,
             "Reference has another owner"
         );
-        transaction.execute(
-            "INSERT OR IGNORE INTO note_references (source_id, target_id) VALUES (?1, ?2)",
-            (source, target),
-        )?;
+        insert.execute((source, target))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nested_image_wikilinks_do_not_create_backlinks() -> Result<()> {
+        let body = format!(
+            "{}Note-999999{}\n[[Note-7|real]]\n`[[Note-8]]`",
+            "![[".repeat(4096),
+            "]]".repeat(4096),
+        );
+        assert_eq!(references(&body)?, BTreeSet::from([7]));
+        Ok(())
+    }
 }

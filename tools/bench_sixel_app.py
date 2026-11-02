@@ -5,12 +5,15 @@ RSS/CPU cover the complete process; delivery excludes terminal presentation.
 """
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import statistics
 import subprocess
 
-from bench_sixel_release import digest, reduction, verify_natural_source
+from bench_sixel_release import (
+    digest, prepare_output, reduction, verify_natural_source,
+)
 
 
 def profiles(stdout):
@@ -20,7 +23,8 @@ def profiles(stdout):
     if len(result) != 3:
         raise ValueError("Expected three checked App inspections")
     for item in result:
-        if (item["inspection_delivery_ms"] <= 0
+        if (not math.isfinite(item["inspection_delivery_ms"])
+                or item["inspection_delivery_ms"] <= 0
                 or item["native_wire_bytes"] <= 0
                 or len(item["native_wire_sha256"]) != 64):
             raise ValueError("Incomplete App delivery or native wire")
@@ -78,6 +82,7 @@ def main():
         verify_natural_source("photo", source)
     expected = digest(source)
     hashes = {name: digest(getattr(args, name)) for name in ("baseline", "candidate")}
+    prepare_output(args.output)
     runs = []
     for run in range(args.runs):
         order = ["baseline", "candidate"] if run % 2 == 0 else ["candidate", "baseline"]

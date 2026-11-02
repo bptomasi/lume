@@ -88,6 +88,31 @@ class SixelReleaseComparison(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Official source hash mismatch"):
                 self.driver.verify_natural_source("camera", corrupt)
 
+    def test_output_claim_never_reuses_existing_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "new" / "evidence"
+            self.driver.prepare_output(directory)
+            sentinel = directory / "source.img"
+            sentinel.write_bytes(b"original evidence")
+            with self.assertRaisesRegex(ValueError, "new benchmark"):
+                self.driver.prepare_output(directory)
+            self.assertEqual(sentinel.read_bytes(), b"original evidence")
+
+    def test_nonfinite_or_negative_measurements_cannot_report_a_speedup(self):
+        for old, new in ((0, 1), (1, 0), (1, -1), (float("nan"), 1),
+                         (1, float("nan")), (1, float("inf"))):
+            with self.subTest(old=old, new=new), self.assertRaises(ValueError):
+                self.driver.reduction(old, new)
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "source"
+            source.write_bytes(b"source")
+            for invalid in (-1, float("nan"), float("inf"), True):
+                measured = copy.deepcopy(self.sample)
+                measured["source_sha256"] = self.driver.digest(source)
+                measured["samples"][0]["timing"]["stages_ns"][0] = invalid
+                with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                    self.driver.validate_sample(measured, source, 2)
+
     def test_frozen_binary_command_does_not_use_new_flags(self):
         args = SimpleNamespace(width=120, height=36, repeats=20)
         scenario = dict(layout="inline", light=True, zoom=2)

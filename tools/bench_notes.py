@@ -34,7 +34,7 @@ def measure(binary, workload, stress, trial, resources):
         for operation, iterations, total, per_iteration in
         TIMING.findall(completed.stdout)
     ]
-    expected = 4 if workload == "notes" else 6
+    expected = 4 if workload == "notes" else 7
     if len(timings) != expected:
         raise AssertionError(f"Expected {expected} checked workloads: {completed.stdout}")
     result = {

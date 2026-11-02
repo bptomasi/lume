@@ -11,10 +11,12 @@ pub(super) fn write(
     output.scratch(map.capacity() + size_of::<Vec<u8>>());
     for (band, pixels) in raster.pixels.chunks(raster.width * 6).enumerate() {
         checks.check(Checkpoint::Plan)?;
+        if band != 0 {
+            map.fill(0);
+        }
         output.band(band);
         plan(&mut map, pixels, raster.width, checks)?;
         paint(output, &map, raster.width, checks)?;
-        map.fill(0);
     }
     Ok(())
 }

@@ -27,6 +27,13 @@ class SixelAppComparison(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.driver.profiles(line * 3)
 
+    def test_parser_rejects_nan_and_infinite_delivery_times(self):
+        for value in (float("nan"), float("inf"), -float("inf")):
+            changed = dict(self.profile, inspection_delivery_ms=value)
+            line = "production-profile: " + json.dumps(changed) + "\n"
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                self.driver.profiles(line * 3)
+
     def test_qualification_checks_source_and_each_native_result(self):
         old = [copy.deepcopy(self.profile) for _ in range(3)]
         new = copy.deepcopy(old)

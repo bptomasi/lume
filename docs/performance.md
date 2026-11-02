@@ -912,3 +912,9 @@ The larger peak did not reproduce in matched App controls. The report records
 this qualified promotion, raw stage timings, memory observations, rejected
 experiments and complete local/HTTP/Foot qualification. It does not claim a
 global memory improvement or promote direct Oklab conversion.
+
+The [0.2.3 ownership review](performance/sixel-0.2.3-review.md) additionally
+removes avoidable RGB bitmap copies and the final dense-plane clear. Its
+paired measurements confirm lower process peaks for common RGB inputs while
+explicitly retaining mixed timing results for RGBA16 and zoom. The review also
+records exact output equivalence and final release qualification.

@@ -41,8 +41,12 @@ impl SixelRows {
         cell_height: u16,
         cancel: Option<&crate::cancellation::Cancellation>,
     ) -> Result<Self> {
-        let rgb = profiling::measure(Step::Pixels, || image.to_rgb8());
+        // Move RGB storage; other source formats are dropped before indexing.
+        let rgb = profiling::measure(Step::Pixels, || image.into_rgb8());
+        let (width, height) = rgb.dimensions();
         let (palette, indexed) = palette::index(&rgb)?;
+        // Indexed pixels and the palette own everything the encoder needs.
+        drop(rgb);
         if let Some(cancel) = cancel {
             cancel.check()?;
         }
@@ -55,14 +59,14 @@ impl SixelRows {
                 cancel.check()?;
             }
             let y = u32::from(row) * u32::from(cell_height);
-            let height = u32::from(cell_height).min(image.height() - y);
-            let start = (y * image.width()) as usize;
-            let end = start + (height * image.width()) as usize;
+            let strip_height = u32::from(cell_height).min(height - y);
+            let start = (y * width) as usize;
+            let end = start + (strip_height * width) as usize;
             let strip = &indexed[start..end];
             let sixel = encode(
                 strip,
-                image.width(),
-                height,
+                width,
+                strip_height,
                 strip_area,
                 &palette,
                 cancel,
@@ -137,6 +141,9 @@ pub(super) fn native(
     if let Some(cancel) = cancel {
         cancel.check()?;
     }
+    if let DynamicImage::ImageRgb8(rgb) = image {
+        return native_rgb(rgb, area, cancel);
+    }
     let rgb = profiling::measure(Step::Pixels, || image.to_rgb8());
     let (palette, indexed) = palette::index(&rgb)?;
     if let Some(cancel) = cancel {
@@ -155,6 +162,25 @@ pub(super) fn native(
         "Native pixels exceed 8 MiB"
     );
     Ok(Protocol::Sixel(sixel))
+}
+
+// RGB input can transfer its storage and release it after indexing. Other
+// formats keep the qualified conversion path and its established lifetimes.
+#[inline(never)]
+fn native_rgb(
+    rgb: image::RgbImage,
+    area: Rect,
+    cancel: Option<&crate::cancellation::Cancellation>,
+) -> Result<Protocol> {
+    let (width, height) = rgb.dimensions();
+    let (palette, indexed) = palette::index(&rgb)?;
+    drop(rgb);
+    if let Some(cancel) = cancel {
+        cancel.check()?;
+    }
+    Ok(Protocol::Sixel(encode(
+        &indexed, width, height, area, &palette, cancel,
+    )?))
 }
 
 fn encode(

@@ -38,7 +38,7 @@ local files, a shell command or executable configuration.
 | Feed and transport | feed-rs 3.0.0, ureq 3.4.2, Rustls 0.23.46, native-certs 0.8.4 | Multi-format decoding, bounded requests, redirects and verified OS trust. Offline policy and resource limits remain in Lume. |
 | SQLite | rusqlite 0.32.1 with bundled SQLite, Refinery 0.8.16 | Real transactions, WAL/FTS5 and immutable checksum-verified migrations; no external database. |
 | Extraction | dom_smoothie 0.18.2, dom_query 0.28.0 | Readability and CSS parsing, with explicit ambiguous/short/obstructed extraction handling. Qualified MPL scope applies. |
-| Rich text | html5gum 0.8.3, pulldown-cmark 0.13.5, Syntect 5.3.0, textwrap 0.16.4 | Bounded HTML normalization, Markdown structure and source offsets, reviewed text grammars and Unicode wrapping. |
+| Rich text | html5gum 0.8.3, pulldown-cmark 0.13.6, Syntect 5.3.0, textwrap 0.16.4 | Bounded HTML normalization, Markdown structure and source offsets, reviewed text grammars and Unicode wrapping. |
 | Search | nom 8.0.0 and bundled SQLite FTS5 | Qualified grammar combinators and indexing. Lume owns fields, precedence, limits and parameterized compilation; queries are never raw user SQL. |
 | Images | image 0.25.10, ratatui-image 8.1.1 | Restricted PNG/JPEG/WebP/GIF decoding, fixed prepared widgets and qualified Sixel encoding; no custom quantizer or image protocol. |
 | SVG | resvg 0.48.1, roxmltree 0.21.1 | Bounded XML/vector rasterization, DTD disabled and resource resolvers rejecting linked/embedded resources. |
@@ -142,12 +142,26 @@ The 2026-10-30 qualification updates `pulldown-cmark` to **0.13.5** for
 The established multi-contributor pulldown-cmark project maintains this
 compatible patch on its 0.13 branch and backported the reviewed parser fix.
 The MIT license and disabled default features remain unchanged; no new runtime
-dependency or parser option is enabled. Lume enables only tables and math,
-so the affected `ENABLE_WIKILINKS` path is not selected. The updated parser
+dependency or parser option is enabled. The article Reader enables tables and
+math. Notebook link indexing additionally uses `ENABLE_WIKILINKS` and requires
+the patched parser. The updated parser
 still qualifies through Markdown source-offset, link, image, table, formula
 and notebook tests and representative reader workloads. See the
 [upstream patch release](https://github.com/pulldown-cmark/pulldown-cmark/releases/tag/v0.13.5)
 and [reviewed fix](https://github.com/pulldown-cmark/pulldown-cmark/pull/1102).
+
+The 2026-11-02 release review updates the same maintained 0.13 branch to
+**0.13.6**, fixing
+[RUSTSEC-2026-0433](https://github.com/RustSec/advisory-db/blob/main/crates/pulldown-cmark/RUSTSEC-2026-0433.md).
+The [upstream release](https://github.com/pulldown-cmark/pulldown-cmark/releases/tag/v0.13.6)
+backports [PR #1186](https://github.com/pulldown-cmark/pulldown-cmark/pull/1186),
+which prevents enclosing image wikilinks from repeatedly rescanning nested
+bodies. The MIT license, default-features=false and Lume's explicit table/math
+options remain unchanged. No transitive package or runtime capability is added.
+The Reader does not enable wikilinks, but notebook link indexing does. The
+patch protects that active path rather than suppressing the advisory. Parser
+offsets, images, formulas, notebooks and representative reader workloads remain
+release gates.
 
 `about.toml` qualifies cargo-about **0.9.2** (MIT OR Apache-2.0), maintained by
 Embark's multi-contributor tooling project, for SPDX resolution and collection

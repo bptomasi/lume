@@ -23,8 +23,42 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     search(&store, notes, iterations)?;
     context(&store, notes as i64, iterations)?;
     super::note_study::run(&store, notes as i64, iterations, stress)?;
+    nested_image_links(&store, notes as i64, iterations, stress)?;
     navigation(store, iterations)?;
     export(iterations, stress)
+}
+
+fn nested_image_links(
+    store: &Store,
+    target: i64,
+    iterations: usize,
+    stress: bool,
+) -> Result<()> {
+    let article = store.note_detail(target)?.note.article;
+    let source = store.save_comment(article, None, "Parser qualification")?;
+    // Five bytes per nesting level must fit the 16 KiB comment contract.
+    let depth = if stress { 3072 } else { 1024 };
+    let prefix = format!(
+        "{}Note-999999{}\n[[Note-{target}|real reference]]",
+        "![[".repeat(depth),
+        "]]".repeat(depth),
+    );
+    let mut revision = 0;
+    super::measure(
+        "nested image wikilinks + checked backlink",
+        iterations,
+        || {
+            revision += 1;
+            let body = format!("{prefix}\nRevision {revision}");
+            store.save_comment(article, Some(source), &body)?;
+            ensure!(
+                store.annotation(article, source)?.metadata.references
+                    == vec![(source, target)],
+                "Nested images created a false note reference"
+            );
+            Ok(())
+        },
+    )
 }
 
 fn seed(
