@@ -8,7 +8,7 @@ use anyhow::{Context, Result, bail, ensure};
 use clap::Parser;
 use lume::media::{
     Decoder, ImageDetail, ImageKey, ImageProtocol, ImageSlice, Thumbnail,
-    profiling::{self, Quantizer},
+    profiling::{self, Encoder, Quantizer},
 };
 use ratatui::buffer::Buffer;
 use ratatui_image::protocol::Protocol;
@@ -22,8 +22,12 @@ struct Arguments {
     case: String,
     #[arg(long)]
     input: Option<PathBuf>,
+    #[arg(long)]
+    export_source_only: bool,
     #[arg(long, default_value = "dedup")]
     strategy: String,
+    #[arg(long, default_value = "production")]
+    encoder: String,
     #[arg(long, default_value_t = 2, value_parser = clap::value_parser!(u8).range(1..=20))]
     repeats: u8,
     #[arg(long, default_value_t = 120)]
@@ -73,18 +77,30 @@ fn strategy(name: &str) -> Result<Quantizer> {
 
 fn run(args: Arguments) -> Result<()> {
     let method = strategy(&args.strategy)?;
+    let encoder = match args.encoder.as_str() {
+        "production" => Encoder::Production,
+        "dense" => Encoder::Dense,
+        "sparse" => Encoder::Sparse,
+        _ => bail!("Use production|dense|sparse"),
+    };
     let bytes = match &args.input {
         Some(path) => fs::read(path)?,
         None => fixtures::source(&args.case)?,
     };
     let key = key(&args);
     fs::create_dir_all(&args.output)?;
+    fs::write(args.output.join("source.img"), &bytes)?;
+    if args.export_source_only {
+        return Ok(());
+    }
     let mut decoder = Decoder::default();
     let mut samples = Vec::new();
     let mut payloads = Vec::new();
     for pass in 0..args.repeats {
         let (rendered, sample) =
-            profiling::capture(method, || decoder.render(&bytes, &key));
+            profiling::capture_encoder(method, encoder, || {
+                decoder.render(&bytes, &key)
+            });
         payloads = payload(&rendered?)?;
         let digest = hex_digest(&payloads.concat());
         samples.push(json!({"cache": if pass == 0 {"cold"} else {"warm"}, "timing": sample, "wire_sha256": digest}));
@@ -149,6 +165,7 @@ fn publish(
         &args.case
     };
     let report = json!({"case": case, "strategy": args.strategy,
+        "encoder": args.encoder,
         "inline": args.inline, "zoom": args.zoom, "light": args.light,
         "source_bytes": source.len(), "source_sha256": hex_digest(source),
         "fitted_dimensions": reference.dimensions(),

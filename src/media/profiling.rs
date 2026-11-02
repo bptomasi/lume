@@ -77,9 +77,27 @@ pub enum Quantizer {
     Reference,
 }
 
+/// Developer-only encoder comparisons, independent from palette preparation.
+#[derive(Clone, Copy, Debug, Default, Serialize)]
+pub enum Encoder {
+    /// Actual production dispatch, with identical pixels and protocol bytes.
+    #[default]
+    Production,
+    /// Borrowed dense planes and aggregated writer runs (A0).
+    Dense,
+    /// Stable counting scatter and aggregated writer runs (A1).
+    Sparse,
+}
+
 /// Nanosecond CPU wall samples; total also includes untimed ownership overhead.
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct Sample {
+    /// Scoped encoder selection; production rendering uses its default.
+    pub encoder: Encoder,
+    /// Peak planner storage plus the writer's pending String capacity.
+    pub encoder_scratch_bytes: usize,
+    /// Number of frames planned with dense and sparse storage, respectively.
+    pub encoder_calls: [u32; 2],
     /// Scoped algorithm selection; never persisted as an application setting.
     pub quantizer: Quantizer,
     /// Whole capture duration, including allocations and uninstrumented work.
@@ -107,8 +125,18 @@ pub fn capture<T>(
     quantizer: Quantizer,
     work: impl FnOnce() -> T,
 ) -> (T, Sample) {
+    capture_encoder(quantizer, Encoder::Production, work)
+}
+
+/// Measure one scoped encoder variant without changing application settings.
+pub fn capture_encoder<T>(
+    quantizer: Quantizer,
+    encoder: Encoder,
+    work: impl FnOnce() -> T,
+) -> (T, Sample) {
     let previous = ACTIVE.replace(Some(Sample {
         quantizer,
+        encoder,
         ..Sample::default()
     }));
     let _restore = Restore(previous);
@@ -117,6 +145,31 @@ pub fn capture<T>(
     let mut sample = ACTIVE.take().unwrap_or_default();
     sample.total_ns = nanos(started);
     (value, sample)
+}
+
+pub(super) fn encoder() -> Encoder {
+    ACTIVE.with_borrow(|active| {
+        active
+            .as_ref()
+            .map_or(Encoder::default(), |value| value.encoder)
+    })
+}
+
+pub(super) fn encoder_scratch(bytes: usize) {
+    ACTIVE.with_borrow_mut(|active| {
+        if let Some(sample) = active {
+            sample.encoder_scratch_bytes =
+                sample.encoder_scratch_bytes.max(bytes);
+        }
+    });
+}
+
+pub(super) fn record_encoder(sparse: bool) {
+    ACTIVE.with_borrow_mut(|active| {
+        if let Some(sample) = active {
+            sample.encoder_calls[usize::from(sparse)] += 1;
+        }
+    });
 }
 
 pub(super) fn quantizer() -> Quantizer {

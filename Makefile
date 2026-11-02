@@ -19,7 +19,7 @@ MIGRATE_FROM ?=
 .PHONY: lint test bench build run demo clean
 .PHONY: install upgrade test-tools bench-tools bench-notes bench-recommendations
 .PHONY: bench-reading bench-images bench-interaction bench-code check-image-display check-foot
-.PHONY: bench-sixel
+.PHONY: bench-sixel bench-sixel-release
 .PHONY: check-latency bench-configuration check-licenses check-security licenses package
 
 # Serialize composition even when a caller uses make -j.
@@ -45,6 +45,7 @@ help:
 		'  check-release         Local, current security, HTTP and release build' \
 		'  check-security        Current RustSec gate; requires cargo-audit 0.22.2' \
 		'  bench-sixel           Profile Sixel stages, memory and emitted color fidelity' \
+		'  bench-sixel-release   Compare frozen/candidate release encoders (SIXEL_ARGS)' \
 		'  licenses              Refresh complete notices with cargo-about 0.9.2' \
 		'  package               Verify and package standalone Linux executable' \
 		'  fmt / format          Check / apply Rust formatting' \
@@ -87,7 +88,8 @@ check:
 	$(PYTHON) -m py_compile tools/render_preview.py tools/terminal_support.py \
 		tools/install.py tools/bench_install.py tools/bench_notes.py \
 		tools/bench_support.py tools/bench_recommendations.py tools/bench_images.py \
-		tools/bench_sixel.py \
+		tools/bench_sixel.py tools/bench_sixel_release.py tools/probe_sixel_crossover.py \
+		tools/bench_sixel_app.py \
 		tools/qualify_foot.py tools/foot_terminal.py tools/bench_interaction.py \
 		tools/terminal_latency.py tools/latency_fixture.py tools/qualify_latency.py \
 		tools/bench_discovery.py \
@@ -156,6 +158,9 @@ bench-images:
 
 bench-sixel:
 	$(PYTHON) tools/bench_sixel.py $(SIXEL_ARGS)
+
+bench-sixel-release:
+	$(PYTHON) tools/bench_sixel_release.py $(SIXEL_ARGS)
 
 bench-code:
 	$(PYTHON) tools/bench_code.py --output .local/benchmarks/code-viewport.json

@@ -895,3 +895,20 @@ Reproduce with `CARGO_PROFILE_DEV_DEBUG=0 cargo bench --locked --profile dev
 --bench reader -- --database-writes-only`, and use `--test
 --inspector-loading-only` for the image workload. The report retains all process
 means, invocation arguments and executable hashes.
+
+
+## Exact Sixel encoder qualification
+
+The [2026-11-02 research, review and release evaluation](performance/sixel-release-2026-11-02.md)
+promotes borrowed dense planes and a measured, memory-bounded counting-scatter
+path. In the final paired corpus, native whole preparation improved by about
+10–23% on four photographs, 28% on the gradient and 25% on noise, preserving
+wire bytes and independently decoded pixels. Matched App/worker controls also
+confirmed lower delivery times; physical terminal presentation was not timed.
+
+The strict global RSS gate was not universally met: repeated-noise standalone
+measurements retain a small anonymous-residency increase of unresolved cause.
+The larger peak did not reproduce in matched App controls. The report records
+this qualified promotion, raw stage timings, memory observations, rejected
+experiments and complete local/HTTP/Foot qualification. It does not claim a
+global memory improvement or promote direct Oklab conversion.

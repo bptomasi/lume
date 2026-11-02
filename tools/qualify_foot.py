@@ -298,14 +298,65 @@ def inspect(directory, process, initial, cell_height):
         "native source zoom",
         lambda: inspector_frame(directory, fitted["offset"], cell_height), process,
     )
+    motion = inspection_motion(directory, process, fitted, zoomed, cell_height)
+    before = frame(directory)["offset"]
     send(directory, b"\x1b")
     wait_for(
         "return to inline strips",
-        lambda: returned_frame(directory, zoomed["offset"], cell_height), process,
+        lambda: returned_frame(directory, before, cell_height), process,
     )
     reopened = reopen_inspection(directory, process, cell_height)
     return {"fit": dimensions(fitted), "zoom": dimensions(zoomed),
-            "reopened_after_scroll": reopened}
+            "motion": motion, "reopened_after_scroll": reopened}
+
+
+def pixel_identity(current):
+    return [strip["sha256"] for strip in current["strips"]]
+
+
+def matching_inspector(directory, after, cell_height, identity, equal):
+    current = inspector_frame(directory, after, cell_height)
+    if current and (pixel_identity(current) == identity) == equal:
+        return current
+    return None
+
+
+def inspection_motion(directory, process, fitted, zoomed, cell_height):
+    send(directory, b"lj")
+    panned = wait_for("completed native pan", lambda: matching_inspector(
+        directory, zoomed["offset"], cell_height, pixel_identity(zoomed), False),
+        process)
+    # Several obsolete requests followed by a unique final fit. The exact fit
+    # wire must return; cancellation itself has deterministic native unit tests.
+    send(directory, b"+++lljjhhkk---0")
+    restored = wait_for("latest rapid zoom/pan returns to fit", lambda:
+                        matching_inspector(directory, panned["offset"],
+                                           cell_height, pixel_identity(fitted), True),
+                        process)
+    return {"pan": dimensions(panned), "rapid_requests_fit_restored": True,
+            "fit_wire_identical": pixel_identity(restored) == pixel_identity(fitted)}
+
+
+def themed_reader(directory, after, geometry, identities, changed):
+    current = reader_frame(directory, geometry)
+    if current and current["offset"] > after:
+        differs = any(value not in identities for value in pixel_identity(current))
+        if differs == changed:
+            return current
+    return None
+
+
+def theme_images(directory, process, initial, geometry):
+    identities = set(pixel_identity(initial))
+    results = []
+    for theme, changed in (("gruvbox", True), ("lume", False)):
+        before = frame(directory)["offset"]
+        command(directory, "theme " + theme)
+        current = wait_for(f"{theme} native matte", lambda: themed_reader(
+            directory, before, geometry, identities, changed), process)
+        results.append({"theme": theme, "changed_from_lume": changed,
+                        "strips": dimensions(current)})
+    return results
 
 
 def reopen_inspection(directory, process, cell_height):
@@ -371,6 +422,7 @@ def qualify(directory, process):
         "fullscreen native rows", lambda: reader_frame(directory, geometry), process,
     )
     pixels = verify_pixels(directory, initial, geometry["cell_pixels"][1])
+    themes = theme_images(directory, process, initial, geometry)
     samples = scrolling(directory, process, initial)
     selections = selection_scroll(directory, process, initial)
     aliases = reader_aliases(directory, process)
@@ -393,6 +445,7 @@ def qualify(directory, process):
     if cleanup != {"returncode": 0, "termios_restored": True}:
         raise RuntimeError(f"Foot terminal cleanup failed: {cleanup}")
     return {"geometry": geometry, "welcome": welcome, "decoded_strips": pixels,
+            "image_themes": themes,
             "scroll_rows": samples, "selection": selections, "reader_aliases": aliases,
             "help_search": guide, "inspector": inspector,
             "reading_services": services, "preferences": preference_edits,

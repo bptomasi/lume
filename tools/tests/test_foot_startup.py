@@ -91,6 +91,19 @@ class FootStartupTests(unittest.TestCase):
                 strip = self.driver.frame(directory)["strips"][0]
                 self.assertEqual((strip["row"], strip["column"]), (15, 22))
 
+    def test_motion_qualification_rejects_pixels_from_another_inspector_state(self):
+        current = {"strips": [{"sha256": "fit"}]}
+        with patch.object(self.driver, "inspector_frame", return_value=current):
+            self.assertIs(self.driver.matching_inspector(None, 10, 20,
+                                                       ["fit"], True), current)
+            self.assertIsNone(self.driver.matching_inspector(None, 10, 20,
+                                                            ["old-pan"], True))
+            self.assertIs(self.driver.matching_inspector(None, 10, 20,
+                                                       ["old-pan"], False), current)
+        with patch.object(self.driver, "inspector_frame", return_value=None):
+            self.assertIsNone(self.driver.matching_inspector(None, 10, 20,
+                                                            ["fit"], False))
+
     def test_native_transitions_require_clear_before_the_first_pixel_payload(self):
         pixels = b'\x1bPq"1;1;20;20!20~\x1b\\'
         self.driver.verify_native_transition(b"\x1b[2J" + pixels)

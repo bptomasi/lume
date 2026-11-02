@@ -1,0 +1,30 @@
+{
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "make_check": {
+    "passed": true,
+    "rust_tests_passed": 1085,
+    "http_ignored_in_normal_suite": 34,
+    "python_tool_tests_passed": 74,
+    "licenses": [
+      "Verified licenses: 399 active packages, 4 explicitly inactive locked packages"
+    ],
+    "includes": [
+      "format",
+      "clippy all targets -D warnings",
+      "native behavioral tests",
+      "checked reader benchmark sanity",
+      "Python tools",
+      "Python compilation"
+    ]
+  },
+  "make_check_http": {
+    "passed": true,
+    "real_http_tests_passed": 34
+  },
+  "make_check_foot": {
+    "passed": true,
+    "evidence": "sixel-foot-2026-11-02.json"
+  },
+  "memory_decision": "Qualified promotion; strict global RSS gate not universally met; standalone anonymous-residency limitation retained.",
+  "parallelism": "Build jobs=2, native test threads=2; timed processes serial, CPU2; no concurrent builds/tests during timings."
+}
