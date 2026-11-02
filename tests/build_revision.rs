@@ -1,5 +1,5 @@
 //! Build metadata follows attached, detached, packed and worktree Git heads.
-#[path = "../build_support/revision.rs"]
+#[path = "../src/build_revision.rs"]
 mod revision;
 
 use anyhow::{Context, Result, ensure};

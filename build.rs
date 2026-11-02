@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, ensure};
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 
-#[path = "build_support/revision.rs"]
+#[path = "src/build_revision.rs"]
 mod revision;
 
 fn main() -> Result<()> {
