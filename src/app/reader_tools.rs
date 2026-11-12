@@ -1,5 +1,7 @@
 //! Local reader search and captured source jumps, independent of library search.
 
+use crate::app::commands::routing;
+
 use std::{collections::VecDeque, ops::Range};
 
 use anyhow::{Context, Result, ensure};
@@ -39,11 +41,13 @@ pub struct ReaderTools {
 impl App {
     pub(super) fn reader_tools_command(
         &mut self,
-        verb: &str,
+        command: routing::ReaderToolsCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "explain-search" => {
+    ) -> Result<Action> {
+        use routing::ReaderToolsCommand as C;
+
+        match command {
+            C::ExplainSearch => {
                 let explanation = self.explain_active_search(argument)?;
                 self.show_document(
                     "Search explanation · Esc closes",
@@ -51,21 +55,20 @@ impl App {
                     None,
                 );
             }
-            "find" => self.search_reader(argument)?,
-            "find-next" => self.next_reader_match(true)?,
-            "find-prev" => self.next_reader_match(false)?,
-            "note" => self.begin_reader_note()?,
-            "edit-note" => self.edit_context_note()?,
-            "annotate" => self.annotate_selection()?,
-            "toc" => self.show_outline()?,
-            "highlights" => self.show_highlights(argument)?,
-            "jump-back" => self.jump_history(false)?,
-            "jump-forward" => self.jump_history(true)?,
-            "copy-code" => return self.copy_code().map(Some),
-            "tables" => self.show_tables()?,
-            _ => return Ok(None),
+            C::Find => self.search_reader(argument)?,
+            C::FindNext => self.next_reader_match(true)?,
+            C::FindPrev => self.next_reader_match(false)?,
+            C::Note => self.begin_reader_note()?,
+            C::EditNote => self.edit_context_note()?,
+            C::Annotate => self.annotate_selection()?,
+            C::Toc => self.show_outline()?,
+            C::Highlights => self.show_highlights(argument)?,
+            C::JumpBack => self.jump_history(false)?,
+            C::JumpForward => self.jump_history(true)?,
+            C::CopyCode => return self.copy_code(),
+            C::Tables => self.show_tables()?,
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     fn explain_active_search(&self, argument: &str) -> Result<String> {
@@ -236,7 +239,7 @@ impl App {
     }
 
     pub(super) fn reader_location(&self) -> Result<ReaderLocation> {
-        self.guard_stale_command("reader-jump")?;
+        self.guard_stale_command(crate::command::Command::JumpBack)?;
         let offset = self.cursor_offset();
         let end = crate::reader::cursor::next(&self.reader_text, offset);
         let anchor =

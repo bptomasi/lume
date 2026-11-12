@@ -3,6 +3,8 @@
 //! Draft writes commit before closing. A failed write or session flush restores
 //! the entire editor, including its captured identity and command line.
 
+use crate::app::commands::routing;
+use crate::command::{Command, resolve};
 use anyhow::{Result, bail, ensure};
 
 use super::{Action, App, Input, Mode};
@@ -26,13 +28,15 @@ pub(super) enum ExCommand {
 pub(super) fn parse(text: &str) -> Result<Option<ExCommand>> {
     let mut words = text.split_whitespace();
     let word = words.next().unwrap_or("");
-    let verb = word.strip_suffix('!').unwrap_or(word);
-    let command = match verb {
-        "w" | "write" | "wa" | "wall" => ExCommand::Write(Destination::Editor),
-        "wq" | "x" | "xit" | "exit" => ExCommand::Write(Destination::Reader),
-        "wqa" | "wqall" | "xa" | "xall" => ExCommand::Write(Destination::Quit),
-        "q" | "quit" | "qa" | "qall" => ExCommand::Close {
-            destination: if matches!(verb, "qa" | "qall") {
+    let Some(spec) = resolve(word) else {
+        return Ok(None);
+    };
+    let command = match spec.command {
+        Command::Write => ExCommand::Write(Destination::Editor),
+        Command::Wq => ExCommand::Write(Destination::Reader),
+        Command::Wqa => ExCommand::Write(Destination::Quit),
+        Command::Quit => ExCommand::Close {
+            destination: if spec.application_aliases.contains(&word) {
                 Destination::Quit
             } else {
                 Destination::Reader
@@ -105,17 +109,24 @@ impl App {
 
     pub(super) fn session_command(
         &mut self,
-        text: &str,
-    ) -> Result<Option<Action>> {
-        if text.trim() == "save-status" {
-            self.show_save_status();
-            return Ok(Some(Action::None));
-        }
-        let Some(command) = parse(text)? else {
-            return Ok(None);
+        command: routing::SessionCommand,
+        argument: &str,
+    ) -> Result<Action> {
+        use routing::SessionCommand as C;
+
+        ensure!(
+            argument.is_empty(),
+            "Session commands do not accept arguments"
+        );
+        let quit = match command {
+            C::SaveStatus => {
+                self.show_save_status();
+                return Ok(Action::None);
+            }
+            C::Write => false,
+            C::Wq | C::Wqa | C::Quit => true,
         };
-        let quit = !matches!(command, ExCommand::Write(Destination::Editor));
-        self.write_session(quit).map(Some)
+        self.write_session(quit)
     }
 
     fn write_session(&mut self, quit: bool) -> Result<Action> {
@@ -156,5 +167,67 @@ impl App {
             Successful writes to unrelated items do not clear a failed save."
         );
         self.show_document("Save diagnostics · Esc closes", &text, None);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::command::command_suggestions;
+
+    #[test]
+    fn registry_write_and_quit_aliases_preserve_editor_destinations()
+    -> Result<()> {
+        for spec in command_suggestions("") {
+            for spelling in
+                std::iter::once(spec.name).chain(spec.aliases.iter().copied())
+            {
+                assert_editor_destination(spec, spelling)?;
+            }
+        }
+        for alias in ["w", "w!", "wq", "x", "q!", "qa", "wqa!"] {
+            assert!(parse(&format!("{alias} argument")).is_err());
+        }
+        Ok(())
+    }
+
+    fn assert_editor_destination(
+        spec: &crate::command::CommandSpec,
+        spelling: &str,
+    ) -> Result<()> {
+        let parsed = parse(spelling)?;
+        match spec.command {
+            Command::Write => assert!(matches!(
+                parsed,
+                Some(ExCommand::Write(Destination::Editor))
+            )),
+            Command::Wq => assert!(matches!(
+                parsed,
+                Some(ExCommand::Write(Destination::Reader))
+            )),
+            Command::Wqa => assert!(matches!(
+                parsed,
+                Some(ExCommand::Write(Destination::Quit))
+            )),
+            Command::Quit => {
+                let Some(ExCommand::Close {
+                    destination,
+                    discard,
+                }) = parsed
+                else {
+                    anyhow::bail!("Quit alias did not parse: {spelling}");
+                };
+                assert_eq!(discard, spelling.ends_with('!'));
+                assert_eq!(
+                    matches!(destination, Destination::Quit),
+                    spec.application_aliases.contains(&spelling)
+                );
+            }
+            _ => assert!(
+                parsed.is_none(),
+                "Unexpected session alias: {spelling}"
+            ),
+        }
+        Ok(())
     }
 }

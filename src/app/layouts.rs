@@ -1,5 +1,7 @@
 //! Commands compose the same docking model used by pointer gestures.
 
+use crate::app::commands::routing;
+
 use anyhow::{Context, Result, bail, ensure};
 
 use crate::model::{Dock, Pane, PaneLayout, PanelLayout, Workspace};
@@ -9,22 +11,23 @@ use super::{Action, App};
 impl App {
     pub(super) fn layout_commands(
         &mut self,
-        verb: &str,
+        command: routing::LayoutCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "workspace" => self.profile_command(argument)?,
-            "layout-undo" => self.restore_layout(false)?,
-            "layout-redo" => self.restore_layout(true)?,
-            "layout-reset" => self.reset_layout()?,
-            "panel-dock" => self.dock_command(argument)?,
-            "layout-columns" => {
+    ) -> Result<Action> {
+        use routing::LayoutCommand as C;
+
+        match command {
+            C::Workspace => self.profile_command(argument)?,
+            C::LayoutUndo => self.restore_layout(false)?,
+            C::LayoutRedo => self.restore_layout(true)?,
+            C::LayoutReset => self.reset_layout()?,
+            C::PanelDock => self.dock_command(argument)?,
+            C::LayoutColumns => {
                 self.workspace.layout = None;
                 self.commit_panel_layout()?;
             }
-            _ => return Ok(None),
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     fn reset_layout(&mut self) -> Result<()> {

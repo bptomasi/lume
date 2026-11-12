@@ -1,5 +1,7 @@
 //! Article lifecycle actions retain captured identities and support recovery.
 
+use crate::app::commands::routing;
+
 use anyhow::{Result, anyhow};
 
 use super::personal_tasks::{Deletion, DeletionOutcome, LibraryEdit};
@@ -57,20 +59,23 @@ impl App {
 
     pub(super) fn article_command(
         &mut self,
-        verb: &str,
+        command: routing::ArticleCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "delete-article" => self.set_selected_deleted(true)?,
-            "restore-article" => self.set_selected_deleted(false)?,
-            "trash" => match argument {
+    ) -> Result<Action> {
+        match command {
+            routing::ArticleCommand::DeleteArticle => {
+                self.set_selected_deleted(true)?
+            }
+            routing::ArticleCommand::RestoreArticle => {
+                self.set_selected_deleted(false)?
+            }
+            routing::ArticleCommand::Trash => match argument {
                 "" => self.set_view(View::Trash)?,
                 "clean" => self.clean_trash()?,
                 _ => anyhow::bail!("Usage: :trash [clean]"),
             },
-            _ => return Ok(None),
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     fn clean_trash(&mut self) -> Result<()> {

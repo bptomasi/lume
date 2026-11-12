@@ -1,5 +1,7 @@
 //! Captured bulk actions, independent tags and personal navigation preferences.
 
+use crate::app::commands::routing;
+
 use std::collections::BTreeSet;
 
 use anyhow::{Context, Result, bail, ensure};
@@ -11,29 +13,33 @@ use super::{Action, App, Choice, ChoiceAction, View};
 impl App {
     pub(super) fn organization_command(
         &mut self,
-        verb: &str,
+        command: routing::OrganizationCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "select-article" => self.toggle_article_selection()?,
-            "select-page" => self.select_page()?,
-            "clear-selection" => self.marked.clear(),
-            "bulk" => self.apply_bulk(argument)?,
-            "tags" | "highlight-tags" => self.edit_tags(verb, argument)?,
-            "related" => self.show_occurrences()?,
-            "pin" => self.toggle_pin()?,
-            "collapse" => self.toggle_navigation_group(argument)?,
-            "move-up" | "move-down" => {
-                self.reorder_navigation(verb == "move-down")?
+    ) -> Result<Action> {
+        use routing::OrganizationCommand as C;
+
+        match command {
+            C::SelectArticle => self.toggle_article_selection()?,
+            C::SelectPage => self.select_page()?,
+            C::ClearSelection => self.marked.clear(),
+            C::Bulk => self.apply_bulk(argument)?,
+            C::Tags => {
+                let article = self.current().context("Select an article")?.id;
+                self.edit_tags(TagTarget::Article(article), argument)?;
             }
-            "continue" => self.set_view(View::Continue)?,
-            "since-last-visit" => {
+            C::Related => self.show_occurrences()?,
+            C::Pin => self.toggle_pin()?,
+            C::Collapse => self.toggle_navigation_group(argument)?,
+            C::MoveUp | C::MoveDown => {
+                self.reorder_navigation(command == C::MoveDown)?
+            }
+            C::Continue => self.set_view(View::Continue)?,
+            C::SinceLastVisit => {
                 self.set_view(View::SinceLastVisit(self.workspace.last_visit))?
             }
-            "grouped" => self.set_view(View::Grouped)?,
-            _ => return Ok(None),
+            C::Grouped => self.set_view(View::Grouped)?,
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     fn toggle_article_selection(&mut self) -> Result<()> {
@@ -109,17 +115,7 @@ impl App {
         Ok(())
     }
 
-    fn edit_tags(&mut self, verb: &str, argument: &str) -> Result<()> {
-        let target = if verb == "highlight-tags" {
-            TagTarget::Comment(
-                self.comments
-                    .get(self.comment_selected)
-                    .context("Select a highlight/comment")?
-                    .id,
-            )
-        } else {
-            TagTarget::Article(self.current().context("Select an article")?.id)
-        };
+    fn edit_tags(&mut self, target: TagTarget, argument: &str) -> Result<()> {
         if argument.is_empty() {
             self.show_document(
                 "Independent tags · Esc close",

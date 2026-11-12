@@ -1,5 +1,7 @@
 //! Cached configuration inspection and guarded publication of external changes.
 
+use crate::app::commands::routing;
+
 use anyhow::Result;
 
 use super::{Action, App, Mode};
@@ -216,10 +218,12 @@ impl App {
 
     pub(super) fn configuration_command(
         &mut self,
-        verb: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "config" => {
+        command: routing::ConfigurationCommand,
+    ) -> Result<Action> {
+        use routing::ConfigurationCommand as C;
+
+        match command {
+            C::Config => {
                 let Some(config) = &self.configuration.document else {
                     anyhow::bail!(
                         "No configuration file in this session; demo mode is isolated"
@@ -235,10 +239,9 @@ impl App {
                         .unwrap_or(&config.document)
                 );
                 self.show_document("Configuration · Esc closes", &text, None);
-                Ok(Some(Action::None))
+                Ok(Action::None)
             }
-            "config-reload" => Ok(Some(Action::ReloadConfiguration)),
-            _ => Ok(None),
+            C::ConfigReload => Ok(Action::ReloadConfiguration),
         }
     }
 }

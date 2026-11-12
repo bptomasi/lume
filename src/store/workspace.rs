@@ -83,7 +83,7 @@ impl Store {
     /// # Errors
     /// Returns SQLite errors.
     pub fn set_queued(&self, article: i64, queued: bool) -> Result<()> {
-        self.set_flag(article, "queued", queued)
+        self.set_flag(article, super::PersonalFlag::Queued, queued)
     }
 
     /// Create or update a named smart list with typed, validated criteria.

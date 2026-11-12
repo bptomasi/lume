@@ -1,5 +1,7 @@
 //! Layout operations and a typed smart-list form own their validation.
 
+use crate::app::commands::routing;
+
 use anyhow::{Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tui_textarea::TextArea;
@@ -34,7 +36,7 @@ impl App {
     ) -> Result<Action> {
         use WorkspaceCommand as C;
         if matches!(command, C::Links | C::Lists | C::ExportArticle) {
-            self.guard_stale_command("article-action")?;
+            self.guard_stale_command(crate::command::Command::Links)?;
         }
         match command {
             C::ReaderPane
@@ -374,55 +376,54 @@ where
 impl App {
     pub(super) fn workspace_command(
         &mut self,
-        verb: &str,
-        argument: &str,
-    ) -> Result<Option<Action>> {
+        command: routing::WorkspaceCommand,
+        _argument: &str,
+    ) -> Result<Action> {
         use WorkspaceCommand as C;
-        let command = match verb {
-            "zen" => C::Zen,
-            "fullscreen" => C::Fullscreen,
-            "sidebar" => C::Library,
-            "articles" => C::Headlines,
-            "compact" => C::Compact,
-            "notebook" => C::Notebook,
-            "queue" => C::Queue,
-            "undo" => C::Undo,
-            "smart" => C::Smart,
-            "links" => C::Links,
-            "palette" => {
+        let command = match command {
+            routing::WorkspaceCommand::Zen => C::Zen,
+            routing::WorkspaceCommand::Fullscreen => C::Fullscreen,
+            routing::WorkspaceCommand::Sidebar => C::Library,
+            routing::WorkspaceCommand::Articles => C::Headlines,
+            routing::WorkspaceCommand::Compact => C::Compact,
+            routing::WorkspaceCommand::Notebook => C::Notebook,
+            routing::WorkspaceCommand::Queue => C::Queue,
+            routing::WorkspaceCommand::Undo => C::Undo,
+            routing::WorkspaceCommand::Smart => C::Smart,
+            routing::WorkspaceCommand::Links => C::Links,
+            routing::WorkspaceCommand::Palette => {
                 self.open_picker(PickerKind::Commands)?;
-                return Ok(Some(Action::None));
+                return Ok(Action::None);
             }
-            "editor" => {
+            routing::WorkspaceCommand::Editor => {
                 self.begin_reader_note()?;
-                return Ok(Some(Action::ExternalEditor));
+                return Ok(Action::ExternalEditor);
             }
-            "width" | "fullscreen-width" | "sidebar-width"
-            | "articles-width" => {
-                self.set_dimension(verb, argument)?;
-                return Ok(Some(Action::None));
-            }
-            "delete-smart" => {
+            routing::WorkspaceCommand::DeleteSmart => {
                 let View::Smart(id) = self.view else {
                     anyhow::bail!("Select a smart list first");
                 };
                 self.remove_destination(View::Smart(id))?;
-                return Ok(Some(Action::None));
+                return Ok(Action::None);
             }
-            _ => return Ok(None),
         };
-        self.perform(command).map(Some)
+        self.perform(command)
     }
 
-    fn set_dimension(&mut self, name: &str, value: &str) -> Result<()> {
+    pub(super) fn dimension_command(
+        &mut self,
+        command: routing::DimensionCommand,
+        value: &str,
+    ) -> Result<Action> {
+        use routing::DimensionCommand as C;
+
         let width = value.parse::<u16>()?;
         let mut workspace = self.workspace.clone();
-        match name {
-            "width" => workspace.reading_width = width,
-            "fullscreen-width" => workspace.fullscreen_width = width,
-            "sidebar-width" => workspace.library_width = width,
-            "articles-width" => workspace.article_width = width,
-            _ => {}
+        match command {
+            C::Width => workspace.reading_width = width,
+            C::FullscreenWidth => workspace.fullscreen_width = width,
+            C::SidebarWidth => workspace.library_width = width,
+            C::ArticlesWidth => workspace.article_width = width,
         }
         crate::validation::validate_workspace_dimensions(&workspace)?;
         self.workspace = workspace;
@@ -430,6 +431,6 @@ impl App {
         if !self.screen.is_empty() {
             self.resize_workspace(self.screen);
         }
-        Ok(())
+        Ok(Action::None)
     }
 }

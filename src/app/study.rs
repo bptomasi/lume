@@ -1,5 +1,7 @@
 //! User-authored study workflows capture ownership before opening editors.
 
+use crate::app::commands::routing;
+
 use anyhow::{Context, Result};
 
 use crate::model::StudyCard;
@@ -29,14 +31,16 @@ pub enum StudyAction {
 impl App {
     pub(super) fn study_command(
         &mut self,
-        verb: &str,
+        command: routing::StudyCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "review" => self.show_review(argument)?,
-            "cards" => self.show_study_cards(argument)?,
-            "card" => self.open_card(argument)?,
-            "review-in" => {
+    ) -> Result<Action> {
+        use routing::StudyCommand as C;
+
+        match command {
+            C::Review => self.show_review(argument)?,
+            C::Cards => self.show_study_cards(argument)?,
+            C::Card => self.open_card(argument)?,
+            C::ReviewIn => {
                 let note = self.note_target()?;
                 self.grade_review(
                     super::ReviewTarget::Note(Box::new(note)),
@@ -44,14 +48,13 @@ impl App {
                     false,
                 )?;
             }
-            "link-note" => {
+            C::LinkNote => {
                 self.link_note_article(argument.parse()?)?;
             }
-            "note-links" => self.show_note_links()?,
-            "export-notes" => self.export_incremental(argument)?,
-            _ => return Ok(None),
+            C::NoteLinks => self.show_note_links()?,
+            C::ExportNotes => self.export_incremental(argument)?,
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     fn open_card(&mut self, argument: &str) -> Result<()> {

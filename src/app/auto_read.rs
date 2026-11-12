@@ -133,7 +133,7 @@ impl App {
     pub(super) fn auto_read_command(
         &mut self,
         argument: &str,
-    ) -> Result<Option<Action>> {
+    ) -> Result<Action> {
         let mut policy = self.workspace.auto_read;
         match argument.trim() {
             "on" => policy.enabled = true,
@@ -146,7 +146,7 @@ impl App {
                     policy.min_active_seconds,
                     policy.min_coverage_percent
                 );
-                return Ok(Some(Action::None));
+                return Ok(Action::None);
             }
             _ => anyhow::bail!(
                 "Use :auto-read on|off|toggle|status; thresholds are in :settings or TOML"
@@ -162,6 +162,6 @@ impl App {
                 "disabled"
             }
         );
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 }

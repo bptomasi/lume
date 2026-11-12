@@ -1,5 +1,7 @@
 //! Source diagnostics and explicit, captured extraction-rule confirmation.
 
+use crate::app::commands::routing;
+
 use anyhow::{Context, Result, ensure};
 
 use crate::model::{RulePreview, RuleRequest, SourceHealth};
@@ -18,11 +20,11 @@ impl App {
 
     pub(super) fn extraction_command(
         &mut self,
-        verb: &str,
+        command: routing::ExtractionCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "extract-preview" => {
+    ) -> Result<Action> {
+        match command {
+            routing::ExtractionCommand::ExtractPreview => {
                 ensure!(
                     self.article_fetching.is_none(),
                     "Article worker is busy"
@@ -31,17 +33,18 @@ impl App {
                 let feed = self.current().context("Select an article")?.feed_id;
                 let selector = if argument == "auto" { "" } else { argument };
                 crate::validation::validate_selector(selector)?;
-                return Ok(Some(Action::PreviewRule(RuleRequest {
+                return Ok(Action::PreviewRule(RuleRequest {
                     target,
                     feed,
                     previous: self.store.article_selector(feed)?,
                     selector: selector.to_owned(),
-                })));
+                }));
             }
-            "source-health" => self.show_source_health()?,
-            _ => return Ok(None),
+            routing::ExtractionCommand::SourceHealth => {
+                self.show_source_health()?
+            }
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     /// Stage a successful unsaved preview without replacing an active editor.

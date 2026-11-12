@@ -785,3 +785,19 @@ fn compatibility_note_commands_share_the_interactive_writer_and_export_owner()
     assert!(output.join(format!("Lume-{article}.md")).exists());
     Ok(())
 }
+
+#[test]
+fn highlight_tag_command_targets_the_visible_notebook_note() -> Result<()> {
+    let (_directory, mut app, store, article, first) = annotated()?;
+    let selected =
+        store.save_comment(article, None, "Selected notebook note")?;
+    command(&mut app, &format!("notes id:{selected}"))?;
+    common::settle_notes(&mut app)?;
+
+    command(&mut app, "highlight-tags typed-route")?;
+    common::settle_notes(&mut app)?;
+
+    assert_eq!(store.annotation(article, selected)?.tags, ["typed-route"]);
+    assert!(store.annotation(article, first)?.tags.is_empty());
+    Ok(())
+}

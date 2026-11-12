@@ -1,3 +1,5 @@
+use crate::app::commands::routing;
+
 use anyhow::{Context, Result, bail, ensure};
 
 use super::{App, Request, RetentionAction};
@@ -10,18 +12,19 @@ use crate::{
 impl App {
     pub(in crate::app) fn maintenance_command(
         &mut self,
-        verb: &str,
+        command: routing::MaintenanceCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "offline" => self.offline_command(argument)?,
-            "backup" => self.backup_command(argument)?,
-            "storage" => self.storage_command(argument)?,
-            "session" => self.reading_session_command(argument)?,
-            "retention" => self.retention_command(argument)?,
-            _ => return Ok(None),
+    ) -> Result<Action> {
+        use routing::MaintenanceCommand as C;
+
+        match command {
+            C::Offline => self.offline_command(argument)?,
+            C::Backup => self.backup_command(argument)?,
+            C::Storage => self.storage_command(argument)?,
+            C::Session => self.reading_session_command(argument)?,
+            C::Retention => self.retention_command(argument)?,
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     fn backup_command(&mut self, argument: &str) -> Result<()> {

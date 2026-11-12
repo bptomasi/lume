@@ -1,5 +1,7 @@
 //! Local import/export dispatch; network discovery stays with the worker.
 
+use crate::app::commands::routing;
+
 use std::path::Path;
 
 use anyhow::Result;
@@ -41,22 +43,23 @@ impl App {
 
     pub(super) fn exchange_command(
         &mut self,
-        verb: &str,
+        command: routing::ExchangeCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        let kind = match verb {
-            "discover" => InputKind::Discover,
-            "import" => InputKind::Import,
-            "export" => match self.current() {
+    ) -> Result<Action> {
+        let kind = match command {
+            routing::ExchangeCommand::Discover => InputKind::Discover,
+            routing::ExchangeCommand::Import => InputKind::Import,
+            routing::ExchangeCommand::Export => match self.current() {
                 Some(article) => InputKind::ExportArticle(article.id),
                 None => anyhow::bail!("Select an article to export"),
             },
-            "export-notebook" => InputKind::ExportNotebook,
-            "export-opml" => InputKind::ExportOpml,
-            _ => return Ok(None),
+            routing::ExchangeCommand::ExportNotebook => {
+                InputKind::ExportNotebook
+            }
+            routing::ExchangeCommand::ExportOpml => InputKind::ExportOpml,
         };
         let input = Input::new(kind, argument.to_owned(), String::new());
-        self.exchange_input(&input).map(Some)
+        self.exchange_input(&input)
     }
 }
 

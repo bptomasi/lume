@@ -73,7 +73,7 @@ impl App {
                 .context("Wait for the linked page")?
                 .cursor_row()
         } else {
-            self.guard_stale_command("image")?;
+            self.guard_stale_command(crate::command::Command::Image)?;
             ensure!(
                 self.focus == Focus::Reader && self.notebook.is_none(),
                 "Focus Reader before opening an image"

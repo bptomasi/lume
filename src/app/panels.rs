@@ -1,5 +1,7 @@
 //! Pane commands and keyboard layout gestures share persisted preferences.
 
+use crate::app::commands::routing;
+
 use anyhow::{Context, Result, bail};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::layout::Rect;
@@ -157,36 +159,41 @@ impl App {
 
     pub(super) fn panel_command(
         &mut self,
-        verb: &str,
+        command: routing::PanelCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "panel" => self.toggle_pane(pane_named(argument)?)?,
-            "panel-focus" => self.focus_pane(pane_named(argument)?)?,
-            "panel-close" => {
+    ) -> Result<Action> {
+        match command {
+            routing::PanelCommand::Panel => {
+                self.toggle_pane(pane_named(argument)?)?
+            }
+            routing::PanelCommand::PanelFocus => {
+                self.focus_pane(pane_named(argument)?)?
+            }
+            routing::PanelCommand::PanelClose => {
                 self.workspace.set_pane_visible(self.focus, false);
                 self.commit_panel_layout()?;
             }
-            "panel-move" => match argument {
+            routing::PanelCommand::PanelMove => match argument {
                 "left" => self.move_focused_pane(false)?,
                 "right" => self.move_focused_pane(true)?,
                 "up" | "above" => self.move_spatially(Dock::Above)?,
                 "down" | "below" => self.move_spatially(Dock::Below)?,
                 _ => bail!("Use :panel-move left|right|up|down"),
             },
-            "panel-split" => self.split_focused(
+            routing::PanelCommand::PanelSplit => self.split_focused(
                 Dock::named(argument)
                     .context("Use :panel-split right|below")?,
             )?,
-            "panel-resize" => {
+            routing::PanelCommand::PanelResize => {
                 self.resize_focused_pane(argument.parse::<i16>()?.into())?
             }
-            "annotations" => self.toggle_pane(Pane::Annotations)?,
-            "reader" => self.toggle_pane(Pane::Reader)?,
-            "mouse" => self.mouse_command(argument)?,
-            _ => return Ok(None),
+            routing::PanelCommand::Annotations => {
+                self.toggle_pane(Pane::Annotations)?
+            }
+            routing::PanelCommand::Reader => self.toggle_pane(Pane::Reader)?,
+            routing::PanelCommand::Mouse => self.mouse_command(argument)?,
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     fn mouse_command(&mut self, argument: &str) -> Result<()> {
@@ -293,9 +300,11 @@ impl App {
             self.focus_spatially(edge);
             return Ok(true);
         }
+        use routing::LayoutCommand as C;
+
         match code {
             KeyCode::Char('=') => {
-                self.layout_commands("layout-reset", "")?;
+                self.layout_commands(C::LayoutReset, "")?;
             }
             KeyCode::Char('J') | KeyCode::Down => {
                 self.move_spatially(Dock::Below)?
@@ -306,10 +315,10 @@ impl App {
             KeyCode::Char('s') => self.split_focused(Dock::Below)?,
             KeyCode::Char('v') => self.split_focused(Dock::Right)?,
             KeyCode::Char('u') => {
-                self.layout_commands("layout-undo", "")?;
+                self.layout_commands(C::LayoutUndo, "")?;
             }
             KeyCode::Char('r') => {
-                self.layout_commands("layout-redo", "")?;
+                self.layout_commands(C::LayoutRedo, "")?;
             }
             _ => return Ok(false),
         }

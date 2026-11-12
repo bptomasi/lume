@@ -3,6 +3,8 @@
 //! HTTP, extraction and layout run on a latest-request lane. Back/forward owns
 //! bounded page snapshots; the underlying article and its cursor stay untouched.
 
+use crate::app::commands::routing;
+
 mod keys;
 mod page;
 pub use page::{WebDocument, WebPage};
@@ -250,28 +252,25 @@ impl App {
 
     pub(super) fn web_command(
         &mut self,
-        verb: &str,
+        command: routing::WebCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "image" | "image-open" | "images" | "image-protocol"
-                if self.web.active =>
-            {
-                return self.image_command(verb, argument);
+    ) -> Result<Action> {
+        match command {
+            routing::WebCommand::LatexFormulas => {
+                self.set_formula_rendering(argument)?
             }
-            "latex-formulas" => self.set_formula_rendering(argument)?,
-            "open-link" => {
+            routing::WebCommand::OpenLink => {
                 if self.web.active {
-                    return self.web_follow_link().map(Some);
+                    return self.web_follow_link();
                 }
                 let address = self
                     .cursor_link()
                     .context("Place the cursor on a link")?
                     .to_owned();
-                return self.follow_reader_link(&address).map(Some);
+                return self.follow_reader_link(&address);
             }
-            "open-page" => self.open_web_page(argument)?,
-            "save-page" => {
+            routing::WebCommand::OpenPage => self.open_web_page(argument)?,
+            routing::WebCommand::SavePage => {
                 ensure!(
                     self.web.active && !self.web.opening,
                     "Wait for the linked page before saving"
@@ -284,9 +283,8 @@ impl App {
                 let document = page.document.clone();
                 self.save_web_document(document)?;
             }
-            _ => return Ok(None),
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     /// Clear the active copied selection without changing a suspended article.

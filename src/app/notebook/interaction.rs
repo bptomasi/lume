@@ -5,6 +5,7 @@ use crossterm::event::{KeyCode, KeyEventKind, MouseEvent};
 use ratatui::layout::Rect;
 
 use super::super::{App, Focus, Mode};
+use crate::model::NoteChange;
 
 impl super::Notebook {
     /// Visible note cards, shared by painting and pointer hit testing.
@@ -60,11 +61,13 @@ impl App {
         kind: KeyEventKind,
     ) -> Result<()> {
         match code {
-            KeyCode::Char('p') => self.change_note_metadata("note-pin", "")?,
+            KeyCode::Char('p') => {
+                self.change_note_metadata(NoteChange::TogglePin)?
+            }
             KeyCode::Char('t') => self.open_note_tags("")?,
             KeyCode::Char('T') => self.show_note_kinds()?,
             KeyCode::Char('r') => {
-                self.change_note_metadata("note-status-toggle", "")?
+                self.change_note_metadata(NoteChange::ToggleResolved)?
             }
             KeyCode::Char('u') => self.undo()?,
             KeyCode::Char('d') if kind != KeyEventKind::Repeat => {

@@ -1,5 +1,7 @@
 //! Explicit connections expose credential sources and ordinary Library actions.
 
+use crate::app::commands::routing;
+
 use anyhow::{Context, Result, bail, ensure};
 
 use super::{Action, App, Choice, ChoiceAction, Focus, Mode, View};
@@ -10,28 +12,29 @@ pub use token::ServerToken;
 impl App {
     pub(super) fn server_command(
         &mut self,
-        verb: &str,
+        command: routing::ServerCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "server" => return self.connect_server(argument).map(Some),
-            "servers" => self.inspect_servers()?,
-            "server-history" => {
+    ) -> Result<Action> {
+        use routing::ServerCommand as C;
+
+        match command {
+            C::Server => return self.connect_server(argument),
+            C::Servers => self.inspect_servers()?,
+            C::ServerHistory => {
                 self.store.restart_server_history(self.selected_server()?)?;
                 self.reload()?;
                 self.status =
                     "History restarted · cached articles retained".into();
-                return Ok(Some(Action::Refresh));
+                return Ok(Action::Refresh);
             }
-            "unserver" => {
+            C::Unserver => {
                 self.remove_destination(View::Server(self.selected_server()?))?;
             }
-            "server-enable" | "server-disable" => {
-                return self.enable_server(verb == "server-enable").map(Some);
+            C::ServerEnable | C::ServerDisable => {
+                return self.enable_server(command == C::ServerEnable);
             }
-            _ => return Ok(None),
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     fn connect_server(&mut self, argument: &str) -> Result<Action> {

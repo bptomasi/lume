@@ -164,7 +164,7 @@ impl App {
         article: i64,
         visible: Range<usize>,
     ) -> Result<(i64, Passage)> {
-        self.guard_stale_command("highlight")?;
+        self.guard_stale_command(crate::command::Command::Annotate)?;
         ensure!(
             visible.end <= self.article_text_end,
             "Select article text to capture a highlight"

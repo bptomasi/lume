@@ -1,5 +1,7 @@
 //! Small preference commands reuse Lume's existing boolean search vocabulary.
 
+use crate::{app::commands::routing, command::Command};
+
 use super::{
     super::{Action, App},
     Edit,
@@ -10,41 +12,34 @@ use anyhow::{Context, Result, ensure};
 impl App {
     pub(in crate::app) fn recommendation_command(
         &mut self,
-        verb: &str,
+        command: routing::RecommendationCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        ensure!(
-            self.notebook.is_none()
-                || !matches!(
-                    verb,
-                    "recommend-feedback" | "recommend-why" | "similar"
-                ),
-            "Open the source with Enter before using article actions"
-        );
-        match verb {
-            "recommendations" => {
+    ) -> Result<Action> {
+        use routing::RecommendationCommand as C;
+
+        match command {
+            C::Recommendations => {
                 self.set_view(View::Recommended)?;
                 self.focus = super::super::Focus::Articles;
                 self.status = "For you · :recommend-why explains · :recommend-feedback rates".into();
             }
-            "recommend-profile" => self.show_recommendation_profile()?,
-            "interest" => self.edit_recommendations(Edit::Interest(
+            C::RecommendProfile => self.show_recommendation_profile()?,
+            C::Interest => self.edit_recommendations(Edit::Interest(
                 parse_interest(argument)?,
             ))?,
-            "interest-remove" => {
+            C::InterestRemove => {
                 ensure!(!argument.is_empty(), "Use :interest-remove NAME");
                 self.edit_recommendations(Edit::Remove(argument.into()))?;
             }
-            "recommend-exclude" => {
+            C::RecommendExclude => {
                 self.edit_recommendations(Edit::Exclude(argument.into()))?
             }
-            "recommend-settings" => self.recommendation_setting(argument)?,
-            "recommend-feedback" => self.rate_recommendation(argument)?,
-            "recommend-why" => self.explain_recommendation()?,
-            "similar" => self.similar_interests()?,
-            _ => return Ok(None),
+            C::RecommendSettings => self.recommendation_setting(argument)?,
+            C::RecommendFeedback => self.rate_recommendation(argument)?,
+            C::RecommendWhy => self.explain_recommendation()?,
+            C::Similar => self.similar_interests()?,
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     fn show_recommendation_profile(&mut self) -> Result<()> {
@@ -87,7 +82,7 @@ impl App {
     }
 
     fn rate_recommendation(&mut self, argument: &str) -> Result<()> {
-        self.guard_notebook_article_command("recommend-feedback")?;
+        self.guard_notebook_article_command(Command::RecommendFeedback)?;
         let article = self.current().context("Select an article first")?.id;
         let feedback = match argument {
             "useful" => Some(RecommendationFeedback::Useful),

@@ -1,5 +1,7 @@
 //! Live visual previews and normal-mode command bindings, separate from drafts.
 
+use crate::app::commands::routing;
+
 mod editing;
 
 use anyhow::{Result, ensure};
@@ -53,22 +55,20 @@ pub fn key_name(key: KeyEvent) -> String {
 impl App {
     pub(super) fn settings_command(
         &mut self,
-        verb: &str,
+        command: routing::SettingsCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "auto-read" => return self.auto_read_command(argument),
-            "config" | "config-reload" => {
-                return self.configuration_command(verb);
-            }
-            "settings" => {
+    ) -> Result<Action> {
+        use routing::SettingsCommand as C;
+
+        match command {
+            C::Settings => {
                 self.mode = Mode::Settings(Box::new(SettingsDraft {
                     before: self.workspace.clone(),
                     field: 0,
                     editor: None,
                 }))
             }
-            "theme" => {
+            C::Theme => {
                 ensure!(
                     ["lume", "nord", "gruvbox"].contains(&argument),
                     "Use :theme lume|nord|gruvbox"
@@ -76,16 +76,14 @@ impl App {
                 self.workspace.theme = argument.into();
                 self.persist_preferences()?;
             }
-            "justify" => self.set_justification(argument)?,
-            "latex-formulas" => self.set_formula_rendering(argument)?,
-            "bind" => self.bind_command(argument)?,
-            "unbind" => {
+            C::Justify => self.set_justification(argument)?,
+            C::Bind => self.bind_command(argument)?,
+            C::Unbind => {
                 self.workspace.keybindings.remove(argument);
                 self.persist_preferences()?;
             }
-            _ => return Ok(None),
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     fn set_justification(&mut self, argument: &str) -> Result<()> {

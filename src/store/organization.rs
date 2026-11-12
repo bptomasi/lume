@@ -11,7 +11,7 @@ use rusqlite::{Connection, Transaction};
 use crate::model::{BulkEdit, TagTarget};
 
 use super::{
-    Store,
+    PersonalFlag, Store,
     history::{self, Undo},
 };
 
@@ -61,15 +61,24 @@ impl Store {
         );
         let transaction = self.write_transaction()?;
         let previous = match edit {
-            BulkEdit::Unread(value) => {
-                flags::apply(&transaction, articles, "unread", *value)?
-            }
-            BulkEdit::Favorite(value) => {
-                flags::apply(&transaction, articles, "starred", *value)?
-            }
-            BulkEdit::Queue(value) => {
-                flags::apply(&transaction, articles, "queued", *value)?
-            }
+            BulkEdit::Unread(value) => flags::apply(
+                &transaction,
+                articles,
+                PersonalFlag::Unread,
+                *value,
+            )?,
+            BulkEdit::Favorite(value) => flags::apply(
+                &transaction,
+                articles,
+                PersonalFlag::Starred,
+                *value,
+            )?,
+            BulkEdit::Queue(value) => flags::apply(
+                &transaction,
+                articles,
+                PersonalFlag::Queued,
+                *value,
+            )?,
             _ => edit_members(&transaction, articles, edit)?,
         };
         if !previous.is_empty() {

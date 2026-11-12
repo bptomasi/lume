@@ -1,5 +1,5 @@
 //! One captured flag batch validates every target before a single SQL update.
-use super::{BTreeSet, Result, Transaction, Undo, ensure};
+use super::{BTreeSet, PersonalFlag, Result, Transaction, Undo, ensure};
 
 struct State {
     article: i64,
@@ -20,11 +20,11 @@ impl State {
         })
     }
 
-    fn inverse(self, column: &str, value: bool) -> Option<Undo> {
-        let current = match column {
-            "unread" => self.unread,
-            "starred" => self.starred,
-            _ => self.queued,
+    fn inverse(self, flag: PersonalFlag, value: bool) -> Option<Undo> {
+        let current = match flag {
+            PersonalFlag::Unread => self.unread,
+            PersonalFlag::Starred => self.starred,
+            PersonalFlag::Queued => self.queued,
         };
         (current != value).then_some(Undo::Flags {
             article: self.article,
@@ -38,7 +38,7 @@ impl State {
 pub(super) fn apply(
     transaction: &Transaction<'_>,
     articles: &BTreeSet<i64>,
-    column: &str,
+    flag: PersonalFlag,
     value: bool,
 ) -> Result<Vec<Undo>> {
     let ids = serde_json::to_string(articles)?;
@@ -56,13 +56,12 @@ pub(super) fn apply(
     );
     let previous = rows
         .into_iter()
-        .filter_map(|row| row.inverse(column, value))
+        .filter_map(|row| row.inverse(flag, value))
         .collect::<Vec<_>>();
     if !previous.is_empty() {
-        // Only the three owner-selected flag names can reach this template.
-        let sql = include_str!("../sql/update_bulk_flag.sql")
-            .replace("{column}", column);
-        transaction.prepare_cached(&sql)?.execute((value, ids))?;
+        transaction
+            .prepare_cached(flag.update_batch())?
+            .execute((value, ids))?;
     }
     Ok(previous)
 }

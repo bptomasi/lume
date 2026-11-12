@@ -3,6 +3,8 @@
 //! Requests capture IDs/URLs. Completion never retargets a draft or selection;
 //! a safe source switch waits until normal mode without a visual selection.
 
+use crate::app::commands::routing;
+
 use anyhow::{Context, Result, bail, ensure};
 
 use crate::{
@@ -185,11 +187,11 @@ impl App {
 
     pub(super) fn document_command(
         &mut self,
-        verb: &str,
+        command: routing::DocumentCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        let action = match verb {
-            "fetch" => {
+    ) -> Result<Action> {
+        let action = match command {
+            routing::DocumentCommand::Fetch => {
                 ensure!(argument.is_empty(), "Use :fetch without arguments");
                 ensure!(!self.demo, "Article fetching needs a real library");
                 ensure!(
@@ -198,14 +200,15 @@ impl App {
                 );
                 Action::FetchArticle(self.selected_article_target()?)
             }
-            "content" => return self.select_content(argument).map(Some),
-            "fetch-policy" => {
+            routing::DocumentCommand::Content => {
+                return self.select_content(argument);
+            }
+            routing::DocumentCommand::FetchPolicy => {
                 self.change_fetch_policy(argument)?;
                 Action::None
             }
-            _ => return Ok(None),
         };
-        Ok(Some(action))
+        Ok(action)
     }
 
     fn select_content(&mut self, argument: &str) -> Result<Action> {
@@ -229,9 +232,7 @@ impl App {
             }
         };
         if source == ContentSource::Full && self.content_source != source {
-            return self
-                .document_command("fetch", "")?
-                .context("Missing article fetch command");
+            return self.document_command(routing::DocumentCommand::Fetch, "");
         }
         Ok(Action::None)
     }

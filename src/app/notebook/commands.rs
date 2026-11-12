@@ -1,5 +1,7 @@
 //! Explicit notebook commands share targets with keyboard and mouse actions.
 
+use crate::{app::commands::routing, command::Command};
+
 use anyhow::{Context, Result, ensure};
 
 use crate::model::{AnnotationSnapshot, NoteChange, NoteKind};
@@ -12,47 +14,15 @@ use super::super::{
 impl App {
     pub(in crate::app) fn guard_notebook_article_command(
         &self,
-        verb: &str,
+        command: Command,
     ) -> Result<()> {
         if self.notebook.is_none() {
             return Ok(());
         }
         // The article page is hidden in Notebook. Explicit source navigation
         // must precede mutations of that page or its multi-article selection.
-        let article_action = matches!(
-            verb,
-            "favorite"
-                | "mark-read"
-                | "mark-unread"
-                | "save"
-                | "organize"
-                | "delete-article"
-                | "restore-article"
-                | "bulk"
-                | "tags"
-                | "select-article"
-                | "select-page"
-                | "clear-selection"
-                | "rename"
-                | "delete-folder"
-                | "unfeed"
-                | "delete-smart"
-                | "pin"
-                | "move-up"
-                | "move-down"
-                | "collapse"
-                | "fetch"
-                | "content"
-                | "extract-preview"
-                | "extract-rule"
-                | "extract-auto"
-                | "links"
-                | "toc"
-                | "tables"
-                | "copy-code"
-        );
         ensure!(
-            !article_action,
+            !command.requires_visible_article(),
             "Open the source with Enter before using article actions; p pins a note"
         );
         Ok(())
@@ -79,22 +49,21 @@ impl App {
 
     pub(in crate::app) fn notebook_command(
         &mut self,
-        verb: &str,
+        command: routing::NotebookCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        if self.notebook_inspection_command(verb, argument)? {
-            return Ok(Some(Action::None));
-        }
-        match verb {
-            "notes" => self.open_note_query(argument)?,
-            "note-search" => {
+    ) -> Result<Action> {
+        use routing::NotebookCommand as C;
+
+        match command {
+            C::Notes => self.open_note_query(argument)?,
+            C::NoteSearch => {
                 if argument.is_empty() {
                     self.begin_global_note_search()?;
                 } else {
                     self.open_note_query(argument)?;
                 }
             }
-            "note-collection" => {
+            C::NoteCollection => {
                 ensure!(
                     self.notebook.is_some(),
                     "Open Notebook and choose a query first"
@@ -105,15 +74,13 @@ impl App {
                     self.save_current_note_collection(argument)?;
                 }
             }
-            "note-type" | "note-status" | "note-pin" => {
-                self.change_note_metadata(verb, argument)?
-            }
-            "note-tags" => self.open_note_tags(argument)?,
-            "highlight-tags" => self.open_note_tags(argument)?,
-            "note-backlinks" => self.show_note_references()?,
-            _ => return Ok(None),
+            C::NoteType => self.change_note_kind(argument)?,
+            C::NoteStatus => self.change_note_status(argument)?,
+            C::NotePin => self.change_note_metadata(NoteChange::TogglePin)?,
+            C::NoteTags | C::HighlightTags => self.open_note_tags(argument)?,
+            C::NoteBacklinks => self.show_note_references()?,
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     fn open_note_query(&mut self, query: &str) -> Result<()> {
@@ -137,27 +104,33 @@ impl App {
         Ok(())
     }
 
-    fn notebook_inspection_command(
+    pub(in crate::app) fn notebook_inspection_command(
         &mut self,
-        verb: &str,
+        command: routing::NotebookInspectionCommand,
         argument: &str,
-    ) -> Result<bool> {
+    ) -> Result<Action> {
         use super::inspection::Inspection;
-        match verb {
-            "drafts" => self.inspect_notes(Inspection::Drafts)?,
-            "export-note-files" => {
+        match command {
+            routing::NotebookInspectionCommand::Drafts => {
+                self.inspect_notes(Inspection::Drafts)?
+            }
+            routing::NotebookInspectionCommand::ExportNoteFiles => {
                 self.export_note_files(argument)?;
             }
-            "note-history" => {
+            routing::NotebookInspectionCommand::NoteHistory => {
                 let note = std::sync::Arc::new(self.note_target()?);
                 self.inspect_notes(Inspection::Versions(note))?;
             }
-            "note-reanchor" => self.preview_note_anchor()?,
-            "note-synthesis" => self.synthesize_notes()?,
-            "note-recent" => {
+            routing::NotebookInspectionCommand::NoteReanchor => {
+                self.preview_note_anchor()?
+            }
+            routing::NotebookInspectionCommand::NoteSynthesis => {
+                self.synthesize_notes()?
+            }
+            routing::NotebookInspectionCommand::NoteRecent => {
                 self.show_recent_note_searches()?;
             }
-            "note-collection-delete" => {
+            routing::NotebookInspectionCommand::NoteCollectionDelete => {
                 if let Some(writer) = &mut self.personal_writes {
                     writer.submit(Task::Query(QueryEdit::Delete(
                         argument.into(),
@@ -167,9 +140,8 @@ impl App {
                     self.invalidate_notebook();
                 }
             }
-            _ => return Ok(false),
         }
-        Ok(true)
+        Ok(Action::None)
     }
 
     fn show_recent_note_searches(&mut self) -> Result<()> {
@@ -211,7 +183,7 @@ impl App {
                 .map(|context| context.note.clone())
                 .context("Wait for the selected note's context");
         }
-        self.guard_stale_command("note")?;
+        self.guard_stale_command(crate::command::Command::Note)?;
         let article = self.current().context("Select an article")?.id;
         let id = self
             .cursor_note()
@@ -224,22 +196,35 @@ impl App {
 
     pub(in crate::app) fn change_note_metadata(
         &mut self,
-        verb: &str,
-        argument: &str,
+        change: NoteChange,
     ) -> Result<()> {
         let note = self.note_target()?;
-        let change = match verb {
-            "note-type" => NoteChange::Kind(NoteKind::named(argument)?),
-            "note-status" => {
-                ensure!(
-                    matches!(argument, "open" | "resolved"),
-                    "Use open or resolved"
-                );
-                NoteChange::Resolved(argument == "resolved")
-            }
-            "note-status-toggle" => NoteChange::ToggleResolved,
-            _ => NoteChange::TogglePin,
-        };
+        self.change_captured_note_metadata(note, change)
+    }
+
+    fn change_note_kind(&mut self, argument: &str) -> Result<()> {
+        let note = self.note_target()?;
+        let change = NoteChange::Kind(NoteKind::named(argument)?);
+        self.change_captured_note_metadata(note, change)
+    }
+
+    fn change_note_status(&mut self, argument: &str) -> Result<()> {
+        let note = self.note_target()?;
+        ensure!(
+            matches!(argument, "open" | "resolved"),
+            "Use open or resolved"
+        );
+        self.change_captured_note_metadata(
+            note,
+            NoteChange::Resolved(argument == "resolved"),
+        )
+    }
+
+    fn change_captured_note_metadata(
+        &mut self,
+        note: AnnotationSnapshot,
+        change: NoteChange,
+    ) -> Result<()> {
         if let Some(writer) = &mut self.personal_writes {
             writer.submit(Task::Edit(crate::app::NoteEdit::Metadata {
                 article: note.article,

@@ -26,6 +26,8 @@ mod notebook;
 mod occurrences;
 mod offline;
 mod organization;
+mod personal_flag;
+use personal_flag::PersonalFlag;
 mod query;
 mod reading_sessions;
 mod retention;
@@ -168,7 +170,7 @@ impl Store {
     /// # Errors
     /// Returns SQLite errors.
     pub fn set_unread(&self, id: i64, unread: bool) -> Result<()> {
-        self.set_flag(id, "unread", unread)
+        self.set_flag(id, PersonalFlag::Unread, unread)
     }
 
     /// Persist explicit favorite state, independent of collections.
@@ -176,7 +178,7 @@ impl Store {
     /// # Errors
     /// Returns SQLite errors.
     pub fn set_starred(&self, id: i64, starred: bool) -> Result<()> {
-        self.set_flag(id, "starred", starred)
+        self.set_flag(id, PersonalFlag::Starred, starred)
     }
 
     fn collections(&self) -> Result<Vec<Collection>> {

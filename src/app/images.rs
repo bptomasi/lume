@@ -1,5 +1,7 @@
 //! Visible-image admission and exact thumbnail keys preserve reader identity.
 
+use crate::app::commands::routing;
+
 mod inspector;
 mod viewport;
 pub use inspector::ImageInspector;
@@ -412,22 +414,22 @@ impl App {
 
     pub(super) fn image_command(
         &mut self,
-        verb: &str,
+        command: routing::ImageCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        if verb == "image" {
-            self.open_image_inspector()?;
-            return Ok(Some(Action::None));
-        }
-        if verb == "image-protocol" {
-            self.set_image_protocol(argument)?;
-            return Ok(Some(Action::None));
-        }
-        if !matches!(verb, "images" | "image-open") {
-            return Ok(None);
-        }
-        if verb == "image-open" {
-            return Ok(Some(self.captured_image()?.original_action()));
+    ) -> Result<Action> {
+        match command {
+            routing::ImageCommand::Image => {
+                self.open_image_inspector()?;
+                return Ok(Action::None);
+            }
+            routing::ImageCommand::ImageProtocol => {
+                self.set_image_protocol(argument)?;
+                return Ok(Action::None);
+            }
+            routing::ImageCommand::ImageOpen => {
+                return Ok(self.captured_image()?.original_action());
+            }
+            routing::ImageCommand::Images => {}
         }
         match argument {
             "" => {}
@@ -453,7 +455,7 @@ impl App {
             "Image loading {} · :images on/off · :image-open",
             if self.images.enabled { "on" } else { "paused" }
         );
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 }
 

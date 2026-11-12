@@ -1,5 +1,7 @@
 //! Explicit application operations and the small ex command vocabulary.
 
+use crate::command::Command;
+
 use anyhow::{Result, bail};
 
 use super::{Action, App, Input, InputKind, View};
@@ -49,120 +51,120 @@ impl App {
     }
 
     pub(crate) fn command(&mut self, text: &str) -> Result<Action> {
-        if let Some(action) = self.session_command(text)? {
-            return Ok(action);
-        }
-        let (verb, argument) = command_parts(text);
-        if let Some(action) = self.web_command(verb, argument)? {
-            return Ok(action);
+        let (word, argument) = command_parts(text);
+        let spec = crate::command::resolve(word).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Unknown command · Tab completes · :help shows the guide"
+            )
+        })?;
+        let command = spec.command;
+        // Session writes and web navigation precede article-specific guards.
+        let owner = command_owner(command);
+        if let CommandOwner::Session(command) = owner {
+            anyhow::ensure!(
+                argument.is_empty(),
+                ":{word} does not accept arguments"
+            );
+            return self.session_command(command, argument);
         }
         anyhow::ensure!(
-            !self.web.active || matches!(verb, "help" | "performance"),
+            !self.web.active || command.allowed_on_linked_page(),
             "Linked pages are read-only · :save-page adds one to the library"
         );
-        if let Some(action) = self.maintenance_command(verb, argument)? {
-            return Ok(action);
+        if let CommandOwner::Maintenance(command) = owner {
+            return self.maintenance_command(command, argument);
         }
-        self.guard_notebook_article_command(verb)?;
-        self.guard_stale_command(verb)?;
-        self.dispatch_command(verb, argument)
+        let web_image =
+            self.web.active && matches!(owner, CommandOwner::Image(_));
+        if !matches!(owner, CommandOwner::Web(_)) && !web_image {
+            self.guard_notebook_article_command(command)?;
+            self.guard_stale_command(command)?;
+        }
+        self.dispatch_command(command, argument)
     }
 
-    fn dispatch_command(
+    fn dispatch_auto_read(
         &mut self,
-        verb: &str,
+        command: routing::AutoReadCommand,
         argument: &str,
     ) -> Result<Action> {
-        type Handler = fn(&mut App, &str, &str) -> Result<Option<Action>>;
-        let handlers: &[Handler] = &[
-            App::recommendation_command,
-            App::layout_commands,
-            App::panel_command,
-            App::reading_command,
-            App::organization_command,
-            App::server_command,
-            App::study_command,
-            App::settings_command,
-            App::exchange_command,
-            App::workspace_command,
-            App::folder_command,
-        ];
-        for handler in handlers {
-            if let Some(action) = handler(self, verb, argument)? {
-                return Ok(action);
+        match command {
+            routing::AutoReadCommand::AutoRead => {
+                self.auto_read_command(argument)
             }
         }
-        if let Some(action) = self.article_command(verb, argument)? {
-            return Ok(action);
-        }
-        self.library_command(verb, argument)
     }
 
-    fn reading_command(
+    fn dispatch_performance(
         &mut self,
-        verb: &str,
+        command: routing::PerformanceCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        if verb == "performance" {
-            return self.performance_command(argument).map(Some);
+    ) -> Result<Action> {
+        use routing::PerformanceCommand as C;
+
+        match command {
+            C::Performance => self.performance_command(argument),
         }
-        if let Some(action) = self.notebook_command(verb, argument)? {
-            return Ok(Some(action));
-        }
-        if let Some(action) = self.extraction_command(verb, argument)? {
-            return Ok(Some(action));
-        }
-        if let Some(action) = self.reader_tools_command(verb, argument)? {
-            return Ok(Some(action));
-        }
-        if let Some(action) = self.image_command(verb, argument)? {
-            return Ok(Some(action));
-        }
-        self.document_command(verb, argument)
+    }
+
+    fn dispatch_configuration(
+        &mut self,
+        command: routing::ConfigurationCommand,
+        _argument: &str,
+    ) -> Result<Action> {
+        self.configuration_command(command)
     }
 
     fn library_command(
         &mut self,
-        verb: &str,
+        command: routing::LibraryCommand,
         argument: &str,
     ) -> Result<Action> {
-        match verb {
-            "r" | "refresh" => return Ok(Action::Refresh),
-            "feed" => {
-                self.store.subscribe(argument)?;
-                self.reload()?;
-                self.status = "Feed added; collecting in the background".into();
-                return Ok(Action::Refresh);
+        use routing::LibraryCommand as C;
+
+        match command {
+            C::Refresh => return Ok(Action::Refresh),
+            C::Feed => return self.add_feed(argument),
+            C::Rename => self.rename_folder(argument)?,
+            C::DeleteFolder => {
+                self.submit_library_edit(
+                    super::personal_tasks::LibraryEdit::DeleteFolder(
+                        self.active_list()?,
+                    ),
+                )?;
             }
-            "rename" | "delete-folder" => self.edit_folder(verb, argument)?,
-            "delete-comment" => {
+            C::DeleteComment => {
                 let note = self.note_target()?;
                 self.delete_captured_note(note.article, note.comment.id)?;
                 return Ok(Action::None);
             }
-            "unfeed" => {
+            C::Unfeed => {
                 self.unsubscribe()?;
                 return Ok(Action::None);
             }
-            "read" => {
+            C::Read => {
                 self.set_view(View::Read)?;
                 return Ok(Action::None);
             }
-            "mark-read" | "mark-unread" => {
-                self.set_read_state(verb == "mark-unread")?;
+            C::MarkRead | C::MarkUnread => {
+                self.set_read_state(command == C::MarkUnread)?;
                 return Ok(Action::None);
             }
-            "help" => {
+            C::Help => {
                 self.show_help(argument)?;
                 return Ok(Action::None);
-            }
-            _ => {
-                bail!("Unknown command · Tab completes · :help shows the guide")
             }
         }
         self.reload()?;
         self.status = "Library updated".into();
         Ok(Action::None)
+    }
+
+    fn add_feed(&mut self, url: &str) -> Result<Action> {
+        self.store.subscribe(url)?;
+        self.reload()?;
+        self.status = "Feed added; collecting in the background".into();
+        Ok(Action::Refresh)
     }
 
     fn save_folder(&mut self, name: &str, article: Option<i64>) -> Result<()> {
@@ -175,36 +177,33 @@ impl App {
         )
     }
 
-    fn edit_folder(&mut self, verb: &str, name: &str) -> Result<()> {
+    fn rename_folder(&mut self, name: &str) -> Result<()> {
         let folder = self.active_list()?;
-        let edit = if verb == "rename" {
-            crate::validation::validate_collection_name(name)?;
+        crate::validation::validate_collection_name(name)?;
+        self.submit_library_edit(
             super::personal_tasks::LibraryEdit::RenameFolder {
                 folder,
                 name: name.into(),
-            }
-        } else {
-            super::personal_tasks::LibraryEdit::DeleteFolder(folder)
-        };
-        self.submit_library_edit(edit)
+            },
+        )
     }
 
     fn folder_command(
         &mut self,
-        verb: &str,
+        command: routing::FolderCommand,
         argument: &str,
-    ) -> Result<Option<Action>> {
-        match verb {
-            "folder" if argument.is_empty() => {
+    ) -> Result<Action> {
+        match command {
+            routing::FolderCommand::Folder if argument.is_empty() => {
                 self.begin_input(InputKind::NewList, String::new());
             }
-            "folder" => {
+            routing::FolderCommand::Folder => {
                 self.save_folder(argument, None)?;
                 self.status = format!(
                     "Folder created · {argument} · a organizes articles"
                 );
             }
-            "save" => {
+            routing::FolderCommand::Save => {
                 let article =
                     self.current().map(|article| article.id).ok_or_else(
                         || anyhow::anyhow!("Select an article first"),
@@ -214,17 +213,20 @@ impl App {
                     argument.to_owned(),
                     String::new(),
                 );
-                return self.apply_input(&mut input).map(Some);
+                return self.apply_input(&mut input);
             }
-            "folders" => self.open_picker(super::PickerKind::Folders)?,
-            "organize" => {
-                return self.perform(super::WorkspaceCommand::Lists).map(Some);
+            routing::FolderCommand::Folders => {
+                self.open_picker(super::PickerKind::Folders)?
             }
-            "favorites" => self.set_view(View::Starred)?,
-            "favorite" => self.toggle_favorite()?,
-            _ => return Ok(None),
+            routing::FolderCommand::Organize => {
+                return self.perform(super::WorkspaceCommand::Lists);
+            }
+            routing::FolderCommand::Favorites => {
+                self.set_view(View::Starred)?
+            }
+            routing::FolderCommand::Favorite => self.toggle_favorite()?,
         }
-        Ok(Some(Action::None))
+        Ok(Action::None)
     }
 
     pub(super) fn toggle_favorite(&mut self) -> Result<()> {
@@ -299,7 +301,7 @@ impl App {
     }
 
     pub(super) fn edit_comment(&mut self, existing: bool) -> Result<()> {
-        self.guard_stale_command("note")?;
+        self.guard_stale_command(crate::command::Command::Note)?;
         let Some(article) = self.current() else {
             return Ok(());
         };
@@ -369,7 +371,141 @@ fn command_parts(text: &str) -> (&str, &str) {
         .trim()
         .split_once(char::is_whitespace)
         .unwrap_or((text.trim(), ""));
-    let verb =
-        super::completion::resolve(verb).map_or(verb, |command| command.name);
     (verb, argument.trim())
 }
+
+// Generate closed owner-specific commands from the exhaustive routing table.
+// Handlers match their own enum exhaustively, so adding a registry identity
+// requires both an explicit owner and a corresponding handler branch.
+macro_rules! command_routes {
+    ($(
+        $owner:ident($identity:ident) => $handler:ident [
+            $($variant:ident),+ $(,)?
+        ]
+    ),+ $(,)?) => {
+        pub(in crate::app) mod routing {
+            $(#[derive(Clone, Copy, PartialEq, Eq)]
+            pub(in crate::app) enum $identity {
+                $($variant,)+
+            })+
+        }
+
+        #[derive(Clone, Copy)]
+        enum CommandOwner {
+            $($owner(routing::$identity),)+
+        }
+
+        fn command_owner(command: Command) -> CommandOwner {
+            match command {
+                $($(Command::$variant =>
+                    CommandOwner::$owner(routing::$identity::$variant),)+)+
+            }
+        }
+
+        impl App {
+            fn dispatch_command(
+                &mut self,
+                command: Command,
+                argument: &str,
+            ) -> Result<Action> {
+                match command_owner(command) {
+                    $(CommandOwner::$owner(command) =>
+                        self.$handler(command, argument),)+
+                }
+            }
+        }
+    };
+}
+
+command_routes! {
+    Recommendation(RecommendationCommand) => recommendation_command [
+        Recommendations, RecommendProfile, Interest, InterestRemove,
+        RecommendExclude, RecommendSettings, RecommendFeedback,
+        RecommendWhy, Similar,
+    ],
+    Layout(LayoutCommand) => layout_commands [
+        Workspace, LayoutUndo, LayoutRedo, LayoutReset, PanelDock,
+        LayoutColumns,
+    ],
+    Panel(PanelCommand) => panel_command [
+        Panel, PanelFocus, PanelClose, PanelMove, PanelSplit, PanelResize,
+        Annotations, Reader, Mouse,
+    ],
+    Organization(OrganizationCommand) => organization_command [
+        SelectArticle, SelectPage, ClearSelection, Bulk, Tags,
+        Related, Pin, Collapse, MoveUp, MoveDown, Continue,
+        SinceLastVisit, Grouped,
+    ],
+    Server(ServerCommand) => server_command [
+        Server, Servers, ServerHistory, Unserver, ServerEnable,
+        ServerDisable,
+    ],
+    Study(StudyCommand) => study_command [
+        Review, Cards, Card, ReviewIn, LinkNote, NoteLinks, ExportNotes,
+    ],
+    Settings(SettingsCommand) => settings_command [
+        Settings, Theme, Justify, Bind, Unbind,
+    ],
+    Exchange(ExchangeCommand) => exchange_command [
+        Discover, Import, Export, ExportNotebook, ExportOpml,
+    ],
+    Workspace(WorkspaceCommand) => workspace_command [
+        Zen, Fullscreen, Sidebar, Articles, Compact, Notebook, Queue, Undo,
+        Smart, Links, Palette, Editor, DeleteSmart,
+    ],
+    Dimension(DimensionCommand) => dimension_command [
+        Width, FullscreenWidth, SidebarWidth, ArticlesWidth,
+    ],
+    Folder(FolderCommand) => folder_command [
+        Folder, Save, Folders, Organize, Favorites, Favorite,
+    ],
+    Article(ArticleCommand) => article_command [
+        DeleteArticle, RestoreArticle, Trash,
+    ],
+    Library(LibraryCommand) => library_command [
+        Refresh, Feed, Rename, DeleteFolder, DeleteComment, Unfeed, Read,
+        MarkRead, MarkUnread, Help,
+    ],
+    Notebook(NotebookCommand) => notebook_command [
+        Notes, NoteSearch, NoteCollection, NoteType, NoteStatus, NotePin,
+        NoteTags, HighlightTags, NoteBacklinks,
+    ],
+    NotebookInspection(NotebookInspectionCommand) => notebook_inspection_command [
+        Drafts, ExportNoteFiles, NoteHistory, NoteReanchor, NoteSynthesis,
+        NoteRecent, NoteCollectionDelete,
+    ],
+    Extraction(ExtractionCommand) => extraction_command [
+        ExtractPreview, SourceHealth,
+    ],
+    ReaderTools(ReaderToolsCommand) => reader_tools_command [
+        ExplainSearch, Find, FindNext, FindPrev, Note, EditNote, Annotate,
+        Toc, Highlights, JumpBack, JumpForward, CopyCode, Tables,
+    ],
+    Image(ImageCommand) => image_command [
+        Image, ImageOpen, Images, ImageProtocol,
+    ],
+    Document(DocumentCommand) => document_command [
+        Fetch, Content, FetchPolicy,
+    ],
+    Maintenance(MaintenanceCommand) => maintenance_command [
+        Offline, Backup, Storage, Session, Retention,
+    ],
+    Web(WebCommand) => web_command [
+        OpenLink, OpenPage, SavePage, LatexFormulas,
+    ],
+    Configuration(ConfigurationCommand) => dispatch_configuration [
+        Config, ConfigReload,
+    ],
+    Session(SessionCommand) => session_command [
+        Write, Wq, Wqa, Quit, SaveStatus,
+    ],
+    AutoRead(AutoReadCommand) => dispatch_auto_read [
+        AutoRead,
+    ],
+    Performance(PerformanceCommand) => dispatch_performance [
+        Performance,
+    ],
+}
+
+#[cfg(test)]
+mod tests;

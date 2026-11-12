@@ -7,7 +7,10 @@ use ratatui::{
 };
 
 use super::{App, View};
-use crate::content::{self, BodyKind};
+use crate::{
+    command::Command,
+    content::{self, BodyKind},
+};
 
 /// Identity of the actual displayed publisher text, independent of selection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,41 +39,38 @@ pub(super) struct ReaderSnapshot {
 }
 
 impl App {
-    pub(super) fn guard_stale_command(&self, verb: &str) -> Result<()> {
+    pub(super) fn guard_stale_command(&self, command: Command) -> Result<()> {
         if self.notebook.is_some() || !self.reader_stale() {
             return Ok(());
         }
         anyhow::ensure!(
-            verb.starts_with("panel-")
-                || matches!(
-                    verb,
-                    "help"
-                        | "workspace"
-                        | "fullscreen"
-                        | "zen"
-                        | "sidebar"
-                        | "collapse"
-                        | "headlines"
-                        | "reader"
-                        | "annotations"
-                        | "layout-undo"
-                        | "layout-redo"
-                        | "reading-width"
-                        | "fullscreen-width"
-                        | "justify"
-                        | "latex-formulas"
-                        | "quit"
-                        | "q"
-                        | "refresh"
-                        | "r"
-                        | "read"
-                        | "favorites"
-                        | "inbox"
-                        | "all"
-                        | "continue"
-                        | "since-last-visit"
-                        | "undo"
-                ),
+            matches!(
+                command,
+                Command::PanelFocus
+                    | Command::PanelClose
+                    | Command::PanelMove
+                    | Command::PanelResize
+                    | Command::PanelDock
+                    | Command::PanelSplit
+                    | Command::Help
+                    | Command::Workspace
+                    | Command::Fullscreen
+                    | Command::Zen
+                    | Command::Sidebar
+                    | Command::Collapse
+                    | Command::Reader
+                    | Command::Annotations
+                    | Command::LayoutUndo
+                    | Command::LayoutRedo
+                    | Command::FullscreenWidth
+                    | Command::Justify
+                    | Command::Refresh
+                    | Command::Read
+                    | Command::Favorites
+                    | Command::Continue
+                    | Command::SinceLastVisit
+                    | Command::Undo
+            ),
             "Wait for the selected article; the previous source is still displayed"
         );
         Ok(())

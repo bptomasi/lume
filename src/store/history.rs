@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::{Collection, Comment};
 
-use super::Store;
+use super::{PersonalFlag, Store};
 
 mod purge;
 pub(super) use purge::forget_articles;
@@ -133,7 +133,7 @@ impl Store {
     pub(super) fn set_flag(
         &self,
         article: i64,
-        column: &str,
+        flag: PersonalFlag,
         value: bool,
     ) -> Result<()> {
         let transaction = self.write_transaction()?;
@@ -149,10 +149,7 @@ impl Store {
                 })
             },
         )?;
-        // Column names are owner-selected constants, never user input.
-        let sql = include_str!("sql/update_personal_flag.sql")
-            .replace("{column}", column);
-        if transaction.execute(&sql, (value, article))? > 0 {
+        if transaction.execute(flag.update_one(), (value, article))? > 0 {
             record(&transaction, &undo)?;
         }
         transaction.commit()?;
@@ -324,6 +321,170 @@ mod tests {
         assert!(store.article(1)?.queued);
         assert!(store.undo()?);
         assert!(!store.article(1)?.queued);
+        Ok(())
+    }
+
+    fn flag_fixture() -> Result<(tempfile::TempDir, Store)> {
+        let directory = tempfile::tempdir()?;
+        let store = Store::open(&directory.path().join("library.sqlite3"))?;
+        store
+            .connection
+            .execute_batch(include_str!("sql/test_setup_retention.sql"))?;
+        Ok((directory, store))
+    }
+
+    fn flags(store: &Store, article: i64) -> Result<(bool, bool, bool)> {
+        let article = store.article(article)?;
+        Ok((article.unread, article.starred, article.queued))
+    }
+
+    #[test]
+    fn individual_flags_change_only_the_selected_state_and_undo_once()
+    -> Result<()> {
+        type Setter = fn(&Store, i64, bool) -> Result<()>;
+        let setters: [(Setter, (bool, bool, bool)); 3] = [
+            (Store::set_unread, (true, false, false)),
+            (Store::set_starred, (false, true, false)),
+            (Store::set_queued, (false, false, true)),
+        ];
+        let (_directory, store) = flag_fixture()?;
+        store.save_progress(1, 17)?;
+        for (set, expected) in setters {
+            set(&store, 1, true)?;
+            assert_eq!(flags(&store, 1)?, expected);
+            let changes = store.connection.total_changes();
+            set(&store, 1, true)?;
+            assert_eq!(store.connection.total_changes(), changes);
+            assert!(store.undo()?);
+            assert_eq!(flags(&store, 1)?, (false, false, false));
+            assert_eq!(store.progress(1)?, 17);
+            assert!(!store.undo()?);
+            assert!(set(&store, 999, true).is_err());
+            assert!(!store.undo()?);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn captured_flag_batches_preserve_noops_and_undo_as_one_edit() -> Result<()>
+    {
+        use crate::model::BulkEdit;
+        let edits = [
+            (BulkEdit::Unread(true), (true, false, false)),
+            (BulkEdit::Favorite(true), (false, true, false)),
+            (BulkEdit::Queue(true), (false, false, true)),
+        ];
+        let (_directory, store) = flag_fixture()?;
+        for (edit, expected) in edits {
+            store.edit_articles(&[1, 2].into(), &edit)?;
+            assert_eq!(flags(&store, 1)?, expected);
+            assert_eq!(flags(&store, 2)?, expected);
+            assert_eq!(flags(&store, 3)?, (false, false, false));
+            let changes = store.connection.total_changes();
+            store.edit_articles(&[1, 2].into(), &edit)?;
+            assert_eq!(store.connection.total_changes(), changes);
+            assert!(store.undo()?);
+            assert_eq!(flags(&store, 1)?, (false, false, false));
+            assert_eq!(flags(&store, 2)?, (false, false, false));
+            assert!(!store.undo()?);
+            assert!(store.edit_articles(&[1, 999].into(), &edit).is_err());
+            assert_eq!(flags(&store, 1)?, (false, false, false));
+            assert!(!store.undo()?);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn failed_individual_and_batch_flag_writes_leave_no_history() -> Result<()>
+    {
+        let (_directory, store) = flag_fixture()?;
+        store
+            .connection
+            .execute_batch(include_str!("sql/test_fail_personal_flags.sql"))?;
+        for flag in [
+            PersonalFlag::Unread,
+            PersonalFlag::Starred,
+            PersonalFlag::Queued,
+        ] {
+            let error = store
+                .set_flag(2, flag, true)
+                .err()
+                .ok_or_else(|| anyhow::anyhow!("Flag failure was ignored"))?;
+            assert!(error.to_string().contains("Personal flag write failed"));
+            assert_eq!(flags(&store, 2)?, (false, false, false));
+            assert!(!store.undo()?);
+        }
+        for edit in [
+            crate::model::BulkEdit::Unread(true),
+            crate::model::BulkEdit::Favorite(true),
+            crate::model::BulkEdit::Queue(true),
+        ] {
+            assert!(store.edit_articles(&[1, 2].into(), &edit).is_err());
+            assert_eq!(flags(&store, 1)?, (false, false, false));
+            assert_eq!(flags(&store, 2)?, (false, false, false));
+            assert!(!store.undo()?);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn failed_flag_history_rolls_back_individual_and_batch_writes() -> Result<()>
+    {
+        let (_directory, store) = flag_fixture()?;
+        store
+            .connection
+            .execute_batch(include_str!("sql/test_fail_flag_history.sql"))?;
+        for flag in [
+            PersonalFlag::Unread,
+            PersonalFlag::Starred,
+            PersonalFlag::Queued,
+        ] {
+            let error =
+                store.set_flag(1, flag, true).err().ok_or_else(|| {
+                    anyhow::anyhow!("History failure was ignored")
+                })?;
+            assert!(error.to_string().contains("Flag history write failed"));
+            assert_eq!(flags(&store, 1)?, (false, false, false));
+            assert!(!store.undo()?);
+        }
+        for edit in [
+            crate::model::BulkEdit::Unread(true),
+            crate::model::BulkEdit::Favorite(true),
+            crate::model::BulkEdit::Queue(true),
+        ] {
+            assert!(store.edit_articles(&[1, 2].into(), &edit).is_err());
+            assert_eq!(flags(&store, 1)?, (false, false, false));
+            assert_eq!(flags(&store, 2)?, (false, false, false));
+            assert!(!store.undo()?);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn flag_batches_reject_deleted_targets_even_for_noop_values() -> Result<()>
+    {
+        let (_directory, store) = flag_fixture()?;
+        store.set_deleted(2, true)?;
+        store.clear_history()?;
+        for value in [false, true] {
+            for edit in [
+                crate::model::BulkEdit::Unread(value),
+                crate::model::BulkEdit::Favorite(value),
+                crate::model::BulkEdit::Queue(value),
+            ] {
+                let error = store
+                    .edit_articles(&[1, 2].into(), &edit)
+                    .err()
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Batch admitted a deleted article")
+                    })?;
+                assert!(error.to_string().contains("moved to Trash"));
+                assert_eq!(flags(&store, 1)?, (false, false, false));
+                assert_eq!(flags(&store, 2)?, (false, false, false));
+                assert!(store.is_deleted(2)?);
+                assert!(!store.undo()?);
+            }
+        }
         Ok(())
     }
 }
