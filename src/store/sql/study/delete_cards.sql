@@ -1,0 +1,1 @@
+DELETE FROM study_cards WHERE comment_id = ?1

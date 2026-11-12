@@ -32,10 +32,14 @@ impl Store {
         namespace: &str,
         note: i64,
     ) -> Result<Option<String>> {
-        Ok(self.connection.query_row(
-            "SELECT content FROM note_export_manifest WHERE namespace = ?1 AND note_id = ?2",
-            (namespace, note), |row| row.get(0),
-        ).optional()?)
+        Ok(self
+            .connection
+            .query_row(
+                include_str!("../sql/notebook/select_export_manifest.sql"),
+                (namespace, note),
+                |row| row.get(0),
+            )
+            .optional()?)
     }
 
     /// Record exact file bytes after successful publication.

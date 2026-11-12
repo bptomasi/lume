@@ -1,0 +1,1 @@
+SELECT article_id FROM comments WHERE id = ?1

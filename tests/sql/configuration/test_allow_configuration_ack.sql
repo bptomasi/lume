@@ -1,0 +1,1 @@
+DROP TRIGGER test_reject_configuration_ack

@@ -20,7 +20,7 @@ impl Store {
         let transaction = self.write_transaction()?;
         let previous: Option<String> = transaction
             .query_row(
-                "SELECT target FROM note_drafts WHERE key = ?1",
+                include_str!("../sql/notebook/select_draft_target.sql"),
                 [&key],
                 |row| row.get(0),
             )
@@ -32,7 +32,7 @@ impl Store {
             );
         } else {
             let count: usize = transaction.query_row(
-                "SELECT count(*) FROM note_drafts",
+                include_str!("../sql/notebook/count_drafts.sql"),
                 [],
                 |row| row.get(0),
             )?;
@@ -62,7 +62,7 @@ impl Store {
     /// Returns SQLite failures.
     pub fn has_note_draft(&self, target: &DraftTarget) -> Result<bool> {
         Ok(self.connection.query_row(
-            "SELECT EXISTS (SELECT 1 FROM note_drafts WHERE key = ?1)",
+            include_str!("../sql/notebook/select_draft_exists.sql"),
             [target.key()],
             |row| row.get(0),
         )?)
@@ -74,7 +74,7 @@ impl Store {
     /// Returns SQLite failures.
     pub fn note_draft_count(&self) -> Result<usize> {
         Ok(self.connection.query_row(
-            "SELECT count(*) FROM note_drafts",
+            include_str!("../sql/notebook/count_drafts.sql"),
             [],
             |row| row.get(0),
         )?)
@@ -118,7 +118,7 @@ impl Store {
     /// Returns SQLite errors.
     pub fn discard_note_draft(&self, target: &DraftTarget) -> Result<()> {
         self.connection.execute(
-            "DELETE FROM note_drafts WHERE key = ?1",
+            include_str!("../sql/notebook/delete_draft.sql"),
             [target.key()],
         )?;
         Ok(())
@@ -131,7 +131,7 @@ pub(crate) fn clear_written_draft(
     text: &str,
 ) -> Result<()> {
     transaction.execute(
-        "DELETE FROM note_drafts WHERE key = ?1 AND body = ?2",
+        include_str!("../sql/notebook/delete_written_draft.sql"),
         (target.key(), text),
     )?;
     Ok(())

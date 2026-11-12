@@ -71,15 +71,7 @@ fn retain_linked_content(
     document: &WebDocument,
 ) -> Result<()> {
     let retained: bool = transaction.query_row(
-        r#"
-        SELECT EXISTS (
-            SELECT 1
-            FROM article_documents
-            WHERE article_id = ?1
-                AND url = ?2
-                AND body != ''
-        )
-        "#,
+        include_str!("sql/web_pages/select_has_content.sql"),
         (article, &document.url),
         |row| row.get(0),
     )?;
@@ -105,7 +97,7 @@ fn insert_page(
 ) -> Result<i64> {
     transaction.execute_batch(include_str!("sql/insert_web_archive.sql"))?;
     let feed: i64 = transaction.query_row(
-        "SELECT feed_id FROM manual_sources ORDER BY feed_id LIMIT 1",
+        include_str!("sql/web_pages/select_manual_feed.sql"),
         [],
         |row| row.get(0),
     )?;
@@ -134,7 +126,7 @@ fn save_membership(
     transaction
         .execute(include_str!("sql/insert_saved_pages_folder.sql"), [])?;
     let folder: i64 = transaction.query_row(
-        "SELECT id FROM collections WHERE name = 'Saved pages'",
+        include_str!("sql/web_pages/select_saved_collection.sql"),
         [],
         |row| row.get(0),
     )?;

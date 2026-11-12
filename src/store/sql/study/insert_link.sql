@@ -1,0 +1,1 @@
+INSERT INTO note_links (comment_id, article_id) VALUES (?1, ?2)

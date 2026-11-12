@@ -1,0 +1,1 @@
+SELECT content FROM note_export_manifest WHERE namespace = ?1 AND note_id = ?2

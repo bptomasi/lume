@@ -1,0 +1,1 @@
+DELETE FROM settings WHERE key = 'offline_package'

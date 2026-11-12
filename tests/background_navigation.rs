@@ -77,7 +77,9 @@ fn locked_writer_does_not_block_navigation_or_layout_admission() -> Result<()> {
     app.resize_workspace(Rect::new(0, 0, 144, 44));
     app.enable_background_navigation(&path)?;
     let lock = rusqlite::Connection::open(&path)?;
-    lock.execute_batch("BEGIN IMMEDIATE")?;
+    lock.execute_batch(include_str!(
+        "sql/background_navigation/test_begin_immediate.sql"
+    ))?;
 
     app.set_view(View::All)?;
     command(&mut app, "workspace load Study")?;
@@ -86,7 +88,9 @@ fn locked_writer_does_not_block_navigation_or_layout_admission() -> Result<()> {
     assert!(app.session_pending());
     assert!(app.workspace.layout.is_some());
 
-    lock.execute_batch("ROLLBACK")?;
+    lock.execute_batch(include_str!(
+        "sql/background_navigation/test_rollback.sql"
+    ))?;
     app.end_session()?;
     assert!(!app.session_pending());
     Ok(())
@@ -288,7 +292,9 @@ fn active_read_admits_write_without_waiting_for_a_locked_database() -> Result<()
     settle(&mut app)?;
     let id = app.current().context("Article")?.id;
     let lock = rusqlite::Connection::open(&path)?;
-    lock.execute_batch("BEGIN IMMEDIATE")?;
+    lock.execute_batch(include_str!(
+        "sql/background_navigation/test_begin_immediate.sql"
+    ))?;
 
     app.focus = Pane::Articles;
     let start = Instant::now();
@@ -301,7 +307,9 @@ fn active_read_admits_write_without_waiting_for_a_locked_database() -> Result<()
     assert!(observer.article(id)?.unread);
     assert!(app.notes_pending());
 
-    lock.execute_batch("ROLLBACK")?;
+    lock.execute_batch(include_str!(
+        "sql/background_navigation/test_rollback.sql"
+    ))?;
     settle(&mut app)?;
     assert!(!observer.article(id)?.unread);
     let count = app
@@ -326,14 +334,18 @@ fn manual_unread_and_undo_follow_the_admitted_automatic_read() -> Result<()> {
     settle(&mut app)?;
     let id = app.current().context("Article")?.id;
     let lock = rusqlite::Connection::open(&path)?;
-    lock.execute_batch("BEGIN IMMEDIATE")?;
+    lock.execute_batch(include_str!(
+        "sql/background_navigation/test_begin_immediate.sql"
+    ))?;
     app.focus = Pane::Articles;
 
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     active_read(&mut app)?;
     command(&mut app, "mark-unread")?;
     app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE))?;
-    lock.execute_batch("ROLLBACK")?;
+    lock.execute_batch(include_str!(
+        "sql/background_navigation/test_rollback.sql"
+    ))?;
     settle(&mut app)?;
 
     assert!(

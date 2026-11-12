@@ -55,7 +55,7 @@ impl Store {
         let value: Option<String> = self
             .connection
             .query_row(
-                "SELECT value FROM settings WHERE key = 'reading_session'",
+                include_str!("sql/reading_sessions/select_session.sql"),
                 [],
                 |row| row.get(0),
             )
@@ -82,11 +82,7 @@ impl Store {
         let value = serde_json::to_string(session)?;
         ensure!(value.len() <= 131_072, "Session checkpoint exceeds 128 KiB");
         self.connection.execute(
-            r#"
-            INSERT INTO settings (key, value)
-            VALUES ('reading_session', ?1)
-            ON CONFLICT (key) DO UPDATE SET value = excluded.value
-            "#,
+            include_str!("sql/reading_sessions/upsert_session.sql"),
             [value],
         )?;
         Ok(())
@@ -98,7 +94,7 @@ impl Store {
     /// Returns SQLite errors.
     pub fn end_reading_session(&self) -> Result<()> {
         self.connection.execute(
-            "DELETE FROM settings WHERE key = 'reading_session'",
+            include_str!("sql/reading_sessions/delete_session.sql"),
             [],
         )?;
         Ok(())

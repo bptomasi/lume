@@ -41,16 +41,13 @@ impl Store {
         let previous = active_snapshot(&transaction, article, comment)?;
         ensure!(previous.links.len() < 128, "Annotation link limit is 128");
         let active: bool = transaction.query_row(
-            "SELECT deleted = 0 FROM articles WHERE id = ?1",
+            include_str!("sql/study/select_active_article.sql"),
             [related],
             |row| row.get(0),
         )?;
         ensure!(active, "Restore the related article before linking it");
         transaction.execute(
-            r#"
-            INSERT OR IGNORE INTO note_links (comment_id, article_id)
-            VALUES (?1, ?2)
-            "#,
+            include_str!("sql/study/insert_related_link.sql"),
             (comment, related),
         )?;
         history::record(&transaction, &Undo::Annotation(Box::new(previous)))?;
@@ -292,7 +289,7 @@ pub(super) fn active_snapshot(
     comment: i64,
 ) -> Result<AnnotationSnapshot> {
     let active: bool = connection.query_row(
-        "SELECT deleted = 0 FROM articles WHERE id = ?1",
+        include_str!("sql/study/select_active_article.sql"),
         [article],
         |row| row.get(0),
     )?;
@@ -326,14 +323,7 @@ pub(super) fn snapshot(
     let tags =
         super::organization::tags(connection, TagTarget::Comment(comment.id))?;
     let links = connection
-        .prepare_cached(
-            r#"
-        SELECT article_id
-        FROM note_links
-        WHERE comment_id = ?1
-        ORDER BY article_id
-        "#,
-        )?
+        .prepare_cached(include_str!("sql/study/select_links.sql"))?
         .query_map([comment.id], |row| row.get(0))?
         .collect::<rusqlite::Result<_>>()?;
     let review = review_schedule(connection, comment.id)?;
@@ -364,17 +354,15 @@ pub(super) fn restore(
         &annotation.tags,
     )?;
     transaction
-        .execute("DELETE FROM note_links WHERE comment_id = ?1", [comment])?;
+        .execute(include_str!("sql/study/delete_links.sql"), [comment])?;
     for article in &annotation.links {
         transaction.execute(
-            "INSERT INTO note_links (comment_id, article_id) VALUES (?1, ?2)",
+            include_str!("sql/study/insert_link.sql"),
             (comment, article),
         )?;
     }
-    transaction.execute(
-        "DELETE FROM annotation_reviews WHERE comment_id = ?1",
-        [comment],
-    )?;
+    transaction
+        .execute(include_str!("sql/study/delete_review.sql"), [comment])?;
     if let Some(review) = &annotation.review {
         transaction.execute(
             include_str!("sql/insert_restore_annotation_review.sql"),
@@ -434,7 +422,7 @@ fn restore_cards(
     cards: &[StudyCard],
 ) -> Result<()> {
     transaction
-        .execute("DELETE FROM study_cards WHERE comment_id = ?1", [comment])?;
+        .execute(include_str!("sql/study/delete_cards.sql"), [comment])?;
     for card in cards {
         transaction.execute(
             include_str!("sql/insert_restore_study_card.sql"),
@@ -458,11 +446,7 @@ fn review_schedule(
 ) -> Result<Option<ReviewSchedule>> {
     Ok(connection
         .query_row(
-            r#"
-        SELECT due_at, interval_days, reviews
-        FROM annotation_reviews
-        WHERE comment_id = ?1
-        "#,
+            include_str!("sql/study/select_review_schedule.sql"),
             [comment],
             |row| {
                 Ok(ReviewSchedule {

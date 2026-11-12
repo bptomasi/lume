@@ -54,9 +54,11 @@ impl Store {
         )?;
         let transaction = connection.unchecked_transaction()?;
         identity::verify(&transaction)?;
-        let version: i64 =
-            transaction
-                .query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        let version: i64 = transaction.query_row(
+            include_str!("sql/backup/select_user_version.sql"),
+            [],
+            |row| row.get(0),
+        )?;
         ensure!(version > 0, "Source does not contain a Lume library");
         publish_snapshot(&transaction, output, &AtomicBool::new(false))?;
         transaction.commit()?;
@@ -84,8 +86,11 @@ impl Store {
             OpenFlags::SQLITE_OPEN_READ_ONLY,
         )?;
         identity::verify(&source)?;
-        let version: i64 =
-            source.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        let version: i64 = source.query_row(
+            include_str!("sql/backup/select_user_version.sql"),
+            [],
+            |row| row.get(0),
+        )?;
         ensure!(version > 0, "Snapshot does not contain a Lume library");
         validate(&source)?;
         let parent = output
@@ -150,10 +155,14 @@ fn copy(
 }
 
 fn validate(connection: &Connection) -> Result<()> {
-    let result: String =
-        connection.query_row("PRAGMA quick_check", [], |row| row.get(0))?;
+    let result: String = connection.query_row(
+        include_str!("sql/backup/select_quick_check.sql"),
+        [],
+        |row| row.get(0),
+    )?;
     ensure!(result == "ok", "Snapshot integrity check failed: {result}");
-    let mut statement = connection.prepare("PRAGMA foreign_key_check")?;
+    let mut statement = connection
+        .prepare(include_str!("sql/backup/select_foreign_key_check.sql"))?;
     ensure!(
         statement.query([])?.next()?.is_none(),
         "Snapshot has broken references"

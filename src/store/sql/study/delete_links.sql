@@ -1,0 +1,1 @@
+DELETE FROM note_links WHERE comment_id = ?1

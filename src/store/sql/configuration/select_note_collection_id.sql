@@ -1,0 +1,1 @@
+SELECT id FROM note_collections WHERE name = ?1

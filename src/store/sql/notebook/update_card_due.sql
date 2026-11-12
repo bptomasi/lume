@@ -1,0 +1,1 @@
+UPDATE study_cards SET due_at = ?1, interval_days = ?2 WHERE id = ?3

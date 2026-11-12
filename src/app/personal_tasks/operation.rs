@@ -16,7 +16,8 @@ pub(super) fn retry(store: &Store, task: Task) -> Result<Outcome> {
     loop {
         match perform(store, task.clone()) {
             Err(error)
-                if busy(&error) && std::time::Instant::now() < deadline =>
+                if crate::store::is_contention(&error)
+                    && std::time::Instant::now() < deadline =>
             {
                 // Every domain transaction rolls back before retrying. Read
                 // failures after a commit remain inside the acknowledged
@@ -27,15 +28,6 @@ pub(super) fn retry(store: &Store, task: Task) -> Result<Outcome> {
             result => return result,
         }
     }
-}
-
-fn busy(error: &anyhow::Error) -> bool {
-    error.chain().any(|cause| {
-        matches!(cause.downcast_ref::<rusqlite::Error>(),
-            Some(rusqlite::Error::SqliteFailure(error, _))
-                if matches!(error.code, rusqlite::ErrorCode::DatabaseBusy
-                    | rusqlite::ErrorCode::DatabaseLocked))
-    })
 }
 
 pub(super) fn perform(store: &Store, task: Task) -> Result<Outcome> {

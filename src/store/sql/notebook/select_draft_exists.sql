@@ -1,0 +1,1 @@
+SELECT EXISTS (SELECT 1 FROM note_drafts WHERE key = ?1)

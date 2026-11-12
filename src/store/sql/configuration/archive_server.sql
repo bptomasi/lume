@@ -1,0 +1,1 @@
+UPDATE servers SET enabled = 0 WHERE id = ?1

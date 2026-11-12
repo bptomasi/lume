@@ -1,0 +1,1 @@
+ AND c.article_id = ?{}

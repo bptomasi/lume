@@ -1,0 +1,1 @@
+:id > 0 AND a.added_at > :id

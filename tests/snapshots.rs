@@ -129,11 +129,17 @@ fn backup_cli_preserves_legacy_schema_and_original_file_bytes() -> Result<()> {
         &snapshot,
         rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
     )?;
-    let version: i64 =
-        copied.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    let version: i64 = copied.query_row(
+        include_str!("sql/snapshots/test_user_version.sql"),
+        [],
+        |row| row.get(0),
+    )?;
     assert_eq!(version, 1);
-    let note: String =
-        copied.query_row("SELECT body FROM comments", [], |row| row.get(0))?;
+    let note: String = copied.query_row(
+        include_str!("sql/snapshots/test_note_body.sql"),
+        [],
+        |row| row.get(0),
+    )?;
     assert_eq!(note, "A personal annotation that must survive migration.");
     Ok(())
 }

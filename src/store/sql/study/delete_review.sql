@@ -1,0 +1,1 @@
+DELETE FROM annotation_reviews WHERE comment_id = ?1

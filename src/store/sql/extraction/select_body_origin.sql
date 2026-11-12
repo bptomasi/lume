@@ -1,0 +1,1 @@
+SELECT body_origin FROM articles WHERE id = ?1

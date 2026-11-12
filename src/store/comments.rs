@@ -96,7 +96,7 @@ impl Store {
             },
         )?;
         transaction.execute(
-            "UPDATE note_metadata SET kind = ?1 WHERE comment_id = ?2",
+            include_str!("sql/comments/update_kind.sql"),
             (kind.name(), id),
         )?;
         transaction.commit()?;
@@ -163,7 +163,7 @@ impl Store {
         let id = insert(&transaction, article, note, passage)?;
         if kind != crate::model::NoteKind::Insight {
             transaction.execute(
-                "UPDATE note_metadata SET kind = ?1 WHERE comment_id = ?2",
+                include_str!("sql/comments/update_kind.sql"),
                 (kind.name(), id),
             )?;
         }
@@ -180,7 +180,7 @@ impl Store {
         let previous = super::study::snapshot(&transaction, article, comment)?;
         history::record(&transaction, &Undo::Annotation(Box::new(previous)))?;
         transaction.execute(
-            "DELETE FROM comments WHERE article_id = ?1 AND id = ?2",
+            include_str!("sql/comments/delete_comment.sql"),
             (article, comment),
         )?;
         transaction.commit()?;
@@ -249,7 +249,7 @@ fn require_active_article(
 ) -> Result<()> {
     let active: bool = transaction
         .query_row(
-            "SELECT deleted = 0 FROM articles WHERE id = ?1",
+            include_str!("sql/comments/select_active_article.sql"),
             [article],
             |row| row.get(0),
         )
@@ -265,7 +265,8 @@ fn insert(
     passage: &Passage,
 ) -> Result<i64> {
     require_active_article(transaction, article)?;
-    transaction.execute("INSERT INTO note_identities DEFAULT VALUES", [])?;
+    transaction
+        .execute(include_str!("sql/comments/insert_identity.sql"), [])?;
     let id = transaction.last_insert_rowid();
     transaction.execute(
         include_str!("sql/insert_article_comment.sql"),
@@ -329,12 +330,7 @@ pub(super) fn validate_source(
     }
     let body: String = transaction
         .query_row(
-            r#"
-        SELECT d.body
-        FROM article_documents AS d
-        JOIN articles AS a ON a.id = d.article_id
-        WHERE a.id = ?1 AND d.url = a.url AND d.revision = ?2
-        "#,
+            include_str!("sql/comments/select_source_body.sql"),
             (article, passage.revision),
             |row| row.get(0),
         )

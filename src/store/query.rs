@@ -38,7 +38,11 @@ impl Criteria {
         } else {
             include_str!("sql/select_matching_position.sql")
         };
-        format!("WITH matching AS ({predicate})\n{position}")
+        format!(
+            include_str!("sql/query/template_position.sql"),
+            position = position,
+            predicate = predicate,
+        )
     }
 
     fn page_sql(&self, predicate: &str) -> String {
@@ -47,24 +51,19 @@ impl Criteria {
         }
         if self.scope == "recommended" {
             return format!(
-                "WITH matching AS ({predicate})\n{}",
-                include_str!("sql/recommendations/select_cached_page.sql")
+                include_str!("sql/query/template_recommended_page.sql"),
+                include_str!("sql/recommendations/select_cached_page.sql"),
+                predicate = predicate,
             );
         }
         // Materialize only page identities before loading metadata or counting
         // comments. Sorting a large result must not hydrate every article.
         format!(
-            r#"WITH candidates AS (
-                {predicate}
-            ),
-            matching AS MATERIALIZED (
-                {}
-            )
-            {}
-            {}"#,
+            include_str!("sql/query/template_page.sql"),
             include_str!("sql/select_matching_page.sql"),
             include_str!("sql/select_article_metadata.sql"),
-            include_str!("sql/select_page.sql")
+            include_str!("sql/select_page.sql"),
+            predicate = predicate,
         )
     }
 
@@ -74,20 +73,19 @@ impl Criteria {
         }
         let mut conditions = vec![scope_clause(self.scope)];
         if self.filter.unread {
-            conditions.push("a.unread = 1");
+            conditions.push(include_str!("sql/query/where_unread.sql"));
         }
         if self.filter.starred {
-            conditions.push("a.starred = 1");
+            conditions.push(include_str!("sql/query/where_starred.sql"));
         }
         if self.filter.feed.is_some() {
-            conditions.push("a.feed_id = :feed");
+            conditions.push(include_str!("sql/query/where_feed_filter.sql"));
         }
         if !self.filter.feeds.is_empty() {
-            conditions
-                .push("a.feed_id IN (SELECT value FROM json_each(:feeds))");
+            conditions.push(include_str!("sql/query/where_feeds_filter.sql"));
         }
         if self.filter.days.is_some() {
-            conditions.push("a.published >= :since");
+            conditions.push(include_str!("sql/query/where_since_filter.sql"));
         }
         let base = if self.scope == "recommended" {
             include_str!("sql/recommendations/select_cached_matching.sql")
@@ -95,17 +93,18 @@ impl Criteria {
             include_str!("sql/select_matching.sql")
         };
         let matching = format!(
-            "{}\nAND ({})\nAND ({})",
+            include_str!("sql/query/template_matching.sql"),
             base,
-            conditions.join(")\nAND ("),
+            conditions.join(include_str!("sql/query/join_conditions.sql")),
             self.expression.sql
         );
         if self.scope != "grouped" {
             return matching;
         }
         format!(
-            "WITH candidates AS ({matching})\n{}",
-            include_str!("sql/select_grouped_candidates.sql")
+            include_str!("sql/query/template_grouped.sql"),
+            include_str!("sql/select_grouped_candidates.sql"),
+            matching = matching,
         )
     }
 }
@@ -177,7 +176,7 @@ impl Store {
     /// Returns missing article or SQLite errors.
     pub fn article(&self, article: i64) -> Result<crate::model::Article> {
         let sql = format!(
-            "{}\nWHERE a.id = ?1",
+            include_str!("sql/query/template_article.sql"),
             include_str!("sql/select_article_metadata.sql")
         );
         Ok(self.connection.query_row(&sql, [article], article_row)?)
@@ -306,9 +305,10 @@ impl Store {
         criteria: &Criteria,
         predicate: &str,
     ) -> Result<usize> {
-        let mut count = self
-            .connection
-            .prepare_cached(&format!("SELECT count(*) FROM ({predicate})"))?;
+        let mut count = self.connection.prepare_cached(&format!(
+            include_str!("sql/query/template_count_predicate.sql"),
+            predicate = predicate,
+        ))?;
         bind(&mut count, criteria, query)?;
         Ok(count.raw_query().next()?.map_or(Ok(0), |row| row.get(0))?)
     }
@@ -355,7 +355,10 @@ impl Store {
             retained: None,
         };
         let criteria = self.criteria(&query)?;
-        let sql = format!("SELECT count(*) FROM ({})", criteria.predicate());
+        let sql = format!(
+            include_str!("sql/query/template_count_matching.sql"),
+            criteria.predicate()
+        );
         let mut statement = self.connection.prepare_cached(&sql)?;
         bind(&mut statement, &criteria, &query)?;
         Ok(statement
@@ -405,20 +408,20 @@ impl Store {
 fn scope_clause(scope: &str) -> &'static str {
     match scope {
         "recommended" => include_str!("sql/recommendations/select_scope.sql"),
-        "inbox" => "a.unread = 1 OR a.id = :retained",
-        "read" => "a.unread = 0",
-        "starred" => "a.starred = 1",
-        "queue" => "a.queued = 1",
-        "feed" => "a.feed_id = :id",
+        "inbox" => include_str!("sql/query/where_inbox.sql"),
+        "read" => include_str!("sql/query/where_read.sql"),
+        "starred" => include_str!("sql/query/where_starred.sql"),
+        "queue" => include_str!("sql/query/where_queue.sql"),
+        "feed" => include_str!("sql/query/where_feed_scope.sql"),
         "server" => include_str!("sql/servers/select_scope.sql"),
-        "since_visit" => ":id > 0 AND a.added_at > :id",
+        "since_visit" => include_str!("sql/query/where_since_visit.sql"),
         "continue" => include_str!("sql/select_continue_predicate.sql"),
         "annotated" => {
-            "EXISTS (SELECT 1 FROM comments WHERE article_id = a.id)"
+            include_str!("sql/query/where_annotated.sql")
         }
         "collection" => include_str!("sql/select_collection_predicate.sql"),
-        "all" | "trash" | "grouped" => "1",
-        _ => "0",
+        "all" | "trash" | "grouped" => include_str!("sql/query/where_true.sql"),
+        _ => include_str!("sql/query/where_false.sql"),
     }
 }
 

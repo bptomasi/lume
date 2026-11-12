@@ -23,11 +23,7 @@ fn read_index_upgrade_preserves_v7_content_and_is_idempotent() -> Result<()> {
             assert_eq!(store.view_count(&view)?, 1, "{view:?}");
         }
         let plan: String = store.connection.query_row(
-            r#"
-            EXPLAIN QUERY PLAN
-            SELECT count(*) FROM articles
-            WHERE deleted = 0 AND unread = 1
-            "#,
+            include_str!("../sql/migrations/test_explain_read_index.sql"),
             [],
             |row| row.get(3),
         )?;
@@ -192,7 +188,7 @@ fn declarative_upgrade_never_replaces_an_explicit_legacy_profile() -> Result<()>
     let empty = crate::model::RecommendationProfile::default();
     let connection = Connection::open(&path)?;
     connection.execute(
-        "INSERT INTO settings (key, value) VALUES ('recommendation_profile', ?1)",
+        include_str!("../sql/migrations/test_insert_legacy_profile.sql"),
         [serde_json::to_string(&empty)?],
     )?;
     drop(connection);

@@ -1,0 +1,1 @@
+DELETE FROM recommendation_dirty WHERE article_id = ?1

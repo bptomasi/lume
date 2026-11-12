@@ -23,8 +23,9 @@ pub(super) fn apply(
         .collect::<Vec<_>>()
         .join(", ");
     let sql = format!(
-        "{} AND rowid IN ({placeholders})",
-        include_str!("../sql/notebook/select_match_snippets.sql")
+        include_str!("../sql/notebook/template_match_snippets.sql"),
+        include_str!("../sql/notebook/select_match_snippets.sql"),
+        placeholders = placeholders,
     );
     let mut statement = transaction.prepare_cached(&sql)?;
     let rows = statement.query_map(params_from_iter(&values), |row| {

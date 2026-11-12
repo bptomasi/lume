@@ -1,0 +1,1 @@
+SELECT target FROM note_drafts WHERE key = ?1

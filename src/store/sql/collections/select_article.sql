@@ -1,0 +1,1 @@
+SELECT id FROM articles WHERE id = ?1

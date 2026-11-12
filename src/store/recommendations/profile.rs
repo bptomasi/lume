@@ -9,9 +9,14 @@ impl Store {
     /// # Errors
     /// Returns invalid persisted settings or SQLite errors.
     pub fn recommendation_profile(&self) -> Result<RecommendationProfile> {
-        let text: Option<String> = self.connection.query_row(
-            "SELECT value FROM settings WHERE key = 'recommendation_profile'",
-            [], |row| row.get(0)).optional()?;
+        let text: Option<String> = self
+            .connection
+            .query_row(
+                include_str!("../sql/recommendations/select_profile.sql"),
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
         let profile = text
             .map(|text| serde_json::from_str(&text))
             .transpose()?

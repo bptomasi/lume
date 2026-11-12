@@ -20,9 +20,9 @@ impl Store {
     pub fn article_memberships(&self, article: i64) -> Result<BTreeSet<i64>> {
         Ok(self
             .connection
-            .prepare_cached(
-                "SELECT collection_id FROM members WHERE article_id = ?1",
-            )?
+            .prepare_cached(include_str!(
+                "sql/collections/select_article_memberships.sql"
+            ))?
             .query_map([article], |row| row.get(0))?
             .collect::<rusqlite::Result<_>>()?)
     }
@@ -105,7 +105,7 @@ impl Store {
             &Undo::Collection(snapshot(&transaction, id)?),
         )?;
         transaction.execute(
-            "UPDATE collections SET name = ?1 WHERE id = ?2",
+            include_str!("sql/collections/rename_collection.sql"),
             (name, id),
         )?;
         transaction.commit()?;
@@ -122,7 +122,10 @@ impl Store {
             &transaction,
             &Undo::Collection(snapshot(&transaction, id)?),
         )?;
-        transaction.execute("DELETE FROM collections WHERE id = ?1", [id])?;
+        transaction.execute(
+            include_str!("sql/collections/delete_collection.sql"),
+            [id],
+        )?;
         transaction.commit()?;
         Ok(())
     }
@@ -170,7 +173,7 @@ impl Store {
         let transaction = self.write_transaction()?;
         record_memberships(&transaction, article)?;
         transaction.execute(
-            "DELETE FROM members WHERE collection_id = ?1 AND article_id = ?2",
+            include_str!("sql/collections/delete_member.sql"),
             (collection, article),
         )?;
         transaction.commit()?;
@@ -190,9 +193,9 @@ fn membership_snapshot(
     article: i64,
 ) -> Result<Undo> {
     let lists = transaction
-        .prepare_cached(
-            "SELECT collection_id FROM members WHERE article_id = ?1",
-        )?
+        .prepare_cached(include_str!(
+            "sql/collections/select_article_memberships.sql"
+        ))?
         .query_map([article], |row| row.get(0))?
         .collect::<rusqlite::Result<_>>()?;
     Ok(Undo::Memberships { article, lists })
@@ -205,14 +208,14 @@ fn collection(
     let name = crate::validation::validate_collection_name(name)?;
     let existing = transaction
         .query_row(
-            "SELECT id FROM collections WHERE name = ?1",
+            include_str!("sql/collections/select_collection_id.sql"),
             [name],
             |row| row.get::<_, i64>(0),
         )
         .optional()?;
     if let Some(id) = existing {
         transaction.execute(
-            "UPDATE collections SET enabled = 1 WHERE id = ?1",
+            include_str!("sql/collections/enable_collection.sql"),
             [id],
         )?;
         return Ok((id, Vec::new()));
@@ -229,15 +232,17 @@ pub(super) fn replace_memberships(
     lists: &[i64],
 ) -> Result<()> {
     transaction.query_row(
-        "SELECT id FROM articles WHERE id = ?1",
+        include_str!("sql/collections/select_article.sql"),
         [article],
         |_| Ok(()),
     )?;
-    transaction
-        .execute("DELETE FROM members WHERE article_id = ?1", [article])?;
+    transaction.execute(
+        include_str!("sql/collections/delete_article_memberships.sql"),
+        [article],
+    )?;
     for list in lists {
         transaction.execute(
-            "INSERT INTO members (collection_id, article_id) VALUES (?1, ?2)",
+            include_str!("sql/collections/insert_member.sql"),
             (list, article),
         )?;
     }
@@ -246,14 +251,12 @@ pub(super) fn replace_memberships(
 
 fn snapshot(transaction: &Transaction<'_>, id: i64) -> Result<Collection> {
     let name = transaction.query_row(
-        "SELECT name FROM collections WHERE id = ?1",
+        include_str!("sql/collections/select_collection_name.sql"),
         [id],
         |row| row.get(0),
     )?;
     let articles = transaction
-        .prepare_cached(
-            "SELECT article_id FROM members WHERE collection_id = ?1",
-        )?
+        .prepare_cached(include_str!("sql/collections/select_members.sql"))?
         .query_map([id], |row| row.get(0))?
         .collect::<rusqlite::Result<_>>()?;
     Ok(Collection { id, name, articles })

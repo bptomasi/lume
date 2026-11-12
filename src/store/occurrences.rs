@@ -14,7 +14,7 @@ impl Store {
         article: i64,
     ) -> Result<Vec<crate::model::Article>> {
         let key: String = self.connection.query_row(
-            "SELECT canonical_key FROM articles WHERE id = ?1",
+            include_str!("sql/occurrences/select_canonical_key.sql"),
             [article],
             |row| row.get(0),
         )?;
@@ -22,12 +22,7 @@ impl Store {
             return Ok(Vec::new());
         }
         let sql = format!(
-            r#"{}
-            WHERE a.deleted = 0
-                AND a.canonical_key = ?1
-            ORDER BY a.published DESC, a.id DESC
-            LIMIT 500
-            "#,
+            include_str!("sql/occurrences/template_occurrences.sql"),
             include_str!("sql/select_article_metadata.sql")
         );
         Ok(self

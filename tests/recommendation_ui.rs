@@ -124,7 +124,9 @@ fn admitted_feedback_survives_navigation_and_shutdown_under_a_real_sqlite_lock()
     settle(&mut app)?;
     let article = app.current().context("No article")?.id;
     let lock = rusqlite::Connection::open(&path)?;
-    lock.execute_batch("BEGIN IMMEDIATE")?;
+    lock.execute_batch(include_str!(
+        "sql/recommendation_ui/test_begin_immediate.sql"
+    ))?;
     command(&mut app, "recommend-feedback useful")?;
     assert!(app.recommendations_pending());
     // Input remains admissible while the writer is provably unable to commit.
@@ -132,7 +134,9 @@ fn admitted_feedback_survives_navigation_and_shutdown_under_a_real_sqlite_lock()
     assert!(matches!(app.mode, Mode::Leader));
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     app.set_view(View::Read)?;
-    lock.execute_batch("ROLLBACK")?;
+    lock.execute_batch(include_str!(
+        "sql/recommendation_ui/test_rollback.sql"
+    ))?;
     app.end_session()?;
     assert_eq!(
         Store::open(&path)?.recommendation_feedback(article)?,
@@ -196,13 +200,17 @@ fn queue_overload_rejects_new_edits_without_replacing_admitted_preferences()
     app.enable_background_navigation(&path)?;
     settle(&mut app)?;
     let lock = rusqlite::Connection::open(&path)?;
-    lock.execute_batch("BEGIN IMMEDIATE")?;
+    lock.execute_batch(include_str!(
+        "sql/recommendation_ui/test_begin_immediate.sql"
+    ))?;
     for index in 0..8 {
         command(&mut app, &format!("interest Subject {index} | 3 | cache"))?;
     }
     assert!(command(&mut app, "interest Rejected | 3 | cache").is_err());
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
-    lock.execute_batch("ROLLBACK")?;
+    lock.execute_batch(include_str!(
+        "sql/recommendation_ui/test_rollback.sql"
+    ))?;
     app.end_session()?;
     let profile = Store::open(&path)?.recommendation_profile()?;
     assert_eq!(profile.interests.len(), initial + 8);

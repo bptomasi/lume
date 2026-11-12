@@ -1,0 +1,1 @@
+SELECT deleted = 0 FROM articles WHERE id = ?1

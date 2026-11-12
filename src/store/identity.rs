@@ -9,20 +9,26 @@ use rusqlite::Connection;
 pub(super) const APPLICATION_ID: i64 = 0x4c55_4d45;
 
 pub(super) fn verify(connection: &Connection) -> Result<()> {
-    let application: i64 =
-        connection.query_row("PRAGMA application_id", [], |row| row.get(0))?;
+    let application: i64 = connection.query_row(
+        include_str!("sql/identity/select_application_id.sql"),
+        [],
+        |row| row.get(0),
+    )?;
     ensure!(
         application == 0 || application == APPLICATION_ID,
         "This SQLite database belongs to another application"
     );
-    let version: i64 =
-        connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    let version: i64 = connection.query_row(
+        include_str!("sql/identity/select_user_version.sql"),
+        [],
+        |row| row.get(0),
+    )?;
     ensure!(
         (0..=super::migrations::LATEST_SCHEMA_VERSION).contains(&version),
         "Unsupported library schema {version}; use a newer Lume"
     );
     let tables: i64 = connection.query_row(
-        "SELECT count(*) FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'",
+        include_str!("sql/identity/select_table_count.sql"),
         [],
         |row| row.get(0),
     )?;
@@ -44,8 +50,11 @@ pub(super) fn verify(connection: &Connection) -> Result<()> {
 }
 
 pub(super) fn claim(connection: &Connection) -> Result<()> {
-    let application: i64 =
-        connection.query_row("PRAGMA application_id", [], |row| row.get(0))?;
+    let application: i64 = connection.query_row(
+        include_str!("sql/identity/select_application_id.sql"),
+        [],
+        |row| row.get(0),
+    )?;
     if application == 0 {
         connection.pragma_update(None, "application_id", APPLICATION_ID)?;
     }

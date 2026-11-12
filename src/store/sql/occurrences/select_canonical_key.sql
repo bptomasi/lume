@@ -1,0 +1,1 @@
+SELECT canonical_key FROM articles WHERE id = ?1

@@ -131,9 +131,11 @@ impl Seek {
             include_str!("../sql/query/select_after_cursor.sql")
         };
         format!(
-            "WITH matching AS MATERIALIZED ({predicate}\n{selected})\n{}\n{}",
+            include_str!("../sql/query/template_seek_page.sql"),
             include_str!("../sql/select_article_metadata.sql"),
-            include_str!("../sql/select_page.sql")
+            include_str!("../sql/select_page.sql"),
+            predicate = predicate,
+            selected = selected,
         )
     }
 }

@@ -1,0 +1,1 @@
+SELECT article_policy FROM feeds WHERE id = ?1

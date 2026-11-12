@@ -1,7 +1,7 @@
 //! Bounded note pages read one snapshot and bind every user query value.
 
 use anyhow::{Context, Result};
-use rusqlite::{Row, params_from_iter};
+use rusqlite::{Row, params_from_iter, types::Value};
 
 use crate::{
     model::{NoteKind, NoteMetadata, NotePage, NoteSummary},
@@ -68,13 +68,10 @@ impl Store {
         related: &str,
     ) -> Result<Vec<NoteSummary>> {
         let sql = format!(
-            r#"{}
-            WHERE a.deleted = 0 AND c.id IN (
-                SELECT {related} FROM note_references WHERE {owner} = ?1
-            )
-            ORDER BY c.id
-            LIMIT 128"#,
+            include_str!("../sql/notebook/template_linked_notes.sql"),
             include_str!("../sql/notebook/select_note_page.sql"),
+            owner = owner,
+            related = related,
         );
         Ok(self
             .connection
@@ -94,30 +91,23 @@ impl Store {
         offset: usize,
         limit: usize,
     ) -> Result<NotePage> {
-        let expression = crate::search::notes::compile(text)?;
-        let mut values = expression.values;
-        let mut predicate = format!("a.deleted = 0 AND ({})", expression.sql);
-        if let Some(article) = article {
-            values.push(article.into());
-            predicate
-                .push_str(&format!(" AND c.article_id = ?{}", values.len()));
-        }
-        let base = include_str!("../sql/notebook/select_note_page.sql");
-        let matching = format!("{base}\nWHERE {predicate}");
+        let (matching, mut values) = matching_notes(text, article)?;
         let transaction = self.connection.unchecked_transaction()?;
         let total = transaction.query_row(
-            &format!("SELECT count(*) FROM ({matching})"),
+            &format!(
+                include_str!("../sql/notebook/template_count_matching.sql"),
+                matching = matching,
+            ),
             params_from_iter(&values),
             |row| row.get(0),
         )?;
         values.push(i64::try_from(limit.clamp(1, 100))?.into());
         values.push(i64::try_from(offset)?.into());
         let sql = format!(
-            r#"{matching}
-            ORDER BY m.pinned DESC, m.updated_at DESC, c.id DESC
-            LIMIT ?{} OFFSET ?{}"#,
+            include_str!("../sql/notebook/template_search_page.sql"),
             values.len() - 1,
-            values.len()
+            values.len(),
+            matching = matching,
         );
         let mut notes: Vec<NoteSummary> = transaction
             .prepare_cached(&sql)?
@@ -134,13 +124,40 @@ impl Store {
     /// Returns a missing/trashed note or SQLite error.
     pub fn note_summary(&self, note: i64) -> Result<NoteSummary> {
         let sql = format!(
-            "{}\nWHERE c.id = ?1 AND a.deleted = 0",
+            include_str!("../sql/notebook/template_note_summary.sql"),
             include_str!("../sql/notebook/select_note_page.sql")
         );
         self.connection
             .query_row(&sql, [note], summary_row)
             .context("Note is missing or its article is in Trash")
     }
+}
+
+/// Compile the matching relation and ordered parameters before a snapshot.
+fn matching_notes(
+    text: &str,
+    article: Option<i64>,
+) -> Result<(String, Vec<Value>)> {
+    let expression = crate::search::notes::compile(text)?;
+    let mut values = expression.values;
+    let mut predicate = format!(
+        include_str!("../sql/notebook/template_search_predicate.sql"),
+        expression.sql
+    );
+    if let Some(article) = article {
+        values.push(article.into());
+        predicate.push_str(&format!(
+            include_str!("../sql/notebook/template_article_filter.sql"),
+            values.len()
+        ));
+    }
+    let base = include_str!("../sql/notebook/select_note_page.sql");
+    let matching = format!(
+        include_str!("../sql/notebook/template_matching.sql"),
+        base = base,
+        predicate = predicate,
+    );
+    Ok((matching, values))
 }
 
 fn summary_row(row: &Row<'_>) -> rusqlite::Result<NoteSummary> {

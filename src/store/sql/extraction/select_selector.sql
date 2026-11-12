@@ -1,0 +1,1 @@
+SELECT article_selector FROM feeds WHERE id = ?1

@@ -104,12 +104,7 @@ impl Store {
 
     fn has_table(&self, name: &str) -> Result<bool> {
         Ok(self.connection.query_row(
-            r#"
-            SELECT EXISTS (
-                SELECT 1 FROM sqlite_master
-                WHERE type = 'table' AND name = ?1
-            )
-            "#,
+            include_str!("../sql/configuration/select_table_exists.sql"),
             [name],
             |row| row.get(0),
         )?)

@@ -1,0 +1,1 @@
+DELETE FROM members WHERE article_id = ?1

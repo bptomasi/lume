@@ -1,0 +1,1 @@
+SELECT 1 FROM settings WHERE key = 'reading_metadata_v7'

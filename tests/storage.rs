@@ -127,9 +127,11 @@ fn unknown_schema_is_rejected_without_resetting_data() -> Result<()> {
     let database = rusqlite::Connection::open(&path)?;
     database.pragma_update(None, "user_version", 99)?;
     assert!(Store::open(&path).is_err());
-    let count: i64 =
-        database
-            .query_row("SELECT count(*) FROM articles", [], |row| row.get(0))?;
+    let count: i64 = database.query_row(
+        include_str!("sql/storage/test_count_articles.sql"),
+        [],
+        |row| row.get(0),
+    )?;
     assert_eq!(count, 1);
     Ok(())
 }
@@ -162,7 +164,9 @@ fn foreign_databases_are_rejected_without_changing_their_bytes() -> Result<()> {
             .path()
             .join(format!("foreign-{version}-{application}.db"));
         let database = rusqlite::Connection::open(&path)?;
-        database.execute_batch("CREATE TABLE unrelated (value TEXT);")?;
+        database.execute_batch(include_str!(
+            "sql/storage/test_create_unrelated.sql"
+        ))?;
         database.pragma_update(None, "user_version", version)?;
         database.pragma_update(None, "application_id", application)?;
         drop(database);
@@ -191,8 +195,11 @@ fn legacy_libraries_gain_an_identifier_without_losing_articles() -> Result<()> {
 
     assert_eq!(store.library()?.articles[0].id, before[0].id);
     let database = rusqlite::Connection::open(&path)?;
-    let application: i64 =
-        database.query_row("PRAGMA application_id", [], |row| row.get(0))?;
+    let application: i64 = database.query_row(
+        include_str!("sql/storage/test_application_id.sql"),
+        [],
+        |row| row.get(0),
+    )?;
     assert_eq!(application, 0x4c55_4d45);
     Ok(())
 }

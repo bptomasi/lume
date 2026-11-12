@@ -1,0 +1,1 @@
+EXISTS (SELECT 1 FROM comments WHERE article_id = a.id)

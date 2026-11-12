@@ -1,0 +1,1 @@
+SELECT created FROM comments WHERE id = ?1

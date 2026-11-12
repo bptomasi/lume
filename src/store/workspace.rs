@@ -13,7 +13,7 @@ use super::Store;
 impl Store {
     pub(super) fn smart_filter(&self, id: i64) -> Result<SmartFilter> {
         let definition: String = self.connection.query_row(
-            "SELECT definition FROM smart_lists WHERE id = ?1",
+            include_str!("sql/workspace/select_smart_definition.sql"),
             [id],
             |row| row.get(0),
         )?;
@@ -28,7 +28,7 @@ impl Store {
         let value: Option<String> = self
             .connection
             .query_row(
-                "SELECT value FROM settings WHERE key = 'workspace'",
+                include_str!("sql/workspace/select_workspace.sql"),
                 [],
                 |row| row.get(0),
             )
@@ -60,7 +60,7 @@ impl Store {
     /// Returns SQLite errors or a missing article.
     pub fn progress(&self, article: i64) -> Result<usize> {
         Ok(self.connection.query_row(
-            "SELECT progress FROM articles WHERE id = ?1",
+            include_str!("sql/workspace/select_progress.sql"),
             [article],
             |row| row.get(0),
         )?)
@@ -132,13 +132,9 @@ impl Store {
     /// # Errors
     /// Returns SQLite or invalid stored JSON errors.
     pub fn smart_lists(&self) -> Result<Vec<SmartList>> {
-        let mut statement = self.connection.prepare(
-            r#"
-            SELECT id, name, definition FROM smart_lists
-            WHERE enabled = 1
-            ORDER BY name COLLATE NOCASE
-            "#,
-        )?;
+        let mut statement = self
+            .connection
+            .prepare(include_str!("sql/workspace/select_smart_lists.sql"))?;
         let rows = statement.query_map([], |row| {
             Ok((
                 row.get::<_, i64>(0)?,

@@ -41,8 +41,10 @@ impl Store {
     ) -> Result<usize> {
         let candidates = self.recommendation_candidates(profile)?;
         let selected = select(candidates);
-        self.connection
-            .execute("DELETE FROM recommendation_items", [])?;
+        self.connection.execute(
+            include_str!("../sql/recommendations/delete_items.sql"),
+            [],
+        )?;
         for (position, id) in selected.iter().enumerate() {
             self.connection.execute(
                 include_str!("../sql/recommendations/insert_item.sql"),

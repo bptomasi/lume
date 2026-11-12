@@ -1,0 +1,1 @@
+UPDATE collections SET enabled = 0 WHERE id = ?1

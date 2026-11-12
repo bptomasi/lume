@@ -1,0 +1,1 @@
+SELECT revision FROM configuration_state WHERE singleton = 1

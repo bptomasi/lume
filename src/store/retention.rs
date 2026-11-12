@@ -228,5 +228,9 @@ fn protected_query(tail: &str) -> String {
     let protected = include_str!("sql/retention/select_protected.sql")
         .trim()
         .trim_end_matches(';');
-    format!("WITH protected AS MATERIALIZED ({protected})\n{tail}")
+    format!(
+        include_str!("sql/retention/template_protected_query.sql"),
+        protected = protected,
+        tail = tail,
+    )
 }

@@ -1,0 +1,1 @@
+UPDATE note_metadata SET kind = ?1 WHERE comment_id = ?2

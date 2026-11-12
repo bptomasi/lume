@@ -1,0 +1,1 @@
+INSERT INTO settings (key, value) VALUES ('reading_metadata_v7', '1')

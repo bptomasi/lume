@@ -1,0 +1,1 @@
+UPDATE smart_lists SET enabled = 0 WHERE id = ?1

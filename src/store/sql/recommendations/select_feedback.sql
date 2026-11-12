@@ -1,0 +1,1 @@
+SELECT feedback FROM recommendation_feedback WHERE article_id = ?1

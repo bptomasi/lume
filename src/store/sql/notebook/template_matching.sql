@@ -1,0 +1,2 @@
+{base}
+WHERE {predicate}

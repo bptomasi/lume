@@ -27,15 +27,21 @@ impl Store {
                 })
             },
         )?;
-        let pages: u64 =
-            self.connection
-                .query_row("PRAGMA page_count", [], |row| row.get(0))?;
-        let free: u64 =
-            self.connection
-                .query_row("PRAGMA freelist_count", [], |row| row.get(0))?;
-        let page_size: u64 =
-            self.connection
-                .query_row("PRAGMA page_size", [], |row| row.get(0))?;
+        let pages: u64 = self.connection.query_row(
+            include_str!("sql/storage/select_page_count.sql"),
+            [],
+            |row| row.get(0),
+        )?;
+        let free: u64 = self.connection.query_row(
+            include_str!("sql/storage/select_freelist_count.sql"),
+            [],
+            |row| row.get(0),
+        )?;
+        let page_size: u64 = self.connection.query_row(
+            include_str!("sql/storage/select_page_size.sql"),
+            [],
+            |row| row.get(0),
+        )?;
         usage.pages = pages.saturating_mul(page_size);
         usage.free = free.saturating_mul(page_size);
         Ok(usage)
@@ -85,7 +91,7 @@ impl Store {
 
     pub(crate) fn cleanup_boundary(&self) -> Result<i64> {
         Ok(self.connection.query_row(
-            "SELECT coalesce(max(article_id), 0) FROM article_documents",
+            include_str!("sql/storage/select_cleanup_boundary.sql"),
             [],
             |row| row.get(0),
         )?)
@@ -101,8 +107,9 @@ impl Store {
             .trim()
             .trim_end_matches(';');
         let query = format!(
-            "WITH protected AS MATERIALIZED ({protected})\n{}",
-            include_str!("sql/select_disposable_documents.sql")
+            include_str!("sql/storage/template_clear_documents.sql"),
+            include_str!("sql/select_disposable_documents.sql"),
+            protected = protected,
         );
         let entries = transaction
             .prepare_cached(&query)?

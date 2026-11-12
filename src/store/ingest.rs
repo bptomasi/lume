@@ -30,11 +30,7 @@ impl Store {
             "Invalid feed title"
         );
         let changed = self.connection.execute(
-            r#"
-            UPDATE feeds
-            SET title = ?1
-            WHERE url = ?2 AND title = ?3
-            "#,
+            include_str!("sql/ingest/rename_current_title.sql"),
             (replacement, url.as_str(), previous),
         )?;
         Ok(changed == 1)
@@ -67,11 +63,7 @@ impl Store {
                 title.as_str()
             };
             imported += transaction.execute(
-                r#"
-                INSERT INTO feeds (url, title) VALUES (?1, ?2)
-                ON CONFLICT (url) DO UPDATE SET enabled = 1
-                WHERE feeds.enabled = 0
-                "#,
+                include_str!("sql/ingest/upsert_imported_feed.sql"),
                 (&url, title),
             )?;
         }
@@ -86,14 +78,11 @@ impl Store {
     pub fn subscribe(&self, address: &str) -> Result<i64> {
         let url = crate::urls::feed_url(address)?;
         self.connection.execute(
-            r#"
-            INSERT INTO feeds (url, title) VALUES (?1, ?1)
-            ON CONFLICT (url) DO UPDATE SET enabled = 1
-            "#,
+            include_str!("sql/ingest/upsert_subscription.sql"),
             [url.as_str()],
         )?;
         Ok(self.connection.query_row(
-            "SELECT id FROM feeds WHERE url = ?1",
+            include_str!("sql/ingest/select_feed_id.sql"),
             [url.as_str()],
             |row| row.get(0),
         )?)

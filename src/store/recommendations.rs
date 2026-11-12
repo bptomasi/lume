@@ -52,7 +52,7 @@ impl Store {
         self.write_features(changed, &profile)?;
         for (id, _) in &dirty {
             self.connection.execute(
-                "DELETE FROM recommendation_dirty WHERE article_id = ?1",
+                include_str!("sql/recommendations/delete_dirty.sql"),
                 [id],
             )?;
         }

@@ -112,7 +112,7 @@ impl Store {
     /// Returns a missing subscription or SQLite error.
     pub fn fetch_policy(&self, feed: i64) -> Result<FetchPolicy> {
         let value: String = self.connection.query_row(
-            "SELECT article_policy FROM feeds WHERE id = ?1",
+            include_str!("sql/documents/select_fetch_policy.sql"),
             [feed],
             |row| row.get(0),
         )?;
@@ -134,7 +134,7 @@ impl Store {
         policy: FetchPolicy,
     ) -> Result<()> {
         let changed = self.connection.execute(
-            "UPDATE feeds SET article_policy = ?1 WHERE id = ?2",
+            include_str!("sql/documents/update_fetch_policy.sql"),
             (policy.as_str(), feed),
         )?;
         ensure!(changed == 1, "Subscription no longer exists");

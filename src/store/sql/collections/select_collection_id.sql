@@ -1,0 +1,1 @@
+SELECT id FROM collections WHERE name = ?1

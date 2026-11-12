@@ -1,0 +1,1 @@
+a.unread = 1 OR a.id = :retained

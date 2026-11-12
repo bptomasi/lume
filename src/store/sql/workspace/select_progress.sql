@@ -1,0 +1,1 @@
+SELECT progress FROM articles WHERE id = ?1

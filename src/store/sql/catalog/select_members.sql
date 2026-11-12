@@ -1,0 +1,1 @@
+SELECT article_id FROM members WHERE collection_id = ?1

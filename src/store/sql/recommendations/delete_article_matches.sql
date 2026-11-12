@@ -1,0 +1,1 @@
+DELETE FROM recommendation_matches WHERE article_id = ?1

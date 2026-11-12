@@ -1,0 +1,1 @@
+DELETE FROM note_drafts WHERE key = ?1 AND body = ?2

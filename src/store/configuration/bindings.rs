@@ -19,10 +19,7 @@ impl Store {
         Ok(self
             .connection
             .query_row(
-                r#"
-            SELECT entity FROM configuration_bindings
-            WHERE kind = ?1 AND key = ?2
-            "#,
+                include_str!("../sql/configuration/select_binding_entity.sql"),
                 (kind, key),
                 |row| row.get(0),
             )
@@ -48,10 +45,7 @@ impl Store {
         id: i64,
     ) -> Result<String> {
         Ok(self.connection.query_row(
-            r#"
-            SELECT key FROM configuration_bindings
-            WHERE kind = ?1 AND entity = ?2
-            "#,
+            include_str!("../sql/configuration/select_binding_key.sql"),
             (kind, id),
             |row| row.get(0),
         )?)
@@ -81,7 +75,7 @@ impl Store {
             let id = self
                 .connection
                 .query_row(
-                    "SELECT id FROM feeds WHERE url = ?1",
+                    include_str!("../sql/configuration/select_feed_id.sql"),
                     [url.as_str()],
                     |row| row.get::<_, i64>(0),
                 )
@@ -110,9 +104,13 @@ impl Store {
         adoption: &Adoption,
     ) -> Result<()> {
         let sql = match kind {
-            "folder" => "SELECT id FROM collections WHERE name = ?1",
-            "smart" => "SELECT id FROM smart_lists WHERE name = ?1",
-            "notes" => "SELECT id FROM note_collections WHERE name = ?1",
+            "folder" => {
+                include_str!("../sql/configuration/select_folder_id.sql")
+            }
+            "smart" => include_str!("../sql/configuration/select_smart_id.sql"),
+            "notes" => include_str!(
+                "../sql/configuration/select_note_collection_id.sql"
+            ),
             _ => return Ok(()),
         };
         let id = self
@@ -133,12 +131,7 @@ impl Store {
         adoption: &Adoption,
     ) -> Result<()> {
         let bound: bool = self.connection.query_row(
-            r#"
-            SELECT EXISTS (
-                SELECT 1 FROM configuration_bindings
-                WHERE kind = ?1 AND entity = ?2
-            )
-            "#,
+            include_str!("../sql/configuration/select_binding_exists.sql"),
             (kind, id),
             |row| row.get(0),
         )?;

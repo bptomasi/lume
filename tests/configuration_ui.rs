@@ -199,7 +199,9 @@ fn external_preferences_wait_for_a_polled_barrier_without_blocking_input()
     app.configure_document(session.initial().clone());
     app.enable_background_navigation(&database)?;
     let blocker = rusqlite::Connection::open(&database)?;
-    blocker.execute_batch("BEGIN IMMEDIATE")?;
+    blocker.execute_batch(include_str!(
+        "sql/configuration_ui/test_begin_immediate.sql"
+    ))?;
     app.save_session()?;
 
     let started = std::time::Instant::now();
@@ -207,7 +209,9 @@ fn external_preferences_wait_for_a_polled_barrier_without_blocking_input()
 
     assert!(started.elapsed() < std::time::Duration::from_millis(250));
     assert_eq!(app.workspace.theme, "lume");
-    blocker.execute_batch("ROLLBACK")?;
+    blocker.execute_batch(include_str!(
+        "sql/configuration_ui/test_rollback.sql"
+    ))?;
     let deadline =
         std::time::Instant::now() + std::time::Duration::from_secs(5);
     while app.workspace.theme != "nord" {

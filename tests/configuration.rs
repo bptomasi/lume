@@ -351,7 +351,9 @@ fn publication_before_failed_database_ack_recovers_without_duplicate_identities(
     let published = config::decode(&fs::read_to_string(&path)?)?;
     assert_eq!(published.folders.len(), 1);
     assert_eq!(published.feeds.len(), 1);
-    failures.execute_batch("DROP TRIGGER test_reject_configuration_ack")?;
+    failures.execute_batch(include_str!(
+        "sql/configuration/test_allow_configuration_ack.sql"
+    ))?;
 
     Session::open(&store, &path)?.flush()?;
     assert_eq!(config::decode(&fs::read_to_string(&path)?)?, published);
@@ -395,7 +397,7 @@ fn reading_and_publisher_updates_do_not_schedule_configuration_publication()
 fn publication_revision(path: &std::path::Path) -> Result<i64> {
     let connection = rusqlite::Connection::open(path)?;
     Ok(connection.query_row(
-        "SELECT revision FROM configuration_state WHERE singleton = 1",
+        include_str!("sql/configuration/test_configuration_revision.sql"),
         [],
         |row| row.get(0),
     )?)

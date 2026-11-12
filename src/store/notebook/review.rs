@@ -24,7 +24,7 @@ impl Store {
         let mut values = expression.values;
         values.push(now.into());
         let sql = format!(
-            "{} AND ({}) AND s.due_at <= ?{}\nORDER BY s.due_at, s.id\nLIMIT 200",
+            include_str!("../sql/notebook/template_filtered_study_cards.sql"),
             include_str!("../sql/notebook/select_review_cards.sql"),
             expression.sql,
             values.len()
@@ -66,7 +66,7 @@ impl Store {
                 "Card no longer belongs to this note"
             );
             transaction.execute(
-                "UPDATE study_cards SET due_at = ?1, interval_days = ?2 WHERE id = ?3",
+                include_str!("../sql/notebook/update_card_due.sql"),
                 (due, days, id),
             )?;
         } else {

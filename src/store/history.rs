@@ -53,16 +53,10 @@ pub(super) enum Undo {
 
 pub(super) fn record(transaction: &Transaction<'_>, undo: &Undo) -> Result<()> {
     transaction.execute(
-        "INSERT INTO undo_log (operation, payload) VALUES ('personal', ?1)",
+        include_str!("sql/history/insert_undo.sql"),
         [serde_json::to_string(undo)?],
     )?;
-    transaction.execute(
-        r#"
-        DELETE FROM undo_log
-        WHERE id NOT IN (SELECT id FROM undo_log ORDER BY id DESC LIMIT 256)
-        "#,
-        [],
-    )?;
+    transaction.execute(include_str!("sql/history/delete_old_undo.sql"), [])?;
     Ok(())
 }
 
@@ -85,7 +79,7 @@ impl Store {
         let transaction = self.write_transaction()?;
         let last: Option<(i64, String)> = transaction
             .query_row(
-                "SELECT id, payload FROM undo_log ORDER BY id DESC LIMIT 1",
+                include_str!("sql/history/select_latest_undo.sql"),
                 [],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
@@ -107,7 +101,7 @@ impl Store {
                 ..
             } => {
                 let article = transaction.query_row(
-                    "SELECT article_id FROM comments WHERE id = ?1",
+                    include_str!("sql/history/select_note_article.sql"),
                     [note],
                     |row| row.get(0),
                 )?;
@@ -116,7 +110,8 @@ impl Store {
             _ => crate::model::UndoEffect::Library,
         };
         restore(&transaction, undo)?;
-        transaction.execute("DELETE FROM undo_log WHERE id = ?1", [id])?;
+        transaction
+            .execute(include_str!("sql/history/delete_undo.sql"), [id])?;
         transaction.commit()?;
         Ok(effect)
     }
@@ -126,7 +121,8 @@ impl Store {
     /// # Errors
     /// Returns SQLite errors.
     pub fn clear_history(&self) -> Result<()> {
-        self.connection.execute("DELETE FROM undo_log", [])?;
+        self.connection
+            .execute(include_str!("sql/history/delete_all_undo.sql"), [])?;
         Ok(())
     }
 
@@ -198,7 +194,7 @@ fn restore(transaction: &Transaction<'_>, undo: Undo) -> Result<()> {
         }
         Undo::DeleteComment { article, comment } => {
             transaction.execute(
-                "DELETE FROM comments WHERE id = ?1 AND article_id = ?2",
+                include_str!("sql/history/delete_comment.sql"),
                 (comment, article),
             )?;
         }
@@ -206,8 +202,10 @@ fn restore(transaction: &Transaction<'_>, undo: Undo) -> Result<()> {
             restore_collection(transaction, &collection)?
         }
         Undo::DeleteCollection(id) => {
-            transaction
-                .execute("DELETE FROM collections WHERE id = ?1", [id])?;
+            transaction.execute(
+                include_str!("sql/history/delete_collection.sql"),
+                [id],
+            )?;
         }
         Undo::Memberships { article, lists } => {
             super::collections::replace_memberships(
@@ -228,11 +226,7 @@ fn restore_flags(
     queued: bool,
 ) -> Result<()> {
     transaction.execute(
-        r#"
-        UPDATE articles
-        SET unread = ?1, starred = ?2, queued = ?3
-        WHERE id = ?4
-        "#,
+        include_str!("sql/history/restore_flags.sql"),
         (unread, starred, queued, article),
     )?;
     Ok(())
@@ -244,19 +238,7 @@ fn restore_comment(
     comment: &Comment,
 ) -> Result<()> {
     let restored = transaction.execute(
-        r#"
-        INSERT INTO comments (
-            id, article_id, body, created, quote, anchor, source, source_revision
-        )
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-        ON CONFLICT (id) DO UPDATE SET
-            body = excluded.body,
-            quote = excluded.quote,
-            anchor = excluded.anchor,
-            source = excluded.source,
-            source_revision = excluded.source_revision
-        WHERE comments.article_id = excluded.article_id
-        "#,
+        include_str!("sql/history/restore_comment.sql"),
         rusqlite::params![
             comment.id,
             article,
@@ -280,19 +262,16 @@ fn restore_collection(
     collection: &Collection,
 ) -> Result<()> {
     transaction.execute(
-        r#"
-        INSERT INTO collections (id, name) VALUES (?1, ?2)
-        ON CONFLICT (id) DO UPDATE SET name = excluded.name
-        "#,
+        include_str!("sql/history/restore_collection.sql"),
         (collection.id, &collection.name),
     )?;
     transaction.execute(
-        "DELETE FROM members WHERE collection_id = ?1",
+        include_str!("sql/history/delete_collection_members.sql"),
         [collection.id],
     )?;
     for article in &collection.articles {
         transaction.execute(
-            "INSERT INTO members (collection_id, article_id) VALUES (?1, ?2)",
+            include_str!("sql/history/insert_member.sql"),
             (collection.id, article),
         )?;
     }

@@ -296,7 +296,7 @@ mod invalidation_tests {
         let id = store.library()?.articles[0].id;
         store.set_unread(id, false)?;
         rusqlite::Connection::open(&path)?.execute_batch(include_str!(
-            "../store/sql/test_drop_article_search.sql"
+            "sql/catalog_worker/test_drop_article_search.sql"
         ))?;
         let updated = read_counts(&store, &library, 0, &previous)?;
         let list = library

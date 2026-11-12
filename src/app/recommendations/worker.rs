@@ -101,17 +101,12 @@ fn retry<T>(mut operation: impl FnMut() -> Result<T>) -> Result<T> {
     loop {
         match operation() {
             Err(error)
-                if busy(&error) && std::time::Instant::now() < deadline =>
+                if crate::store::is_contention(&error)
+                    && std::time::Instant::now() < deadline =>
             {
                 std::thread::sleep(std::time::Duration::from_millis(8));
             }
             result => return result,
         }
     }
-}
-
-fn busy(error: &anyhow::Error) -> bool {
-    error.chain().any(|cause| matches!(cause.downcast_ref::<rusqlite::Error>(),
-        Some(rusqlite::Error::SqliteFailure(error, _)) if matches!(error.code,
-            rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)))
 }

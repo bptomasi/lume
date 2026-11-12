@@ -292,17 +292,10 @@ fn save_with_retry(store: &Store, write: &Write) -> Result<()> {
     let mut attempt = 0;
     loop {
         let result = write.save(store);
-        let transient = result.as_ref().err().is_some_and(|error| {
-            matches!(
-                error
-                    .downcast_ref::<rusqlite::Error>()
-                    .and_then(rusqlite::Error::sqlite_error_code),
-                Some(
-                    rusqlite::ErrorCode::DatabaseBusy
-                        | rusqlite::ErrorCode::DatabaseLocked
-                )
-            )
-        });
+        let transient = result
+            .as_ref()
+            .err()
+            .is_some_and(crate::store::is_contention);
         if !transient || attempt == 2 {
             return result;
         }

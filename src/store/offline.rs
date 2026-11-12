@@ -56,7 +56,7 @@ impl Store {
         let value: Option<String> = self
             .connection
             .query_row(
-                "SELECT value FROM settings WHERE key = 'offline_package'",
+                include_str!("sql/offline/select_state.sql"),
                 [],
                 |row| row.get(0),
             )
@@ -82,14 +82,8 @@ impl Store {
         state.validate()?;
         let value = serde_json::to_string(state)?;
         ensure!(value.len() <= 2_097_152, "Offline checkpoint exceeds 2 MiB");
-        self.connection.execute(
-            r#"
-            INSERT INTO settings (key, value)
-            VALUES ('offline_package', ?1)
-            ON CONFLICT (key) DO UPDATE SET value = excluded.value
-            "#,
-            [value],
-        )?;
+        self.connection
+            .execute(include_str!("sql/offline/upsert_state.sql"), [value])?;
         Ok(())
     }
 
@@ -98,10 +92,8 @@ impl Store {
     /// # Errors
     /// Returns SQLite errors.
     pub fn release_offline_state(&self) -> Result<()> {
-        self.connection.execute(
-            "DELETE FROM settings WHERE key = 'offline_package'",
-            [],
-        )?;
+        self.connection
+            .execute(include_str!("sql/offline/delete_state.sql"), [])?;
         Ok(())
     }
 }

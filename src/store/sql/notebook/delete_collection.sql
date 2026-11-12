@@ -1,0 +1,1 @@
+DELETE FROM note_collections WHERE name = ?1 COLLATE NOCASE

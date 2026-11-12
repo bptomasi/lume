@@ -44,7 +44,7 @@ impl Store {
         let key = format!("collector_retry:{host}");
         let previous: Option<String> = transaction
             .query_row(
-                "SELECT value FROM settings WHERE key = ?1",
+                include_str!("sql/extraction/select_setting.sql"),
                 [&key],
                 |row| row.get(0),
             )
@@ -71,7 +71,7 @@ impl Store {
     /// Returns missing subscription or SQLite errors.
     pub fn source_failures(&self, feed: i64) -> Result<u32> {
         Ok(self.connection.query_row(
-            "SELECT failures FROM feeds WHERE id = ?1",
+            include_str!("sql/extraction/select_failures.sql"),
             [feed],
             |row| row.get(0),
         )?)
@@ -83,7 +83,7 @@ impl Store {
     /// Returns missing article or invalid stored origin errors.
     pub fn feed_origin(&self, article: i64) -> Result<FeedOrigin> {
         let origin: String = self.connection.query_row(
-            "SELECT body_origin FROM articles WHERE id = ?1",
+            include_str!("sql/extraction/select_body_origin.sql"),
             [article],
             |row| row.get(0),
         )?;
@@ -101,7 +101,7 @@ impl Store {
     /// Returns a missing subscription or SQLite error.
     pub fn article_selector(&self, feed: i64) -> Result<String> {
         Ok(self.connection.query_row(
-            "SELECT article_selector FROM feeds WHERE id = ?1",
+            include_str!("sql/extraction/select_selector.sql"),
             [feed],
             |row| row.get(0),
         )?)
@@ -122,10 +122,7 @@ impl Store {
             "Preview target changed; preview again"
         );
         let changed = transaction.execute(
-            r#"
-            UPDATE feeds SET article_selector = ?1
-            WHERE id = ?2 AND article_selector = ?3
-            "#,
+            include_str!("sql/extraction/update_confirmed_selector.sql"),
             (&preview.selector, preview.feed, &preview.previous),
         )?;
         ensure!(changed == 1, "Source rule changed; preview again");

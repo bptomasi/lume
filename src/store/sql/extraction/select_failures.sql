@@ -1,0 +1,1 @@
+SELECT failures FROM feeds WHERE id = ?1

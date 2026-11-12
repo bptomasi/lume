@@ -1,0 +1,1 @@
+DELETE FROM members WHERE collection_id = ?1 AND article_id = ?2

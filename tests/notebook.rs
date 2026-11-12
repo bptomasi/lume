@@ -257,7 +257,7 @@ fn writes_do_not_block_input_or_close_newer_text_while_sqlite_is_busy()
     app.paste("First revision")?;
     key(&mut app, KeyCode::Esc)?;
     let lock = rusqlite::Connection::open(&path)?;
-    lock.execute_batch("BEGIN IMMEDIATE")?;
+    lock.execute_batch(include_str!("sql/notebook/test_begin_immediate.sql"))?;
     let start = std::time::Instant::now();
     command(&mut app, "wq")?;
     std::thread::sleep(std::time::Duration::from_millis(20));
@@ -268,7 +268,7 @@ fn writes_do_not_block_input_or_close_newer_text_while_sqlite_is_busy()
         start.elapsed() < std::time::Duration::from_secs(1),
         "Input waited for the database lock"
     );
-    lock.execute_batch("ROLLBACK")?;
+    lock.execute_batch(include_str!("sql/notebook/test_rollback.sql"))?;
     common::settle_notes(&mut app)?;
     assert!(input(&app)?.modified());
     let reader = Store::open(&path)?;

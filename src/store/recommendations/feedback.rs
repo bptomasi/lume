@@ -27,7 +27,7 @@ impl Store {
             [article],
         )?;
         self.connection.execute(
-            "DELETE FROM recommendation_feedback WHERE article_id = ?1",
+            include_str!("../sql/recommendations/delete_feedback.sql"),
             [article],
         )?;
         self.write_feedback(article, feedback)?;
@@ -71,9 +71,14 @@ impl Store {
         &self,
         article: i64,
     ) -> Result<Option<RecommendationFeedback>> {
-        let name: Option<String> = self.connection.query_row(
-            "SELECT feedback FROM recommendation_feedback WHERE article_id = ?1",
-            [article], |row| row.get(0)).optional()?;
+        let name: Option<String> = self
+            .connection
+            .query_row(
+                include_str!("../sql/recommendations/select_feedback.sql"),
+                [article],
+                |row| row.get(0),
+            )
+            .optional()?;
         name.map(|name| serde_json::from_value(serde_json::Value::String(name)))
             .transpose()
             .map_err(Into::into)

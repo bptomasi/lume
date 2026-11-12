@@ -1,0 +1,1 @@
+a.feed_id IN (SELECT value FROM json_each(:feeds))

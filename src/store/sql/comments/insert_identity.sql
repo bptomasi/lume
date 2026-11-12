@@ -1,0 +1,1 @@
+INSERT INTO note_identities DEFAULT VALUES

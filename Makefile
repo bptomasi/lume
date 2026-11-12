@@ -15,7 +15,7 @@ CARGO_AUDIT ?= cargo-audit
 REPORT_DIR ?= reports
 MIGRATE_FROM ?=
 
-.PHONY: help paths check check-release check-http fmt format
+.PHONY: help paths check check-release check-http check-sql fmt format
 .PHONY: lint test bench build run demo clean
 .PHONY: install upgrade test-tools bench-tools bench-notes bench-recommendations
 .PHONY: bench-reading bench-images bench-interaction bench-code check-image-display check-foot
@@ -80,6 +80,7 @@ paths:
 		'Use lume config path for the runtime configuration location.'
 
 check:
+	$(MAKE) check-sql
 	$(MAKE) check-licenses
 	$(MAKE) fmt
 	$(MAKE) lint
@@ -95,7 +96,11 @@ check:
 		tools/bench_discovery.py \
 		tools/bench_code.py tools/bench_configuration.py tools/bench_reading.py \
 		tools/advisories.py tools/dependency_inventory.py tools/visual_dependencies.py \
+		tools/rust_source.py tools/sql_ownership.py \
 		tools/package_release.py tools/publish_release.py tools/qualify_wayland.py
+
+check-sql:
+	$(PYTHON) tools/sql_ownership.py
 
 fmt:
 	$(CARGO) fmt --all -- --check

@@ -1,0 +1,1 @@
+SELECT id, name FROM collections WHERE enabled = 1 ORDER BY name COLLATE NOCASE

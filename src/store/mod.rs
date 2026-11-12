@@ -12,6 +12,8 @@ mod cancellation;
 mod collections;
 mod comments;
 mod configuration;
+mod contention;
+pub(crate) use contention::is_contention;
 mod deletion;
 mod documents;
 mod export;
@@ -93,9 +95,7 @@ impl Store {
     pub fn catalog(&self) -> Result<Library> {
         let collections = self
             .connection
-            .prepare(
-                "SELECT id, name FROM collections WHERE enabled = 1 ORDER BY name COLLATE NOCASE",
-            )?
+            .prepare(include_str!("sql/catalog/select_collections.sql"))?
             .query_map([], |row| {
                 Ok(Collection {
                     id: row.get(0)?,
@@ -159,7 +159,7 @@ impl Store {
     /// Returns an error when the article does not exist or SQLite fails.
     pub fn body(&self, id: i64) -> Result<String> {
         Ok(self.connection.query_row(
-            "SELECT body FROM articles WHERE id = ?1",
+            include_str!("sql/catalog/select_body.sql"),
             [id],
             |row| row.get(0),
         )?)
@@ -182,9 +182,9 @@ impl Store {
     }
 
     fn collections(&self) -> Result<Vec<Collection>> {
-        let mut statement = self.connection.prepare(
-            "SELECT id, name FROM collections WHERE enabled = 1 ORDER BY name COLLATE NOCASE",
-        )?;
+        let mut statement = self
+            .connection
+            .prepare(include_str!("sql/catalog/select_collections.sql"))?;
         let rows = statement.query_map([], |row| {
             Ok(Collection {
                 id: row.get(0)?,
@@ -202,9 +202,7 @@ impl Store {
     fn members(&self, id: i64) -> Result<std::collections::BTreeSet<i64>> {
         Ok(self
             .connection
-            .prepare_cached(
-                "SELECT article_id FROM members WHERE collection_id = ?1",
-            )?
+            .prepare_cached(include_str!("sql/catalog/select_members.sql"))?
             .query_map([id], |row| row.get(0))?
             .collect::<rusqlite::Result<_>>()?)
     }

@@ -53,7 +53,7 @@ pub(crate) fn restore_metadata(
     // creation order instead of assigning the default Unix epoch timestamp.
     let updated_at = if metadata.updated_at == 0 {
         transaction.query_row(
-            "SELECT created FROM comments WHERE id = ?1",
+            include_str!("../sql/notebook/select_created.sql"),
             [id],
             |row| row.get(0),
         )?

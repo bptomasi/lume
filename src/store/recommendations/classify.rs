@@ -44,7 +44,9 @@ impl Store {
     ) -> Result<()> {
         for id in ids {
             self.connection.execute(
-                "DELETE FROM recommendation_matches WHERE article_id = ?1",
+                include_str!(
+                    "../sql/recommendations/delete_article_matches.sql"
+                ),
                 [id],
             )?;
         }
@@ -86,7 +88,7 @@ impl Store {
             crate::search::compile::compile_publisher(&expression)?
         };
         let sql = format!(
-            "{}\nAND ({})",
+            include_str!("../sql/recommendations/template_matching_ids.sql"),
             include_str!("../sql/recommendations/select_match_batch.sql"),
             compiled.sql
         );

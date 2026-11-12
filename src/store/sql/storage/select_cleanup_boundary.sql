@@ -1,0 +1,1 @@
+SELECT coalesce(max(article_id), 0) FROM article_documents

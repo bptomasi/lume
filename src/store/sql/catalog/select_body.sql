@@ -1,0 +1,1 @@
+SELECT body FROM articles WHERE id = ?1

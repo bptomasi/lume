@@ -349,7 +349,10 @@ fn discovery_follows_redirect_and_returns_advertised_choices() -> Result<()> {
 
 fn replace_address(path: &std::path::Path, address: &str) -> Result<()> {
     let connection = rusqlite::Connection::open(path)?;
-    connection.execute("UPDATE feeds SET url = ?1", [address])?;
+    connection.execute(
+        include_str!("sql/http/test_update_feed_url.sql"),
+        [address],
+    )?;
     Ok(())
 }
 

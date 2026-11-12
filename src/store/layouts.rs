@@ -16,7 +16,7 @@ impl Store {
         let json: Option<String> = self
             .connection
             .query_row(
-                "SELECT value FROM settings WHERE key = 'layouts'",
+                include_str!("sql/layouts/select_layouts.sql"),
                 [],
                 |row| row.get(0),
             )

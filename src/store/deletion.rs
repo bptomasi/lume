@@ -40,7 +40,7 @@ impl Store {
     /// Returns missing-article or SQLite errors.
     pub fn is_deleted(&self, article: i64) -> Result<bool> {
         Ok(self.connection.query_row(
-            "SELECT deleted FROM articles WHERE id = ?1",
+            include_str!("sql/deletion/select_deleted_flag.sql"),
             [article],
             |row| row.get(0),
         )?)
@@ -55,7 +55,7 @@ impl Store {
     pub fn set_deleted(&self, article: i64, deleted: bool) -> Result<bool> {
         let transaction = self.write_transaction()?;
         let previous: bool = transaction.query_row(
-            "SELECT deleted FROM articles WHERE id = ?1",
+            include_str!("sql/deletion/select_deleted_flag.sql"),
             [article],
             |row| row.get(0),
         )?;

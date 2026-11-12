@@ -11,8 +11,11 @@ use rusqlite::{Connection, OptionalExtension, Transaction};
 pub(super) const LATEST_SCHEMA_VERSION: i64 = 28;
 
 pub(super) fn run(connection: &mut Connection) -> Result<()> {
-    let version: i64 =
-        connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    let version: i64 = connection.query_row(
+        include_str!("sql/migrations/select_user_version.sql"),
+        [],
+        |row| row.get(0),
+    )?;
     ensure!(
         version <= LATEST_SCHEMA_VERSION,
         "Unsupported library schema {version}; use a newer Lume"
@@ -35,7 +38,7 @@ pub(super) fn backfill_reading_metadata(
 ) -> Result<()> {
     let done: Option<i64> = connection
         .query_row(
-            "SELECT 1 FROM settings WHERE key = 'reading_metadata_v7'",
+            include_str!("sql/migrations/select_backfill_done.sql"),
             [],
             |row| row.get(0),
         )
@@ -48,10 +51,8 @@ pub(super) fn backfill_reading_metadata(
     while let Some(next) = backfill_page(&transaction, cursor)? {
         cursor = next;
     }
-    transaction.execute(
-        "INSERT INTO settings (key, value) VALUES ('reading_metadata_v7', '1')",
-        [],
-    )?;
+    transaction
+        .execute(include_str!("sql/migrations/insert_backfill_done.sql"), [])?;
     transaction.commit()?;
     Ok(())
 }
@@ -73,12 +74,7 @@ fn backfill_page(
     let mut next = None;
     for (id, body, url) in rows {
         transaction.execute(
-            r#"
-            UPDATE articles
-            SET reading_minutes = ?1,
-                canonical_key = ?2
-            WHERE id = ?3
-            "#,
+            include_str!("sql/migrations/update_reading_metadata.sql"),
             (
                 crate::content::reading_minutes(&body) as i64,
                 crate::urls::canonical_article_url(&url),

@@ -1,0 +1,1 @@
+SELECT feed_id FROM manual_sources ORDER BY feed_id LIMIT 1

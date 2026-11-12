@@ -122,7 +122,7 @@ impl Store {
                 ),
             )?;
             self.connection.query_row(
-                "SELECT id FROM feeds WHERE url = ?1",
+                include_str!("../sql/configuration/select_feed_id.sql"),
                 [url.as_str()],
                 |row| row.get(0),
             )?
@@ -144,7 +144,7 @@ impl Store {
                     [&folder.name],
                 )?;
                 self.connection.query_row(
-                    "SELECT id FROM collections WHERE name = ?1",
+                    include_str!("../sql/configuration/select_folder_id.sql"),
                     [&folder.name],
                     |row| row.get(0),
                 )?
@@ -183,7 +183,7 @@ impl Store {
                 (&list.name, json),
             )?;
             self.connection.query_row(
-                "SELECT id FROM smart_lists WHERE name = ?1",
+                include_str!("../sql/configuration/select_smart_id.sql"),
                 [&list.name],
                 |row| row.get(0),
             )?
@@ -214,7 +214,9 @@ impl Store {
                 (&list.name, &list.query),
             )?;
             self.connection.query_row(
-                "SELECT id FROM note_collections WHERE name = ?1",
+                include_str!(
+                    "../sql/configuration/select_note_collection_id.sql"
+                ),
                 [&list.name],
                 |row| row.get(0),
             )?
@@ -241,25 +243,33 @@ impl Store {
             if wanted.contains(&(kind.as_str(), key.as_str())) {
                 continue;
             }
-            let sql = match kind.as_str() {
-                "feed" => "UPDATE feeds SET enabled = 0 WHERE id = ?1",
-                "server" => "UPDATE servers SET enabled = 0 WHERE id = ?1",
-                "folder" => "UPDATE collections SET enabled = 0 WHERE id = ?1",
-                "smart" => "UPDATE smart_lists SET enabled = 0 WHERE id = ?1",
-                "notes" => {
-                    "UPDATE note_collections SET enabled = 0 WHERE id = ?1"
-                }
-                _ => anyhow::bail!("Unknown configuration binding kind"),
-            };
-            self.connection.execute(sql, [id])?;
-            self.connection.execute(
-                r#"
-                UPDATE configuration_bindings SET present = 0
-                WHERE kind = ?1 AND entity = ?2
-                "#,
-                (kind, id),
-            )?;
+            self.archive_configuration_binding(&kind, id)?;
         }
+        Ok(())
+    }
+
+    fn archive_configuration_binding(&self, kind: &str, id: i64) -> Result<()> {
+        let sql = match kind {
+            "feed" => include_str!("../sql/configuration/archive_feed.sql"),
+            "server" => {
+                include_str!("../sql/configuration/archive_server.sql")
+            }
+            "folder" => {
+                include_str!("../sql/configuration/archive_folder.sql")
+            }
+            "smart" => {
+                include_str!("../sql/configuration/archive_smart.sql")
+            }
+            "notes" => {
+                include_str!("../sql/configuration/archive_note_collection.sql")
+            }
+            _ => anyhow::bail!("Unknown configuration binding kind"),
+        };
+        self.connection.execute(sql, [id])?;
+        self.connection.execute(
+            include_str!("../sql/configuration/archive_binding.sql"),
+            (kind, id),
+        )?;
         Ok(())
     }
 

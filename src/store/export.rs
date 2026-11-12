@@ -18,12 +18,7 @@ impl Store {
         Ok(self
             .connection
             .query_row(
-                r#"
-                SELECT content
-                FROM export_manifest
-                WHERE namespace = ?1
-                    AND article_id = ?2
-                "#,
+                include_str!("sql/export/select_manifest.sql"),
                 (namespace, article),
                 |row| row.get(0),
             )
@@ -42,12 +37,7 @@ impl Store {
     ) -> Result<()> {
         ensure!(content.len() <= 1024 * 1024, "Managed export exceeds 1 MiB");
         self.connection.execute(
-            r#"
-            INSERT INTO export_manifest (namespace, article_id, content)
-            VALUES (?1, ?2, ?3)
-            ON CONFLICT (namespace, article_id) DO UPDATE SET
-                content = excluded.content
-            "#,
+            include_str!("sql/export/upsert_manifest.sql"),
             (namespace, article, content),
         )?;
         Ok(())

@@ -1,0 +1,1 @@
+UPDATE feeds SET article_policy = ?1 WHERE id = ?2

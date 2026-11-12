@@ -48,7 +48,7 @@ fn reference_pages(
     iterations: usize,
 ) -> Result<()> {
     let sql = format!(
-        "WITH candidates AS ({}), matching AS MATERIALIZED ({})\n{}\n{}",
+        include_str!("sql/page_navigation/template_offset_page.sql"),
         include_str!("../../src/store/sql/query/benchmark_candidates.sql"),
         include_str!("../../src/store/sql/query/benchmark_offset.sql"),
         include_str!("../../src/store/sql/select_article_metadata.sql"),

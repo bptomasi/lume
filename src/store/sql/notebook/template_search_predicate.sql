@@ -1,0 +1,1 @@
+a.deleted = 0 AND ({})

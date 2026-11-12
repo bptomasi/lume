@@ -33,11 +33,7 @@ impl Store {
         crate::search::notes::validate(query)?;
         let transaction = self.write_transaction()?;
         let count: usize = transaction.query_row(
-            r#"
-            SELECT count(*)
-            FROM note_collections
-            WHERE enabled = 1 AND name <> ?1 COLLATE NOCASE
-            "#,
+            include_str!("../sql/notebook/count_other_collections.sql"),
             [name],
             |row| row.get(0),
         )?;
@@ -56,7 +52,7 @@ impl Store {
     /// Returns a missing collection or SQLite failure.
     pub fn delete_note_collection(&self, name: &str) -> Result<()> {
         let changed = self.connection.execute(
-            "DELETE FROM note_collections WHERE name = ?1 COLLATE NOCASE",
+            include_str!("../sql/notebook/delete_collection.sql"),
             [name],
         )?;
         ensure!(changed == 1, "No saved note collection has this name");

@@ -1,0 +1,1 @@
+INSERT INTO undo_log (operation, payload) VALUES ('personal', ?1)
