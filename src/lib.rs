@@ -7,7 +7,9 @@ pub mod app;
 pub mod backups;
 pub mod catalog;
 pub mod clipboard;
+pub mod command;
 pub mod config;
+pub mod configuration_service;
 pub mod content;
 pub mod demo;
 pub mod exchange;
@@ -22,9 +24,12 @@ pub mod source;
 pub mod storage;
 pub mod store;
 pub mod ui;
+pub mod urls;
 
+mod file_publication;
 mod http_body;
 mod latest;
+mod validation;
 
 /// Local, explainable article recommendation policy.
 pub mod recommendation;

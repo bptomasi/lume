@@ -131,13 +131,13 @@ fn run(
     }
     let session = config_path
         .as_deref()
-        .map(|path| lume::config::Session::open(&store, path))
+        .map(|path| lume::configuration_service::Session::open(&store, path))
         .transpose()?;
     if let Some(command) = cli.command {
         let result = execute(command, store, path, cli.demo, cli.offline);
         let publish = session
             .as_ref()
-            .map(lume::config::Session::flush)
+            .map(lume::configuration_service::Session::flush)
             .transpose();
         return result.and(publish.map(|_| ()));
     }

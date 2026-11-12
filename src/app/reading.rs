@@ -310,7 +310,7 @@ impl App {
                             .is_some_and(|article| article.url == document.url)
                     })
                     .and_then(|document| {
-                        crate::source::article::rules::rejection(&document.body)
+                        crate::content::extraction::rejection(&document.body)
                     })
                     .map(|reason| {
                         format!("{reason} · showing feed · o opens original")

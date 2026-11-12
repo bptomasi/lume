@@ -93,7 +93,7 @@ fn server_edits_publish_and_reconnect_the_same_portable_definition()
 -> Result<()> {
     let (directory, store, _) = common::seeded_store()?;
     let path = directory.path().join("config.toml");
-    let session = config::Session::open(&store, &path)?;
+    let session = lume::configuration_service::Session::open(&store, &path)?;
     let id = store.add_server("https://reader.example/", "LUME_TOKEN")?;
     session.flush()?;
     let config = config::decode(&std::fs::read_to_string(&path)?)?;
@@ -298,7 +298,7 @@ fn the_connection_picker_reveals_servers_in_folded_sections() -> Result<()> {
 fn remote_scope_configuration() -> Result<String> {
     let (directory, store, _) = remote_library()?;
     let path = directory.path().join("config.toml");
-    let session = config::Session::open(&store, &path)?;
+    let session = lume::configuration_service::Session::open(&store, &path)?;
     let feed = remote_feed_id(&store)?;
     store.save_smart_list(
         "Remote scope",
@@ -337,8 +337,10 @@ fn restored_remote_scopes_wait_for_discovery_and_retain_identity() -> Result<()>
     std::fs::write(&restored_path, text)?;
     let mut restored_store =
         lume::store::Store::open(&restored.path().join("library.sqlite3"))?;
-    let restored_session =
-        config::Session::open(&restored_store, &restored_path)?;
+    let restored_session = lume::configuration_service::Session::open(
+        &restored_store,
+        &restored_path,
+    )?;
     let list = restored_store.smart_lists()?.remove(0);
     assert_eq!(list.filter.feed, list.filter.feeds.first().copied());
     assert!(
@@ -386,7 +388,7 @@ fn removing_a_referenced_server_keeps_its_list_empty_and_configuration_valid()
 -> Result<()> {
     let (directory, store, id) = remote_library()?;
     let path = directory.path().join("config.toml");
-    let session = config::Session::open(&store, &path)?;
+    let session = lume::configuration_service::Session::open(&store, &path)?;
     let feed = remote_feed_id(&store)?;
     store.save_smart_list(
         "Remote scope",
@@ -440,7 +442,7 @@ fn removing_one_server_keeps_other_smart_list_sources() -> Result<()> {
         },
     )?;
     let path = directory.path().join("config.toml");
-    let session = config::Session::open(&store, &path)?;
+    let session = lume::configuration_service::Session::open(&store, &path)?;
     store.remove_server(id)?;
     session.flush()?;
     let lists = store.smart_lists()?;
@@ -467,7 +469,7 @@ fn removing_a_server_preserves_a_query_at_its_byte_limit() -> Result<()> {
         },
     )?;
     let path = directory.path().join("config.toml");
-    let session = config::Session::open(&store, &path)?;
+    let session = lume::configuration_service::Session::open(&store, &path)?;
     store.remove_server(id)?;
     session.flush()?;
     let list = store.smart_lists()?.remove(0);
@@ -510,7 +512,7 @@ fn masked_token_command_publishes_the_key_without_exposing_it_in_frames_or_debug
 -> Result<()> {
     let (directory, store, _) = common::seeded_store()?;
     let path = directory.path().join("config.toml");
-    let session = config::Session::open(&store, &path)?;
+    let session = lume::configuration_service::Session::open(&store, &path)?;
     let mut app = App::new(store, false)?;
     app.configure_document(session.initial().clone());
     assert_eq!(

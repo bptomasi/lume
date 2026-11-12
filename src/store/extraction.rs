@@ -112,7 +112,7 @@ impl Store {
     /// # Errors
     /// Stale rules, URLs, Trash, invalid content or SQLite failures roll back both.
     pub fn confirm_article_rule(&self, preview: &RulePreview) -> Result<()> {
-        crate::source::article::rules::validate_selector(&preview.selector)?;
+        crate::validation::validate_selector(&preview.selector)?;
         super::documents::validate_document(&preview.document)?;
         let transaction = self.write_transaction()?;
         let target = &preview.target;

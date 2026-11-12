@@ -15,7 +15,7 @@ pub(crate) fn addresses(body: &str) -> Result<BTreeSet<String>> {
     let mut addresses = BTreeSet::new();
     for event in Parser::new(body) {
         if let Event::Start(Tag::Image { dest_url, .. }) = event {
-            addresses.insert(crate::source::feed_url(&dest_url)?.to_string());
+            addresses.insert(crate::urls::feed_url(&dest_url)?.to_string());
             ensure!(
                 addresses.len() <= 64,
                 "Article contains more than 64 images"

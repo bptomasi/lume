@@ -52,7 +52,7 @@ impl App {
         &mut self,
         address: &str,
     ) -> Result<Action> {
-        let address = crate::source::server_url(address)?;
+        let address = crate::urls::server_url(address)?;
         self.mode = Mode::ServerToken(ServerToken {
             address,
             value: String::new(),

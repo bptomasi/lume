@@ -222,7 +222,7 @@ fn load(
     if let Some(bytes) = &request.generated {
         return render(decoder, bytes, request);
     }
-    crate::source::feed_url(&request.url)?;
+    crate::urls::feed_url(&request.url)?;
     let cached = cache::read(directory, &request.url).and_then(|bytes| {
         bytes
             .map(|bytes| render(decoder, &bytes, request))

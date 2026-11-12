@@ -164,7 +164,7 @@ fn image_urls(
     cancel: &AtomicBool,
 ) -> Result<BTreeSet<String>> {
     let mut unique = BTreeSet::new();
-    let base = crate::source::feed_url(base).ok();
+    let base = crate::urls::feed_url(base).ok();
     for event in Parser::new(body) {
         if cancel.load(Ordering::Relaxed) {
             break;
@@ -172,11 +172,9 @@ fn image_urls(
         let Event::Start(Tag::Image { dest_url, .. }) = event else {
             continue;
         };
-        let url = crate::source::feed_url(&dest_url).ok().or_else(|| {
-            crate::source::feed_url(
-                base.as_ref()?.join(&dest_url).ok()?.as_str(),
-            )
-            .ok()
+        let url = crate::urls::feed_url(&dest_url).ok().or_else(|| {
+            crate::urls::feed_url(base.as_ref()?.join(&dest_url).ok()?.as_str())
+                .ok()
         });
         if let Some(url) = url {
             unique.insert(url.to_string());

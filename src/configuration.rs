@@ -4,10 +4,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, ensure};
 use clap::{Subcommand, ValueEnum};
-use lume::{
-    config::{self, Session},
-    store::Store,
-};
+use lume::{config, configuration_service::Session, store::Store};
 
 use crate::{Cli, cli::Command};
 
@@ -174,7 +171,7 @@ fn recover(store: &Store, path: &Path, source: Recovery) -> Result<()> {
         Recovery::File => config::Recovery::File,
         Recovery::Library => config::Recovery::Library,
     };
-    for backup in config::recover(store, path, source)? {
+    for backup in lume::configuration_service::recover(store, path, source)? {
         println!("Recovery backup: {}", backup.display());
     }
     Ok(())

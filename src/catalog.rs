@@ -14,7 +14,8 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 
 use crate::{
-    exchange::opml, model::SmartFilter, source::discovery::Candidate,
+    exchange::opml,
+    model::{FeedCandidate, SmartFilter},
     store::Store,
 };
 
@@ -41,7 +42,7 @@ struct SavedSearch {
 ///
 /// # Errors
 /// Returns invalid bundled XML, URL or resource-limit errors.
-pub fn feeds() -> Result<Vec<Candidate>> {
+pub fn feeds() -> Result<Vec<FeedCandidate>> {
     let mut feeds =
         opml::decode(include_str!("../assets/reading/computing.opml"))?;
     feeds.extend(security_feeds()?);
@@ -54,7 +55,7 @@ pub fn feeds() -> Result<Vec<Candidate>> {
 ///
 /// # Errors
 /// Returns invalid bundled OPML or subscription URLs.
-pub fn security_feeds() -> Result<Vec<Candidate>> {
+pub fn security_feeds() -> Result<Vec<FeedCandidate>> {
     opml::decode(include_str!("../assets/reading/security.opml"))
 }
 
@@ -62,7 +63,7 @@ pub fn security_feeds() -> Result<Vec<Candidate>> {
 ///
 /// # Errors
 /// Returns invalid bundled OPML or subscription URLs.
-pub fn ai_feeds() -> Result<Vec<Candidate>> {
+pub fn ai_feeds() -> Result<Vec<FeedCandidate>> {
     opml::decode(include_str!("../assets/reading/ai.opml"))
 }
 
@@ -70,7 +71,7 @@ pub fn ai_feeds() -> Result<Vec<Candidate>> {
 ///
 /// # Errors
 /// Returns invalid bundled OPML or subscription URLs.
-pub fn infrastructure_feeds() -> Result<Vec<Candidate>> {
+pub fn infrastructure_feeds() -> Result<Vec<FeedCandidate>> {
     opml::decode(include_str!("../assets/reading/infrastructure.opml"))
 }
 

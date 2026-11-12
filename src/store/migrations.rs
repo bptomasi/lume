@@ -81,7 +81,7 @@ fn backfill_page(
             "#,
             (
                 crate::content::reading_minutes(&body) as i64,
-                crate::source::canonical_article_url(&url),
+                crate::urls::canonical_article_url(&url),
                 id,
             ),
         )?;

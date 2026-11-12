@@ -225,7 +225,7 @@ impl App {
             .context("Place the cursor on a link")?
             .to_owned();
         let destination =
-            crate::source::resolve_link(&page.document.url, &address)?;
+            crate::urls::resolve_link(&page.document.url, &address)?;
         let mut base = destination.clone();
         base.set_fragment(None);
         if base.as_str() == page.document.url

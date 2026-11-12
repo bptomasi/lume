@@ -52,8 +52,7 @@ impl App {
                 .current()
                 .is_some_and(|article| article.url == document.url)
             && !document.body.is_empty()
-            && crate::source::article::rules::rejection(&document.body)
-                .is_none()
+            && crate::content::extraction::rejection(&document.body).is_none()
         {
             if self.feed_body_kind == BodyKind::ReferencesOnly {
                 self.feed_links =
@@ -71,7 +70,7 @@ impl App {
             "Restore the article before fetching"
         );
         let article = self.current().context("Select an article first")?;
-        let url = crate::source::link_url(&article.url)
+        let url = crate::urls::link_url(&article.url)
             .context("This entry has no usable original article URL")?;
         Ok(ArticleTarget {
             article: article.id,

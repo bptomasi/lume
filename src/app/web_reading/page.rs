@@ -56,7 +56,7 @@ impl WebPage {
         let source = &document.body;
         let mut rendered =
             crate::reader::render_with_options(source, width, options);
-        let base = crate::source::feed_url(&document.url).ok();
+        let base = crate::urls::feed_url(&document.url).ok();
         super::super::images::resolve_urls(&mut rendered.images, base.as_ref());
         let index = index.unwrap_or_else(|| {
             Arc::new(DocumentIndex::parse_with_options(source, options))
@@ -319,14 +319,14 @@ pub(super) fn load(
     let document = match fetch(connection, path, address, online)? {
         crate::source::article::FetchedPage::Article(document) => document,
         crate::source::article::FetchedPage::Browser(address) => {
-            let mut url = crate::source::link_url(&address)?;
+            let mut url = crate::urls::link_url(&address)?;
             if url.fragment().is_none() {
                 url.set_fragment(fragment.as_deref());
             }
             return Ok(Loaded::Browser(url.to_string()));
         }
     };
-    let mut target = crate::source::link_url(&document.final_url)?;
+    let mut target = crate::urls::link_url(&document.final_url)?;
     if fragment.is_some() {
         target.set_fragment(fragment.as_deref());
     }
@@ -365,7 +365,7 @@ fn fetch(
     let store = connection
         .as_ref()
         .context("Linked-page connection unavailable")?;
-    let url = crate::source::link_url(address)?;
+    let url = crate::urls::link_url(address)?;
     let cached = store.cached_page_body(url.as_str())?;
     if let Some(body) = cached {
         return Ok(crate::source::article::FetchedPage::Article(

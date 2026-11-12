@@ -314,7 +314,7 @@ impl App {
             .notebook
             .as_ref()
             .context("Open Notebook and choose a query first")?;
-        crate::store::validate_collection_name(name)?;
+        crate::validation::validate_collection_name(name)?;
         if let Some(writer) = &mut self.personal_writes {
             writer.submit(Task::Query(QueryEdit::Save {
                 name: name.into(),

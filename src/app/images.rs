@@ -198,7 +198,7 @@ impl App {
             .map(|document| document.final_url.as_str())
             .filter(|url| !url.is_empty())
             .or_else(|| self.current().map(|article| article.url.as_str()));
-        let base = address.and_then(|url| crate::source::feed_url(url).ok());
+        let base = address.and_then(|url| crate::urls::feed_url(url).ok());
         resolve_urls(&mut self.images.slots, base.as_ref());
     }
 
@@ -462,9 +462,9 @@ pub(super) fn resolve_urls(slots: &mut [ImageSlot], base: Option<&url::Url>) {
         if slot.formula.is_some() {
             continue;
         }
-        let url = crate::source::feed_url(&slot.url).ok().or_else(|| {
+        let url = crate::urls::feed_url(&slot.url).ok().or_else(|| {
             let base = base?;
-            crate::source::feed_url(base.join(&slot.url).ok()?.as_str()).ok()
+            crate::urls::feed_url(base.join(&slot.url).ok()?.as_str()).ok()
         });
         slot.url = url.map_or_else(String::new, |url| url.to_string());
     }

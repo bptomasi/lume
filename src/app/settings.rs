@@ -5,7 +5,7 @@ mod editing;
 use anyhow::{Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::model::Workspace;
+use crate::{model::Workspace, validation::validate_binding};
 
 use super::{Action, App, Mode};
 
@@ -208,53 +208,6 @@ fn resize(value: u16, forward: bool, minimum: u16, maximum: u16) -> u16 {
     } else {
         value.saturating_sub(1).max(minimum)
     }
-}
-
-fn valid_key_name(name: &str) -> bool {
-    let base = name.strip_prefix("ctrl-").unwrap_or(name);
-    let base = base.strip_prefix("alt-").unwrap_or(base);
-    if matches!(
-        base,
-        "space"
-            | "enter"
-            | "tab"
-            | "backtab"
-            | "esc"
-            | "up"
-            | "down"
-            | "left"
-            | "right"
-    ) {
-        return true;
-    }
-    if let Some(number) = base
-        .strip_prefix('f')
-        .and_then(|number| number.parse::<u8>().ok())
-    {
-        return (1..=12).contains(&number);
-    }
-    base.chars().count() == 1 && !base.chars().any(char::is_control)
-}
-
-pub(crate) fn validate_binding(key: &str, command: &str) -> Result<()> {
-    ensure!(
-        valid_key_name(key),
-        "Use a character, arrow, f1–f12 or named key with optional ctrl-/alt- prefixes"
-    );
-    ensure!(
-        key != "ctrl-c" && !key.is_empty() && key.len() <= 32,
-        "Ctrl-c is reserved for exit; key names use at most 32 bytes"
-    );
-    ensure!(
-        command.len() <= 4096 && !command.chars().any(char::is_control),
-        "Invalid bound command"
-    );
-    let verb = command.split_whitespace().next().unwrap_or("");
-    ensure!(
-        super::completion::resolve(verb).is_some(),
-        "Bind an available : command"
-    );
-    Ok(())
 }
 
 fn visual_switch(workspace: &mut Workspace, field: usize) -> Option<&mut bool> {

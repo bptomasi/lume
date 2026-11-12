@@ -10,7 +10,7 @@ use lume::{
 };
 
 pub(super) struct Background {
-    configuration: Option<lume::config::Worker>,
+    configuration: Option<lume::configuration_service::Worker>,
     pending_configuration: Option<lume::config::Update>,
     configuration_error: Option<String>,
     feeds: Option<Worker>,
@@ -22,7 +22,7 @@ impl Background {
     pub(super) fn start(
         path: PathBuf,
         enabled: bool,
-        configuration: Option<lume::config::Worker>,
+        configuration: Option<lume::configuration_service::Worker>,
     ) -> Result<Self> {
         Ok(Self {
             configuration,
@@ -117,7 +117,7 @@ impl Background {
         while let Some(result) = self
             .configuration
             .as_ref()
-            .and_then(lume::config::Worker::poll)
+            .and_then(lume::configuration_service::Worker::poll)
         {
             dirty = true;
             match result {
@@ -150,7 +150,7 @@ impl Background {
             .configuration
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Demo configuration is isolated"))
-            .and_then(lume::config::Worker::reload);
+            .and_then(lume::configuration_service::Worker::reload);
         app.status = match result {
             Ok(()) => "Configuration reload requested".into(),
             Err(error) => error.to_string(),
@@ -225,7 +225,7 @@ fn unavailable(app: &mut App) {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use lume::{app::App, config::Session, store::Store};
+    use lume::{app::App, configuration_service::Session, store::Store};
 
     use super::Background;
 

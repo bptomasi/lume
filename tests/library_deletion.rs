@@ -4,7 +4,8 @@ use anyhow::{Context, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use lume::{
     app::{App, Focus},
-    config::{self, Session},
+    config,
+    configuration_service::Session,
     model::{SmartFilter, View},
     store::Store,
 };

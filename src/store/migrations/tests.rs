@@ -174,7 +174,7 @@ fn declarative_upgrade_preserves_legacy_interests_and_private_data()
         assert_eq!(store.comments(1)?[0].body, "Keep this private note");
         assert!(store.article_memberships(1)?.contains(&1));
         let config = directory.path().join("config.toml");
-        crate::config::Session::open(&store, &config)?;
+        store.reconcile_configuration(&config)?;
         let exported = crate::config::read_document(&config)?;
         let mut expected = profile.interests;
         expected.sort_by(|left, right| left.name.cmp(&right.name));

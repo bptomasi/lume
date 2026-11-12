@@ -166,7 +166,7 @@ impl App {
     }
 
     fn save_folder(&mut self, name: &str, article: Option<i64>) -> Result<()> {
-        crate::store::validate_collection_name(name)?;
+        crate::validation::validate_collection_name(name)?;
         self.submit_library_edit(
             super::personal_tasks::LibraryEdit::CreateFolder {
                 name: name.into(),
@@ -178,7 +178,7 @@ impl App {
     fn edit_folder(&mut self, verb: &str, name: &str) -> Result<()> {
         let folder = self.active_list()?;
         let edit = if verb == "rename" {
-            crate::store::validate_collection_name(name)?;
+            crate::validation::validate_collection_name(name)?;
             super::personal_tasks::LibraryEdit::RenameFolder {
                 folder,
                 name: name.into(),

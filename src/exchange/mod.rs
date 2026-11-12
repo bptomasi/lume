@@ -9,27 +9,11 @@ pub mod markdown;
 pub mod notes;
 pub mod opml;
 
-use std::{io::Write, path::Path};
+use std::path::Path;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
-pub(crate) fn atomic_file(
-    path: &Path,
-    write: impl FnOnce(&mut dyn Write) -> Result<()>,
-) -> Result<()> {
-    let parent = path
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
-    write(temporary.as_file_mut())?;
-    temporary.as_file_mut().sync_all()?;
-    temporary
-        .persist_noclobber(path)
-        .map_err(|error| error.error)
-        .context("Export destination already exists or cannot be written")?;
-    Ok(())
-}
+pub(crate) use crate::file_publication::atomic_file;
 
 /// Read a bounded UTF-8 import file.
 ///

@@ -3,9 +3,10 @@
 use anyhow::{Context, Result, ensure};
 use lume::{
     config::{
-        self, Session,
+        self,
         retention::{Age, Policy},
     },
+    configuration_service::Session,
     model::{FeedOrigin, IncomingArticle, SmartFilter, View},
     retention,
     store::Store,

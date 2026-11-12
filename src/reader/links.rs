@@ -23,7 +23,7 @@ struct Label {
 impl Links {
     pub(super) fn begin(&mut self, address: &str) {
         self.active = None;
-        let Ok(url) = crate::source::link_url(address) else {
+        let Ok(url) = crate::urls::link_url(address) else {
             return;
         };
         let url = url.to_string();

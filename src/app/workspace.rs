@@ -424,7 +424,7 @@ impl App {
             "articles-width" => workspace.article_width = width,
             _ => {}
         }
-        crate::store::validate_workspace_dimensions(&workspace)?;
+        crate::validation::validate_workspace_dimensions(&workspace)?;
         self.workspace = workspace;
         self.persist_preferences()?;
         if !self.screen.is_empty() {

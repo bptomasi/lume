@@ -193,15 +193,15 @@ fn changing_root_or_history_settings_discards_an_old_page() -> Result<()> {
     for change_root in [false, true] {
         let mut fixture = mirrored_store()?;
         let path = fixture._directory.path().join("config.toml");
-        let session = crate::config::Session::open(&fixture.store, &path)?;
-        let mut config = crate::config::decode(&session.initial().document)?;
+        let update = fixture.store.reconcile_configuration(&path)?;
+        let mut config = crate::config::decode(&update.document)?;
         if change_root {
             config.servers[0].url = "https://other-reader.test".into();
         } else {
             config.servers[0].sync.pages_per_sync = 1;
         }
         std::fs::write(&path, crate::config::encode(&config)?)?;
-        crate::config::Session::open(&fixture.store, &path)?;
+        fixture.store.reconcile_configuration(&path)?;
         assert!(!collect(
             &mut fixture.store,
             &fixture.feed,

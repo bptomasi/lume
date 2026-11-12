@@ -316,11 +316,12 @@ fn changing_server_root_retains_feed_identity() -> Result<()> {
     let mut fixture = mirrored_store()?;
     let before = fixture.feed.id;
     let path = fixture._directory.path().join("config.toml");
-    let session = crate::config::Session::open(&fixture.store, &path)?;
+    fixture.store.reconcile_configuration(&path)?;
     let mut config = fixture.store.capture_configuration()?;
     config.servers[0].url = "https://other.example/base".into();
     std::fs::write(&path, crate::config::encode(&config)?)?;
-    session.flush()?;
+    fixture.store.configuration_pending(&path)?;
+    fixture.store.reconcile_configuration(&path)?;
     fixture.store.sync_server_feeds(
         fixture.server_id,
         &[RemoteFeedCandidate {
@@ -617,7 +618,7 @@ fn replacing_an_inline_key_clears_stale_health_and_preserves_private_storage()
 -> Result<()> {
     let fixture = mirrored_store()?;
     let path = fixture._directory.path().join("config.toml");
-    crate::config::Session::open(&fixture.store, &path)?;
+    fixture.store.reconcile_configuration(&path)?;
     for key in ["inline-first-key", "inline-rotated-key"] {
         fixture.store.record_source_attempt(
             fixture.feed.id,
@@ -634,7 +635,7 @@ fn replacing_an_inline_key_clears_stale_health_and_preserves_private_storage()
         config.servers[0].token_env.clear();
         config.servers[0].token = Some(key.into());
         std::fs::write(&path, crate::config::encode(&config)?)?;
-        crate::config::Session::open(&fixture.store, &path)?;
+        fixture.store.reconcile_configuration(&path)?;
         let health = fixture.store.source_health()?.remove(0);
         assert!(health.error.is_empty());
         assert_eq!((health.failures, health.retry_at), (0, 0));

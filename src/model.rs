@@ -1,6 +1,8 @@
 //! Small data contracts shared by storage, collection and presentation.
 
 mod auto_read;
+mod feed_candidate;
+pub use feed_candidate::FeedCandidate;
 mod server_sync;
 pub use server_sync::{ServerHistory, ServerSync};
 mod credentials;

@@ -7,6 +7,7 @@ pub(crate) mod anchors;
 mod availability;
 mod code;
 mod code_context;
+pub mod extraction;
 mod images;
 mod lists;
 mod table;
@@ -89,7 +90,7 @@ impl Fragment {
             lists: lists::Lists::default(),
             link: None,
             table: None,
-            base: crate::source::feed_url(address).ok(),
+            base: crate::urls::feed_url(address).ok(),
         }
     }
 
@@ -221,7 +222,7 @@ impl Fragment {
             .as_ref()
             .and_then(|base| base.join(&href).ok())
             .or_else(|| url::Url::parse(&href).ok())?;
-        crate::source::link_url(url.as_str())
+        crate::urls::link_url(url.as_str())
             .ok()
             .map(|url| url.to_string())
     }
@@ -359,4 +360,13 @@ impl Fragment {
             table.tag(name, closing);
         }
     }
+}
+
+pub(crate) fn html_attr(
+    tag: &html5gum::StartTag<()>,
+    key: &[u8],
+) -> Option<String> {
+    tag.attributes
+        .get(key)
+        .map(|value| String::from_utf8_lossy(&value.value).into_owned())
 }

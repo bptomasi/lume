@@ -3,7 +3,10 @@
 use anyhow::{Result, ensure};
 use rusqlite::OptionalExtension;
 
-use crate::model::{SmartFilter, SmartList, SmartListRename, Workspace};
+use crate::{
+    model::{SmartFilter, SmartList, SmartListRename, Workspace},
+    validation::{validate_panel_layout, validate_workspace_dimensions},
+};
 
 use super::Store;
 
@@ -43,7 +46,7 @@ impl Store {
     /// # Errors
     /// Returns invalid dimensions, JSON or SQLite errors.
     pub fn save_workspace(&self, workspace: &Workspace) -> Result<()> {
-        validate_dimensions(workspace)?;
+        validate_workspace_dimensions(workspace)?;
         self.connection.execute(
             include_str!("sql/insert_workspace.sql"),
             [serde_json::to_string(workspace)?],
@@ -92,7 +95,7 @@ impl Store {
         name: &str,
         filter: &SmartFilter,
     ) -> Result<()> {
-        let name = super::annotations::collection_name(name)?;
+        let name = crate::validation::validate_collection_name(name)?;
         ensure!(filter.text.len() <= 4096, "Smart-list text exceeds 4 KiB");
         crate::search::parse(&filter.text)?;
         ensure!(filter.feeds.len() <= 128, "Source group exceeds 128 feeds");
@@ -175,7 +178,8 @@ impl Store {
         ensure!(names.len() <= 128, "Rename batch exceeds 128 lists");
         let transaction = self.write_transaction()?;
         for change in names {
-            let name = super::annotations::collection_name(&change.name)?;
+            let name =
+                crate::validation::validate_collection_name(&change.name)?;
             let changed = transaction.execute(
                 include_str!("sql/update_smart_list_name.sql"),
                 (name, change.id, &change.expected_name),
@@ -189,57 +193,6 @@ impl Store {
         transaction.commit()?;
         Ok(())
     }
-}
-
-fn validate_panel_layout(workspace: &Workspace) -> Result<()> {
-    ensure!(
-        workspace.valid_panel_order()
-            && workspace
-                .layout
-                .as_ref()
-                .is_none_or(crate::model::PaneLayout::valid),
-        "Pane order must contain every pane exactly once"
-    );
-    ensure!(
-        (24..=80).contains(&workspace.annotation_width),
-        "Annotations width must be 24–80"
-    );
-    Ok(())
-}
-
-pub(crate) fn validate_dimensions(workspace: &Workspace) -> Result<()> {
-    workspace.auto_read.validate()?;
-    validate_panel_layout(workspace)?;
-    if let Some(layout) = &workspace.notebook_layout {
-        let mut notebook = Workspace::default();
-        layout.apply(&mut notebook);
-        validate_dimensions(&notebook)?;
-    }
-    ensure!(
-        ["lume", "nord", "gruvbox"].contains(&workspace.theme.as_str()),
-        "Unsupported theme"
-    );
-    ensure!(
-        workspace.keybindings.len() <= 128,
-        "At most 128 custom key bindings"
-    );
-    ensure!(
-        (40..=140).contains(&workspace.reading_width),
-        "Reading width must be 40–140"
-    );
-    ensure!(
-        (40..=140).contains(&workspace.fullscreen_width),
-        "Fullscreen width must be 40–140"
-    );
-    ensure!(
-        (16..=48).contains(&workspace.library_width),
-        "Sidebar width must be 16–48"
-    );
-    ensure!(
-        (24..=80).contains(&workspace.article_width),
-        "Headlines width must be 24–80"
-    );
-    Ok(())
 }
 
 #[cfg(test)]

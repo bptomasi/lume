@@ -3,10 +3,7 @@
 use std::{fs, process::Command};
 
 use anyhow::{Result, ensure};
-use lume::{
-    config::{self, Session},
-    store::Store,
-};
+use lume::{config, configuration_service::Session, store::Store};
 
 const COMPACT: &str = r#"# Reader settings
 schema_version=1

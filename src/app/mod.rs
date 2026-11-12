@@ -63,7 +63,6 @@ mod recommendations;
 mod recovery;
 mod session_writer;
 mod settings;
-pub(crate) use settings::validate_binding;
 mod study;
 mod vim;
 mod web_reading;

@@ -2,7 +2,7 @@
 
 use html5gum::StartTag;
 
-use crate::source::discovery::attr;
+use super::html_attr as attr;
 
 pub(super) struct CodeBlock {
     pub language: Option<String>,

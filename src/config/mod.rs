@@ -1,10 +1,8 @@
-//! Declarative preferences with a recoverable SQLite projection.
+//! Declarative configuration schemas and bounded standalone file operations.
 //!
-//! The file is portable configuration; publisher content and personal reading
-//! data never enter it. SQLite records pending UI edits and their last published
-//! base. Reconciliation merges independent file/UI changes, rejects conflicts,
-//! and atomically publishes before acknowledging the revision. A crash between
-//! filesystem publication and SQLite commit is recovered by the next merge.
+//! Portable configuration never contains article bodies or personal reading
+//! data. Decoding and validation require no library or application state. The
+//! configuration service reconciles these contracts with the SQLite projection.
 
 pub mod backups;
 pub(crate) mod document;
@@ -13,26 +11,17 @@ pub(crate) mod merge;
 pub(crate) mod publication;
 pub mod retention;
 mod schema;
-mod worker;
+mod update;
 
 pub use schema::{
     Configuration, Feed, Folder, Recommendations, Server, SmartList, Ui,
 };
 pub(crate) use schema::{server_feed_reference, validate_env_name};
-pub use worker::{Update, Worker};
+pub use update::Update;
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-
-use crate::store::Store;
-
-/// One library's explicit configuration path, independent of the current cwd.
-pub struct Session {
-    path: PathBuf,
-    database: PathBuf,
-    initial: Update,
-}
 
 /// Explicit conflict resolution; the rejected inputs are backed up first.
 #[derive(Clone, Copy)]
@@ -43,20 +32,7 @@ pub enum Recovery {
     Library,
 }
 
-/// Resolve a conflict explicitly, retaining private backups of both inputs.
-///
-/// # Errors
-/// Returns invalid selected input, backup/publication, lock or SQLite failures.
-pub fn recover(
-    store: &Store,
-    path: &Path,
-    source: Recovery,
-) -> Result<Vec<PathBuf>> {
-    let path = absolute_path(path)?;
-    store.recover_configuration(&path, source)
-}
-
-fn absolute_path(path: &Path) -> Result<PathBuf> {
+pub(crate) fn absolute_path(path: &Path) -> Result<PathBuf> {
     let path = if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -75,52 +51,6 @@ fn absolute_path(path: &Path) -> Result<PathBuf> {
         path.file_name()
             .context("Configuration requires a filename")?,
     ))
-}
-
-impl Session {
-    /// Adopt an existing library or reconcile a configured one before use.
-    ///
-    /// # Errors
-    /// Rejects invalid files, conflicts, inaccessible paths and SQLite failures.
-    pub fn open(store: &Store, path: &Path) -> Result<Self> {
-        let path = absolute_path(path)?;
-        let initial = store.reconcile_configuration(&path)?;
-        Ok(Self {
-            path,
-            database: store.database_path()?,
-            initial,
-        })
-    }
-
-    /// The effective path, resolving existing symlinks without replacing them.
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    /// Successfully reconciled initial document; safe to cache before UI entry.
-    pub fn initial(&self) -> &Update {
-        &self.initial
-    }
-
-    /// Finish admitted definition edits; personal reading data is untouched.
-    ///
-    /// # Errors
-    /// Returns conflicts, publication errors or SQLite failures. Pending edits
-    /// remain durable and are never reported as successfully written to TOML.
-    pub fn flush(&self) -> Result<()> {
-        let store = Store::open(&self.database)?;
-        store.configuration_pending(&self.path)?;
-        store.reconcile_configuration(&self.path)?;
-        Ok(())
-    }
-
-    /// Start a bounded, independent reconciliation lane for the interactive UI.
-    ///
-    /// # Errors
-    /// Reports thread creation failures.
-    pub fn start(&self) -> Result<Worker> {
-        Worker::start(self.path.clone(), self.database.clone())
-    }
 }
 
 /// Parse and validate a portable TOML document without accessing the library.
@@ -143,10 +73,10 @@ pub fn decode(text: &str) -> Result<Configuration> {
         },
     )?;
     for feed in &mut config.feeds {
-        feed.url = crate::source::feed_url(&feed.url)?.to_string();
+        feed.url = crate::urls::feed_url(&feed.url)?.to_string();
     }
     for server in &mut config.servers {
-        server.url = crate::source::server_url(&server.url)?;
+        server.url = crate::urls::server_url(&server.url)?;
     }
     config.normalize();
     config.validate()?;
@@ -188,7 +118,7 @@ pub fn read_document(path: &Path) -> Result<Configuration> {
 /// Returns invalid configuration, existing-destination or filesystem failures.
 pub fn export(config: &Configuration, path: &Path) -> Result<()> {
     let text = encode(config)?;
-    crate::exchange::atomic_file(path, |writer| {
+    crate::file_publication::atomic_file(path, |writer| {
         writer.write_all(text.as_bytes())?;
         Ok(())
     })

@@ -253,7 +253,7 @@ fn saved_pages_remain_outside_declarative_subscriptions() -> Result<()> {
     store.save_web_document(&page("https://example.org/saved"))?;
     let path = directory.path().join("config.toml");
 
-    lume::config::Session::open(&store, &path)?.flush()?;
+    lume::configuration_service::Session::open(&store, &path)?.flush()?;
 
     let document = lume::config::decode(&std::fs::read_to_string(path)?)?;
     assert!(document.feeds.is_empty());

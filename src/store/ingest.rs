@@ -22,7 +22,7 @@ impl Store {
         previous: &str,
         replacement: &str,
     ) -> Result<bool> {
-        let url = crate::source::feed_url(address)?;
+        let url = crate::urls::feed_url(address)?;
         ensure!(
             !replacement.trim().is_empty()
                 && replacement.chars().count() <= 200
@@ -46,14 +46,14 @@ impl Store {
     /// Returns invalid URLs or SQLite errors without a partial import.
     pub fn import_feeds(
         &self,
-        feeds: &[crate::source::discovery::Candidate],
+        feeds: &[crate::model::FeedCandidate],
     ) -> Result<usize> {
         ensure!(feeds.len() <= 5000, "Import exceeds 5,000 subscriptions");
         let validated = feeds
             .iter()
             .map(|feed| {
                 Ok((
-                    crate::source::feed_url(&feed.url)?.to_string(),
+                    crate::urls::feed_url(&feed.url)?.to_string(),
                     crate::content::label(&feed.title, 200),
                 ))
             })
@@ -84,7 +84,7 @@ impl Store {
     /// # Errors
     /// Returns invalid URL or SQLite errors.
     pub fn subscribe(&self, address: &str) -> Result<i64> {
-        let url = crate::source::feed_url(address)?;
+        let url = crate::urls::feed_url(address)?;
         self.connection.execute(
             r#"
             INSERT INTO feeds (url, title) VALUES (?1, ?1)
@@ -173,7 +173,7 @@ impl Store {
                     article.body,
                     article.body_origin.as_str(),
                     crate::content::reading_minutes(&article.body) as i64,
-                    crate::source::canonical_article_url(&article.url),
+                    crate::urls::canonical_article_url(&article.url),
                 ])?;
             }
         }

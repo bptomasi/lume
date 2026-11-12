@@ -63,7 +63,7 @@ impl App {
             return Ok(());
         }
         ensure!(
-            crate::store::valid_workspace_name(name),
+            crate::validation::valid_workspace_name(name),
             "Use a workspace name of 1–64 plain characters"
         );
         self.change_profile(verb, name)?;

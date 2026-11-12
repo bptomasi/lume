@@ -5,7 +5,7 @@ use std::{collections::BTreeMap, path::Path};
 use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
 
-use crate::{source::discovery::Candidate, store::Store};
+use crate::{model::FeedCandidate, store::Store};
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename = "opml")]
@@ -50,7 +50,7 @@ struct Outline {
 ///
 /// # Errors
 /// Returns malformed/deep XML, invalid URLs or resource-limit errors.
-pub fn decode(xml: &str) -> Result<Vec<Candidate>> {
+pub fn decode(xml: &str) -> Result<Vec<FeedCandidate>> {
     validate_depth(xml)?;
     let document: Document = quick_xml::de::from_str(xml)?;
     ensure!(
@@ -63,13 +63,13 @@ pub fn decode(xml: &str) -> Result<Vec<Candidate>> {
     while let Some(outline) = pending.pop() {
         pending.extend(outline.children);
         if let Some(address) = outline.url {
-            let url = crate::source::feed_url(&address)?.to_string();
+            let url = crate::urls::feed_url(&address)?.to_string();
             let title = if outline.title.is_empty() {
                 outline.text
             } else {
                 outline.title
             };
-            feeds.entry(url.clone()).or_insert(Candidate {
+            feeds.entry(url.clone()).or_insert(FeedCandidate {
                 title: crate::content::label(&title, 200),
                 url,
             });

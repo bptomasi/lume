@@ -61,7 +61,7 @@ impl Store {
         );
         for name in layouts.profiles.keys() {
             ensure!(
-                valid_name(name),
+                crate::validation::valid_workspace_name(name),
                 "Workspace names require 1–64 plain characters"
             );
         }
@@ -74,16 +74,8 @@ impl Store {
         {
             let mut workspace = Workspace::default();
             layout.apply(&mut workspace);
-            super::workspace::validate_dimensions(&workspace)?;
+            crate::validation::validate_workspace_dimensions(&workspace)?;
         }
         Ok(())
     }
-}
-
-pub(crate) fn valid_name(name: &str) -> bool {
-    !name.trim().is_empty()
-        && name.len() <= 256
-        && name.chars().count() <= 64
-        && name.trim() == name
-        && !name.chars().any(char::is_control)
 }

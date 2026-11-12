@@ -11,7 +11,8 @@ fn snapshot_includes_wal_notes_and_restores_portable_configuration()
     let (directory, store, feed) = common::seeded_store()?;
     let article = store.library()?.articles[0].id;
     let config_path = directory.path().join("original.toml");
-    let _session = config::Session::open(&store, &config_path)?;
+    let _session =
+        lume::configuration_service::Session::open(&store, &config_path)?;
     store.save_comment(article, None, "Committed recovery evidence")?;
     store.set_fetch_policy(feed.id, lume::model::FetchPolicy::Manual)?;
     let snapshot = directory.path().join("snapshot.sqlite3");
@@ -32,7 +33,10 @@ fn snapshot_includes_wal_notes_and_restores_portable_configuration()
         lume::model::FetchPolicy::Manual
     );
     let restored_config = restored.join("config.toml");
-    let _session = config::Session::open(&recovered, &restored_config)?;
+    let _session = lume::configuration_service::Session::open(
+        &recovered,
+        &restored_config,
+    )?;
     assert_eq!(
         config::read_document(&restored_config)?.feeds[0].url,
         feed.url

@@ -51,7 +51,7 @@ impl Store {
         token_env: &str,
         token: &str,
     ) -> Result<i64> {
-        let url = crate::source::server_url(address)?;
+        let url = crate::urls::server_url(address)?;
         let transaction = self.write_transaction()?;
         let count: usize = transaction.query_row(
             include_str!("../sql/servers/count_other_servers.sql"),

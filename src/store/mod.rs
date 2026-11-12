@@ -6,7 +6,6 @@
 //! ingest cannot make a later 304 conceal missing content. Cache reclamation
 //! is explicit and protects personal context.
 
-mod annotations;
 mod backup;
 mod backups;
 mod cancellation;
@@ -37,8 +36,6 @@ mod storage;
 mod study;
 mod web_pages;
 mod workspace;
-pub(crate) use layouts::valid_name as valid_workspace_name;
-pub(crate) use workspace::validate_dimensions as validate_workspace_dimensions;
 
 use std::{path::Path, time::Duration};
 
@@ -260,7 +257,6 @@ fn article_row(row: &Row<'_>) -> rusqlite::Result<Article> {
     })
 }
 
-pub(crate) use annotations::collection_name as validate_collection_name;
 pub(crate) use organization::validate_tags;
 
 #[cfg(test)]

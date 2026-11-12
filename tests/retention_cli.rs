@@ -63,7 +63,10 @@ fn retention_requires_preview_applies_limits_and_rejects_changed_policies()
         "../src/store/sql/test_setup_retention.sql"
     ))?;
     drop(seed);
-    let session = config::Session::open(&store, &root.join("config.toml"))?;
+    let session = lume::configuration_service::Session::open(
+        &store,
+        &root.join("config.toml"),
+    )?;
     let mut policy = config::decode(&session.initial().document)?;
     policy.retention.defaults.read_days = config::retention::Age(Some(90));
     policy.retention.max_articles_per_run = 2;

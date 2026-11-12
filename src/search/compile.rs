@@ -203,7 +203,7 @@ fn date(field: &str, value: &str, values: &mut Vec<Value>) -> Result<String> {
 }
 
 fn domain(value: &str, values: &mut Vec<Value>) -> Result<String> {
-    let url = crate::source::feed_url(&format!("https://{value}/"))?;
+    let url = crate::urls::feed_url(&format!("https://{value}/"))?;
     ensure!(
         url.host_str() == Some(value) && url.port().is_none(),
         "Use a lowercase hostname without a path"

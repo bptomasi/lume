@@ -13,7 +13,7 @@ impl Store {
     /// # Errors
     /// Returns invalid addresses or storage errors.
     pub fn cached_page_body(&self, address: &str) -> Result<Option<String>> {
-        crate::source::link_url(address)?;
+        crate::urls::link_url(address)?;
         let bodies: Option<(String, Option<String>)> = self
             .connection
             .query_row(
@@ -26,7 +26,7 @@ impl Store {
             full.into_iter().chain([feed]).find(|body| {
                 crate::content::body_kind(body)
                     == crate::content::BodyKind::Text
-                    && crate::source::article::rules::rejection(body).is_none()
+                    && crate::content::extraction::rejection(body).is_none()
             })
         }))
     }
@@ -121,7 +121,7 @@ fn insert_page(
             document.body,
             "feed",
             crate::content::reading_minutes(&document.body),
-            crate::source::canonical_article_url(&document.url),
+            crate::urls::canonical_article_url(&document.url),
         ],
     )?;
     Ok(transaction.last_insert_rowid())

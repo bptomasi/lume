@@ -63,7 +63,7 @@ impl Store {
         adoption: Adoption,
     ) -> Result<()> {
         for server in &config.servers {
-            let url = crate::source::server_url(&server.url)?;
+            let url = crate::urls::server_url(&server.url)?;
             let id = self
                 .connection
                 .query_row(
@@ -77,7 +77,7 @@ impl Store {
             }
         }
         for feed in &config.feeds {
-            let url = crate::source::feed_url(&feed.url)?;
+            let url = crate::urls::feed_url(&feed.url)?;
             let id = self
                 .connection
                 .query_row(

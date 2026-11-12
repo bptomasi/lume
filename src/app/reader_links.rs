@@ -89,7 +89,7 @@ impl App {
             .map_or(article.url.as_str(), |document| {
                 document.final_url.as_str()
             });
-        crate::source::resolve_link(base, destination)
+        crate::urls::resolve_link(base, destination)
     }
 
     fn link_is_current_page(&self, url: &url::Url) -> bool {
@@ -108,7 +108,7 @@ impl App {
                     .map(|document| document.final_url.as_str()),
             )
             .any(|address| {
-                crate::source::feed_url(address).ok().as_ref() == Some(&page)
+                crate::urls::feed_url(address).ok().as_ref() == Some(&page)
             })
     }
 }

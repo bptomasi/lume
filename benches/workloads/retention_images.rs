@@ -2,7 +2,8 @@
 
 use anyhow::{Result, ensure};
 use lume::{
-    config::{self, Session, retention::Age},
+    config::{self, retention::Age},
+    configuration_service::Session,
     model::{FeedOrigin, IncomingArticle, View},
     retention,
     store::Store,

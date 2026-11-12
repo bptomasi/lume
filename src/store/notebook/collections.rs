@@ -29,7 +29,7 @@ impl Store {
     /// # Errors
     /// Rejects invalid names/queries, a 100-collection limit or SQLite errors.
     pub fn save_note_collection(&self, name: &str, query: &str) -> Result<()> {
-        let name = super::super::annotations::collection_name(name)?;
+        let name = crate::validation::validate_collection_name(name)?;
         crate::search::notes::validate(query)?;
         let transaction = self.write_transaction()?;
         let count: usize = transaction.query_row(

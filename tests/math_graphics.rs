@@ -168,21 +168,28 @@ fn command(app: &mut lume::app::App, text: &str) -> Result<()> {
     Ok(())
 }
 
-fn graphics_app()
--> Result<(tempfile::TempDir, lume::app::App, lume::config::Session)> {
+fn graphics_app() -> Result<(
+    tempfile::TempDir,
+    lume::app::App,
+    lume::configuration_service::Session,
+)> {
     graphics_body(r"Before $\frac{1}{2}+\ell_\infty$ after.")
 }
 
 fn graphics_body(
     body: &str,
-) -> Result<(tempfile::TempDir, lume::app::App, lume::config::Session)> {
+) -> Result<(
+    tempfile::TempDir,
+    lume::app::App,
+    lume::configuration_service::Session,
+)> {
     let (directory, mut store, feed) = common::seeded_store()?;
     let mut parsed =
         lume::source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
     parsed.articles[0].body = body.into();
     parsed.articles[0].published = 2_000_000_000;
     store.ingest(&feed, "Formula journal", &parsed.articles)?;
-    let session = lume::config::Session::open(
+    let session = lume::configuration_service::Session::open(
         &store,
         &directory.path().join("config.toml"),
     )?;

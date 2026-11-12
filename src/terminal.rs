@@ -34,7 +34,7 @@ pub(super) fn run(
     path: PathBuf,
     demo: bool,
     offline: bool,
-    configuration: Option<lume::config::Session>,
+    configuration: Option<lume::configuration_service::Session>,
 ) -> Result<()> {
     if !io::stdout().is_terminal() || !io::stdin().is_terminal() {
         bail!(
@@ -58,7 +58,7 @@ fn run_session(
     path: PathBuf,
     demo: bool,
     offline: bool,
-    configuration: Option<lume::config::Session>,
+    configuration: Option<lume::configuration_service::Session>,
     terminal: &mut TerminalSession,
 ) -> Result<()> {
     let mut background = None;
@@ -72,7 +72,7 @@ fn run_session(
             !demo && !offline,
             configuration
                 .as_ref()
-                .map(lume::config::Session::start)
+                .map(lume::configuration_service::Session::start)
                 .transpose()?,
         )?;
         let worker = background.insert(worker);
@@ -91,12 +91,13 @@ fn finalize_runtime(
     app: &mut App,
     result: Result<()>,
     background: Option<&mut Background>,
-    configuration: Option<&lume::config::Session>,
+    configuration: Option<&lume::configuration_service::Session>,
 ) -> Result<()> {
     let saved = app.end_session();
     let published = match background {
         Some(background) => background.finish_configuration(),
-        None => configuration.map_or(Ok(()), lume::config::Session::flush),
+        None => configuration
+            .map_or(Ok(()), lume::configuration_service::Session::flush),
     };
     finish_session([result, saved, published])
 }
@@ -363,7 +364,7 @@ fn dispatch_batch(
 }
 
 fn launch_browser(app: &mut App, address: &str) {
-    let result = lume::source::link_url(address).and_then(|url| {
+    let result = lume::urls::link_url(address).and_then(|url| {
         let launcher = if cfg!(target_os = "macos") {
             "open"
         } else {

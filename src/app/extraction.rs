@@ -30,7 +30,7 @@ impl App {
                 let target = self.selected_article_target()?;
                 let feed = self.current().context("Select an article")?.feed_id;
                 let selector = if argument == "auto" { "" } else { argument };
-                crate::source::article::rules::validate_selector(selector)?;
+                crate::validation::validate_selector(selector)?;
                 return Ok(Some(Action::PreviewRule(RuleRequest {
                     target,
                     feed,

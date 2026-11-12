@@ -27,7 +27,7 @@ fn internal_presets_publish_configuration_without_removing_articles()
 -> Result<()> {
     let (directory, store, _) = common::seeded_store()?;
     let path = directory.path().join("config.toml");
-    let session = lume::config::Session::open(&store, &path)?;
+    let session = lume::configuration_service::Session::open(&store, &path)?;
     let mut app = App::new(store, false)?;
     command(&mut app, "retention preset compact")?;
     session.flush()?;
@@ -704,11 +704,13 @@ fn retention_preview_requires_enter_and_preserves_the_current_reader()
         "../src/store/sql/test_setup_retention.sql"
     ))?;
     let document = directory.path().join("config.toml");
-    let session = lume::config::Session::open(&store, &document)?;
+    let session =
+        lume::configuration_service::Session::open(&store, &document)?;
     let mut policy = lume::config::decode(&session.initial().document)?;
     policy.retention.defaults.read_days = lume::config::retention::Age(Some(1));
     std::fs::write(&document, lume::config::encode(&policy)?)?;
-    let configured = lume::config::Session::open(&store, &document)?;
+    let configured =
+        lume::configuration_service::Session::open(&store, &document)?;
     let mut app = App::new(store, false)?;
     app.configure_document(configured.initial().clone());
     app.set_view(lume::model::View::All)?;
@@ -747,7 +749,7 @@ fn retention_status_uses_its_own_report_title() -> Result<()> {
 fn backup_commands_use_the_ordered_background_lane_and_restore_the_document()
 -> Result<()> {
     let (directory, store, _) = common::seeded_store()?;
-    let session = lume::config::Session::open(
+    let session = lume::configuration_service::Session::open(
         &store,
         &directory.path().join("config.toml"),
     )?;
@@ -776,11 +778,11 @@ fn automatic_backup_keeps_normal_reading_and_does_not_repeat_on_each_poll()
 -> Result<()> {
     let (directory, store, _) = common::seeded_store()?;
     let path = directory.path().join("config.toml");
-    let session = lume::config::Session::open(&store, &path)?;
+    let session = lume::configuration_service::Session::open(&store, &path)?;
     let mut config = lume::config::decode(&session.initial().document)?;
     config.backups.automatic = true;
     std::fs::write(&path, lume::config::encode(&config)?)?;
-    let session = lume::config::Session::open(&store, &path)?;
+    let session = lume::configuration_service::Session::open(&store, &path)?;
     let mut app = App::new(store, false)?;
     app.configure_document(session.initial().clone());
     let article = app.current().map(|article| article.id);

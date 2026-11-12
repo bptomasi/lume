@@ -82,36 +82,3 @@ impl super::ServerFeed {
         )
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn limits_round_trip_and_reject_unbounded_refreshes() -> anyhow::Result<()>
-    {
-        let config = crate::config::decode(
-            "[[servers]]\nid='home'\nurl='https://reader.test'\ntoken_env='TOKEN'\n[servers.sync]\ninitial_entries=0\nentries_per_page=25\npages_per_sync=1",
-        )?;
-        assert_eq!(config.servers[0].sync.initial_entries, 0);
-        assert_eq!(
-            crate::config::decode(&crate::config::encode(&config)?)?,
-            config
-        );
-        for (field, value) in [
-            ("initial_entries", 10_000_001),
-            ("entries_per_page", 0),
-            ("entries_per_page", 201),
-            ("pages_per_sync", 0),
-            ("pages_per_sync", 11),
-        ] {
-            let mut value_json =
-                serde_json::to_value(super::ServerSync::default())?;
-            value_json[field] = value.into();
-            assert!(
-                serde_json::from_value::<super::ServerSync>(value_json)?
-                    .validate()
-                    .is_err()
-            );
-        }
-        Ok(())
-    }
-}

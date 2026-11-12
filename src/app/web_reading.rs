@@ -62,7 +62,7 @@ impl App {
     }
 
     pub(super) fn open_web_page(&mut self, address: &str) -> Result<()> {
-        let mut url = crate::source::link_url(address)?;
+        let mut url = crate::urls::link_url(address)?;
         let fragment = url.fragment().map(str::to_owned);
         url.set_fragment(None);
         self.ensure_web_worker()?;

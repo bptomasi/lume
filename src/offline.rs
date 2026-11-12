@@ -169,7 +169,7 @@ fn prepare_text(
     if let Some(document) = store.cached_document(item.article)?
         && document.url == item.url
         && !document.body.is_empty()
-        && crate::source::article::rules::rejection(&document.body).is_none()
+        && crate::content::extraction::rejection(&document.body).is_none()
     {
         ensure!(
             document.body.len() as u64 <= available,

@@ -281,18 +281,18 @@ impl Configuration {
         self.validate_retention_sources()?;
         let mut workspace = Workspace::default();
         self.ui.apply(&mut workspace);
-        crate::store::validate_workspace_dimensions(&workspace)?;
+        crate::validation::validate_workspace_dimensions(&workspace)?;
         for (key, command) in &self.ui.keybindings {
-            crate::app::validate_binding(key, command)?;
+            crate::validation::validate_binding(key, command)?;
         }
         ensure!(self.workspaces.len() <= 32, "At most 32 workspaces");
         for (name, layout) in &self.workspaces {
             ensure!(
-                crate::store::valid_workspace_name(name),
+                crate::validation::valid_workspace_name(name),
                 "Invalid workspace name"
             );
             layout.apply(&mut workspace);
-            crate::store::validate_workspace_dimensions(&workspace)?;
+            crate::validation::validate_workspace_dimensions(&workspace)?;
         }
         crate::recommendation::validate_profile(&RecommendationProfile {
             interests: self.recommendations.interests.clone(),
@@ -313,13 +313,13 @@ impl Configuration {
         for feed in &self.feeds {
             validate_id(&feed.id)?;
             ensure!(ids.insert(&feed.id), "Duplicate feed ID: {}", feed.id);
-            let url = crate::source::feed_url(&feed.url)?;
+            let url = crate::urls::feed_url(&feed.url)?;
             ensure!(urls.insert(url.to_string()), "Duplicate feed URL: {url}");
             ensure!(
                 (-10..=10).contains(&feed.priority),
                 "Invalid source priority"
             );
-            crate::source::article::rules::validate_selector(&feed.selector)?;
+            crate::validation::validate_selector(&feed.selector)?;
         }
         Ok(())
     }
@@ -359,7 +359,7 @@ impl Configuration {
                 "Duplicate server ID: {}",
                 server.id
             );
-            let url = crate::source::server_url(&server.url)?;
+            let url = crate::urls::server_url(&server.url)?;
             ensure!(urls.insert(url.clone()), "Duplicate server URL: {url}");
             ensure!(
                 server.token.is_some() != !server.token_env.is_empty(),
@@ -461,7 +461,7 @@ fn validate_names<'a>(
     for (id, name) in items {
         ensure!(ids.len() < 1000, "At most 1,000 named definitions");
         validate_id(id)?;
-        crate::store::validate_collection_name(name)?;
+        crate::validation::validate_collection_name(name)?;
         ensure!(ids.insert(id), "Duplicate definition ID: {id}");
         ensure!(
             names.insert(name.to_lowercase()),

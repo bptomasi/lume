@@ -98,7 +98,7 @@ impl Store {
     /// # Errors
     /// Returns invalid/duplicate name, missing list or SQLite errors.
     pub fn rename_collection(&self, id: i64, name: &str) -> Result<()> {
-        let name = super::annotations::collection_name(name)?;
+        let name = crate::validation::validate_collection_name(name)?;
         let transaction = self.write_transaction()?;
         history::record(
             &transaction,
@@ -202,7 +202,7 @@ fn collection(
     transaction: &Transaction<'_>,
     name: &str,
 ) -> Result<(i64, Vec<Undo>)> {
-    let name = super::annotations::collection_name(name)?;
+    let name = crate::validation::validate_collection_name(name)?;
     let existing = transaction
         .query_row(
             "SELECT id FROM collections WHERE name = ?1",

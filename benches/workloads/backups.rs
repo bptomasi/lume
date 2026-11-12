@@ -15,14 +15,14 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     let count = if stress { 10_000 } else { 1000 };
     super::seed(&mut store, count)?;
     let path = root.join("config.toml");
-    let session = config::Session::open(&store, &path)?;
+    let session = lume::configuration_service::Session::open(&store, &path)?;
     let mut document = config::decode(&session.initial().document)?;
     document.backups = Backups {
         keep: 2,
         ..Default::default()
     };
     std::fs::write(&path, config::encode(&document)?)?;
-    config::Session::open(&store, &path)?;
+    lume::configuration_service::Session::open(&store, &path)?;
     let mut round = 0;
     super::measure(
         &format!("checked backup + isolated restore ({count} articles)"),

@@ -59,7 +59,7 @@ impl Store {
     }
 
     fn apply_configuration_server(&self, server: &Server) -> Result<()> {
-        let url = crate::source::server_url(&server.url)?;
+        let url = crate::urls::server_url(&server.url)?;
         let id = if let Some(id) =
             self.configuration_id("server", &server.id)?
         {
@@ -98,7 +98,7 @@ impl Store {
     }
 
     fn apply_configuration_feed(&self, feed: &Feed) -> Result<()> {
-        let url = crate::source::feed_url(&feed.url)?;
+        let url = crate::urls::feed_url(&feed.url)?;
         let id = if let Some(id) = self.configuration_id("feed", &feed.id)? {
             self.connection.execute(
                 include_str!("../sql/configuration/update_feed.sql"),
@@ -294,7 +294,7 @@ impl Store {
             return Ok(());
         }
         config.ui.apply(&mut workspace);
-        super::super::workspace::validate_dimensions(&workspace)?;
+        crate::validation::validate_workspace_dimensions(&workspace)?;
         layouts.profiles = config.workspaces.clone();
         layouts.observe(PanelLayout::capture(&workspace));
         self.save_workspace(&workspace)?;

@@ -56,7 +56,7 @@ impl Store {
         document: &ExtractedDocument,
     ) -> Result<bool> {
         validate_document(document)?;
-        crate::source::link_url(&target.url)?;
+        crate::urls::link_url(&target.url)?;
         let transaction = self.write_transaction()?;
         if !current_target(&transaction, target)? {
             return Ok(false);
@@ -75,7 +75,7 @@ impl Store {
         target: &ArticleTarget,
         error: &str,
     ) -> Result<bool> {
-        crate::source::link_url(&target.url)?;
+        crate::urls::link_url(&target.url)?;
         let transaction = self.write_transaction()?;
         if !current_target(&transaction, target)? {
             return Ok(false);
@@ -166,8 +166,8 @@ pub(super) fn validate_document(document: &ExtractedDocument) -> Result<()> {
             .any(|c| c.is_control() && !matches!(c, '\n' | '\t')),
         "Article contains terminal control characters"
     );
-    crate::source::link_url(&document.final_url)?;
-    crate::source::article::rules::reject_obstruction(&document.body)?;
+    crate::urls::link_url(&document.final_url)?;
+    crate::content::extraction::reject_obstruction(&document.body)?;
     Ok(())
 }
 

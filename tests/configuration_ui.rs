@@ -4,11 +4,7 @@ use std::fs;
 
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use lume::{
-    app::App,
-    config::{self, Session},
-    store::Store,
-};
+use lume::{app::App, config, configuration_service::Session, store::Store};
 
 #[test]
 fn interface_commands_update_the_same_declarative_document() -> Result<()> {

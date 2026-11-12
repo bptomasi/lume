@@ -6,14 +6,8 @@ use anyhow::{Result, ensure};
 use html5gum::{DefaultEmitter, StartTag, Token, Tokenizer};
 use ureq::ResponseExt;
 
-/// An explicit discovered subscription. Discovery never subscribes silently.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Candidate {
-    /// Publisher label, or normalized URL when absent.
-    pub title: String,
-    /// Validated absolute HTTP(S) URL.
-    pub url: String,
-}
+use crate::content::html_attr as attr;
+pub use crate::model::FeedCandidate as Candidate;
 
 /// Extract advertised RSS/Atom/JSON feeds relative to a page's final URL.
 ///
@@ -105,10 +99,4 @@ fn candidate(tag: &StartTag<()>, base: &url::Url) -> Option<Candidate> {
         ),
         url: url.to_string(),
     })
-}
-
-pub(crate) fn attr(tag: &StartTag<()>, key: &[u8]) -> Option<String> {
-    tag.attributes
-        .get(key)
-        .map(|value| String::from_utf8_lossy(&value.value).into_owned())
 }

@@ -2,10 +2,8 @@
 
 use anyhow::{Context, Result, ensure};
 use lume::{
-    config::{self, Session},
-    model::SmartFilter,
-    source::discovery::Candidate,
-    store::Store,
+    config, configuration_service::Session, model::SmartFilter,
+    source::discovery::Candidate, store::Store,
 };
 
 pub fn run(iterations: usize, stress: bool) -> Result<()> {

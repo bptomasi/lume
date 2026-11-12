@@ -258,7 +258,7 @@ fn ingest_remote_article(
             transaction,
             feed.id,
             &article.external_id,
-            &crate::source::canonical_article_url(&article.url),
+            &crate::urls::canonical_article_url(&article.url),
         )?
     {
         return Ok(());
@@ -292,7 +292,7 @@ fn resolve_remote_article(
         update_remote_article(transaction, id, article)?;
         return Ok(id);
     }
-    let canonical = crate::source::canonical_article_url(&article.url);
+    let canonical = crate::urls::canonical_article_url(&article.url);
     if let Some(id) = article_by_canonical(transaction, feed.id, &canonical)? {
         update_remote_article(transaction, id, article)?;
         return Ok(id);
@@ -391,7 +391,7 @@ fn upsert_server_feed(
         remote_ids.insert(candidate.remote_id),
         "Duplicate remote feed ID"
     );
-    let local_url = crate::source::feed_url(&candidate.local_url)?.to_string();
+    let local_url = crate::urls::feed_url(&candidate.local_url)?.to_string();
     let title = crate::content::label(&candidate.title, 200);
     let title = if title.trim().is_empty() {
         local_url.as_str()
@@ -460,7 +460,7 @@ fn update_remote_article(
             article.body,
             article.body_origin.as_str(),
             crate::content::reading_minutes(&article.body) as i64,
-            crate::source::canonical_article_url(&article.url),
+            crate::urls::canonical_article_url(&article.url),
         ])?;
     Ok(())
 }

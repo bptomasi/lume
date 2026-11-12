@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::{model::ArticleQuery, source::discovery::Candidate};
+use crate::model::{ArticleQuery, FeedCandidate};
 
 use super::{Action, App, Mode, View};
 
@@ -113,7 +113,7 @@ pub enum ChoiceAction {
     /// Open a destination.
     SetView(View),
     /// Subscribe to a captured discovered feed.
-    Subscribe(Candidate),
+    Subscribe(FeedCandidate),
     /// Open a validated HTTP(S) URL.
     OpenUrl(String),
     /// Toggle captured list membership.
@@ -292,8 +292,8 @@ impl App {
         let PickerKind::Lists { names, .. } = &mut picker.kind else {
             return Ok(Action::None);
         };
-        let name =
-            crate::store::validate_collection_name(&picker.query)?.to_owned();
+        let name = crate::validation::validate_collection_name(&picker.query)?
+            .to_owned();
         if names.insert(name.clone()) {
             picker.applied_query = None;
             picker.candidates.push(Choice {
@@ -383,7 +383,7 @@ impl App {
     ///
     /// # Errors
     /// Returns selector-loading errors.
-    pub fn discovered(&mut self, candidates: Vec<Candidate>) -> Result<()> {
+    pub fn discovered(&mut self, candidates: Vec<FeedCandidate>) -> Result<()> {
         self.open_picker(PickerKind::Sources)?;
         if let Mode::Picker(picker) = &mut self.mode {
             picker.replace_candidates(
@@ -415,7 +415,7 @@ fn membership_edit(
     let mut names = names.clone();
     if picker.choices.is_empty() && !picker.query.trim().is_empty() {
         names.insert(
-            crate::store::validate_collection_name(&picker.query)?.into(),
+            crate::validation::validate_collection_name(&picker.query)?.into(),
         );
     }
     Ok(Some(super::personal_tasks::LibraryEdit::Memberships {

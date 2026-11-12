@@ -112,7 +112,7 @@ fn supported(destination: &str) -> bool {
     }
     !destination.is_empty()
         && (destination.starts_with('#')
-            || crate::source::link_url(destination).is_ok()
+            || crate::urls::link_url(destination).is_ok()
             || matches!(
                 url::Url::parse(destination),
                 Err(url::ParseError::RelativeUrlWithoutBase)

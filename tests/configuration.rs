@@ -6,9 +6,7 @@ use std::fs;
 
 use anyhow::Result;
 use lume::{
-    config::{self, Session},
-    model::SmartFilter,
-    store::Store,
+    config, configuration_service::Session, model::SmartFilter, store::Store,
 };
 
 #[test]
@@ -236,7 +234,11 @@ fn recovery_keeps_both_inputs_as_backups_and_preserves_personal_data()
     let invalid = "this is not valid TOML";
     fs::write(&path, invalid)?;
     assert!(session.flush().is_err());
-    let backups = config::recover(&store, &path, config::Recovery::Library)?;
+    let backups = lume::configuration_service::recover(
+        &store,
+        &path,
+        config::Recovery::Library,
+    )?;
     assert_eq!(backups.len(), 2);
     let contents = backups
         .iter()
@@ -433,7 +435,11 @@ fn file_recovery_replaces_conflicting_preferences_and_retains_both_backups()
     fs::write(&path, "[ui]\ntheme = 'nord'\n")?;
     assert!(session.flush().is_err());
 
-    let backups = config::recover(&store, &path, config::Recovery::File)?;
+    let backups = lume::configuration_service::recover(
+        &store,
+        &path,
+        config::Recovery::File,
+    )?;
     assert_eq!(backups.len(), 2);
     assert_eq!(store.workspace()?.theme, "nord");
     let library = backups
@@ -519,7 +525,9 @@ fn worker_detects_file_edits_between_initial_adoption_and_start() -> Result<()>
     Ok(())
 }
 
-fn next_update(worker: &config::Worker) -> Result<config::Update> {
+fn next_update(
+    worker: &lume::configuration_service::Worker,
+) -> Result<config::Update> {
     let deadline =
         std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {

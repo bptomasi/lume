@@ -12,7 +12,7 @@ impl App {
         let path = Path::new(input.text.trim());
         match input.kind {
             InputKind::Discover => {
-                let url = crate::source::feed_url(&input.text)?;
+                let url = crate::urls::feed_url(&input.text)?;
                 return Ok(Action::Discover(url.to_string()));
             }
             InputKind::Import => {
