@@ -38,9 +38,11 @@ fn queries(connection: &Connection, note: i64) -> Result<Vec<Query>> {
         |row| row.get(0),
     )?;
     let url = article.expected[3].clone();
+    let context = context_query(&summary, &article, body.clone());
     Ok(vec![
         summary,
         article,
+        context,
         Query {
             name: "export ownership and URL",
             sql: include_str!(
@@ -59,6 +61,24 @@ fn queries(connection: &Connection, note: i64) -> Result<Vec<Query>> {
             String::new(),
         ),
     ])
+}
+
+fn context_query(summary: &Query, article: &Query, body: String) -> Query {
+    Query {
+        name: "selected note source/header",
+        sql: include_str!(
+            "../../src/store/sql/notebook/select_note_context.sql"
+        )
+        .into(),
+        parameters: summary.parameters.clone(),
+        expected: vec![
+            summary.expected[1].clone(),
+            summary.expected[2].clone(),
+            summary.expected[3].clone(),
+            article.expected[3].clone(),
+            Value::Text(body),
+        ],
+    }
 }
 
 fn reference_queries(

@@ -24,16 +24,16 @@ pub fn notebook(store: &Store, directory: &Path) -> Result<ExportReport> {
     let mut report = ExportReport::default();
     let mut offset = 0;
     loop {
-        let page = store.search_notes("", None, offset, 100)?;
-        if page.notes.is_empty() {
+        let ids = store.note_export_ids(offset, 100)?;
+        if ids.is_empty() {
             return Ok(report);
         }
-        offset += page.notes.len();
-        for summary in page.notes {
-            let note = store.note_export(summary.id)?;
+        offset += ids.len();
+        for id in ids {
+            let note = store.note_export(id)?;
             let content = render(&note)?;
-            let path = directory.join(format!("Note-{}.md", summary.id));
-            let previous = store.exported_note(namespace, summary.id)?;
+            let path = directory.join(format!("Note-{id}.md"));
+            let previous = store.exported_note(namespace, id)?;
             if reconcile(
                 &path,
                 previous.as_deref(),
@@ -41,7 +41,7 @@ pub fn notebook(store: &Store, directory: &Path) -> Result<ExportReport> {
                 &directory,
                 &mut report,
             )? {
-                store.record_note_export(namespace, summary.id, &content)?;
+                store.record_note_export(namespace, id, &content)?;
             }
         }
     }

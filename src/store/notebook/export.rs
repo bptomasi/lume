@@ -5,6 +5,27 @@ use anyhow::{Context, Result, ensure};
 use rusqlite::OptionalExtension;
 
 impl Store {
+    /// Enumerate active note IDs in notebook order without previews or a count.
+    ///
+    /// # Errors
+    /// Returns oversized offsets or SQLite errors. Pages contain at most 100 IDs.
+    pub fn note_export_ids(
+        &self,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<i64>> {
+        Ok(self
+            .connection
+            .prepare_cached(include_str!(
+                "../sql/notebook/select_export_ids.sql"
+            ))?
+            .query_map(
+                (i64::try_from(limit.clamp(1, 100))?, i64::try_from(offset)?),
+                |row| row.get(0),
+            )?
+            .collect::<rusqlite::Result<_>>()?)
+    }
+
     /// Read annotation export data atomically, excluding the source document.
     ///
     /// # Errors

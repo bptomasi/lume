@@ -9,51 +9,6 @@ use crate::{
 };
 
 impl Store {
-    /// Load the selected note, references and source in one read transaction.
-    ///
-    /// # Errors
-    /// Returns missing/trashed notes, corrupt metadata or SQLite errors.
-    pub fn note_detail(&self, id: i64) -> Result<crate::model::NoteDetail> {
-        let transaction = self.connection.unchecked_transaction()?;
-        let summary = self.note_summary(id)?;
-        let note = self.annotation(summary.article, id)?;
-        // Source placement needs no article counts or presentation metadata.
-        // Full notes must not load the unrelated feed body.
-        let (url, feed_body): (String, String) = self.connection.query_row(
-            include_str!("../sql/notebook/select_source_context.sql"),
-            (
-                summary.article,
-                note.comment.source == crate::model::ContentSource::Feed,
-            ),
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )?;
-        let (body, source_available, source_revision) =
-            if note.comment.source == crate::model::ContentSource::Full {
-                self.cached_document(summary.article)?
-                    .filter(|document| {
-                        document.url == url && !document.body.is_empty()
-                    })
-                    .map_or_else(
-                        || (String::new(), false, 0),
-                        |document| (document.body, true, document.revision),
-                    )
-            } else {
-                (feed_body, true, 0)
-            };
-        let detail = crate::model::NoteDetail {
-            backlinks: self.note_backlinks(id)?,
-            references: self.note_references(id)?,
-            summary,
-            note,
-            url,
-            body,
-            source_available,
-            source_revision,
-        };
-        transaction.commit()?;
-        Ok(detail)
-    }
-
     /// Read at most 128 active notes that reference this note.
     ///
     /// # Errors
@@ -100,6 +55,35 @@ impl Store {
         offset: usize,
         limit: usize,
     ) -> Result<NotePage> {
+        self.note_page(text, article, Offset::Exact(offset), limit)
+            .map(|(page, _)| page)
+    }
+
+    /// Search once, moving an out-of-range request to the last nonempty page.
+    ///
+    /// The returned offset, count and previews share one SQLite snapshot.
+    /// An empty result resolves to offset zero; exact-offset callers retain
+    /// `search_notes` semantics.
+    ///
+    /// # Errors
+    /// Returns invalid expressions, stored metadata or SQLite errors.
+    pub fn search_notes_clamped(
+        &self,
+        text: &str,
+        article: Option<i64>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<(NotePage, usize)> {
+        self.note_page(text, article, Offset::Clamped(offset), limit)
+    }
+
+    fn note_page(
+        &self,
+        text: &str,
+        article: Option<i64>,
+        offset: Offset,
+        limit: usize,
+    ) -> Result<(NotePage, usize)> {
         let (matching, mut values) = matching_notes(text, article)?;
         let transaction = self.connection.unchecked_transaction()?;
         let total = transaction.query_row(
@@ -110,7 +94,9 @@ impl Store {
             params_from_iter(&values),
             |row| row.get(0),
         )?;
-        values.push(i64::try_from(limit.clamp(1, 100))?.into());
+        let limit = limit.clamp(1, 100);
+        let offset = offset.resolve(total, limit);
+        values.push(i64::try_from(limit)?.into());
         values.push(i64::try_from(offset)?.into());
         let sql = format!(
             include_str!("../sql/notebook/template_search_page.sql"),
@@ -124,7 +110,7 @@ impl Store {
             .collect::<rusqlite::Result<_>>()?;
         super::snippets::apply(&transaction, text, &mut notes)?;
         transaction.commit()?;
-        Ok(NotePage { total, notes })
+        Ok((NotePage { total, notes }, offset))
     }
 
     /// Load one active note's preview without changing the selected article.
@@ -139,6 +125,24 @@ impl Store {
         self.connection
             .query_row(&sql, [note], summary_row)
             .context("Note is missing or its article is in Trash")
+    }
+}
+
+enum Offset {
+    Exact(usize),
+    Clamped(usize),
+}
+
+impl Offset {
+    fn resolve(self, total: usize, limit: usize) -> usize {
+        match self {
+            Self::Exact(offset) => offset,
+            Self::Clamped(_) if total == 0 => 0,
+            Self::Clamped(offset) if offset >= total => {
+                (total - 1) / limit * limit
+            }
+            Self::Clamped(offset) => offset,
+        }
     }
 }
 

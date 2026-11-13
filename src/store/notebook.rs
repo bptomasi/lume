@@ -5,6 +5,7 @@
 //! from committed text, and versions retain provenance through manual repair.
 
 mod collections;
+mod detail;
 mod drafts;
 mod export;
 mod links;

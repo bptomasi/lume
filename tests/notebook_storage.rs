@@ -467,3 +467,43 @@ fn markdown_indentation_and_saved_baselines_keep_the_exact_editor_text()
     assert_eq!(store.comments(article)?[0].body, original);
     Ok(())
 }
+
+#[test]
+fn clamped_search_resolves_stale_offsets_without_changing_exact_pages()
+-> Result<()> {
+    let (_directory, store, article) = library()?;
+    for index in 0..105 {
+        store.save_comment(
+            article,
+            None,
+            &format!("Bounded evidence {index}"),
+        )?;
+    }
+    let (last, offset) =
+        store.search_notes_clamped("bounded", None, usize::MAX, 100)?;
+    assert_eq!(offset, 100);
+    assert_eq!(last.total, 105);
+    assert_eq!(last.notes.len(), 5);
+    let exact = store.search_notes("bounded", None, 100, 100)?;
+    assert_eq!(
+        last.notes.iter().map(|n| n.id).collect::<Vec<_>>(),
+        exact.notes.iter().map(|n| n.id).collect::<Vec<_>>()
+    );
+    assert!(
+        store
+            .search_notes("bounded", None, 200, 100)?
+            .notes
+            .is_empty()
+    );
+    let (one, offset) =
+        store.search_notes_clamped("bounded", Some(article), 1000, 0)?;
+    assert_eq!(offset, 104);
+    assert_eq!(one.notes.len(), 1);
+    store.set_deleted(article, true)?;
+    let (empty, offset) =
+        store.search_notes_clamped("bounded", None, usize::MAX, 100)?;
+    assert_eq!(empty.total, 0);
+    assert!(empty.notes.is_empty());
+    assert_eq!(offset, 0);
+    Ok(())
+}

@@ -117,3 +117,45 @@ fn review_filters_apply_before_the_due_card_limit() -> Result<()> {
     assert_eq!(store.filtered_study_cards("", 100)?.len(), 200);
     Ok(())
 }
+
+#[test]
+fn export_id_pages_preserve_notebook_order_limits_and_live_deletions()
+-> Result<()> {
+    let (_directory, store, _) = common::seeded_store()?;
+    let article = store.library()?.articles[0].id;
+    let mut ids = Vec::new();
+    for index in 0..105 {
+        ids.push(store.save_comment(
+            article,
+            None,
+            &format!("Evidence {index}"),
+        )?);
+    }
+    store.set_note_metadata(
+        article,
+        ids[3],
+        &NoteMetadata {
+            pinned: true,
+            kind: NoteKind::Definition,
+            ..Default::default()
+        },
+    )?;
+    for offset in [0, 100, 105] {
+        let expected = store
+            .search_notes("", None, offset, 100)?
+            .notes
+            .into_iter()
+            .map(|note| note.id)
+            .collect::<Vec<_>>();
+        assert_eq!(store.note_export_ids(offset, usize::MAX)?, expected);
+    }
+    assert_eq!(store.note_export_ids(0, 0)?, [ids[3]]);
+    store.delete_comment(article, ids[3])?;
+    assert!(!store.note_export_ids(0, 100)?.contains(&ids[3]));
+    assert!(store.undo()?);
+    assert_eq!(store.note_export_ids(0, 1)?, [ids[3]]);
+    store.set_deleted(article, true)?;
+    assert!(store.note_export_ids(0, 100)?.is_empty());
+    assert!(store.note_export_ids(usize::MAX, 100).is_err());
+    Ok(())
+}

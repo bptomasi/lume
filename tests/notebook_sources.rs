@@ -142,3 +142,62 @@ fn note_source_reads_reject_trash_and_missing_notes_then_recover() -> Result<()>
     assert_eq!(store.note_export(note)?.note.comment.id, note);
     Ok(())
 }
+
+#[test]
+fn context_preview_matches_sql_unicode_tags_and_reference_semantics()
+-> Result<()> {
+    let (_directory, store, _feed, article) = library()?;
+    let target = store.save_comment(article, None, "Reference target")?;
+    for quote in [
+        "界e\u{301}🦀".repeat(160),
+        "Earlier\0retained quotation".into(),
+    ] {
+        let body = format!("{}\n[[Note-{target}]]", "café界🦀".repeat(130));
+        let note = store.save_passage(
+            article,
+            &Passage {
+                quote,
+                anchor: 0,
+                source: ContentSource::Feed,
+                revision: 0,
+            },
+            &body,
+        )?;
+        store.set_tags(
+            TagTarget::Comment(note),
+            &["zeta".into(), "Alpha".into()],
+        )?;
+        store.set_note_metadata(
+            article,
+            note,
+            &NoteMetadata {
+                kind: NoteKind::Synthesis,
+                pinned: true,
+                resolved: true,
+                ..Default::default()
+            },
+        )?;
+        let detail = store.note_detail(note)?;
+        assert_preview(&detail.summary, &store.note_summary(note)?);
+        assert_eq!(detail.note.comment.body, body);
+        assert_eq!(detail.note.metadata.references, [(note, target)]);
+        assert!(detail.summary.metadata.references.is_empty());
+    }
+    Ok(())
+}
+
+fn assert_preview(
+    actual: &lume::model::NoteSummary,
+    expected: &lume::model::NoteSummary,
+) {
+    assert_eq!(actual.id, expected.id);
+    assert_eq!(actual.article, expected.article);
+    assert_eq!(actual.title, expected.title);
+    assert_eq!(actual.source, expected.source);
+    assert_eq!(actual.body, expected.body);
+    assert_eq!(actual.preview, expected.preview);
+    assert_eq!(actual.quote, expected.quote);
+    assert_eq!(actual.created, expected.created);
+    assert_eq!(actual.metadata, expected.metadata);
+    assert_eq!(actual.tags, expected.tags);
+}

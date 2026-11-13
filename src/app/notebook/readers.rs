@@ -76,14 +76,12 @@ impl Readers {
 }
 
 fn listing(store: &Store, request: ListRequest) -> Result<Listing> {
-    let mut offset = request.offset;
-    let mut page =
-        store.search_notes(&request.text, request.article, offset, 100)?;
-    if page.notes.is_empty() && page.total > 0 {
-        offset = (page.total - 1) / 100 * 100;
-        page =
-            store.search_notes(&request.text, request.article, offset, 100)?;
-    }
+    let (page, offset) = store.search_notes_clamped(
+        &request.text,
+        request.article,
+        request.offset,
+        100,
+    )?;
     Ok(Listing {
         page,
         offset,
