@@ -107,19 +107,14 @@ impl App {
         Ok(Action::None)
     }
     fn follow_note_reference(&mut self, id: i64) -> Result<()> {
-        if self.notebook.is_none() {
+        if self.notebooks.active.is_none() {
             self.open_notebook("", None)?;
         }
-        let notebook = self.notebook.as_mut().context("Open Notebook first")?;
-        if notebook.history.len() == 128 {
-            notebook.history.remove(0);
-        }
-        notebook.history.push((
-            notebook.query.clone(),
-            notebook.offset,
-            notebook.selected,
-        ));
-        self.set_notebook_query(&format!("id:{id}"))?;
-        Ok(())
+        let notebook = self
+            .notebooks
+            .active
+            .as_mut()
+            .context("Open Notebook first")?;
+        notebook.follow_reference(id)
     }
 }

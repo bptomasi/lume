@@ -58,10 +58,10 @@ fn incomplete_commands_require_an_argument_and_unknown_commands_keep_draft()
     press(&mut app, KeyCode::Enter)?;
     press(&mut app, KeyCode::Enter)?;
     assert!(app.status.contains("folder NAME"));
-    assert!(app.library.collections.is_empty());
+    assert!(app.navigation().library.collections.is_empty());
     type_text(&mut app, "Redes")?;
     press(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.library.collections[0].name, "Redes");
+    assert_eq!(app.navigation().library.collections[0].name, "Redes");
     type_text(&mut app, ":not-a-command")?;
     let error = press(&mut app, KeyCode::Enter)
         .err()
@@ -116,14 +116,14 @@ fn folders_can_be_created_and_opened_without_cached_articles() -> Result<()> {
     run(&mut app, "folders")?;
     type_text(&mut app, "Infraestrutura")?;
     press(&mut app, KeyCode::Enter)?;
-    assert!(matches!(app.view, View::Collection(_)));
-    assert_eq!(app.page_total, 0);
+    assert!(matches!(app.navigation().view, View::Collection(_)));
+    assert_eq!(app.navigation().page_total, 0);
     type_text(&mut app, ":save Sem artigo")?;
     let error = press(&mut app, KeyCode::Enter)
         .err()
         .ok_or_else(|| anyhow!("Saving without an article succeeded"))?;
     assert!(error.to_string().contains("Select an article"));
-    assert_eq!(app.library.collections.len(), 1);
+    assert_eq!(app.navigation().library.collections.len(), 1);
     Ok(())
 }
 
@@ -138,9 +138,12 @@ fn completion_preserves_unicode_arguments_and_legacy_aliases() -> Result<()> {
     };
     assert_eq!(input.text, "folder Ciência e dados");
     press(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.library.collections[0].name, "Ciência e dados");
+    assert_eq!(
+        app.navigation().library.collections[0].name,
+        "Ciência e dados"
+    );
     run(&mut app, "favorites")?;
-    assert_eq!(app.view, View::Starred);
+    assert_eq!(*app.navigation().view, View::Starred);
     run(&mut app, "help")?;
     assert!(matches!(app.mode, Mode::Help));
     Ok(())

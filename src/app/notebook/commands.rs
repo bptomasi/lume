@@ -16,7 +16,7 @@ impl App {
         &self,
         command: Command,
     ) -> Result<()> {
-        if self.notebook.is_none() {
+        if self.notebooks.active.is_none() {
             return Ok(());
         }
         // The article page is hidden in Notebook. Explicit source navigation
@@ -65,7 +65,7 @@ impl App {
             }
             C::NoteCollection => {
                 ensure!(
-                    self.notebook.is_some(),
+                    self.notebooks.active.is_some(),
                     "Open Notebook and choose a query first"
                 );
                 if argument.is_empty() {
@@ -97,7 +97,7 @@ impl App {
             writer.submit(Task::Query(QueryEdit::Remember(query.into())))?;
         } else {
             self.store.remember_note_search(query)?;
-            if let Some(notebook) = &mut self.notebook {
+            if let Some(notebook) = &mut self.notebooks.active {
                 notebook.install_recent(self.store.note_search_history()?);
             }
         }
@@ -145,7 +145,11 @@ impl App {
     }
 
     fn show_recent_note_searches(&mut self) -> Result<()> {
-        let notebook = self.notebook.as_ref().context("Open Notebook first")?;
+        let notebook = self
+            .notebooks
+            .active
+            .as_ref()
+            .context("Open Notebook first")?;
         let choices = notebook
             .recent
             .iter()
@@ -177,7 +181,7 @@ impl App {
     }
 
     pub(in crate::app) fn note_target(&self) -> Result<AnnotationSnapshot> {
-        if let Some(notebook) = &self.notebook {
+        if let Some(notebook) = &self.notebooks.active {
             return notebook
                 .current_context()
                 .map(|context| context.note.clone())
@@ -300,7 +304,8 @@ impl App {
         name: &str,
     ) -> Result<()> {
         let notebook = self
-            .notebook
+            .notebooks
+            .active
             .as_ref()
             .context("Open Notebook and choose a query first")?;
         crate::validation::validate_collection_name(name)?;
@@ -319,7 +324,7 @@ impl App {
 
     pub(in crate::app) fn begin_reader_note(&mut self) -> Result<()> {
         ensure!(
-            self.notebook.is_none() && self.focus == Focus::Reader,
+            self.notebooks.active.is_none() && self.focus == Focus::Reader,
             "Focus Reader before creating an article note"
         );
         ensure!(

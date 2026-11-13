@@ -99,7 +99,7 @@ fn draw_workspace(frame: &mut Frame<'_>, app: &App) {
         chrome::header(frame, app);
     }
     let areas = workspace_areas(frame.area(), app.focus, &app.workspace);
-    if app.notebook.is_some() {
+    if app.notebook().is_some() {
         notebook::draw(frame, app, &areas);
     } else {
         draw_reading_panes(frame, app, &areas);
@@ -108,7 +108,7 @@ fn draw_workspace(frame: &mut Frame<'_>, app: &App) {
     if !app.workspace.fullscreen {
         chrome::footer(frame, app);
     }
-    if app.notebook.is_none() {
+    if app.notebook().is_none() {
         note_preview::draw(frame, app);
     }
     overlays::draw(frame, app);

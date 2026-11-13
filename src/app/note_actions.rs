@@ -85,7 +85,7 @@ impl App {
     }
 
     pub(super) fn edit_context_note(&mut self) -> Result<()> {
-        if self.notebook.is_some() {
+        if self.notebook().is_some() {
             return self.edit_notebook_note();
         }
         if let Some(id) = self.cursor_note() {

@@ -31,7 +31,7 @@ pub fn settle_notes(app: &mut lume::app::App) -> Result<()> {
         app.poll_reader();
         app.poll_navigation()?;
         app.poll_note_workspace()?;
-        if !app.navigation_loading
+        if !app.navigation().navigation_loading
             && !app.notes_pending()
             && !app.notebook_pending()
             && !app.note_inspection_pending()

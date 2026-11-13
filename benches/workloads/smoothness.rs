@@ -18,6 +18,7 @@ use ratatui::{Terminal, backend::TestBackend};
 pub fn run(iterations: usize, stress: bool) -> Result<()> {
     let (_directory, mut app) = application(stress)?;
     let lists = app
+        .navigation()
         .library
         .smart_lists
         .iter()
@@ -33,10 +34,10 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
             frame(&mut app, &mut terminal)?;
             samples.push(start.elapsed().as_secs_f64() * 1000.0);
             ensure!(
-                app.page_total == 100,
+                app.navigation().page_total == 100,
                 "Smart list {id} expected 100 articles, got {} in {:?}",
-                app.page_total,
-                app.view
+                app.navigation().page_total,
+                app.navigation().view
             );
             ensure!(
                 app.reader().reader_text.contains("value"),

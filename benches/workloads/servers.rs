@@ -26,10 +26,15 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
             app.reload()?;
             app.set_view(View::Server(server))?;
             terminal.draw(|frame| ui::draw(frame, &app))?;
-            ensure!(app.library.servers.len() == 1, "Server disappeared");
-            ensure!(app.page_total == count, "Aggregate count changed");
+            let navigation = app.navigation();
             ensure!(
-                app.navigation
+                navigation.library.servers.len() == 1,
+                "Server disappeared"
+            );
+            ensure!(navigation.page_total == count, "Aggregate count changed");
+            ensure!(
+                navigation
+                    .navigation
                     .iter()
                     .filter(|item| item.group == "SERVERS"
                         && !matches!(item.view, View::Group(_)))
@@ -38,7 +43,10 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
                 "Remote destinations missing"
             );
             ensure!(
-                !app.navigation.iter().any(|item| item.group == "FEEDS"),
+                !navigation
+                    .navigation
+                    .iter()
+                    .any(|item| item.group == "FEEDS"),
                 "Remote feeds leaked into local subscriptions"
             );
             verify_section_fold(&mut app, &mut terminal)?;
@@ -56,7 +64,8 @@ fn verify_section_fold(
     app.key(crossterm::event::KeyCode::Enter.into())?;
     terminal.draw(|frame| ui::draw(frame, app))?;
     ensure!(
-        app.navigation
+        app.navigation()
+            .navigation
             .iter()
             .filter(|item| item.group == "SERVERS")
             .count()
@@ -66,7 +75,8 @@ fn verify_section_fold(
     app.key(crossterm::event::KeyCode::Enter.into())?;
     terminal.draw(|frame| ui::draw(frame, app))?;
     ensure!(
-        app.navigation
+        app.navigation()
+            .navigation
             .iter()
             .any(|item| matches!(item.view, View::Server(_))),
         "Unfolding lost the connection"

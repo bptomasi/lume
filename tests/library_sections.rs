@@ -24,6 +24,7 @@ fn enter_folds_and_unfolds_each_selected_section_title() -> Result<()> {
         let view = View::Group(name.clone());
         app.set_view(view.clone())?;
         let before = app
+            .navigation()
             .navigation
             .iter()
             .filter(|item| item.group == group)
@@ -32,23 +33,25 @@ fn enter_folds_and_unfolds_each_selected_section_title() -> Result<()> {
         app.key(KeyCode::Enter.into())?;
         assert!(app.workspace.collapsed_groups.contains(&name));
         assert_eq!(
-            app.navigation
+            app.navigation()
+                .navigation
                 .iter()
                 .filter(|item| item.group == group)
                 .count(),
             1
         );
-        assert_eq!(app.view, view);
+        assert_eq!(*app.navigation().view, view);
         app.key(KeyCode::Enter.into())?;
         assert!(!app.workspace.collapsed_groups.contains(&name));
         assert_eq!(
-            app.navigation
+            app.navigation()
+                .navigation
                 .iter()
                 .filter(|item| item.group == group)
                 .count(),
             before
         );
-        assert_eq!(app.view, view);
+        assert_eq!(*app.navigation().view, view);
     }
     Ok(())
 }
@@ -64,7 +67,7 @@ fn clicking_a_section_title_toggles_once_and_keeps_data_on_reopen() -> Result<()
             .collapsed_groups
             .contains(&"SMART LISTS".into())
     );
-    assert_eq!(app.view, View::Group("SMART LISTS".into()));
+    assert_eq!(*app.navigation().view, View::Group("SMART LISTS".into()));
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     assert!(
         store
@@ -89,9 +92,9 @@ fn arrow_navigation_reaches_section_titles_and_their_children() -> Result<()> {
     let (_directory, mut app) = application()?;
     app.set_view(View::Recommended)?;
     app.key(KeyCode::Down.into())?;
-    assert_eq!(app.view, View::Group("YOUR FOLDERS".into()));
+    assert_eq!(*app.navigation().view, View::Group("YOUR FOLDERS".into()));
     app.key(KeyCode::Down.into())?;
-    assert!(matches!(app.view, View::Collection(_)));
+    assert!(matches!(app.navigation().view, View::Collection(_)));
     app.key(KeyCode::Up.into())?;
     app.key(KeyCode::Enter.into())?;
     assert!(
@@ -100,7 +103,7 @@ fn arrow_navigation_reaches_section_titles_and_their_children() -> Result<()> {
             .contains(&"YOUR FOLDERS".into())
     );
     app.key(KeyCode::Down.into())?;
-    assert_eq!(app.view, View::Group("SMART LISTS".into()));
+    assert_eq!(*app.navigation().view, View::Group("SMART LISTS".into()));
     Ok(())
 }
 
@@ -110,7 +113,8 @@ fn click_selected(app: &mut App) -> Result<()> {
         .context("Library pane")?;
     let row = (area.y + 1..area.bottom() - 1)
         .find(|row| {
-            ui::navigation_at(app, area, *row) == Some(app.nav_selected)
+            ui::navigation_at(app, area, *row)
+                == Some(app.navigation().nav_selected)
         })
         .context("Visible section control")?;
     let mut terminal =
@@ -157,14 +161,19 @@ fn folding_uses_cached_counts_even_when_a_catalog_read_would_fail() -> Result<()
     assert!(Store::open(&path)?.smart_lists().is_err());
     for group in ["SMART LISTS", "FEEDS", "SERVERS", "YOUR FOLDERS", "PINNED"] {
         app.set_view(View::Group(group.into()))?;
-        let count = app.navigation[app.nav_selected].count;
+        let count =
+            app.navigation().navigation[app.navigation().nav_selected].count;
         for _ in 0..4 {
             app.key(KeyCode::Enter.into())?;
-            assert_eq!(app.navigation[app.nav_selected].count, count);
-            assert!(!app.navigation_loading);
+            assert_eq!(
+                app.navigation().navigation[app.navigation().nav_selected]
+                    .count,
+                count
+            );
+            assert!(!app.navigation().navigation_loading);
         }
         click_selected(&mut app)?;
-        assert_eq!(app.view, View::Group(group.into()));
+        assert_eq!(*app.navigation().view, View::Group(group.into()));
     }
     Ok(())
 }
@@ -174,17 +183,13 @@ fn clicking_a_header_clears_the_old_article_without_loading_a_page()
 -> Result<()> {
     let (_directory, mut app) = application()?;
     assert!(!app.reader().reader_text.is_empty());
-    app.nav_selected = app
-        .navigation
-        .iter()
-        .position(|item| item.view == View::Group("FEEDS".into()))
-        .context("Feed header")?;
+    app.select_library_destination(&View::Group("FEEDS".into()))?;
     click_selected(&mut app)?;
-    assert_eq!(app.view, View::Group("FEEDS".into()));
+    assert_eq!(*app.navigation().view, View::Group("FEEDS".into()));
     assert!(app.current().is_none());
     assert!(app.reader().reader_text.is_empty());
-    assert_eq!(app.page_total, 0);
-    assert!(!app.navigation_loading);
+    assert_eq!(app.navigation().page_total, 0);
+    assert!(!app.navigation().navigation_loading);
     Ok(())
 }
 
@@ -196,14 +201,21 @@ fn a_catalog_refresh_updates_counts_while_the_section_stays_folded()
     let article = store.library()?.articles[0].id;
     app.set_view(View::Group("FEEDS".into()))?;
     app.key(KeyCode::Enter.into())?;
-    assert_eq!(app.navigation[app.nav_selected].count, 1);
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].count,
+        1
+    );
     store.set_deleted(article, true)?;
     app.reload()?;
-    assert_eq!(app.view, View::Group("FEEDS".into()));
-    assert_eq!(app.navigation[app.nav_selected].count, 0);
+    assert_eq!(*app.navigation().view, View::Group("FEEDS".into()));
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].count,
+        0
+    );
     assert!(app.workspace.collapsed_groups.contains(&"FEEDS".into()));
     app.key(KeyCode::Enter.into())?;
     let feed = app
+        .navigation()
         .navigation
         .iter()
         .find(|item| matches!(item.view, View::Feed(_)))
@@ -211,7 +223,10 @@ fn a_catalog_refresh_updates_counts_while_the_section_stays_folded()
     assert_eq!(feed.count, 0);
     store.set_deleted(article, false)?;
     app.reload()?;
-    assert_eq!(app.navigation[app.nav_selected].count, 1);
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].count,
+        1
+    );
     Ok(())
 }
 
@@ -223,9 +238,9 @@ fn section_selection_cancels_an_older_background_article_request() -> Result<()>
         &directory.path().join("library.sqlite3"),
     )?;
     app.set_view(View::All)?;
-    assert!(app.navigation_loading);
+    assert!(app.navigation().navigation_loading);
     app.set_view(View::Group("SMART LISTS".into()))?;
-    assert!(!app.navigation_loading);
+    assert!(!app.navigation().navigation_loading);
     for _ in 0..4 {
         app.key(KeyCode::Enter.into())?;
         app.poll_navigation()?;
@@ -240,12 +255,18 @@ fn section_selection_cancels_an_older_background_article_request() -> Result<()>
 fn unpinning_restores_the_original_section_from_the_cached_catalog()
 -> Result<()> {
     let (_directory, mut app) = application()?;
-    let feed = app.library.feeds[0].id;
+    let feed = app.navigation().library.feeds[0].id;
     app.set_view(View::Feed(feed))?;
     run_command(&mut app, "pin")?;
-    assert_eq!(app.navigation[app.nav_selected].group, "PINNED");
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].group,
+        "PINNED"
+    );
     run_command(&mut app, "pin")?;
-    assert_eq!(app.navigation[app.nav_selected].group, "FEEDS");
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].group,
+        "FEEDS"
+    );
     assert_eq!(app.current().context("Article")?.feed_id, feed);
     Ok(())
 }
@@ -254,9 +275,9 @@ fn unpinning_restores_the_original_section_from_the_cached_catalog()
 fn reordering_keeps_folded_destinations_and_excludes_section_controls()
 -> Result<()> {
     let (_directory, mut app) = application()?;
-    let smart = app.library.smart_lists[0].id;
+    let smart = app.navigation().library.smart_lists[0].id;
     run_command(&mut app, "collapse lists")?;
-    app.set_view(View::Feed(app.library.feeds[0].id))?;
+    app.set_view(View::Feed(app.navigation().library.feeds[0].id))?;
     run_command(&mut app, "move-up")?;
     assert!(app.workspace.navigation_order.contains(&View::Smart(smart)));
     assert!(
@@ -269,7 +290,8 @@ fn reordering_keeps_folded_destinations_and_excludes_section_controls()
     run_command(&mut app, "collapse lists")?;
     assert_eq!(app.current().context("Retained article")?.id, article);
     assert!(
-        app.navigation
+        app.navigation()
+            .navigation
             .iter()
             .any(|item| item.view == View::Smart(smart))
     );
@@ -291,12 +313,13 @@ fn enter_on_a_filtered_section_toggles_it_and_keeps_library_focus() -> Result<()
     app.paste("FEEDS")?;
     app.key(KeyCode::Enter.into())?;
     assert_eq!(app.focus, Focus::Library);
-    assert_eq!(app.view, View::Group("FEEDS".into()));
+    assert_eq!(*app.navigation().view, View::Group("FEEDS".into()));
     assert!(app.workspace.collapsed_groups.contains(&"FEEDS".into()));
     app.key(KeyCode::Enter.into())?;
     assert!(!app.workspace.collapsed_groups.contains(&"FEEDS".into()));
     assert!(
-        app.navigation
+        app.navigation()
+            .navigation
             .iter()
             .any(|item| matches!(item.view, View::Feed(_)))
     );
@@ -312,7 +335,10 @@ fn reordering_pins_changes_their_cached_order_without_reloading_the_article()
     let article = app.current().context("Selected article")?.id;
     run_command(&mut app, "move-up")?;
     assert_eq!(app.workspace.pins, [View::All, View::Starred]);
-    assert_eq!(app.navigation[app.nav_selected].view, View::All);
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].view,
+        View::All
+    );
     assert_eq!(app.current().context("Retained article")?.id, article);
     Ok(())
 }
@@ -324,6 +350,7 @@ fn cached_pin_ranks_ignore_the_previous_sessions_time_boundary() -> Result<()> {
     app.workspace.last_visit = 42;
     app.reload()?;
     let since = app
+        .navigation()
         .navigation
         .iter()
         .find(|item| item.view == View::SinceLastVisit(42))
@@ -333,8 +360,11 @@ fn cached_pin_ranks_ignore_the_previous_sessions_time_boundary() -> Result<()> {
     app.key(KeyCode::Enter.into())?;
     app.key(KeyCode::Enter.into())?;
     assert!(
-        app.navigation.iter().any(|item| item.group == "PINNED"
-            && item.view == View::SinceLastVisit(42))
+        app.navigation()
+            .navigation
+            .iter()
+            .any(|item| item.group == "PINNED"
+                && item.view == View::SinceLastVisit(42))
     );
     Ok(())
 }
@@ -347,10 +377,10 @@ fn the_collapse_command_can_replace_a_pending_article_selection() -> Result<()>
         &directory.path().join("library.sqlite3"),
     )?;
     app.set_view(View::All)?;
-    assert!(app.navigation_loading);
+    assert!(app.navigation().navigation_loading);
     run_command(&mut app, "collapse feeds")?;
-    assert_eq!(app.view, View::Group("FEEDS".into()));
-    assert!(!app.navigation_loading);
+    assert_eq!(*app.navigation().view, View::Group("FEEDS".into()));
+    assert!(!app.navigation().navigation_loading);
     assert!(app.workspace.collapsed_groups.contains(&"FEEDS".into()));
     app.end_session()
 }

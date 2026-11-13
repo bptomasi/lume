@@ -61,13 +61,15 @@ fn cache(store: &Store, target: &ArticleTarget, body: &str) -> Result<()> {
 #[test]
 fn automatic_fetch_targets_only_the_opened_reader_with_missing_text()
 -> Result<()> {
-    let (_directory, mut app, _writer, target) = reading(DISCUSSION)?;
+    let (_directory, mut app, writer, target) = reading(DISCUSSION)?;
     let now = chrono::Utc::now().timestamp();
-    assert_eq!(app.automatic_article_request(now), Some(target));
+    assert_eq!(app.automatic_article_request(now), Some(target.clone()));
     app.focus = Focus::Articles;
     assert!(app.automatic_article_request(now).is_none());
     app.focus = Focus::Reader;
-    app.view = View::Trash;
+    writer.set_deleted(target.article, true)?;
+    app.set_view(View::Trash)?;
+    assert_eq!(app.current().context("Trashed article")?.id, target.article);
     assert!(app.automatic_article_request(now).is_none());
     let (_directory, app, _writer, _target) =
         reading("A useful short summary.")?;

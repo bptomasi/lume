@@ -114,21 +114,26 @@ fn sidebar_pins_collapse_and_expansion_persist_without_deleting_sources()
     let mut app = App::new(store, false)?;
     app.set_view(View::Starred)?;
     command(&mut app, "pin")?;
-    assert_eq!(app.navigation[0].view, View::Group("PINNED".into()));
-    assert_eq!(app.navigation[1].view, View::Starred);
+    assert_eq!(
+        app.navigation().navigation[0].view,
+        View::Group("PINNED".into())
+    );
+    assert_eq!(app.navigation().navigation[1].view, View::Starred);
     command(&mut app, "collapse feeds")?;
     assert!(
-        !app.navigation
+        !app.navigation()
+            .navigation
             .iter()
             .any(|item| matches!(item.view, View::Feed(_)))
     );
-    assert!(app.navigation.iter().any(
+    assert!(app.navigation().navigation.iter().any(
         |item| matches!(&item.view, View::Group(group) if group == "FEEDS")
     ));
     app.focus = Focus::Library;
     key(&mut app, KeyCode::Enter)?;
     assert!(
-        app.navigation
+        app.navigation()
+            .navigation
             .iter()
             .any(|item| matches!(item.view, View::Feed(_)))
     );

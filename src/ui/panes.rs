@@ -20,22 +20,24 @@ pub(super) fn library(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let inner = super::pane_search::draw(frame, app, Focus::Library, inner);
-    super::navigation::draw(frame, app, inner);
+    super::navigation::draw(frame, app.navigation(), inner);
 }
 
 pub(super) fn articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
-    let title = format!(" 02  Articles · {} ", app.page_total);
+    let title = format!(" 02  Articles · {} ", app.navigation().page_total);
     let block = panel(title, app.focus == Focus::Articles);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let inner = super::pane_search::draw(frame, app, Focus::Articles, inner);
-    if app.visible.is_empty() {
+    if app.navigation().visible.is_empty() {
         empty_articles(frame, app, inner);
         return;
     }
     let (first, capacity, row_height) =
         super::hit::article_window(app, inner.height);
-    for (row, position) in (first..app.visible.len()).take(capacity).enumerate()
+    for (row, position) in (first..app.navigation().visible.len())
+        .take(capacity)
+        .enumerate()
     {
         let rect = Rect::new(
             inner.x,
@@ -48,8 +50,9 @@ pub(super) fn articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
 }
 
 fn headline(frame: &mut Frame<'_>, app: &App, position: usize, area: Rect) {
-    let article = &app.library.articles[app.visible[position]];
-    let selected = position == app.selected;
+    let article =
+        &app.navigation().library.articles[app.navigation().visible[position]];
+    let selected = position == app.navigation().selected;
     let color = if selected {
         ACCENT
     } else if article.unread {
@@ -62,7 +65,7 @@ fn headline(frame: &mut Frame<'_>, app: &App, position: usize, area: Rect) {
     }
     let labels = app.headline_labels(article, area.width);
     let mut lines = headline_lines(article, labels, color);
-    if app.marked.contains(&article.id) {
+    if app.navigation().marked.contains(&article.id) {
         lines[0]
             .spans
             .insert(0, Span::styled("✓", Style::new().fg(AMBER)));
@@ -106,10 +109,16 @@ fn headline_lines(
 }
 
 fn empty_articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
-    let text = if app.view == crate::model::View::Trash && app.search.is_empty()
+    let text = if *app.navigation().view == crate::model::View::Trash
+        && app.navigation().search.is_empty()
     {
         EMPTY_TRASH
-    } else if app.navigation.iter().any(|item| item.count > 0) {
+    } else if app
+        .navigation()
+        .navigation
+        .iter()
+        .any(|item| item.count > 0)
+    {
         EMPTY_VIEW
     } else {
         EMPTY_LIBRARY
@@ -124,6 +133,7 @@ fn empty_articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
 
 pub(super) fn reader(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let reading = app.reader();
+    let navigation = app.navigation();
     let title = if app.workspace.fullscreen {
         " Article · FULLSCREEN · Esc / F11 exit "
     } else {
@@ -132,22 +142,20 @@ pub(super) fn reader(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let block = panel(title.into(), app.focus == Focus::Reader);
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    if app.navigation_loading && reading.displayed_article.is_none() {
+    if navigation.navigation_loading && reading.displayed_article.is_none() {
         frame.render_widget(Paragraph::new("Loading article…"), inner);
         return;
     }
     let Some(article) = reading.displayed_article else {
+        let message = if *navigation.view == crate::model::View::Trash
+            && navigation.search.is_empty()
+        {
+            EMPTY_TRASH
+        } else {
+            EMPTY_READER
+        };
         frame.render_widget(
-            Paragraph::new(
-                if app.view == crate::model::View::Trash
-                    && app.search.is_empty()
-                {
-                    EMPTY_TRASH
-                } else {
-                    EMPTY_READER
-                },
-            )
-            .style(Style::new().fg(MUTED)),
+            Paragraph::new(message).style(Style::new().fg(MUTED)),
             inner,
         );
         return;
@@ -226,7 +234,7 @@ fn reader_metadata(
         article.feed,
         reading.comments.len(),
         if article.queued { " · read next" } else { "" },
-        if app.view == crate::model::View::Trash {
+        if *app.navigation().view == crate::model::View::Trash {
             " · Trash · :restore"
         } else {
             ""

@@ -29,11 +29,17 @@ fn mouse_scroll_and_click_use_filtered_library_identities() -> Result<()> {
         row: area.y + 4,
         modifiers: KeyModifiers::NONE,
     })?;
-    assert_eq!(app.navigation[app.nav_selected].title, "Security reviews");
-    let expected = app.navigation[app.nav_selected].view.clone();
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].title,
+        "Security reviews"
+    );
+    let expected = app.navigation().navigation[app.navigation().nav_selected]
+        .view
+        .clone();
     let row = (area.y..area.bottom())
         .find(|row| {
-            ui::navigation_at(&app, area, *row) == Some(app.nav_selected)
+            ui::navigation_at(&app, area, *row)
+                == Some(app.navigation().nav_selected)
         })
         .context("Filtered row missing")?;
     app.mouse(MouseEvent {
@@ -42,7 +48,7 @@ fn mouse_scroll_and_click_use_filtered_library_identities() -> Result<()> {
         row,
         modifiers: KeyModifiers::NONE,
     })?;
-    assert_eq!(app.view, expected);
+    assert_eq!(*app.navigation().view, expected);
     assert!(matches!(app.mode, Mode::Normal));
     Ok(())
 }
@@ -80,23 +86,34 @@ fn two_article_application() -> Result<(tempfile::TempDir, App)> {
 fn library_search_filters_locally_and_commits_a_captured_destination()
 -> Result<()> {
     let (_directory, mut app) = application()?;
-    let before = app.view.clone();
+    let before = app.navigation().view.clone();
     app.focus = Focus::Library;
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("SECURITY")?;
-    assert_eq!(app.view, before);
+    assert_eq!(*app.navigation().view, before);
     assert_eq!(app.library_query(), "SECURITY");
-    assert_eq!(app.navigation[app.nav_selected].title, "Security research");
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].title,
+        "Security research"
+    );
     key(&mut app, KeyCode::Down)?;
-    assert_eq!(app.navigation[app.nav_selected].title, "Security reviews");
-    let expected = app.navigation[app.nav_selected].view.clone();
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].title,
+        "Security reviews"
+    );
+    let expected = app.navigation().navigation[app.navigation().nav_selected]
+        .view
+        .clone();
     key(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.view, expected);
+    assert_eq!(*app.navigation().view, expected);
     assert_eq!(app.focus, Focus::Articles);
     assert!(matches!(app.mode, Mode::Normal));
     app.focus = Focus::Library;
     key(&mut app, KeyCode::Char('k'))?;
-    assert_eq!(app.navigation[app.nav_selected].title, "Security research");
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].title,
+        "Security research"
+    );
     key(&mut app, KeyCode::Esc)?;
     assert!(app.library_query().is_empty());
     assert_eq!(app.focus, Focus::Library);
@@ -108,7 +125,7 @@ fn empty_library_matches_are_safe_and_cancel_restores_selection() -> Result<()>
 {
     let (_directory, mut app) = application()?;
     app.focus = Focus::Library;
-    let selected = app.nav_selected;
+    let selected = app.navigation().nav_selected;
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("no matching destination")?;
     key(&mut app, KeyCode::Down)?;
@@ -117,7 +134,7 @@ fn empty_library_matches_are_safe_and_cancel_restores_selection() -> Result<()>
             .is_err()
     );
     key(&mut app, KeyCode::Esc)?;
-    assert_eq!(app.nav_selected, selected);
+    assert_eq!(app.navigation().nav_selected, selected);
     assert!(app.library_query().is_empty());
     Ok(())
 }
@@ -130,10 +147,10 @@ fn inline_article_search_keeps_its_scope_and_pointer_rows() -> Result<()> {
     key(&mut app, KeyCode::Char('/'))?;
     for character in "cache".chars() {
         key(&mut app, KeyCode::Char(character))?;
-        assert_eq!(app.page_total, 1);
+        assert_eq!(app.navigation().page_total, 1);
     }
-    assert_eq!(app.view, View::All);
-    assert_eq!(app.page_total, 1);
+    assert_eq!(*app.navigation().view, View::All);
+    assert_eq!(app.navigation().page_total, 1);
     let articles = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
         .articles
         .context("Articles hidden")?;
@@ -145,10 +162,10 @@ fn inline_article_search_keeps_its_scope_and_pointer_rows() -> Result<()> {
     let buffer = terminal.backend().buffer();
     assert_eq!(buffer[(articles.x + 1, articles.y + 1)].symbol(), "/");
     key(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.search, "cache");
+    assert_eq!(app.navigation().search, "cache");
     key(&mut app, KeyCode::Esc)?;
-    assert!(app.search.is_empty());
-    assert_eq!(app.view, View::All);
+    assert!(app.navigation().search.is_empty());
+    assert_eq!(*app.navigation().view, View::All);
     Ok(())
 }
 
@@ -167,8 +184,8 @@ fn background_article_search_filters_before_enter_and_replaces_old_queries()
         key(&mut app, KeyCode::Char(character))?;
     }
     common::settle_notes(&mut app)?;
-    assert_eq!(app.search, "cache");
-    assert_eq!(app.page_total, 1);
+    assert_eq!(app.navigation().search, "cache");
+    assert_eq!(app.navigation().page_total, 1);
     assert!(matches!(app.mode, Mode::Input(_)));
     assert_eq!(
         app.current().context("Live result missing")?.title,
@@ -176,7 +193,7 @@ fn background_article_search_filters_before_enter_and_replaces_old_queries()
     );
     key(&mut app, KeyCode::Esc)?;
     common::settle_notes(&mut app)?;
-    assert!(app.search.is_empty());
+    assert!(app.navigation().search.is_empty());
     app.end_session()?;
     Ok(())
 }
@@ -228,11 +245,11 @@ fn reader_escape_clears_local_search_before_leaving_and_clearing_filter()
     key(&mut app, KeyCode::Esc)?;
     assert!(app.reader().reader_tools.needle.is_empty());
     assert!(app.reader().reader_tools.hits.is_empty());
-    assert_eq!(app.search, "cache");
+    assert_eq!(app.navigation().search, "cache");
     assert_eq!(app.focus, Focus::Reader);
     key(&mut app, KeyCode::Esc)?;
     assert_eq!(app.focus, Focus::Articles);
-    assert!(app.search.is_empty());
+    assert!(app.navigation().search.is_empty());
     Ok(())
 }
 
@@ -285,7 +302,7 @@ fn query_cursor_motion_preserves_selection_and_does_not_start_navigation()
         key(&mut app, KeyCode::Char('/'))?;
         app.paste("is:unread")?;
         common::settle_notes(&mut app)?;
-        assert_eq!(app.page_total, 2);
+        assert_eq!(app.navigation().page_total, 2);
         key(&mut app, KeyCode::Down)?;
         common::settle_notes(&mut app)?;
         let selected = app.current().context("Second result missing")?.id;
@@ -293,8 +310,11 @@ fn query_cursor_motion_preserves_selection_and_does_not_start_navigation()
         for code in [KeyCode::Left, KeyCode::Right, KeyCode::Home, KeyCode::End]
         {
             key(&mut app, code)?;
-            assert!(!app.navigation_loading, "Caret motion queried storage");
-            assert_eq!(app.selected, 1);
+            assert!(
+                !app.navigation().navigation_loading,
+                "Caret motion queried storage"
+            );
+            assert_eq!(app.navigation().selected, 1);
             assert_eq!(app.current().context("Selection lost")?.id, selected);
         }
         key(&mut app, KeyCode::Enter)?;
@@ -302,10 +322,10 @@ fn query_cursor_motion_preserves_selection_and_does_not_start_navigation()
         key(&mut app, KeyCode::Char('/'))?;
         key(&mut app, KeyCode::Esc)?;
         assert!(
-            !app.navigation_loading,
+            !app.navigation().navigation_loading,
             "Unchanged cancellation queried storage"
         );
-        assert_eq!(app.selected, 1);
+        assert_eq!(app.navigation().selected, 1);
         assert_eq!(app.current().context("Selection lost")?.id, selected);
         app.end_session()?;
     }
@@ -315,12 +335,14 @@ fn query_cursor_motion_preserves_selection_and_does_not_start_navigation()
 #[test]
 fn catalog_refresh_preserves_an_uncommitted_library_match() -> Result<()> {
     let (directory, mut app) = application()?;
-    let original = app.view.clone();
+    let original = app.navigation().view.clone();
     app.focus = Focus::Library;
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("security")?;
     key(&mut app, KeyCode::Down)?;
-    let selected = app.navigation[app.nav_selected].view.clone();
+    let selected = app.navigation().navigation[app.navigation().nav_selected]
+        .view
+        .clone();
     assert_ne!(selected, original);
 
     let store =
@@ -328,10 +350,17 @@ fn catalog_refresh_preserves_an_uncommitted_library_match() -> Result<()> {
     store.create_collection("Security architecture")?;
     app.reload()?;
 
-    assert_eq!(app.view, original, "Refresh applied an uncommitted filter");
-    assert_eq!(app.navigation[app.nav_selected].view, selected);
+    assert_eq!(
+        *app.navigation().view,
+        original,
+        "Refresh applied an uncommitted filter"
+    );
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].view,
+        selected
+    );
     key(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.view, selected);
+    assert_eq!(*app.navigation().view, selected);
     Ok(())
 }
 
@@ -345,12 +374,19 @@ fn async_search_publishes_titles_without_loading_the_selected_body()
     )?;
     app.focus = Focus::Articles;
     key(&mut app, KeyCode::Char('/'))?;
-    let visible = app.visible.len();
+    let visible = app.navigation().visible.len();
     app.paste("cache")?;
-    assert_eq!(app.visible.len(), visible, "Typing blanked the list");
+    assert_eq!(
+        app.navigation().visible.len(),
+        visible,
+        "Typing blanked the list"
+    );
     common::settle_notes(&mut app)?;
     key(&mut app, KeyCode::Down)?;
-    assert!(!app.navigation_loading, "Preview started a reader load");
+    assert!(
+        !app.navigation().navigation_loading,
+        "Preview started a reader load"
+    );
     assert_eq!(app.reader().body, body);
     let selected = app.current().context("Preview selection")?.id;
     key(&mut app, KeyCode::Enter)?;
@@ -366,15 +402,24 @@ fn sidebar_backspace_and_replacement_expand_matches_again() -> Result<()> {
     app.focus = Focus::Library;
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("Security reviews")?;
-    assert_eq!(app.navigation[app.nav_selected].title, "Security reviews");
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].title,
+        "Security reviews"
+    );
     for _ in 0..7 {
         key(&mut app, KeyCode::Backspace)?;
     }
     key(&mut app, KeyCode::Up)?;
-    assert_eq!(app.navigation[app.nav_selected].title, "Security research");
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].title,
+        "Security research"
+    );
     app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL))?;
     app.paste("Inbox")?;
-    assert_eq!(app.navigation[app.nav_selected].title, "Inbox");
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].title,
+        "Inbox"
+    );
     Ok(())
 }
 
@@ -410,7 +455,7 @@ fn moving_during_a_pending_query_does_not_lose_results_after_page_shrink()
     incoming.articles[0].body = "An unrelated publisher text.".into();
     store.ingest(&feed, &feed.title, &incoming.articles)?;
     app.reload()?;
-    app.page_size = 1;
+    app.set_page_size(1)?;
     app.enable_background_navigation(
         &directory.path().join("library.sqlite3"),
     )?;
@@ -419,11 +464,42 @@ fn moving_during_a_pending_query_does_not_lose_results_after_page_shrink()
     app.paste("title:cache")?;
     key(&mut app, KeyCode::Down)?;
     common::settle_notes(&mut app)?;
-    assert_eq!(app.page_total, 1);
-    assert_eq!(app.page_offset, 0);
+    assert_eq!(app.navigation().page_total, 1);
+    assert_eq!(app.navigation().page_offset, 0);
     assert_eq!(
         app.current().context("Live result disappeared")?.title,
         "Cache & consequence"
     );
+    Ok(())
+}
+
+#[test]
+fn cached_sidebar_selection_rejects_hidden_rows_without_changing_article_scope()
+-> Result<()> {
+    let (_directory, mut app) = application()?;
+    let view = app.navigation().view.clone();
+    let article = app.current().context("Article missing")?.id;
+    let body = app.reader().body.to_owned();
+    app.focus = Focus::Library;
+    key(&mut app, KeyCode::Char('/'))?;
+    app.paste("security")?;
+    let before = app.navigation().nav_selected;
+
+    assert!(app.select_library_destination(&View::All).is_err());
+    assert_eq!(app.navigation().nav_selected, before);
+    let visible = app
+        .navigation()
+        .indices()
+        .nth(1)
+        .context("Second sidebar match")?;
+    let destination = app.navigation().navigation[visible].view.clone();
+    app.select_library_destination(&destination)?;
+
+    assert_eq!(app.navigation().nav_selected, visible);
+    assert_eq!(*app.navigation().view, view);
+    assert_eq!(app.current().context("Unchanged article")?.id, article);
+    assert_eq!(app.reader().body, body);
+    assert!(!app.navigation().navigation_loading);
+    assert!(matches!(app.mode, Mode::Input(_)));
     Ok(())
 }

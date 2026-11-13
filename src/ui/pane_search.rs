@@ -23,8 +23,8 @@ fn editor(app: &App, pane: Pane) -> Option<&Input> {
 
 fn query(app: &App, pane: Pane) -> &str {
     match pane {
-        Pane::Library => app.library_query(),
-        Pane::Articles => &app.search,
+        Pane::Library => app.navigation().library_query,
+        Pane::Articles => app.navigation().search,
         _ => "",
     }
 }

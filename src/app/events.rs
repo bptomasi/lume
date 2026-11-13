@@ -149,7 +149,7 @@ impl InputBatch {
         app.cancel_pointer();
         app.pending_g = false;
         let distance = amount.saturating_mul(steps);
-        if app.notebook.is_some() {
+        if app.notebook().is_some() {
             app.move_notebook(forward, distance)?;
         } else {
             app.move_selection(forward, distance)?;

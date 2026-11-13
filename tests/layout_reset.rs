@@ -177,7 +177,7 @@ fn notebook_reset_preserves_the_separate_reading_arrangement() -> Result<()> {
     command(&mut app, "layout-redo")?;
     assert_standard(&app);
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
-    assert!(app.notebook.is_none());
+    assert!(app.notebook().is_none());
     assert_eq!(PanelLayout::capture(&app.workspace), reading);
     command(&mut app, "notebook")?;
     common::settle_notes(&mut app)?;

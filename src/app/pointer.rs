@@ -313,7 +313,7 @@ impl App {
         area: Rect,
         event: MouseEvent,
     ) -> Result<()> {
-        if self.notebook.is_some() {
+        if self.notebook().is_some() {
             return self.click_notebook(pane, area, event);
         }
         if self.reader_stale()
@@ -324,14 +324,14 @@ impl App {
         match pane {
             Pane::Library => {
                 if let Some(index) = ui::navigation_at(self, area, event.row) {
-                    let view = self.navigation[index].view.clone();
+                    let view = self.nav.navigation()[index].view.clone();
                     if view == super::View::Annotated {
                         return self.open_notebook("", None);
                     }
-                    if !view.same_destination(&self.view) {
+                    if !view.same_destination(self.nav.view()) {
                         self.set_view(view)?;
                     }
-                    if let super::View::Group(_) = self.view {
+                    if let super::View::Group(_) = *self.nav.view() {
                         self.toggle_navigation_group("")?;
                     }
                 }
@@ -357,12 +357,12 @@ impl App {
 
     fn click_article(&mut self, area: Rect, event: MouseEvent) -> Result<()> {
         if let Some(index) = ui::article_at(self, area, event.row) {
-            self.articles_first = ui::article_origin(self, area);
-            if index == self.selected && !self.reader_stale() {
+            self.nav.pin_articles(ui::article_origin(self, area));
+            if index == self.nav.selected() && !self.reader_stale() {
                 return Ok(());
             }
             self.save_reading_position()?;
-            self.selected = index;
+            self.nav.select_article(index);
             self.load_current_deferred()?;
         }
         Ok(())
@@ -419,7 +419,7 @@ impl App {
         amount: usize,
     ) -> Result<()> {
         let forward = event.kind == MouseEventKind::ScrollDown;
-        if self.notebook.is_some() {
+        if self.notebook().is_some() {
             self.move_notebook(forward, amount)?;
         } else if self.focus == Pane::Reader {
             self.scroll_reader(forward, amount);

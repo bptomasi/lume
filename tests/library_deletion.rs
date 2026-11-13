@@ -17,11 +17,7 @@ fn key(app: &mut App, code: KeyCode) -> Result<()> {
 
 fn select(app: &mut App, target: View) -> Result<()> {
     app.focus = Focus::Library;
-    app.nav_selected = app
-        .navigation
-        .iter()
-        .position(|item| item.view == target)
-        .context("Definition missing from Library")?;
+    app.select_library_destination(&target)?;
     Ok(())
 }
 
@@ -56,9 +52,19 @@ fn dd_removes_the_captured_feed_and_smart_list_and_publishes_configuration()
     for target in [View::Feed(feed.id), View::Smart(smart)] {
         select(&mut app, target.clone())?;
         key(&mut app, KeyCode::Char('d'))?;
-        assert!(app.navigation.iter().any(|item| item.view == target));
+        assert!(
+            app.navigation()
+                .navigation
+                .iter()
+                .any(|item| item.view == target)
+        );
         key(&mut app, KeyCode::Char('d'))?;
-        assert!(!app.navigation.iter().any(|item| item.view == target));
+        assert!(
+            !app.navigation()
+                .navigation
+                .iter()
+                .any(|item| item.view == target)
+        );
     }
     session.flush()?;
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
@@ -86,7 +92,8 @@ fn repeats_cancellation_and_target_changes_cannot_remove_another_definition()
     app.key(repeat)?;
     key(&mut app, KeyCode::Esc)?;
     assert!(
-        app.navigation
+        app.navigation()
+            .navigation
             .iter()
             .any(|item| item.view == View::Feed(feed.id))
     );
@@ -94,7 +101,8 @@ fn repeats_cancellation_and_target_changes_cannot_remove_another_definition()
     select(&mut app, View::Smart(smart))?;
     key(&mut app, KeyCode::Char('d'))?;
     assert!(
-        app.navigation
+        app.navigation()
+            .navigation
             .iter()
             .any(|item| item.view == View::Smart(smart))
     );
@@ -132,7 +140,8 @@ fn background_sidebar_removal_uses_the_ordered_write_lane() -> Result<()> {
         std::thread::sleep(std::time::Duration::from_millis(1));
     }
     assert!(
-        !app.navigation
+        !app.navigation()
+            .navigation
             .iter()
             .any(|item| item.view == View::Feed(feed.id))
     );
@@ -163,7 +172,7 @@ fn rejected_removal_preserves_pins_order_and_the_active_destination()
         .err()
         .context("Deletion rejection")?;
     assert!(error.to_string().contains("Controlled permanent deletion"));
-    assert_eq!(app.view, view);
+    assert_eq!(*app.navigation().view, view);
     assert!(app.workspace.pins.contains(&view));
     assert!(app.workspace.navigation_order.contains(&view));
     let observer = Store::open(&path)?;
@@ -201,26 +210,7 @@ fn removing_definitions_keeps_unrelated_search_counts_and_reader() -> Result<()>
 {
     for folder in [false, true] {
         let (directory, store, _) = common::seeded_store()?;
-        store.save_smart_list(
-            "Search",
-            &SmartFilter {
-                text: "systems".into(),
-                ..Default::default()
-            },
-        )?;
-        store.save_smart_list("Remove", &Default::default())?;
-        let target = if folder {
-            View::Collection(store.create_collection("Remove")?)
-        } else {
-            View::Smart(
-                store
-                    .smart_lists()?
-                    .into_iter()
-                    .find(|list| list.name == "Remove")
-                    .context("List")?
-                    .id,
-            )
-        };
+        let target = definition_with_unrelated_search(&store, folder)?;
         let path = directory.path().join("library.sqlite3");
         let mut app = App::new(store, false)?;
         let reader = app.reader().reader_text.to_owned();
@@ -233,9 +223,14 @@ fn removing_definitions_keeps_unrelated_search_counts_and_reader() -> Result<()>
         key(&mut app, KeyCode::Char('d'))?;
         key(&mut app, KeyCode::Char('d'))?;
         settle_catalog(&mut app)?;
-        assert!(!app.navigation.iter().any(|item| item.view == target));
+        assert!(
+            !app.navigation()
+                .navigation
+                .iter()
+                .any(|item| item.view == target)
+        );
         assert_eq!(app.reader().reader_text, reader);
-        assert_eq!(app.page_total, 1);
+        assert_eq!(app.navigation().page_total, 1);
         app.end_session()?;
     }
     Ok(())
@@ -255,9 +250,40 @@ fn removing_the_active_smart_list_moves_to_all_articles() -> Result<()> {
     key(&mut app, KeyCode::Char('d'))?;
     key(&mut app, KeyCode::Char('d'))?;
     settle_catalog(&mut app)?;
-    assert_eq!(app.view, View::All);
-    assert_eq!(app.page_total, 1);
-    assert!(!app.navigation.iter().any(|item| item.view == target));
+    assert_eq!(*app.navigation().view, View::All);
+    assert_eq!(app.navigation().page_total, 1);
+    assert!(
+        !app.navigation()
+            .navigation
+            .iter()
+            .any(|item| item.view == target)
+    );
     assert!(app.current().is_some());
     app.end_session()
+}
+
+fn definition_with_unrelated_search(
+    store: &Store,
+    folder: bool,
+) -> Result<View> {
+    store.save_smart_list(
+        "Search",
+        &SmartFilter {
+            text: "systems".into(),
+            ..Default::default()
+        },
+    )?;
+    store.save_smart_list("Remove", &Default::default())?;
+    Ok(if folder {
+        View::Collection(store.create_collection("Remove")?)
+    } else {
+        View::Smart(
+            store
+                .smart_lists()?
+                .into_iter()
+                .find(|list| list.name == "Remove")
+                .context("List")?
+                .id,
+        )
+    })
 }

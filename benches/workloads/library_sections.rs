@@ -27,8 +27,8 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     println!(
         "section input: {} feeds, {} smart lists, {} articles",
-        app.library.feeds.len(),
-        app.library.smart_lists.len(),
+        app.navigation().library.feeds.len(),
+        app.navigation().library.smart_lists.len(),
         articles
     );
     for group in ["FEEDS", "SMART LISTS", "SERVERS"] {
@@ -58,11 +58,11 @@ fn measure(
             "Section lost destinations"
         );
         ensure!(
-            app.view == View::Group(group.into()),
+            *app.navigation().view == View::Group(group.into()),
             "Header focus changed"
         );
         ensure!(
-            !app.navigation_loading && !app.catalog_pending(),
+            !app.navigation().navigation_loading && !app.catalog_pending(),
             "A section toggle queued a database read"
         );
     }
@@ -78,7 +78,8 @@ fn measure(
 }
 
 fn section_children(app: &App, group: &str) -> usize {
-    app.navigation
+    app.navigation()
+        .navigation
         .iter()
         .filter(|item| {
             item.group == group && !matches!(item.view, View::Group(_))

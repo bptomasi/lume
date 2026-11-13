@@ -115,12 +115,12 @@ fn sidebar_wheel_steps_select_one_destination_instead_of_skipping_items()
     let (_directory, store, _) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
     app.resize_workspace(SCREEN);
-    let before = app.nav_selected;
+    let before = app.navigation().nav_selected;
     app.mouse(event(MouseEventKind::ScrollDown, 4, 12))?;
     assert_eq!(app.focus, Pane::Library);
-    assert_eq!(app.nav_selected, before + 1);
+    assert_eq!(app.navigation().nav_selected, before + 1);
     app.mouse(event(MouseEventKind::ScrollUp, 4, 12))?;
-    assert_eq!(app.nav_selected, before);
+    assert_eq!(app.navigation().nav_selected, before);
     Ok(())
 }
 

@@ -58,11 +58,10 @@ fn visual_selection_saves_quote_and_notebook_retains_context() -> Result<()> {
     text(&mut app, " n")?;
 
     common::settle_notes(&mut app)?;
-    assert!(app.notebook.is_some());
+    assert!(app.notebook().is_some());
     assert_eq!(app.focus, Focus::Articles);
     let notebook = app
-        .notebook
-        .as_ref()
+        .notebook()
         .ok_or_else(|| anyhow::anyhow!("Missing notebook"))?;
     let context = notebook
         .current_context()
@@ -106,7 +105,10 @@ fn smart_form_saves_typed_criteria_and_layout_survives_restart() -> Result<()> {
     key(&mut app, KeyCode::Tab, KeyModifiers::NONE)?;
     text(&mut app, "measure")?;
     save(&mut app)?;
-    assert_eq!(app.library.smart_lists[0].filter.text, "measure");
+    assert_eq!(
+        app.navigation().library.smart_lists[0].filter.text,
+        "measure"
+    );
     text(&mut app, "z")?;
     app.save_session()?;
     let id = app.current().map(|article| article.id);
@@ -143,8 +145,8 @@ fn smart_form_pause_survives_restart_and_can_resume() -> Result<()> {
         assert!(pixels.contains("Paused"));
     }
     save(&mut app)?;
-    let list = app.library.smart_lists[0].id;
-    assert!(app.library.smart_lists[0].filter.paused);
+    let list = app.navigation().library.smart_lists[0].id;
+    assert!(app.navigation().library.smart_lists[0].filter.paused);
     assert_eq!(observer.view_count(&View::Smart(list))?, 0);
     drop(app);
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
@@ -154,7 +156,7 @@ fn smart_form_pause_survives_restart_and_can_resume() -> Result<()> {
     key(&mut app, KeyCode::BackTab, KeyModifiers::NONE)?;
     text(&mut app, " ")?;
     save(&mut app)?;
-    assert!(!app.library.smart_lists[0].filter.paused);
+    assert!(!app.navigation().library.smart_lists[0].filter.paused);
     assert_eq!(observer.view_count(&View::Smart(list))?, 1);
     Ok(())
 }
@@ -189,8 +191,8 @@ fn navigation_crosses_pages_and_restores_destination_with_old_selection()
     store.ingest(&feed, &feed.title, &articles)?;
     let mut app = App::new(store, false)?;
     key(&mut app, KeyCode::Char('G'), KeyModifiers::NONE)?;
-    assert_eq!(app.page_offset, 400);
-    assert_eq!(app.selected, 50);
+    assert_eq!(app.navigation().page_offset, 400);
+    assert_eq!(app.navigation().selected, 50);
     let id = app.current().map(|article| article.id);
     app.save_session()?;
     drop(app);
@@ -198,8 +200,8 @@ fn navigation_crosses_pages_and_restores_destination_with_old_selection()
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     let app = App::new(store, false)?;
 
-    assert_eq!(app.view, View::Inbox);
-    assert_eq!(app.page_offset, 400);
+    assert_eq!(*app.navigation().view, View::Inbox);
+    assert_eq!(app.navigation().page_offset, 400);
     assert_eq!(app.current().map(|article| article.id), id);
     Ok(())
 }

@@ -151,7 +151,7 @@ impl App {
             }
             Outcome::Articles | Outcome::Checkpoint => {}
             Outcome::Personal(changes) => {
-                self.library_revision = self.library_revision.wrapping_add(1);
+                self.nav.invalidate_library();
                 self.invalidate_notebook();
                 self.request_catalog(super::catalog_worker::Scope::Changes(
                     changes,
@@ -163,9 +163,7 @@ impl App {
                 self.finish_definition_removal(view)?
             }
             Outcome::SearchHistory(history) => {
-                if let Some(notebook) = &mut self.notebook {
-                    notebook.install_recent(history);
-                }
+                self.notebooks.install_recent(history);
             }
             Outcome::Exported(report) => self.show_note_export(report),
         }

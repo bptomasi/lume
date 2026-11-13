@@ -67,7 +67,7 @@ impl App {
     pub(super) fn observe_draft(&mut self) {
         let input = match &self.mode {
             Mode::Input(input) => Some(input.as_ref()),
-            _ => self.suspended_note.as_deref(),
+            _ => self.notebooks.suspended_editor(),
         };
         self.recovery.observe(input, Instant::now());
     }
@@ -114,7 +114,7 @@ impl App {
         let pending = self.flush_note_tasks();
         let input = match &self.mode {
             Mode::Input(input) => Some(input.as_ref()),
-            _ => self.suspended_note.as_deref(),
+            _ => self.notebooks.suspended_editor(),
         };
         let checkpoint = if let Some(input) =
             input.filter(|input| input.modified())

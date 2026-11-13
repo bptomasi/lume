@@ -36,7 +36,7 @@ impl App {
             self.confirm_article_deletion(article)?;
         } else {
             self.pending_article_delete = Some(article);
-            self.status = if self.view == View::Trash {
+            self.status = if *self.nav.view() == View::Trash {
                 "d again permanently deletes this article · cannot undo · Esc cancels"
             } else {
                 "d again moves this article to Trash · Esc cancels"
@@ -46,7 +46,7 @@ impl App {
     }
 
     fn confirm_article_deletion(&mut self, article: i64) -> Result<()> {
-        if self.view == View::Trash {
+        if *self.nav.view() == View::Trash {
             self.submit_library_edit(LibraryEdit::Delete(Deletion::Purge(
                 article,
             )))?;
@@ -112,8 +112,8 @@ impl App {
             article,
             deleted,
         }))?;
-        if self.retained_article == Some(article) {
-            self.retained_article = None;
+        if self.nav.retained_article() == Some(article) {
+            self.nav.retain_article(None);
         }
         self.status = if deleted {
             "Article moved to Trash · u undo · :trash to restore".into()
@@ -135,7 +135,7 @@ impl App {
         };
         self.finish_article_removal(
             article,
-            deleted != (self.view == View::Trash),
+            deleted != (*self.nav.view() == View::Trash),
             status,
         )
     }
@@ -178,12 +178,12 @@ impl App {
         // Commit acknowledgement owns visibility. Counts and the next source
         // can be expensive; neither is a prerequisite for removing this row.
         let checkpoint = self.save_reading_position();
-        if self.retained_article == Some(article) {
-            self.retained_article = None;
+        if self.nav.retained_article() == Some(article) {
+            self.nav.retain_article(None);
         }
         if matches!(self.mode, super::Mode::Normal)
             && !self.reader.selecting()
-            && self.notebook.is_none()
+            && self.notebook().is_none()
         {
             if remove {
                 self.remove_deleted_metadata(article);
@@ -204,16 +204,12 @@ impl App {
         status: String,
     ) -> Result<()> {
         if count != 0 {
-            if self.view.same_destination(&view)
+            if self.nav.view().same_destination(&view)
                 && matches!(self.mode, super::Mode::Normal)
-                && self.notebook.is_none()
+                && self.notebook().is_none()
                 && !self.reader.selecting()
             {
-                self.library.articles.clear();
-                self.visible.clear();
-                self.selected = 0;
-                self.page_total = 0;
-                self.retained_article = None;
+                self.nav.clear_deleted_destination();
                 self.clear_current();
             }
             self.refresh_deleted_articles()?;
@@ -226,7 +222,7 @@ impl App {
         if self.navigation_worker.is_none() {
             return self.reload();
         }
-        self.library_revision = self.library_revision.wrapping_add(1);
+        self.nav.invalidate_library();
         self.invalidate_notebook();
         self.refresh_catalog_page();
         self.request_catalog(super::catalog_worker::Scope::Counts);
@@ -234,31 +230,12 @@ impl App {
     }
 
     fn remove_deleted_metadata(&mut self, article: i64) {
-        let selected = self.current().map(|item| item.id);
-        let previous = self.library.articles.len();
-        self.library.articles.retain(|item| item.id != article);
-        if self.library.articles.len() == previous {
-            return;
-        }
-        self.visible = (0..self.library.articles.len()).collect();
-        self.selected = selected
-            .filter(|id| *id != article)
-            .and_then(|id| {
-                self.library.articles.iter().position(|item| item.id == id)
-            })
-            .unwrap_or_else(|| {
-                self.selected.min(self.visible.len().saturating_sub(1))
-            });
-        // Grouped results may replace the deleted representative with another
-        // occurrence. Let the authoritative page determine its group count.
-        if self.view != View::Grouped {
-            self.page_total = self.page_total.saturating_sub(1);
-        }
+        self.nav.remove_deleted_metadata(article);
     }
 
     pub(super) fn deletion_choice(&self) -> Option<Choice> {
         let article = self.current()?;
-        let deleted = self.view != View::Trash;
+        let deleted = *self.nav.view() != View::Trash;
         Some(Choice {
             title: if deleted {
                 "Delete article".into()

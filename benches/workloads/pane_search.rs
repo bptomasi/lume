@@ -27,7 +27,8 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
             ensure!(app.library_query() == "source-000", "Query was not live");
             key(&mut app, KeyCode::Down)?;
             ensure!(
-                app.navigation[app.nav_selected].title
+                app.navigation().navigation[app.navigation().nav_selected]
+                    .title
                     == "https://source-0001.example/feed",
                 "Matching identity drifted"
             );

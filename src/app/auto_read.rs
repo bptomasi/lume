@@ -25,7 +25,7 @@ impl App {
             return Err(error);
         }
         self.reader.auto_read_admitted();
-        self.retained_article = Some(identity.article);
+        self.nav.retain_article(Some(identity.article));
         if self.personal_writes.is_none() {
             self.refresh_read_counts()?;
         }
@@ -39,7 +39,7 @@ impl App {
             && self.focus == Focus::Reader
             && matches!(self.mode, Mode::Normal)
             && !self.reader.selecting()
-            && self.notebook.is_none()
+            && self.notebook().is_none()
             && !self.reader_stale()
             && !self.article_preparing()
             && !self.pane_motion_active()

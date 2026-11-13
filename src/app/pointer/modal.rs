@@ -63,12 +63,13 @@ impl App {
             else {
                 return Ok(None);
             };
-            self.nav_selected = selected;
+            let destination = self.nav.navigation()[selected].view.clone();
+            self.select_library_destination(&destination)?;
         } else {
             let Some(selected) = ui::article_at(self, area, event.row) else {
                 return Ok(None);
             };
-            self.selected = selected;
+            self.nav.select_article(selected);
             self.load_current_deferred()?;
         }
         self.submit_input().map(Some)
@@ -92,7 +93,9 @@ impl App {
             if pane == crate::model::Pane::Library {
                 if let Some(selected) = self.move_library_match(forward, amount)
                 {
-                    self.nav_selected = selected;
+                    let destination =
+                        self.nav.navigation()[selected].view.clone();
+                    self.select_library_destination(&destination)?;
                 }
             } else {
                 self.move_selection(forward, amount)?;

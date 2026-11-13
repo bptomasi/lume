@@ -77,7 +77,7 @@ fn global_search_targets_one_note_and_source_jump_keeps_its_identity()
     let (_directory, mut app, store, article, _) = annotated()?;
     command(&mut app, "notes type:question body:question")?;
     common::settle_notes(&mut app)?;
-    let notebook = app.notebook.as_ref().context("Notebook missing")?;
+    let notebook = app.notebook().context("Notebook missing")?;
     assert_eq!(notebook.page.total, 1);
     let id = notebook.current().context("Note missing")?.id;
     assert!(
@@ -88,7 +88,7 @@ fn global_search_targets_one_note_and_source_jump_keeps_its_identity()
             .contains('\u{1e}')
     );
     key(&mut app, KeyCode::Enter)?;
-    assert!(app.notebook.is_none());
+    assert!(app.notebook().is_none());
     assert_eq!(app.focus, Focus::Reader);
     assert_eq!(app.current().context("Article missing")?.id, article);
     assert_eq!(app.reader().comments[app.reader().comment_selected].id, id);
@@ -96,10 +96,7 @@ fn global_search_targets_one_note_and_source_jump_keeps_its_identity()
     app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
     common::settle_notes(&mut app)?;
     assert_eq!(
-        app.notebook
-            .as_ref()
-            .context("Notebook return missing")?
-            .query,
+        app.notebook().context("Notebook return missing")?.query,
         "type:question body:question"
     );
     Ok(())
@@ -117,7 +114,7 @@ fn search_cancel_saved_collections_and_reference_history_preserve_the_query()
     key(&mut app, KeyCode::Enter)?;
     common::settle_notes(&mut app)?;
     assert_eq!(
-        app.notebook.as_ref().context("Notebook missing")?.query,
+        app.notebook().context("Notebook missing")?.query,
         format!("id:{first}")
     );
     app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
@@ -126,7 +123,7 @@ fn search_cancel_saved_collections_and_reference_history_preserve_the_query()
     app.paste(" NOT tag:consensus")?;
     key(&mut app, KeyCode::Esc)?;
     common::settle_notes(&mut app)?;
-    let notebook = app.notebook.as_ref().context("Notebook missing")?;
+    let notebook = app.notebook().context("Notebook missing")?;
     assert_eq!(notebook.query, "type:question");
     assert_eq!(notebook.collections[0].name, "Questions");
     Ok(())
@@ -141,8 +138,7 @@ fn query_cursor_motion_keeps_the_selected_note_and_ready_context() -> Result<()>
     key(&mut app, KeyCode::Char('j'))?;
     common::settle_notes(&mut app)?;
     let selected = app
-        .notebook
-        .as_ref()
+        .notebook()
         .and_then(|book| book.current())
         .context("Second note missing")?
         .id;
@@ -150,7 +146,7 @@ fn query_cursor_motion_keeps_the_selected_note_and_ready_context() -> Result<()>
 
     for code in [KeyCode::Left, KeyCode::Right, KeyCode::Home, KeyCode::End] {
         key(&mut app, code)?;
-        let book = app.notebook.as_ref().context("Notebook closed")?;
+        let book = app.notebook().context("Notebook closed")?;
         assert_eq!(book.selected, 1);
         assert_eq!(book.current().context("Selection lost")?.id, selected);
         assert!(book.current_context().is_some());
@@ -172,14 +168,7 @@ fn deleting_and_undoing_a_notebook_row_never_deletes_its_article() -> Result<()>
     assert!(!store.is_deleted(article)?);
     key(&mut app, KeyCode::Char('u'))?;
     common::settle_notes(&mut app)?;
-    assert_eq!(
-        app.notebook
-            .as_ref()
-            .context("Notebook missing")?
-            .page
-            .total,
-        1
-    );
+    assert_eq!(app.notebook().context("Notebook missing")?.page.total, 1);
     assert!(store.annotation(article, first).is_ok());
     Ok(())
 }
@@ -333,10 +322,7 @@ fn batched_keyboard_and_mouse_motion_navigate_notes_without_moving_articles()
     let mut batch = lume::app::InputBatch::new(events);
     batch.dispatch_next(&mut app)?;
     common::settle_notes(&mut app)?;
-    assert_eq!(
-        app.notebook.as_ref().context("Notebook missing")?.selected,
-        1
-    );
+    assert_eq!(app.notebook().context("Notebook missing")?.selected, 1);
     assert_eq!(app.current().context("Article missing")?.id, article);
     let area = lume::ui::workspace_areas(
         Rect::new(0, 0, 144, 44),
@@ -353,10 +339,7 @@ fn batched_keyboard_and_mouse_motion_navigate_notes_without_moving_articles()
     };
     app.mouse(event)?;
     common::settle_notes(&mut app)?;
-    assert_eq!(
-        app.notebook.as_ref().context("Notebook missing")?.selected,
-        0
-    );
+    assert_eq!(app.notebook().context("Notebook missing")?.selected, 0);
     assert_eq!(app.current().context("Article missing")?.id, article);
     Ok(())
 }
@@ -607,13 +590,10 @@ fn context_end_motion_keeps_a_full_final_page_and_clamps_further_scroll()
     app.resize_workspace(screen);
     common::settle_notes(&mut app)?;
     key(&mut app, KeyCode::Char('G'))?;
-    let end = app.notebook.as_ref().context("Notebook missing")?.scroll;
+    let end = app.notebook().context("Notebook missing")?.scroll;
     assert!(end > 0);
     key(&mut app, KeyCode::Char('j'))?;
-    assert_eq!(
-        app.notebook.as_ref().context("Notebook missing")?.scroll,
-        end
-    );
+    assert_eq!(app.notebook().context("Notebook missing")?.scroll, end);
     let mut terminal = Terminal::new(TestBackend::new(100, 24))?;
     terminal.draw(|frame| lume::ui::draw(frame, &app))?;
     let area = lume::ui::workspace_areas(screen, app.focus, &app.workspace)
@@ -666,7 +646,7 @@ fn backlinks_scroll_the_selected_reference_into_view() -> Result<()> {
     store.delete_comment(article, last)?;
     command(&mut app, &format!("notes id:{first}"))?;
     common::settle_notes(&mut app)?;
-    let notebook = app.notebook.as_ref().context("Notebook missing")?;
+    let notebook = app.notebook().context("Notebook missing")?;
     let context = notebook.current_context().context("Context missing")?;
     assert!(
         context.backlinks[notebook.link_selected]
@@ -691,10 +671,10 @@ fn widening_a_scrolled_context_reflows_and_clamps_without_losing_the_last_page()
     app.resize_workspace(Rect::new(0, 0, 80, 18));
     common::settle_notes(&mut app)?;
     key(&mut app, KeyCode::Char('G'))?;
-    let old = app.notebook.as_ref().context("Notebook missing")?.scroll;
+    let old = app.notebook().context("Notebook missing")?.scroll;
     app.resize_workspace(Rect::new(0, 0, 220, 38));
     common::settle_notes(&mut app)?;
-    let notebook = app.notebook.as_ref().context("Notebook missing")?;
+    let notebook = app.notebook().context("Notebook missing")?;
     assert!(
         notebook.scroll < old,
         "Reflow retained an obsolete row offset"

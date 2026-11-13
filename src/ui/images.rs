@@ -56,7 +56,7 @@ pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
     if !app.uses_sixel_images()
         || matches!(app.mode, crate::app::Mode::Image(_))
         || app.pane_motion_active()
-        || (!app.web_active() && app.notebook.is_some())
+        || (!app.web_active() && app.notebook().is_some())
         || (!app.web_active() && app.article_preparing() && !app.reader_stale())
         || frame.area().width < 24
         || frame.area().height < 10

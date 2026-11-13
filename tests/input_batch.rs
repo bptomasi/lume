@@ -48,20 +48,20 @@ fn navigation_uses_the_storage_limit_for_zero_and_oversized_page_requests()
         .current()
         .ok_or_else(|| anyhow!("Missing first article"))?
         .id;
-    app.page_size = 0;
+    app.set_page_size(0)?;
     app.jump_article(id)?;
-    assert_eq!(app.library.articles.len(), 1);
+    assert_eq!(app.navigation().library.articles.len(), 1);
     app.focus = Focus::Articles;
     dispatch(&mut app, vec![key(KeyCode::Down, KeyEventKind::Press)])?;
-    assert_eq!(app.page_offset, 1);
-    assert_eq!(app.selected, 0);
+    assert_eq!(app.navigation().page_offset, 1);
+    assert_eq!(app.navigation().selected, 0);
 
-    app.page_size = usize::MAX;
+    app.set_page_size(usize::MAX)?;
     app.jump_article(id)?;
     app.focus = Focus::Articles;
     dispatch(&mut app, vec![key(KeyCode::End, KeyEventKind::Press)])?;
-    assert_eq!(app.page_offset, 0);
-    assert_eq!(app.selected, 300);
+    assert_eq!(app.navigation().page_offset, 0);
+    assert_eq!(app.navigation().selected, 300);
     assert_eq!(
         app.current().map(|article| article.title.as_str()),
         Some("Cache & consequence")
@@ -80,8 +80,8 @@ fn legacy_navigation_burst_loads_only_its_final_page_without_losing_distance()
     let actions = dispatch(&mut app, events)?;
 
     assert_eq!(actions, 1);
-    assert_eq!(app.page_offset, 200);
-    assert_eq!(app.selected, 20);
+    assert_eq!(app.navigation().page_offset, 200);
+    assert_eq!(app.navigation().selected, 20);
     assert_eq!(
         app.current().map(|article| article.title.as_str()),
         Some("Article 79")
@@ -98,7 +98,7 @@ fn release_cancels_pending_repeats_but_a_quick_tap_still_moves_once()
     events.push(key(KeyCode::Down, KeyEventKind::Release));
 
     dispatch(&mut app, events)?;
-    assert_eq!(app.selected, 1);
+    assert_eq!(app.navigation().selected, 1);
     let mut repeats = (0..100)
         .map(|_| key(KeyCode::Down, KeyEventKind::Repeat))
         .collect::<Vec<_>>();
@@ -106,7 +106,7 @@ fn release_cancels_pending_repeats_but_a_quick_tap_still_moves_once()
     repeats.push(key(KeyCode::Down, KeyEventKind::Release));
     dispatch(&mut app, repeats)?;
 
-    assert_eq!(app.selected, 1);
+    assert_eq!(app.navigation().selected, 1);
     Ok(())
 }
 
@@ -123,7 +123,7 @@ fn distinct_taps_and_direction_changes_keep_their_order() -> Result<()> {
 
     dispatch(&mut app, events)?;
 
-    assert_eq!(app.selected, 2);
+    assert_eq!(app.navigation().selected, 2);
     Ok(())
 }
 
@@ -157,7 +157,7 @@ fn quit_is_delivered_after_navigation_without_discarding_it() -> Result<()> {
         key(KeyCode::Char('q'), KeyEventKind::Press),
     ]);
     assert_eq!(batch.dispatch_next(&mut app)?, Some(Action::None));
-    assert_eq!(app.selected, 2);
+    assert_eq!(app.navigation().selected, 2);
     assert_eq!(batch.dispatch_next(&mut app)?, Some(Action::Quit));
     assert!(batch.dispatch_next(&mut app)?.is_none());
     Ok(())
@@ -168,6 +168,7 @@ fn sidebar_counts_remain_valid_across_view_changes_and_boundary_keys()
 -> Result<()> {
     let (_directory, mut app) = articles()?;
     let before = app
+        .navigation()
         .navigation
         .iter()
         .map(|item| item.count)
@@ -176,8 +177,9 @@ fn sidebar_counts_remain_valid_across_view_changes_and_boundary_keys()
     dispatch(&mut app, vec![key(KeyCode::Down, KeyEventKind::Press)])?;
     dispatch(&mut app, vec![key(KeyCode::Up, KeyEventKind::Press)])?;
     dispatch(&mut app, vec![key(KeyCode::Up, KeyEventKind::Press)])?;
-    assert_eq!(app.nav_selected, 0);
+    assert_eq!(app.navigation().nav_selected, 0);
     let after = app
+        .navigation()
         .navigation
         .iter()
         .map(|item| item.count)

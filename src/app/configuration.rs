@@ -118,7 +118,7 @@ impl App {
     pub fn configuration_idle(&self) -> bool {
         matches!(self.mode, Mode::Normal)
             && !self.reader.selecting()
-            && self.notebook.is_none()
+            && self.notebook().is_none()
             && self.panel_drag().is_none()
             && !self.pane_motion_active()
     }

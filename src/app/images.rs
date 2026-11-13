@@ -283,8 +283,8 @@ impl App {
             if !matches!(self.mode, super::Mode::Web) || self.web.opening {
                 return Vec::new();
             }
-        } else if self.notebook.is_some()
-            || self.navigation_loading
+        } else if self.notebook().is_some()
+            || self.nav.navigation_loading()
             || crate::ui::workspace_areas(
                 self.screen,
                 self.focus,

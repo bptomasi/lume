@@ -60,11 +60,14 @@ impl App {
         if !argument.is_empty() {
             return crate::search::explain(argument);
         }
-        let mut explanation =
-            format!("Live search:\n{}", crate::search::explain(&self.search)?);
-        if let super::View::Smart(id) = self.view {
+        let mut explanation = format!(
+            "Live search:\n{}",
+            crate::search::explain(self.nav.search())?
+        );
+        if let super::View::Smart(id) = *self.nav.view() {
             let list = self
-                .library
+                .nav
+                .library()
                 .smart_lists
                 .iter()
                 .find(|list| list.id == id)
@@ -113,7 +116,8 @@ impl App {
     }
 
     fn source_name(&self, id: i64) -> String {
-        self.library
+        self.nav
+            .library()
             .feeds
             .iter()
             .find(|feed| feed.id == id)
@@ -232,14 +236,14 @@ impl App {
             .is_some_and(|article| article.id == target.article)
             && self.reader.source() == target.source
             && self.reader.revision() == target.revision
-            && self.view != super::View::Annotated
+            && *self.nav.view() != super::View::Annotated
         {
             return self.apply_reader_location(target);
         }
         if self
             .current()
             .is_none_or(|article| article.id != target.article)
-            || self.view == super::View::Annotated
+            || *self.nav.view() == super::View::Annotated
         {
             if self.navigation_worker.is_some() {
                 self.workspace.content_source = target.source;

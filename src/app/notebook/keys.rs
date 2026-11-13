@@ -17,9 +17,9 @@ impl App {
             return self.notebook_control(key.code);
         }
         if key.code != KeyCode::Char('d')
-            && let Some(notebook) = &mut self.notebook
+            && let Some(notebook) = &mut self.notebooks.active
         {
-            notebook.pending_delete = None;
+            notebook.cancel_delete();
         }
         let previous_g = std::mem::take(&mut self.pending_g);
         match key.code {
@@ -53,7 +53,8 @@ impl App {
 
     fn copy_notebook_note(&self, code: KeyCode) -> Result<Action> {
         let context = self
-            .notebook
+            .notebooks
+            .active
             .as_ref()
             .and_then(|book| book.current_context())
             .context("Wait for the selected note's context")?;
@@ -75,7 +76,11 @@ impl App {
     }
 
     fn open_notebook_link(&mut self) -> Result<()> {
-        let notebook = self.notebook.as_ref().context("Open Notebook first")?;
+        let notebook = self
+            .notebooks
+            .active
+            .as_ref()
+            .context("Open Notebook first")?;
         let context = notebook.current_context().context("Wait for context")?;
         let note = context
             .backlinks
@@ -88,7 +93,7 @@ impl App {
     }
 
     pub(in crate::app) fn begin_global_note_search(&mut self) -> Result<()> {
-        if self.notebook.is_none() {
+        if self.notebooks.active.is_none() {
             self.open_notebook("", None)?;
         }
         self.begin_note_search();
@@ -97,7 +102,8 @@ impl App {
 
     pub(in crate::app) fn begin_note_search(&mut self) {
         let query = self
-            .notebook
+            .notebooks
+            .active
             .as_ref()
             .map_or_else(String::new, |notebook| notebook.query.clone());
         self.begin_input(InputKind::NoteSearch, query);
@@ -108,14 +114,8 @@ impl App {
             KeyCode::Char('d') => self.move_notebook(true, 10)?,
             KeyCode::Char('u') => self.move_notebook(false, 10)?,
             KeyCode::Char('o') => {
-                if let Some(notebook) = &mut self.notebook
-                    && let Some((query, offset, selected)) =
-                        notebook.history.pop()
-                {
-                    notebook.query = query;
-                    notebook.offset = offset;
-                    notebook.selected = selected;
-                    notebook.refresh()?;
+                if let Some(notebook) = &mut self.notebooks.active {
+                    notebook.restore_history()?;
                 }
             }
             _ => {}
@@ -128,17 +128,12 @@ impl App {
         forward: bool,
         distance: usize,
     ) -> Result<()> {
-        let notebook = self.notebook.as_mut().context("Open Notebook first")?;
-        notebook.pending_delete = None;
-        if self.focus == Focus::Annotations {
-            let count = notebook.current_context().map_or(0, |context| {
-                context.backlinks.len() + context.references.len()
-            });
-            notebook.link_selected =
-                shifted(notebook.link_selected, count, forward, distance);
-            return Ok(());
-        }
-        if self.focus == Focus::Reader {
+        let notebook = self
+            .notebooks
+            .active
+            .as_mut()
+            .context("Open Notebook first")?;
+        let limit = if self.focus == Focus::Reader {
             let height = crate::ui::workspace_areas(
                 self.screen,
                 self.focus,
@@ -146,37 +141,20 @@ impl App {
             )
             .reader
             .map_or(1, |area| area.height);
-            let limit = crate::ui::notebook_scroll_limit(notebook, height);
-            notebook.scroll =
-                shifted(notebook.scroll, limit + 1, forward, distance);
-            return Ok(());
-        }
-        if self.focus == Focus::Library {
-            notebook.collection = shifted(
-                notebook.collection,
-                notebook.collections.len() + 4,
-                forward,
-                distance,
-            );
-            return Ok(());
-        }
-        notebook.move_note_rows(forward, distance)
+            crate::ui::notebook_scroll_limit(&notebook.view(), height)
+        } else {
+            0
+        };
+        notebook.move_within_pane(self.focus, forward, distance, limit)
     }
 
     pub(super) fn choose_note_collection(&mut self) -> Result<()> {
-        let notebook = self.notebook.as_ref().context("Open Notebook first")?;
-        let query = match notebook.collection {
-            0 => "".to_owned(),
-            1 => "is:pinned".into(),
-            2 => "type:question status:open".into(),
-            3 => "type:todo status:open".into(),
-            index => notebook
-                .collections
-                .get(index - 4)
-                .context("Select a collection")?
-                .query
-                .clone(),
-        };
+        let notebook = self
+            .notebooks
+            .active
+            .as_ref()
+            .context("Open Notebook first")?;
+        let query = notebook.collection_query()?;
         self.set_notebook_query(&query)?;
         self.focus = Focus::Articles;
         Ok(())
@@ -212,5 +190,59 @@ impl super::Notebook {
         }
         self.pending_delete = None;
         Ok(())
+    }
+}
+
+impl super::Notebook {
+    fn cancel_delete(&mut self) {
+        self.pending_delete = None;
+    }
+
+    fn move_within_pane(
+        &mut self,
+        pane: Focus,
+        forward: bool,
+        distance: usize,
+        limit: usize,
+    ) -> Result<()> {
+        self.cancel_delete();
+        match pane {
+            Focus::Annotations => {
+                let count = self.current_context().map_or(0, |context| {
+                    context.backlinks.len() + context.references.len()
+                });
+                self.link_selected =
+                    shifted(self.link_selected, count, forward, distance);
+            }
+            Focus::Reader => {
+                self.scroll =
+                    shifted(self.scroll, limit + 1, forward, distance);
+            }
+            Focus::Library => {
+                self.collection = shifted(
+                    self.collection,
+                    self.collections.len() + 4,
+                    forward,
+                    distance,
+                );
+            }
+            Focus::Articles => self.move_note_rows(forward, distance)?,
+        }
+        Ok(())
+    }
+
+    fn collection_query(&self) -> Result<String> {
+        Ok(match self.collection {
+            0 => String::new(),
+            1 => "is:pinned".into(),
+            2 => "type:question status:open".into(),
+            3 => "type:todo status:open".into(),
+            index => self
+                .collections
+                .get(index - 4)
+                .context("Select a collection")?
+                .query
+                .clone(),
+        })
     }
 }

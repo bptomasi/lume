@@ -28,9 +28,15 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
                 key(&mut app, KeyCode::Char(character))?;
                 settle(&mut app)?;
                 terminal.draw(|frame| ui::draw(frame, &app))?;
-                ensure!(!app.visible.is_empty(), "Live matches disappeared");
+                ensure!(
+                    !app.navigation().visible.is_empty(),
+                    "Live matches disappeared"
+                );
             }
-            ensure!(app.page_total == count, "Search count changed");
+            ensure!(
+                app.navigation().page_total == count,
+                "Search count changed"
+            );
             key(&mut app, KeyCode::Enter)?;
             settle(&mut app)?;
             key(&mut app, KeyCode::Esc)?;
@@ -91,7 +97,7 @@ fn formulas(iterations: usize, stress: bool) -> Result<()> {
 
 fn settle(app: &mut App) -> Result<()> {
     let deadline = Instant::now() + Duration::from_secs(10);
-    while app.navigation_loading {
+    while app.navigation().navigation_loading {
         app.poll_reader();
         app.poll_navigation()?;
         ensure!(Instant::now() < deadline, "Search publication timed out");

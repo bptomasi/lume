@@ -21,8 +21,8 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     seed_lists(&store)?;
     let mut app = App::new(store, false)?;
     app.resize_workspace(Rect::new(0, 0, 144, 44));
-    let lists = app
-        .library
+    let library = app.navigation().library;
+    let lists = library
         .smart_lists
         .iter()
         .map(|list| list.id)
@@ -92,7 +92,10 @@ fn navigation(
             settle(app)?;
             terminal.draw(|frame| ui::draw_interactive(frame, app))?;
             complete.push(start.elapsed().as_secs_f64() * 1000.0);
-            ensure!(app.page_total == count / 2, "Incomplete smart-list page");
+            ensure!(
+                app.navigation().page_total == count / 2,
+                "Incomplete smart-list page"
+            );
             ensure!(
                 app.reader().body == include_str!("../../src/demo/systems.txt"),
                 "Wrong article body"
@@ -127,7 +130,7 @@ fn bursts(
         samples.push(start.elapsed().as_secs_f64() * 1000.0);
         settle(app)?;
         ensure!(
-            app.view == View::Smart(lists[199 % lists.len()]),
+            *app.navigation().view == View::Smart(lists[199 % lists.len()]),
             "Burst restored a stale view"
         );
         ensure!(
@@ -183,7 +186,7 @@ fn layouts(
 
 pub(super) fn settle(app: &mut App) -> Result<()> {
     let deadline = Instant::now() + Duration::from_secs(20);
-    while app.navigation_loading || app.reader_pending() {
+    while app.navigation().navigation_loading || app.reader_pending() {
         app.poll_navigation()?;
         app.poll_reader();
         app.resize_workspace(Rect::new(0, 0, 144, 44));

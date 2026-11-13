@@ -233,10 +233,13 @@ impl App {
     }
 
     fn open_smart(&mut self) {
-        let current = match self.view {
-            View::Smart(id) => {
-                self.library.smart_lists.iter().find(|list| list.id == id)
-            }
+        let current = match *self.nav.view() {
+            View::Smart(id) => self
+                .nav
+                .library()
+                .smart_lists
+                .iter()
+                .find(|list| list.id == id),
             _ => None,
         };
         let filter =
@@ -245,7 +248,8 @@ impl App {
             current.map_or("", |list| list.name.as_str()).to_owned(),
             filter.text,
             filter.feed.map_or_else(String::new, |id| {
-                self.library
+                self.nav
+                    .library()
                     .feeds
                     .iter()
                     .find(|feed| feed.id == id)
@@ -340,7 +344,8 @@ impl App {
             return Ok(None);
         }
         let matches = self
-            .library
+            .nav
+            .library()
             .feeds
             .iter()
             .filter(|feed| {
@@ -400,10 +405,10 @@ impl App {
                 return Ok(Action::ExternalEditor);
             }
             routing::WorkspaceCommand::DeleteSmart => {
-                let View::Smart(id) = self.view else {
+                let View::Smart(id) = self.nav.view() else {
                     anyhow::bail!("Select a smart list first");
                 };
-                self.remove_destination(View::Smart(id))?;
+                self.remove_destination(View::Smart(*id))?;
                 return Ok(Action::None);
             }
         };

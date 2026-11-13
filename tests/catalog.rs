@@ -110,7 +110,8 @@ fn editing_a_source_group_preserves_its_membership() -> Result<()> {
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
     assert_eq!(
-        app.library
+        app.navigation()
+            .library
             .smart_lists
             .iter()
             .find(|s| s.id == list.id)

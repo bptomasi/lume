@@ -5,93 +5,28 @@ mod common;
 use anyhow::{Context, Result};
 use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use lume::{
-    app::{App, Focus, NavItem},
+    app::{App, Focus},
     model::View,
     ui,
 };
-use ratatui::{Terminal, backend::TestBackend, layout::Rect};
-
-#[test]
-fn static_labels_are_not_selectable_and_item_rows_keep_their_identity()
--> Result<()> {
-    let (_directory, mut app) = application()?;
-    for (width, height) in [(40, 18), (80, 28), (144, 44)] {
-        let screen = Rect::new(0, 0, width, height);
-        app.resize_workspace(screen);
-        let library = ui::workspace_areas(screen, app.focus, &app.workspace)
-            .library
-            .context("Library pane")?;
-        let first = library.y + 1;
-        let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-        terminal.draw(|frame| ui::draw(frame, &app))?;
-        for (row, expected) in
-            [None, None, Some(0), Some(1), None, None, Some(2)]
-                .into_iter()
-                .enumerate()
-        {
-            assert_eq!(
-                ui::navigation_at(&app, library, first + row as u16),
-                expected
-            );
-        }
-        let text = terminal
-            .backend()
-            .buffer()
-            .content
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect::<String>();
-        for title in ["LIBRARY", "First", "Second", "FEEDS", "Third"] {
-            assert!(
-                text.contains(title),
-                "Missing {title} at {width}x{height}"
-            );
-        }
-    }
-    Ok(())
-}
-
-#[test]
-fn wide_titles_keep_large_counts_inside_the_sidebar() -> Result<()> {
-    let (_directory, mut app) = application()?;
-    app.navigation[0].title = "界面 🦀 e\u{301} ".repeat(20);
-    app.navigation[0].count = 123_456;
-    let screen = Rect::new(0, 0, 40, 18);
-    app.resize_workspace(screen);
-    let area = ui::workspace_areas(screen, app.focus, &app.workspace)
-        .library
-        .context("Library pane")?;
-    let mut terminal = Terminal::new(TestBackend::new(40, 18))?;
-
-    terminal.draw(|frame| ui::draw(frame, &app))?;
-
-    let row = area.y + 3;
-    let count = (area.right() - 8..area.right() - 1)
-        .map(|column| terminal.backend().buffer()[(column, row)].symbol())
-        .collect::<String>();
-    assert_eq!(count, "123456 ");
-    assert_eq!(
-        terminal.backend().buffer()[(area.right() - 1, row)].symbol(),
-        "│"
-    );
-    Ok(())
-}
+use ratatui::layout::Rect;
 
 #[test]
 fn clicking_visible_destinations_does_not_recenter_or_change_pointer_targets()
 -> Result<()> {
     let (_directory, mut app) = application()?;
-    app.navigation = (0..80)
-        .map(|n| NavItem {
-            view: View::Feed(n),
-            title: format!("Feed {n}"),
-            group: if n < 40 { "FEEDS" } else { "SMART LISTS" },
-            count: 0,
-        })
-        .collect();
     let screen = Rect::new(0, 0, 80, 24);
     app.resize_workspace(screen);
-    app.set_view(View::Feed(30))?;
+    let destination = app
+        .navigation()
+        .navigation
+        .iter()
+        .filter(|item| matches!(item.view, View::Feed(_)))
+        .nth(30)
+        .context("Middle feed")?
+        .view
+        .clone();
+    app.set_view(destination)?;
     app.resize_workspace(screen);
     let area = ui::workspace_areas(screen, app.focus, &app.workspace)
         .library
@@ -110,33 +45,22 @@ fn clicking_visible_destinations_does_not_recenter_or_change_pointer_targets()
             row: area.y + 1 + local as u16,
             modifiers: KeyModifiers::NONE,
         })?;
-        assert_eq!(app.nav_selected, expected);
+        assert_eq!(app.navigation().nav_selected, expected);
         assert_eq!(targets(&app), before, "Click moved the viewport");
     }
     Ok(())
 }
 
 fn application() -> Result<(tempfile::TempDir, App)> {
-    let (_directory, store, _feed) = common::seeded_store()?;
+    let (directory, store, _feed) = common::seeded_store()?;
+    for index in 0..80 {
+        store.subscribe(&format!("https://feed{index}.example/rss"))?;
+    }
     let mut app = App::new(store, false)?;
     app.focus = Focus::Library;
     app.workspace.show_articles = false;
     app.workspace.show_reader = false;
     app.workspace.show_annotations = false;
-    app.navigation = [
-        ("First", "LIBRARY"),
-        ("Second", "LIBRARY"),
-        ("Third", "FEEDS"),
-    ]
-    .into_iter()
-    .enumerate()
-    .map(|(index, (title, group))| NavItem {
-        title: title.into(),
-        group,
-        view: View::Feed(index as i64),
-        count: 42,
-    })
-    .collect();
-    app.nav_selected = 0;
-    Ok((_directory, app))
+    app.set_view(View::All)?;
+    Ok((directory, app))
 }

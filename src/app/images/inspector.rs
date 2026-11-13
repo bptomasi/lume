@@ -75,7 +75,7 @@ impl App {
         } else {
             self.guard_stale_command(crate::command::Command::Image)?;
             ensure!(
-                self.focus == Focus::Reader && self.notebook.is_none(),
+                self.focus == Focus::Reader && self.notebook().is_none(),
                 "Focus Reader before opening an image"
             );
             self.reader.cursor_row()

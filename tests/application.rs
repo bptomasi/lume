@@ -48,14 +48,14 @@ fn live_search_cancel_restores_previous_filter() -> Result<()> {
     let (_directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
     type_text(&mut app, "/nonexistent")?;
-    assert!(app.visible.is_empty());
+    assert!(app.navigation().visible.is_empty());
     press(&mut app, KeyCode::Esc)?;
-    assert!(app.search.is_empty());
-    assert_eq!(app.visible.len(), 1);
+    assert!(app.navigation().search.is_empty());
+    assert_eq!(app.navigation().visible.len(), 1);
     type_text(&mut app, "/SYSTEMS")?;
     press(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.visible.len(), 1);
-    assert_eq!(app.search, "SYSTEMS");
+    assert_eq!(app.navigation().visible.len(), 1);
+    assert_eq!(app.navigation().search, "SYSTEMS");
     Ok(())
 }
 
@@ -109,7 +109,7 @@ fn article_can_be_saved_in_multiple_lists_without_becoming_favorite()
     type_text(&mut app, "aWeekend")?;
     press(&mut app, KeyCode::Enter)?;
     ensure!(
-        app.library.collections.len() == 2,
+        app.navigation().library.collections.len() == 2,
         "Both lists should exist"
     );
     let stored =

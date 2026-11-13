@@ -59,33 +59,34 @@ impl NoteCatalog {
 impl App {
     pub(super) fn refresh_note_catalog(&mut self) {
         let affected = super::navigation::sensitive(
-            &self.view,
-            &self.library.smart_lists,
+            self.nav.view(),
+            &self.nav.library().smart_lists,
             crate::search::Changes::NOTES,
         )
         .unwrap_or(true)
-            || crate::search::parse(&self.search)
+            || crate::search::parse(self.nav.search())
                 .map(|query| query.depends_on(crate::search::Changes::NOTES))
                 .unwrap_or(true);
         let query = affected.then(|| ArticleQuery {
-            view: self.view.clone(),
-            text: self.search.clone(),
-            offset: self.page_offset,
-            limit: self.page_size.clamp(1, 500),
+            view: self.nav.view().clone(),
+            text: self.nav.search().clone(),
+            offset: self.nav.page_offset(),
+            limit: self.nav.page_size().clamp(1, 500),
             retained: self.current().map(|article| article.id),
         });
         if let Some(catalog) = &mut self.note_catalog {
             catalog.ready = None;
-            catalog.revision = self.library_revision;
+            catalog.revision = self.nav.library_revision();
             catalog.worker.submit(Request {
                 views: self
-                    .navigation_sections
+                    .nav
+                    .navigation_sections()
                     .catalog()
                     .iter()
                     .filter(|row| {
                         super::navigation::sensitive(
                             &row.view,
-                            &self.library.smart_lists,
+                            &self.nav.library().smart_lists,
                             crate::search::Changes::NOTES,
                         )
                         .unwrap_or(true)
@@ -106,7 +107,7 @@ impl App {
             return Ok(false);
         };
         if let Some(result) = catalog.worker.poll() {
-            if catalog.revision != self.library_revision {
+            if catalog.revision != self.nav.library_revision() {
                 self.refresh_note_catalog();
                 return Ok(false);
             }
@@ -118,7 +119,7 @@ impl App {
         let Some(snapshot) = catalog.ready.take() else {
             return Ok(false);
         };
-        if catalog.revision != self.library_revision {
+        if catalog.revision != self.nav.library_revision() {
             self.refresh_note_catalog();
             return Ok(false);
         }
@@ -126,7 +127,7 @@ impl App {
             .counts
             .into_iter()
             .collect::<std::collections::HashMap<_, _>>();
-        let mut navigation = self.navigation_sections.catalog().to_vec();
+        let mut navigation = self.nav.navigation_sections().catalog().to_vec();
         for row in &mut navigation {
             if let Some(count) = counts.get(&row.view) {
                 row.count = *count;

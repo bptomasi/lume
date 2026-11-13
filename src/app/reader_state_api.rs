@@ -212,7 +212,7 @@ impl App {
 
     pub(super) fn render_context(&self) -> super::reader_state::RenderContext {
         super::reader_state::RenderContext {
-            annotated: self.view == super::View::Annotated,
+            annotated: *self.nav.view() == super::View::Annotated,
             immediate: self.immediate_layout,
             justify: self.workspace.justify,
             options: self.formula_options(),
@@ -229,7 +229,7 @@ impl App {
             width,
             height,
             self.render_context(),
-            !self.navigation_loading && !self.projecting_navigation,
+            !self.nav.navigation_loading() && !self.nav.projecting_navigation(),
         );
     }
 }

@@ -89,10 +89,13 @@ impl App {
         self.pending_g = false;
         self.vim.clear_input();
         if matches!(kind, InputKind::Search) {
-            self.retained_article = None;
+            self.nav.retain_article(None);
         }
-        self.mode =
-            Mode::Input(Box::new(Input::new(kind, text, self.search.clone())));
+        self.mode = Mode::Input(Box::new(Input::new(
+            kind,
+            text,
+            self.nav.search().clone(),
+        )));
         if let Mode::Input(input) = &mut self.mode
             && matches!(input.kind, InputKind::NoteSearch)
         {
@@ -180,12 +183,9 @@ impl App {
         }
         if let Mode::Input(input) = &self.mode
             && matches!(input.kind, InputKind::Search)
-            && self.search != input.text
+            && self.nav.search() != &input.text
         {
-            self.search.clone_from(&input.text);
-            self.page_offset = 0;
-            self.selected = 0;
-            self.articles_first = 0;
+            self.nav.preview_query(input.text.clone());
             self.filter_preview()?;
         }
         Ok(())
@@ -207,16 +207,15 @@ impl App {
         }
         if let Mode::Input(input) = &self.mode
             && matches!(input.kind, InputKind::Search)
-            && self.search != input.previous_search
+            && self.nav.search() != &input.previous_search
         {
-            self.search.clone_from(&input.previous_search);
-            self.page_offset = 0;
+            self.nav.restore_query(input.previous_search.clone());
             self.filter()?;
         }
         let search = matches!(&self.mode, Mode::Input(input)
             if matches!(input.kind, InputKind::Search));
         self.mode = Mode::Normal;
-        if search && self.reader_stale() && !self.navigation_loading {
+        if search && self.reader_stale() && !self.nav.navigation_loading() {
             self.load_current_deferred()?;
         }
         Ok(Action::None)

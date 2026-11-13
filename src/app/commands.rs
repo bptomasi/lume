@@ -267,7 +267,7 @@ impl App {
         }
         let id = article.id;
         self.submit_read_state(std::iter::once(id).collect(), unread)?;
-        self.retained_article = None;
+        self.nav.retain_article(None);
         if self.personal_writes.is_none() {
             self.reload()?;
         }
@@ -294,7 +294,7 @@ impl App {
     }
 
     fn active_list(&self) -> Result<i64> {
-        if let View::Collection(id) = self.view {
+        if let View::Collection(id) = *self.nav.view() {
             return Ok(id);
         }
         bail!("Select a personal folder in the library first")
@@ -363,10 +363,10 @@ impl App {
     }
 
     fn unsubscribe(&mut self) -> Result<()> {
-        let View::Feed(id) = self.view else {
+        let View::Feed(id) = self.nav.view() else {
             bail!("Select a feed in the library first");
         };
-        self.remove_destination(View::Feed(id))
+        self.remove_destination(View::Feed(*id))
     }
 
     pub(super) fn open_url(&self) -> Action {

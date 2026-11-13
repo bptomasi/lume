@@ -40,7 +40,7 @@ impl App {
             Mode::Document(_) => self.document_key(key),
             Mode::Settings(_) => self.settings_key(key),
             Mode::Image(_) => self.image_inspector_keypress(key),
-            Mode::Normal if self.notebook.is_some() => self.notebook_key(key),
+            Mode::Normal if self.notebook().is_some() => self.notebook_key(key),
             Mode::Normal => self.normal_key(key),
         };
         self.restore_web_mode();
@@ -61,7 +61,7 @@ impl App {
 
     fn stale_reader_key(&mut self, key: KeyEvent) -> bool {
         let blocked = matches!(self.mode, Mode::Normal)
-            && self.notebook.is_none()
+            && self.notebook().is_none()
             && self.reader_stale()
             && matches!(self.focus, Focus::Reader | Focus::Annotations)
             && !matches!(
@@ -198,7 +198,7 @@ impl App {
                 self.focus_pane(Focus::Articles)?;
             }
             self.save_reading_position()?;
-            self.begin_input(InputKind::Search, self.search.clone());
+            self.begin_input(InputKind::Search, self.nav.search().clone());
         }
         Ok(())
     }
@@ -226,11 +226,11 @@ impl App {
         if self.focus != Focus::Library {
             return self.open_reader();
         }
-        if self.view == View::Annotated {
+        if *self.nav.view() == View::Annotated {
             self.open_notebook("", None)?;
             return Ok(());
         }
-        if matches!(self.view, View::Group(_)) {
+        if matches!(self.nav.view(), View::Group(_)) {
             self.toggle_navigation_group("")?;
         } else {
             self.focus = Focus::Articles;
@@ -335,12 +335,10 @@ impl App {
                 self.focus = Focus::Articles;
             }
         }
-        if self.search.is_empty() {
+        if self.nav.search().is_empty() {
             return Ok(());
         }
-        self.retained_article = None;
-        self.search.clear();
-        self.page_offset = 0;
+        self.nav.clear_query();
         self.focus = Focus::Articles;
         self.filter()
     }

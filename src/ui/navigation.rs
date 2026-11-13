@@ -13,7 +13,7 @@ use ratatui::{
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use crate::app::App;
+use crate::app::{App, NavigationView};
 
 use super::theme::{ACCENT, FAINT, MUTED, RAISED};
 
@@ -24,8 +24,8 @@ enum Row {
     Item(usize),
 }
 
-pub(super) fn draw(frame: &mut Frame<'_>, app: &App, area: Rect) {
-    if app.navigation_indices().next().is_none() {
+pub(super) fn draw(frame: &mut Frame<'_>, app: NavigationView<'_>, area: Rect) {
+    if app.indices().next().is_none() {
         frame.render_widget(Paragraph::new("No matching destinations"), area);
         return;
     }
@@ -42,6 +42,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, area: Rect) {
 }
 
 pub(super) fn at(app: &App, height: u16, row: usize) -> Option<usize> {
+    let app = app.navigation();
     app.navigation.get(app.nav_selected)?;
     match window(app, height).nth(row)? {
         Row::Item(index) => Some(index),
@@ -49,7 +50,10 @@ pub(super) fn at(app: &App, height: u16, row: usize) -> Option<usize> {
     }
 }
 
-fn window(app: &App, height: u16) -> impl Iterator<Item = Row> + '_ {
+fn window(
+    app: NavigationView<'_>,
+    height: u16,
+) -> impl Iterator<Item = Row> + '_ {
     let (first, skip) = window_start(app, height);
     rows(app, first).skip(skip).take(usize::from(height))
 }
@@ -62,11 +66,11 @@ pub(crate) fn origin(app: &App, screen: Rect) -> Option<(usize, usize)> {
         crate::model::Pane::Library,
         area.inner(ratatui::layout::Margin::new(1, 1)),
     );
-    (inner.height > 0).then(|| window_start(app, inner.height))
+    (inner.height > 0).then(|| window_start(app.navigation(), inner.height))
 }
 
-fn window_start(app: &App, height: u16) -> (usize, usize) {
-    let selected = app.navigation_position(app.nav_selected).unwrap_or(0);
+fn window_start(app: NavigationView<'_>, height: u16) -> (usize, usize) {
+    let selected = app.position(app.nav_selected).unwrap_or(0);
     if selected < app.navigation_first {
         return lookbehind(app, selected, 0);
     }
@@ -87,7 +91,7 @@ fn window_start(app: &App, height: u16) -> (usize, usize) {
 }
 
 fn lookbehind(
-    app: &App,
+    app: NavigationView<'_>,
     mut first: usize,
     mut remaining: usize,
 ) -> (usize, usize) {
@@ -108,13 +112,13 @@ fn lookbehind(
     (first, skip)
 }
 
-fn heading_rows(app: &App, position: usize) -> usize {
-    let Some(index) = app.navigation_indices().nth(position) else {
+fn heading_rows(app: NavigationView<'_>, position: usize) -> usize {
+    let Some(index) = app.indices().nth(position) else {
         return 0;
     };
     let previous = position
         .checked_sub(1)
-        .and_then(|position| app.navigation_indices().nth(position))
+        .and_then(|position| app.indices().nth(position))
         .map_or("", |index| app.navigation[index].group);
     if app.navigation[index].group == previous {
         return 0;
@@ -126,12 +130,15 @@ fn heading_rows(app: &App, position: usize) -> usize {
     }
 }
 
-fn rows(app: &App, first: usize) -> impl Iterator<Item = Row> + '_ {
+fn rows(
+    app: NavigationView<'_>,
+    first: usize,
+) -> impl Iterator<Item = Row> + '_ {
     let mut group = first
         .checked_sub(1)
-        .and_then(|position| app.navigation_indices().nth(position))
+        .and_then(|position| app.indices().nth(position))
         .map_or("", |index| app.navigation[index].group);
-    app.navigation_indices().skip(first).flat_map(move |index| {
+    app.indices().skip(first).flat_map(move |index| {
         let item = &app.navigation[index];
         let changed_group = item.group != group;
         group = item.group;
@@ -147,7 +154,11 @@ fn rows(app: &App, first: usize) -> impl Iterator<Item = Row> + '_ {
     })
 }
 
-fn item_line(app: &App, index: usize, width: u16) -> Line<'static> {
+fn item_line(
+    app: NavigationView<'_>,
+    index: usize,
+    width: u16,
+) -> Line<'static> {
     let item = &app.navigation[index];
     let selected = index == app.nav_selected;
     let style = if selected {

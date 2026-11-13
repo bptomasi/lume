@@ -96,7 +96,7 @@ impl App {
             view: if action == "queue" {
                 View::Queue
             } else {
-                self.view.clone()
+                self.nav.view().clone()
             },
             limits,
         })

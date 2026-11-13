@@ -47,19 +47,21 @@ pub fn definition_removal(iterations: usize, stress: bool) -> Result<()> {
             app.enable_background_navigation(&path)?;
             settle(&mut app)?;
             app.focus = Focus::Library;
-            app.nav_selected = app
-                .navigation
-                .iter()
-                .position(|item| item.view == target)
-                .context("Definition")?;
+            app.select_library_destination(&target)?;
             let start = Instant::now();
             app.key(KeyCode::Char('d').into())?;
             app.key(KeyCode::Char('d').into())?;
             settle(&mut app)?;
             elapsed += start.elapsed();
-            ensure!(app.page_total == count, "Deletion changed article count");
             ensure!(
-                !app.navigation.iter().any(|item| item.view == target),
+                app.navigation().page_total == count,
+                "Deletion changed article count"
+            );
+            ensure!(
+                !app.navigation()
+                    .navigation
+                    .iter()
+                    .any(|item| item.view == target),
                 "Definition survived deletion"
             );
             app.end_session()?;
@@ -183,17 +185,10 @@ fn asynchronous(
     let mut complete = Duration::ZERO;
     for _ in 0..iterations {
         settle(app)?;
-        let count = app.page_total;
+        let count = app.navigation().page_total;
         let start = Instant::now();
         let article = remove(app)?;
-        while app.library.articles.iter().any(|item| item.id == article) {
-            tick(app)?;
-            ensure!(
-                start.elapsed() < Duration::from_secs(10),
-                "Deletion stayed visible"
-            );
-            std::thread::sleep(Duration::from_millis(1));
-        }
+        wait_for_metadata_removal(app, article, start)?;
         terminal.draw(|frame| ui::draw_interactive(frame, app))?;
         visible += start.elapsed();
         ensure!(
@@ -202,7 +197,10 @@ fn asynchronous(
         );
         settle(app)?;
         complete += start.elapsed();
-        ensure!(app.page_total == count - 1, "Page count is stale");
+        ensure!(
+            app.navigation().page_total == count - 1,
+            "Page count is stale"
+        );
         ensure!(
             observer.view_count(&View::Trash)? == 1,
             "Wrong deletion count"
@@ -252,7 +250,10 @@ fn permanent(app: &mut App, observer: &Store, iterations: usize) -> Result<()> {
             "Purge was not committed"
         );
         settle(app)?;
-        ensure!(app.page_total == 0, "Purged article stayed in Trash");
+        ensure!(
+            app.navigation().page_total == 0,
+            "Purged article stayed in Trash"
+        );
     }
     print_sample("background Trash dd + committed frame", elapsed, iterations);
     Ok(())
@@ -385,5 +386,27 @@ fn bulk_view(iterations: usize) -> Result<()> {
         elapsed,
         iterations,
     );
+    Ok(())
+}
+
+fn wait_for_metadata_removal(
+    app: &mut App,
+    article: i64,
+    start: Instant,
+) -> Result<()> {
+    while app
+        .navigation()
+        .library
+        .articles
+        .iter()
+        .any(|item| item.id == article)
+    {
+        tick(app)?;
+        ensure!(
+            start.elapsed() < Duration::from_secs(10),
+            "Deletion stayed visible"
+        );
+        std::thread::sleep(Duration::from_millis(1));
+    }
     Ok(())
 }

@@ -65,7 +65,8 @@ fn clicks(
                 app.poll_navigation()?;
                 terminal.draw(|frame| ui::draw_interactive(frame, app))?;
                 ensure!(
-                    app.selected == before[local].context("Missing card")?,
+                    app.navigation().selected
+                        == before[local].context("Missing card")?,
                     "Wrong card selected"
                 );
                 ensure!(

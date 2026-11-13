@@ -66,11 +66,7 @@ impl App {
                 edit.clone(),
             )?;
         }
-        for article in &mut self.library.articles {
-            if articles.contains(&article.id) {
-                overlay(article, &edit);
-            }
-        }
+        self.nav.overlay_edit(&articles, &edit);
         Ok(())
     }
 
@@ -121,7 +117,7 @@ impl App {
         let Some(pending) = self.article_edits.pending.remove(&ticket) else {
             return false;
         };
-        self.library_revision = self.library_revision.wrapping_add(1);
+        self.nav.invalidate_library();
         self.article_edits.reconcile_required |= failed;
         self.article_edits.failed |= failed;
         self.article_edits.changes = self
@@ -145,16 +141,15 @@ impl App {
 
     pub(super) fn overlay_article_edits(&mut self) {
         for pending in self.article_edits.pending.values() {
-            for article in &mut self.library.articles {
-                if pending.articles.contains(&article.id) {
-                    overlay(article, &pending.edit);
-                }
-            }
+            self.nav.overlay_edit(&pending.articles, &pending.edit);
         }
     }
 }
 
-fn overlay(article: &mut crate::model::Article, edit: &crate::model::BulkEdit) {
+pub(super) fn overlay(
+    article: &mut crate::model::Article,
+    edit: &crate::model::BulkEdit,
+) {
     match edit {
         crate::model::BulkEdit::Unread(value) => article.unread = *value,
         crate::model::BulkEdit::Favorite(value) => article.starred = *value,

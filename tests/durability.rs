@@ -62,7 +62,7 @@ fn rapid_favorite_and_queue_toggles_preserve_intentions_and_undo_order()
     let (directory, store, _) = common::seeded_store()?;
     let path = directory.path().join("library.sqlite3");
     let mut app = App::new(store, false)?;
-    app.view = View::All;
+    app.set_view(View::All)?;
     let id = app
         .current()
         .map(|article| article.id)

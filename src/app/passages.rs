@@ -75,7 +75,7 @@ impl App {
 
     pub(super) fn annotate_selection(&mut self) -> Result<()> {
         ensure!(
-            self.notebook.is_none() && self.focus == Focus::Reader,
+            self.notebook().is_none() && self.focus == Focus::Reader,
             "Focus Reader before creating an article annotation"
         );
         let captured = if self.reader.selecting() {

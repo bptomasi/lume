@@ -45,7 +45,8 @@ fn sample(app: &mut App, observer: &Store, index: usize) -> Result<Duration> {
     let elapsed = started.elapsed();
     ensure!(!observer.article(id)?.unread, "Read was not committed");
     ensure!(
-        app.navigation
+        app.navigation()
+            .navigation
             .iter()
             .find(|item| item.view == View::Read)
             .is_some_and(|item| item.count == 1),

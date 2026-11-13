@@ -85,7 +85,7 @@ fn clicking_cards_keeps_them_unread_and_preserves_article_focus() -> Result<()>
             app.workspace.compact = compact;
             click(&mut app, 1)?;
             assert_eq!(app.focus, Focus::Articles);
-            assert_eq!(app.selected, 1);
+            assert_eq!(app.navigation().selected, 1);
             assert!(!app.notes_pending(), "Click queued a personal mutation");
             settle(&mut app)?;
             assert!(app.current().context("Preview")?.unread);
@@ -102,7 +102,7 @@ fn clicking_the_ready_selection_does_not_enqueue_another_source_load()
 -> Result<()> {
     let (_directory, mut app, observed) = application(true)?;
     click(&mut app, 0)?;
-    assert!(!app.navigation_loading);
+    assert!(!app.navigation().navigation_loading);
     assert!(!app.catalog_pending());
     assert!(!app.notes_pending());
     assert_eq!(observed.view_count(&View::Inbox)?, 2);

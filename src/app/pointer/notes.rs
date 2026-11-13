@@ -34,7 +34,7 @@ impl App {
         event: MouseEvent,
         gutter_only: bool,
     ) -> Option<i64> {
-        if self.notebook.is_some()
+        if self.notebook().is_some()
             || self.article_preparing()
             || self.reader_stale()
         {

@@ -23,8 +23,9 @@ impl App {
             return Ok(true);
         }
         let target = self
-            .navigation
-            .get(self.nav_selected)
+            .nav
+            .navigation()
+            .get(self.nav.nav_selected())
             .map(|item| item.view.clone())
             .filter(deletable);
         let Some(target) = target else {
@@ -66,7 +67,7 @@ impl App {
     ) -> Result<()> {
         // Layout preferences change only after the captured removal commits.
         // A rejected deletion must retain its pins, order and active view.
-        let active = target.same_destination(&self.view);
+        let active = target.same_destination(self.nav.view());
         self.workspace
             .pins
             .retain(|view| !view.same_destination(&target));
@@ -74,7 +75,7 @@ impl App {
             .navigation_order
             .retain(|view| !view.same_destination(&target));
         self.refresh_removed_definition(&target)?;
-        if active && self.view != View::All {
+        if active && *self.nav.view() != View::All {
             self.set_view(View::All)?;
         }
         self.persist_preferences()?;
@@ -99,7 +100,7 @@ impl App {
         }
         // Definition removal preserves publisher content. Reuse unaffected
         // counts and pages; catalog publication owns any destination fallback.
-        self.library_revision = self.library_revision.wrapping_add(1);
+        self.nav.invalidate_library();
         self.invalidate_notebook();
         self.request_catalog(super::catalog_worker::Scope::Changes(changes));
         Ok(())

@@ -77,7 +77,7 @@ fn parser_indexes_heading_levels_exact_code_and_table_source() -> Result<()> {
 fn reader_search_does_not_filter_library_and_matches_survive_reflow()
 -> Result<()> {
     let (_directory, mut app) = reading()?;
-    let total = app.page_total;
+    let total = app.navigation().page_total;
     command(&mut app, "find Alpha")?;
     assert_eq!(app.reader().reader_tools.hits.len(), 2);
     let first = app.cursor_offset();
@@ -87,8 +87,8 @@ fn reader_search_does_not_filter_library_and_matches_survive_reflow()
     assert_eq!(app.reader().reader_tools.hits.len(), 2);
     command(&mut app, "find-prev")?;
     assert_eq!(app.cursor_offset(), first);
-    assert_eq!(app.page_total, total);
-    assert!(app.search.is_empty());
+    assert_eq!(app.navigation().page_total, total);
+    assert!(app.navigation().search.is_empty());
     Ok(())
 }
 
@@ -290,7 +290,7 @@ fn refresh_retains_article_and_note_identity_beyond_the_loaded_page()
     app.reload()?;
     common::reader::comment(&mut app, 1)?;
     let selected_note = app.reader().comments[1].id;
-    app.page_size = 1;
+    app.set_page_size(1)?;
     let feed = writer.feeds()?.remove(0);
     let mut incoming =
         source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?.articles;
@@ -303,7 +303,13 @@ fn refresh_retains_article_and_note_identity_beyond_the_loaded_page()
     app.reload()?;
 
     assert_eq!(app.current().map(|item| item.id), Some(original.id));
-    assert_eq!((app.page_offset, app.library.articles.len()), (3, 1));
+    assert_eq!(
+        (
+            app.navigation().page_offset,
+            app.navigation().library.articles.len()
+        ),
+        (3, 1)
+    );
     assert_eq!(
         app.reader().comments[app.reader().comment_selected].id,
         selected_note

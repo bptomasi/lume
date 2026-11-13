@@ -117,7 +117,7 @@ fn background_markdown_and_syntax_keep_the_same_selected_code() -> Result<()> {
     )?;
     app.set_view(lume::model::View::All)?;
     let deadline = Instant::now() + Duration::from_secs(10);
-    while app.navigation_loading || app.article_preparing() {
+    while app.navigation().navigation_loading || app.article_preparing() {
         app.poll_navigation()?;
         app.poll_reader();
         ensure!(Instant::now() < deadline, "Readable code did not arrive");

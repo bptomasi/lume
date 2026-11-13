@@ -11,7 +11,7 @@ use super::{NoteAction, inspection::Inspection};
 
 impl App {
     pub(in crate::app) fn resume_note_editor(&mut self) {
-        if let Some(input) = self.suspended_note.take() {
+        if let Some(input) = self.notebooks.resume_editor() {
             self.mode = Mode::Input(input);
         }
     }
@@ -43,7 +43,7 @@ impl App {
             exclude,
         })?;
         if let Mode::Input(input) = std::mem::take(&mut self.mode) {
-            self.suspended_note = Some(input);
+            self.notebooks.suspend_editor(input);
         }
         Ok(())
     }
@@ -131,7 +131,10 @@ impl App {
     }
 
     pub(in crate::app) fn preview_note_anchor(&mut self) -> Result<()> {
-        ensure!(self.notebook.is_none(), "Open the source article first");
+        ensure!(
+            self.notebooks.active.is_none(),
+            "Open the source article first"
+        );
         let (article, passage) = self.captured_passage()?;
         let note = self
             .reader

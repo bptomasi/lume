@@ -9,6 +9,10 @@ mod commands;
 mod editor_actions;
 pub(super) mod inspection;
 mod interaction;
+mod lifecycle;
+mod state;
+mod view;
+pub use view::NotebookView;
 mod keys;
 mod readers;
 mod references;
@@ -26,170 +30,52 @@ use crate::model::{NoteCollection, NotePage, NoteSummary, Workspace};
 use super::{App, Focus};
 
 /// Notebook query, layout and cached previews; drawing performs no I/O.
-pub struct Notebook {
+pub(super) struct Notebook {
     /// Note query, independent of article search.
-    pub query: String,
+    query: String,
     /// Bounded note preview window.
-    pub page: NotePage,
+    page: NotePage,
     /// Absolute offset of the page.
-    pub offset: usize,
+    offset: usize,
     /// Selected note within the page.
-    pub selected: usize,
+    selected: usize,
     /// User-authored dynamic collections, after four built-in destinations.
-    pub collections: Vec<NoteCollection>,
+    collections: Vec<NoteCollection>,
     /// Selected collection row.
-    pub collection: usize,
+    collection: usize,
     /// Selected note and its safely located source excerpt.
-    pub context: Option<NoteContext>,
+    context: Option<NoteContext>,
     /// Selected incoming/outgoing link in the optional backlinks pane.
-    pub link_selected: usize,
+    link_selected: usize,
     /// First context display row.
-    pub scroll: usize,
+    scroll: usize,
     /// Most recent successful explicit searches.
-    pub recent: Vec<String>,
+    recent: Vec<String>,
     recent_generation: u64,
     /// Captured note identities selected for a synthesis.
-    pub marked: std::collections::BTreeSet<i64>,
+    marked: std::collections::BTreeSet<i64>,
     /// A list query is pending; cached results remain available.
-    pub loading: bool,
+    loading: bool,
     /// A source context read is pending.
-    pub context_loading: bool,
+    context_loading: bool,
     /// Validation/read failure outside user text.
-    pub error: String,
-    pub(super) article: Option<i64>,
-    pub(super) width: usize,
-    pub(super) pending_delete: Option<i64>,
-    before: Workspace,
-    before_layouts: crate::model::LayoutHistory,
-    focus_before: Focus,
+    error: String,
+    article: Option<i64>,
+    width: usize,
+    pending_delete: Option<i64>,
+    origin: Origin,
     readers: readers::Readers,
     history: Vec<(String, usize, usize)>,
+    // Cached rows remain paintable during query/scope replacement, but their
+    // action target is available only while all loaded coordinates still match.
     loaded_query: String,
     loaded_offset: usize,
-}
-
-impl Notebook {
-    fn start(app: &App, query: &str, article: Option<i64>) -> Result<Self> {
-        let path = app.store.database_path()?;
-        Ok(Self {
-            query: query.into(),
-            page: NotePage::default(),
-            offset: 0,
-            selected: 0,
-            collections: Vec::new(),
-            collection: 0,
-            context: None,
-            scroll: 0,
-            link_selected: 0,
-            recent: Vec::new(),
-            recent_generation: 0,
-            marked: std::collections::BTreeSet::new(),
-            loading: false,
-            context_loading: false,
-            error: String::new(),
-            article,
-            width: 72,
-            pending_delete: None,
-            before: app.workspace.clone(),
-            before_layouts: app.layouts.clone(),
-            focus_before: app.focus,
-            readers: readers::Readers::start(&path)?,
-            history: Vec::new(),
-            loaded_query: String::new(),
-            loaded_offset: 0,
-        })
-    }
-
-    /// Selected note preview, including while another read is pending.
-    pub fn current(&self) -> Option<&NoteSummary> {
-        if self.loaded_query != self.query || self.loaded_offset != self.offset
-        {
-            return None;
-        }
-        self.page.notes.get(self.selected)
-    }
-
-    /// Context is available only for the exact currently selected note.
-    pub fn current_context(&self) -> Option<&NoteContext> {
-        let id = self.current()?.id;
-        self.context
-            .as_ref()
-            .filter(|item| item.note.comment.id == id)
-    }
-
-    fn refresh(&mut self) -> Result<()> {
-        crate::search::notes::validate(&self.query)?;
-        self.readers.list.submit(readers::ListRequest {
-            text: self.query.clone(),
-            article: self.article,
-            offset: self.offset,
-            recent_generation: self.recent_generation,
-        });
-        self.loading = true;
-        self.error.clear();
-        Ok(())
-    }
-
-    pub(super) fn install_recent(&mut self, recent: Vec<String>) {
-        // A late list snapshot must not overwrite an acknowledged history edit.
-        self.recent_generation = self.recent_generation.wrapping_add(1);
-        self.recent = recent;
-    }
-
-    fn install_listing(&mut self, listing: readers::Listing) {
-        let preserve = self.query == self.loaded_query
-            && self.offset == self.loaded_offset;
-        let id = self.current().filter(|_| preserve).map(|note| note.id);
-        self.loaded_query.clone_from(&self.query);
-        self.loaded_offset = listing.offset;
-        self.page = listing.page;
-        self.offset = listing.offset;
-        self.collections = listing.collections;
-        self.collection = self.collection.min(self.collections.len() + 3);
-        if self.recent_generation == listing.recent_generation {
-            self.recent = listing.recent;
-        }
-        self.selected = id
-            .and_then(|id| {
-                self.page.notes.iter().position(|note| note.id == id)
-            })
-            .unwrap_or(
-                self.selected.min(self.page.notes.len().saturating_sub(1)),
-            );
-        let scroll = self.scroll;
-        self.read_context();
-        if self.current().is_some_and(|note| Some(note.id) == id) {
-            self.scroll = scroll;
-        }
-    }
-
-    fn read_context(&mut self) {
-        let Some(id) = self.current().map(|note| note.id) else {
-            self.context = None;
-            self.context_loading = false;
-            self.readers.context.cancel();
-            return;
-        };
-        self.readers.context.submit((id, self.width));
-        self.context_loading = true;
-        if self
-            .context
-            .as_ref()
-            .is_none_or(|context| context.note.comment.id != id)
-        {
-            self.scroll = 0;
-            self.link_selected = 0;
-        }
-    }
+    loaded_article: Option<i64>,
 }
 
 impl App {
     pub(super) fn invalidate_notebook(&mut self) {
-        if let Some(notebook) = &mut self.notebook
-            && let Err(error) = notebook.refresh()
-        {
-            notebook.error = error.to_string();
-        }
+        self.notebooks.invalidate();
     }
 
     pub(super) fn open_notebook(
@@ -197,17 +83,16 @@ impl App {
         query: &str,
         article: Option<i64>,
     ) -> Result<()> {
-        crate::search::notes::validate(query)?;
-        if let Some(notebook) = &mut self.notebook {
-            notebook.query = query.into();
-            notebook.article = article;
-            notebook.offset = 0;
-            return notebook.refresh();
+        let origin =
+            Origin::capture(&self.workspace, &self.layouts, self.focus);
+        if !self.notebooks.open(
+            &self.store.database_path()?,
+            query,
+            article,
+            origin,
+        )? {
+            return Ok(());
         }
-        self.notebook_return = None;
-        let mut notebook = Notebook::start(self, query, article)?;
-        notebook.refresh()?;
-        self.notebook = Some(Box::new(notebook));
         self.reader.cancel_selection();
         self.vim.clear_input();
         self.workspace.fullscreen = false;
@@ -228,43 +113,36 @@ impl App {
     }
 
     pub(super) fn close_notebook(&mut self) {
-        if let Some(notebook) = self.notebook.take() {
-            self.workspace.notebook_layout =
-                Some(crate::model::PanelLayout::capture(&self.workspace));
-            crate::model::PanelLayout::capture(&notebook.before)
-                .apply(&mut self.workspace);
-            self.layouts = notebook.before_layouts;
-            self.focus = notebook.focus_before;
+        if let Some(origin) = self.notebooks.close() {
+            self.restore_notebook_origin(origin);
         }
     }
 
-    pub(super) fn suspend_notebook_for_source(&mut self) {
-        let Some(notebook) = self.notebook.take() else {
-            return;
-        };
+    fn restore_notebook_origin(&mut self, origin: Origin) {
         self.workspace.notebook_layout =
             Some(crate::model::PanelLayout::capture(&self.workspace));
-        crate::model::PanelLayout::capture(&notebook.before)
-            .apply(&mut self.workspace);
-        self.layouts = notebook.before_layouts.clone();
-        self.focus = notebook.focus_before;
-        self.notebook_return = Some(notebook);
+        origin.layout.apply(&mut self.workspace);
+        self.layouts = origin.layouts;
+        self.focus = origin.focus;
+    }
+
+    pub(super) fn suspend_notebook_for_source(&mut self) {
+        if let Some(origin) = self.notebooks.suspend_source() {
+            self.restore_notebook_origin(origin);
+        }
     }
 
     pub(super) fn return_to_notebook(&mut self) -> Result<bool> {
-        let Some(mut notebook) = self.notebook_return.take() else {
+        let origin =
+            Origin::capture(&self.workspace, &self.layouts, self.focus);
+        if !self.notebooks.resume_source(origin)? {
             return Ok(false);
-        };
-        notebook.before = self.workspace.clone();
-        notebook.before_layouts = self.layouts.clone();
-        notebook.focus_before = self.focus;
+        }
         if let Some(layout) = self.workspace.notebook_layout.clone() {
             layout.apply(&mut self.workspace);
         }
         self.layouts = self.notebook_layout_history();
         self.focus = Focus::Articles;
-        notebook.refresh()?;
-        self.notebook = Some(notebook);
         Ok(true)
     }
 
@@ -275,23 +153,21 @@ impl App {
     }
 
     pub(super) fn persist_notebook_layout(&mut self) -> Result<bool> {
-        let Some(notebook) = &mut self.notebook else {
+        if self.notebooks.active.is_none() {
             return Ok(false);
-        };
+        }
         self.layouts
             .observe(crate::model::PanelLayout::capture(&self.workspace));
-        notebook
-            .before_layouts
-            .profiles
-            .clone_from(&self.layouts.profiles);
-        let mut saved = self.workspace.clone();
-        saved.notebook_layout =
-            Some(crate::model::PanelLayout::capture(&self.workspace));
-        crate::model::PanelLayout::capture(&notebook.before).apply(&mut saved);
+        let Some((saved, layouts)) = self
+            .notebooks
+            .layout_snapshot(&self.workspace, &self.layouts)
+        else {
+            return Ok(false);
+        };
         if let Some(writer) = &self.session_writer {
-            writer.layout(&saved, &notebook.before_layouts)?;
+            writer.layout(&saved, layouts)?;
         } else {
-            self.store.save_layouts(&saved, &notebook.before_layouts)?;
+            self.store.save_layouts(&saved, layouts)?;
         }
         Ok(true)
     }
@@ -303,29 +179,17 @@ impl App {
             &self.workspace,
         )
         .reader;
-        if let Some(notebook) = &mut self.notebook
-            && let Some(context) = notebook.current_context()
-        {
-            let links = context.backlinks.len() + context.references.len();
-            notebook.link_selected =
-                notebook.link_selected.min(links.saturating_sub(1));
-            if let Some(area) = area {
-                notebook.scroll = notebook.scroll.min(
-                    crate::ui::notebook_scroll_limit(notebook, area.height),
-                );
-            }
+        if let Some(book) = &mut self.notebooks.active {
+            let limit = area.map(|area| {
+                crate::ui::notebook_scroll_limit(&book.view(), area.height)
+            });
+            book.clamp_viewport(limit);
         }
     }
 
     pub(super) fn resize_notebook_context(&mut self, width: usize) {
-        if let Some(notebook) = &mut self.notebook {
-            let width = width.clamp(10, 512);
-            if notebook.width != width {
-                notebook.width = width;
-                let scroll = notebook.scroll;
-                notebook.read_context();
-                notebook.scroll = scroll;
-            }
+        if let Some(book) = &mut self.notebooks.active {
+            book.resize_context(width);
         }
         self.clamp_notebook_scroll();
     }
@@ -335,20 +199,7 @@ impl App {
     /// # Errors
     /// Returns read failures while retaining existing previews.
     pub fn poll_notebook(&mut self) -> Result<bool> {
-        let Some(notebook) = &mut self.notebook else {
-            return Ok(false);
-        };
-        let mut changed = false;
-        if let Some(result) = notebook.readers.list.poll() {
-            notebook.loading = false;
-            changed = true;
-            notebook.install_listing(result?);
-        }
-        if let Some(result) = notebook.readers.context.poll() {
-            notebook.context_loading = false;
-            notebook.context = Some(result?);
-            changed = true;
-        }
+        let changed = self.notebooks.poll()?;
         if changed {
             self.clamp_notebook_scroll();
         }
@@ -357,44 +208,26 @@ impl App {
 
     /// Whether note search or its selected source context is still pending.
     pub fn notebook_pending(&self) -> bool {
-        self.notebook.as_ref().is_some_and(|notebook| {
-            notebook.loading || notebook.context_loading
-        })
+        self.notebooks.pending()
     }
 }
 
 #[cfg(test)]
-mod history_tests {
-    use super::*;
+mod tests;
 
-    #[test]
-    fn acknowledged_search_history_outlives_an_older_listing_snapshot()
-    -> Result<()> {
-        let directory = tempfile::tempdir()?;
-        let store = crate::store::Store::open(
-            &directory.path().join("library.sqlite3"),
-        )?;
-        let app = App::new(store, false)?;
-        let mut notebook = Notebook::start(&app, "", None)?;
-        let previous = listing(0, Vec::new());
+#[derive(Clone)]
+struct Origin {
+    layout: crate::model::PanelLayout,
+    layouts: crate::model::LayoutHistory,
+    focus: Focus,
+}
 
-        notebook.install_recent(vec!["body:consensus".into()]);
-        notebook.install_listing(previous);
-
-        assert_eq!(notebook.recent, ["body:consensus"]);
-        let current = listing(1, vec!["body:protocol".into()]);
-        notebook.install_listing(current);
-        assert_eq!(notebook.recent, ["body:protocol"]);
-        Ok(())
-    }
-
-    fn listing(generation: u64, recent: Vec<String>) -> readers::Listing {
-        readers::Listing {
-            page: NotePage::default(),
-            offset: 0,
-            collections: Vec::new(),
-            recent,
-            recent_generation: generation,
-        }
-    }
+/// Active/source-return workspaces and the intact suspended editor share one
+/// lifecycle. Storage write admission remains the application's responsibility.
+#[derive(Default)]
+pub(super) struct NotebookState {
+    active: Option<Box<Notebook>>,
+    returning: Option<Box<Notebook>>,
+    editor: Option<Box<super::Input>>,
+    inspector: Option<inspection::Inspector>,
 }

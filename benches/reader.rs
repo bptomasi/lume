@@ -396,7 +396,7 @@ fn presentation(store: Store, count: usize, iterations: usize) -> Result<()> {
     measure("FTS live search + selected body", iterations, || {
         type_keys(&mut app, "/systems")?;
         ensure!(
-            app.page_total == count / 2,
+            app.navigation().page_total == count / 2,
             "Search returned wrong articles"
         );
         app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
@@ -701,13 +701,19 @@ fn navigation_workload(
         iterations,
         || {
             app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE))?;
-            ensure!(app.view == lume::model::View::All, "Wrong destination");
+            ensure!(
+                *app.navigation().view == lume::model::View::All,
+                "Wrong destination"
+            );
             app.key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE))?;
             ensure!(
-                app.view == lume::model::View::Inbox,
+                *app.navigation().view == lume::model::View::Inbox,
                 "Inbox was not restored"
             );
-            ensure!(app.page_total == count, "Navigation lost unread articles");
+            ensure!(
+                app.navigation().page_total == count,
+                "Navigation lost unread articles"
+            );
             Ok(())
         },
     )

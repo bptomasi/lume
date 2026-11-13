@@ -36,7 +36,7 @@ fn internal_presets_publish_configuration_without_removing_articles()
     assert_eq!(config.retention.defaults.image_days.0, Some(14));
     assert_eq!(config.retention.defaults.read_days.0, Some(30));
     assert!(!config.retention.automatic);
-    assert_eq!(app.library.articles.len(), 1);
+    assert_eq!(app.navigation().library.articles.len(), 1);
     assert!(
         matches!(&app.mode, Mode::Document(view) if view.confirm.is_none())
     );
@@ -77,7 +77,7 @@ fn settle(app: &mut App) -> Result<()> {
         if !app.maintenance_pending()
             && !app.web_pending()
             && !app.picker_pending()
-            && !app.navigation_loading
+            && !app.navigation().navigation_loading
             && !app.notes_pending()
         {
             return Ok(());

@@ -77,8 +77,13 @@ fn run_session(
         )?;
         let worker = background.insert(worker);
         if !offline
-            && (!app.library.feeds.is_empty()
-                || app.library.servers.iter().any(|server| server.enabled))
+            && (!app.navigation().library.feeds.is_empty()
+                || app
+                    .navigation()
+                    .library
+                    .servers
+                    .iter()
+                    .any(|server| server.enabled))
         {
             worker.refresh(app);
         }
@@ -274,7 +279,7 @@ fn poll_interval(app: &App) -> Duration {
         || app.picker_pending()
         || app.web_pending()
         || app.maintenance_pending()
-        || app.navigation_loading
+        || app.navigation().navigation_loading
         || app.catalog_pending()
         || app.pane_motion_active();
     Duration::from_millis(if active { 8 } else { 100 })

@@ -48,10 +48,22 @@ fn committed_deletion_updates_the_page_before_counts_or_next_source_arrive()
     app.focus = Focus::Articles;
     let target = app.current().context("Target")?.id;
     keys(&mut app, "dd")?;
-    assert!(app.library.articles.iter().any(|item| item.id == target));
+    assert!(
+        app.navigation()
+            .library
+            .articles
+            .iter()
+            .any(|item| item.id == target)
+    );
     settle_writes(&mut app)?;
-    assert!(!app.library.articles.iter().any(|item| item.id == target));
-    assert_eq!(app.page_total, 1);
+    assert!(
+        !app.navigation()
+            .library
+            .articles
+            .iter()
+            .any(|item| item.id == target)
+    );
+    assert_eq!(app.navigation().page_total, 1);
     assert!(app.catalog_pending());
     let observed = Store::open(&path)?;
     assert!(observed.is_deleted(target)?);
@@ -63,7 +75,7 @@ fn committed_deletion_updates_the_page_before_counts_or_next_source_arrive()
     press(&mut app, KeyCode::Char('u'))?;
     settle_library(&mut app)?;
     assert!(!observed.is_deleted(target)?);
-    assert_eq!(app.page_total, 2);
+    assert_eq!(app.navigation().page_total, 2);
     app.end_session()
 }
 
@@ -84,7 +96,7 @@ fn rejected_background_deletion_keeps_the_original_row_and_durable_state()
         .context("Expected rejection")?;
     assert!(error.to_string().contains("Controlled article deletion"));
     assert_eq!(app.current().map(|item| item.id), Some(target));
-    assert_eq!(app.page_total, 2);
+    assert_eq!(app.navigation().page_total, 2);
     assert!(!Store::open(&path)?.is_deleted(target)?);
     app.end_session()
 }
@@ -101,9 +113,15 @@ fn an_already_deleted_durable_article_is_removed_from_stale_metadata()
     observed.set_deleted(target, true)?;
     keys(&mut app, "dd")?;
     settle_writes(&mut app)?;
-    assert!(!app.library.articles.iter().any(|item| item.id == target));
+    assert!(
+        !app.navigation()
+            .library
+            .articles
+            .iter()
+            .any(|item| item.id == target)
+    );
     settle_library(&mut app)?;
-    assert_eq!(app.page_total, 1);
+    assert_eq!(app.navigation().page_total, 1);
     assert_eq!(observed.view_count(&View::Trash)?, 1);
     press(&mut app, KeyCode::Char('u'))?;
     settle_library(&mut app)?;
@@ -134,7 +152,7 @@ fn consecutive_commits_target_distinct_rows_without_waiting_for_recounts()
     assert_eq!(Store::open(&path)?.view_count(&View::Trash)?, 2);
     keys(&mut app, "uu")?;
     settle_library(&mut app)?;
-    assert_eq!(app.page_total, 2);
+    assert_eq!(app.navigation().page_total, 2);
     app.end_session()
 }
 
@@ -176,10 +194,10 @@ fn restoring_from_trash_removes_the_committed_row_before_recounts() -> Result<()
     command(&mut app, "restore-article")?;
     settle_writes(&mut app)?;
     assert!(app.current().is_none());
-    assert_eq!(app.page_total, 0);
+    assert_eq!(app.navigation().page_total, 0);
     assert!(!observed.is_deleted(target)?);
     settle_library(&mut app)?;
-    assert_eq!(app.view, View::Trash);
+    assert_eq!(*app.navigation().view, View::Trash);
     assert!(app.current().is_none());
     app.end_session()
 }
@@ -188,18 +206,18 @@ fn restoring_from_trash_removes_the_committed_row_before_recounts() -> Result<()
 fn deleting_the_last_page_refills_from_the_previous_page() -> Result<()> {
     let (directory, mut app) = two_articles()?;
     let path = directory.path().join("library.sqlite3");
-    let target = app.library.articles[1].id;
-    app.page_size = 1;
+    let target = app.navigation().library.articles[1].id;
+    app.set_page_size(1)?;
     app.jump_article(target)?;
-    assert_eq!(app.page_offset, 1);
+    assert_eq!(app.navigation().page_offset, 1);
     app.enable_background_navigation(&path)?;
     app.focus = Focus::Articles;
     keys(&mut app, "dd")?;
     settle_writes(&mut app)?;
     assert!(app.current().is_none());
     settle_library(&mut app)?;
-    assert_eq!(app.page_offset, 0);
-    assert_eq!(app.page_total, 1);
+    assert_eq!(app.navigation().page_offset, 0);
+    assert_eq!(app.navigation().page_total, 1);
     assert_ne!(app.current().map(|item| item.id), Some(target));
     app.end_session()
 }
@@ -214,7 +232,7 @@ fn grouped_deletion_replaces_the_representative_without_losing_its_group()
     store.ingest(&feed, &feed.title, &parsed.articles)?;
     let mut app = App::new(store, false)?;
     app.set_view(View::Grouped)?;
-    assert_eq!(app.page_total, 1);
+    assert_eq!(app.navigation().page_total, 1);
     app.enable_background_navigation(
         &directory.path().join("library.sqlite3"),
     )?;
@@ -222,9 +240,9 @@ fn grouped_deletion_replaces_the_representative_without_losing_its_group()
     let target = app.current().context("Target")?.id;
     keys(&mut app, "dd")?;
     settle_writes(&mut app)?;
-    assert_eq!(app.page_total, 1);
+    assert_eq!(app.navigation().page_total, 1);
     settle_library(&mut app)?;
-    assert_eq!(app.page_total, 1);
+    assert_eq!(app.navigation().page_total, 1);
     assert_ne!(app.current().map(|item| item.id), Some(target));
     app.end_session()
 }
@@ -278,25 +296,26 @@ fn discoverable_commands_delete_restore_and_undo_without_losing_articles()
         );
     }
     command(&mut app, "delete-post")?;
-    assert_eq!(app.page_total, 0);
+    assert_eq!(app.navigation().page_total, 0);
     assert!(app.current().is_none());
     assert_eq!(
-        app.navigation
+        app.navigation()
+            .navigation
             .iter()
             .find(|n| n.view == View::Trash)
             .map(|n| n.count),
         Some(1)
     );
     command(&mut app, "trash")?;
-    assert_eq!(app.view, View::Trash);
-    assert_eq!(app.page_total, 1);
+    assert_eq!(*app.navigation().view, View::Trash);
+    assert_eq!(app.navigation().page_total, 1);
     command(&mut app, "restore")?;
-    assert_eq!(app.page_total, 0);
+    assert_eq!(app.navigation().page_total, 0);
     press(&mut app, KeyCode::Char('u'))?;
-    assert_eq!(app.page_total, 1);
+    assert_eq!(app.navigation().page_total, 1);
     command(&mut app, "restore-article")?;
     app.set_view(View::All)?;
-    assert_eq!(app.page_total, 1);
+    assert_eq!(app.navigation().page_total, 1);
     Ok(())
 }
 
@@ -306,10 +325,10 @@ fn delete_shortcut_ignores_autorepeat_library_focus_and_visual_selections()
     let (directory, mut app) = two_articles()?;
     app.focus = Focus::Library;
     press(&mut app, KeyCode::Char('D'))?;
-    assert_eq!(app.page_total, 2);
+    assert_eq!(app.navigation().page_total, 2);
     app.focus = Focus::Reader;
     keys(&mut app, "vD")?;
-    assert_eq!(app.page_total, 2);
+    assert_eq!(app.navigation().page_total, 2);
     press(&mut app, KeyCode::Esc)?;
     app.focus = Focus::Articles;
     let target = app.current().map(|a| a.id);
@@ -323,7 +342,7 @@ fn delete_shortcut_ignores_autorepeat_library_focus_and_visual_selections()
         ))?;
     }
 
-    assert_eq!(app.page_total, 1);
+    assert_eq!(app.navigation().page_total, 1);
     assert_ne!(app.current().map(|a| a.id), target);
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     assert_eq!(store.view_count(&View::Trash)?, 1);
@@ -334,11 +353,11 @@ fn delete_shortcut_ignores_autorepeat_library_focus_and_visual_selections()
 fn palette_deletion_keeps_its_captured_target_after_selection_changes()
 -> Result<()> {
     let (directory, mut app) = two_articles()?;
-    let captured = app.library.articles[0].id;
-    let other = app.library.articles[1].id;
+    let captured = app.navigation().library.articles[0].id;
+    let other = app.navigation().library.articles[1].id;
     app.key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::CONTROL))?;
     keys(&mut app, "Delete article")?;
-    app.selected = 1;
+    app.jump_article(other)?;
     app.reload()?;
 
     press(&mut app, KeyCode::Enter)?;
@@ -355,7 +374,7 @@ fn stale_saved_targets_do_not_reopen_deleted_articles_or_break_startup()
 -> Result<()> {
     let (directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
-    let article = app.library.articles[0].id;
+    let article = app.navigation().library.articles[0].id;
     app.save_session()?;
     drop(app);
     let path = directory.path().join("library.sqlite3");
@@ -371,7 +390,7 @@ fn stale_saved_targets_do_not_reopen_deleted_articles_or_break_startup()
 
     let app = App::new(store, false)?;
 
-    assert_eq!(app.view, View::Trash);
+    assert_eq!(*app.navigation().view, View::Trash);
     assert!(app.current().is_none());
     Ok(())
 }
@@ -467,7 +486,7 @@ fn dd_in_trash_permanently_deletes_only_the_confirmed_article() -> Result<()> {
     keys(&mut app, "dd")?;
     assert!(observer.article(target).is_err());
     assert!(app.current().is_none());
-    assert_eq!(app.page_total, 0);
+    assert_eq!(app.navigation().page_total, 0);
     press(&mut app, KeyCode::Char('u'))?;
     assert!(observer.article(target).is_err());
     assert_eq!(observer.view_count(&View::All)?, 1);
@@ -489,7 +508,7 @@ fn background_purge_updates_the_page_before_recounts() -> Result<()> {
     settle_writes(&mut app)?;
     assert!(observer.article(target).is_err());
     assert!(app.current().is_none());
-    assert_eq!(app.page_total, 0);
+    assert_eq!(app.navigation().page_total, 0);
     assert!(app.catalog_pending());
     settle_library(&mut app)?;
     app.end_session()
@@ -507,8 +526,8 @@ fn trash_clean_works_from_other_views_and_refreshes_navigation() -> Result<()> {
     settle_library(&mut app)?;
     command(&mut app, "trash clean")?;
     settle_library(&mut app)?;
-    assert_eq!(app.view, View::All);
-    assert_eq!(app.page_total, 1);
+    assert_eq!(*app.navigation().view, View::All);
+    assert_eq!(app.navigation().page_total, 1);
     assert!(observer.article(target).is_err());
     assert_eq!(observer.view_count(&View::Trash)?, 0);
     assert!(command(&mut app, "trash typo").is_err());
@@ -533,7 +552,7 @@ fn failed_background_purge_keeps_the_trashed_row_visible() -> Result<()> {
     let error = settle_writes(&mut app).err().context("Purge rejection")?;
     assert!(error.to_string().contains("Controlled permanent deletion"));
     assert_eq!(app.current().map(|item| item.id), Some(target));
-    assert_eq!(app.page_total, 1);
+    assert_eq!(app.navigation().page_total, 1);
     assert!(observer.is_deleted(target)?);
     app.end_session()
 }

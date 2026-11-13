@@ -15,7 +15,7 @@ use ratatui::layout::Rect;
 
 fn settle(app: &mut App) -> Result<()> {
     let deadline = Instant::now() + Duration::from_secs(10);
-    while app.navigation_loading
+    while app.navigation().navigation_loading
         || app.reader_pending()
         || app.catalog_pending()
         || app.notes_pending()
@@ -63,7 +63,7 @@ fn newest_destination_wins_and_readable_content_matches_its_identity()
     let expected = Store::open(&path)?.body(id)?;
     assert_eq!(app.reader().body, expected);
     assert!(!app.reader().reader_text.is_empty());
-    assert_eq!(app.view, View::All);
+    assert_eq!(*app.navigation().view, View::All);
     app.end_session()?;
     assert!(!app.session_pending());
     Ok(())
@@ -257,7 +257,7 @@ fn additional_article_steps_replace_the_selection_of_a_page_still_loading()
         .collect::<Vec<_>>();
     store.ingest(&feed, "Page fixture", &articles)?;
     let mut app = App::new(store, false)?;
-    app.page_size = 2;
+    app.set_page_size(2)?;
     app.enable_background_navigation(
         &directory.path().join("library.sqlite3"),
     )?;
@@ -272,8 +272,8 @@ fn additional_article_steps_replace_the_selection_of_a_page_still_loading()
 
     assert_eq!(app.current().context("Selection missing")?.title, "Row 2");
     assert_eq!(app.reader().body, "Content for row 2.");
-    assert_eq!(app.page_offset, 2);
-    assert_eq!(app.selected, 1);
+    assert_eq!(app.navigation().page_offset, 2);
+    assert_eq!(app.navigation().selected, 1);
     app.end_session()?;
     Ok(())
 }
@@ -311,6 +311,7 @@ fn active_read_admits_write_without_waiting_for_a_locked_database() -> Result<()
     settle(&mut app)?;
     assert!(!observer.article(id)?.unread);
     let count = app
+        .navigation()
         .navigation
         .iter()
         .find(|item| item.view == View::Read)
@@ -389,7 +390,7 @@ fn catalog_refresh_preserves_selection_and_a_live_publisher_quotation()
         (app.reader().reader_cursor, app.reader().reader_column),
         cursor
     );
-    assert_eq!(app.page_total, 2);
+    assert_eq!(app.navigation().page_total, 2);
     app.end_session()?;
     Ok(())
 }
@@ -460,8 +461,8 @@ fn newer_destination_replaces_a_pending_catalog_refresh() -> Result<()> {
     app.set_view(View::All)?;
     settle(&mut app)?;
 
-    assert_eq!(app.view, View::All);
-    assert_eq!(app.page_total, 1);
+    assert_eq!(*app.navigation().view, View::All);
+    assert_eq!(app.navigation().page_total, 1);
     assert!(app.current().is_some());
     assert!(!app.reader().reader_text.is_empty());
     app.end_session()?;
@@ -509,7 +510,7 @@ fn page_navigation_publishes_full_content_only_after_its_projection_is_ready()
 -> Result<()> {
     let (directory, store, full) = paged_full_source()?;
     let mut app = App::new(store, false)?;
-    app.page_size = 1;
+    app.set_page_size(1)?;
     app.enable_background_navigation(
         &directory.path().join("library.sqlite3"),
     )?;
@@ -520,7 +521,7 @@ fn page_navigation_publishes_full_content_only_after_its_projection_is_ready()
 
     app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
     let deadline = Instant::now() + Duration::from_secs(5);
-    while app.navigation_loading {
+    while app.navigation().navigation_loading {
         assert_eq!(
             app.reader().reader_text,
             previous,
@@ -585,6 +586,7 @@ fn automatic_read_keeps_an_opened_unread_smart_list_article() -> Result<()> {
         assert_eq!(app.reader().body, expected);
         assert!(!observer.article(id)?.unread);
         let count = app
+            .navigation()
             .navigation
             .iter()
             .find(|item| item.view == view)
@@ -721,4 +723,108 @@ fn temporary_sqlite_write_contention_recovers_without_a_save_error()
     assert!(Store::open(&path)?.workspace()?.show_annotations);
     app.end_session()?;
     Ok(())
+}
+
+#[test]
+fn changing_page_limits_replaces_pending_reads_and_keeps_the_requested_row()
+-> Result<()> {
+    let (directory, mut app) = page_resize_application()?;
+    let expected = app.navigation().library.articles[3].id;
+    app.set_page_size(2)?;
+    app.enable_background_navigation(
+        &directory.path().join("library.sqlite3"),
+    )?;
+    app.focus = Pane::Articles;
+    for _ in 0..3 {
+        app.key(KeyCode::Down.into())?;
+    }
+    assert!(app.navigation().navigation_loading);
+
+    app.set_page_size(3)?;
+    settle(&mut app)?;
+
+    assert_eq!(app.current().context("Resized selection")?.id, expected);
+    assert_eq!(app.navigation().page_size, 3);
+    assert_eq!(app.navigation().page_offset, 3);
+    assert_eq!(app.navigation().selected, 0);
+    assert_eq!(app.navigation().library.articles.len(), 3);
+    assert_eq!(app.reader().body, "Content for resized row 2.");
+
+    app.end_session()?;
+    Ok(())
+}
+
+#[test]
+fn clamped_limits_replace_a_pending_page_and_preserve_selected_identity()
+-> Result<()> {
+    let (directory, mut app) = page_resize_application()?;
+    let expected = app.navigation().library.articles[3].id;
+    app.jump_article(expected)?;
+    app.enable_background_navigation(
+        &directory.path().join("library.sqlite3"),
+    )?;
+    app.set_page_size(0)?;
+    assert!(app.navigation().navigation_loading);
+    app.set_page_size(usize::MAX)?;
+    settle(&mut app)?;
+
+    assert_eq!(app.navigation().page_size, 500);
+    assert_eq!(app.navigation().page_offset, 0);
+    assert_eq!(app.navigation().selected, 3);
+    assert_eq!(app.navigation().library.articles.len(), 7);
+    assert_eq!(app.current().context("Clamped selection")?.id, expected);
+    assert_eq!(app.reader().body, "Content for resized row 2.");
+    app.end_session()?;
+    Ok(())
+}
+
+#[test]
+fn resizing_live_search_keeps_preview_reads_metadata_only() -> Result<()> {
+    for pending in [false, true] {
+        let (directory, mut app) = page_resize_application()?;
+        let article = app.navigation().library.articles[3].id;
+        app.jump_article(article)?;
+        let body = app.reader().body.to_owned();
+        app.enable_background_navigation(
+            &directory.path().join("library.sqlite3"),
+        )?;
+        app.focus = Pane::Articles;
+        app.key(KeyCode::Char('/').into())?;
+        app.paste("title:resized")?;
+        if !pending {
+            settle(&mut app)?;
+        }
+
+        app.set_page_size(0)?;
+        app.set_page_size(usize::MAX)?;
+        settle(&mut app)?;
+
+        assert_eq!(app.navigation().page_total, 6);
+        assert_eq!(app.navigation().selected, 0);
+        assert_eq!(app.reader().body, body, "Preview loaded article content");
+        assert!(matches!(app.mode, lume::app::Mode::Input(_)));
+        app.key(KeyCode::Enter.into())?;
+        settle(&mut app)?;
+        assert_eq!(app.reader().body, "Content for resized row 5.");
+        app.end_session()?;
+    }
+    Ok(())
+}
+
+fn page_resize_application() -> Result<(tempfile::TempDir, App)> {
+    let (directory, mut store, feed) = common::seeded_store()?;
+    let articles = (0..6)
+        .map(|index| lume::model::IncomingArticle {
+            external_id: format!("resized-page-{index}"),
+            title: format!("Resized row {index}"),
+            url: format!("https://journal.example/resize/{index}"),
+            author: "Fixture".into(),
+            published: 3_000_000_000 + index,
+            body: format!("Content for resized row {index}."),
+            body_origin: lume::model::FeedOrigin::Feed,
+        })
+        .collect::<Vec<_>>();
+    store.ingest(&feed, "Page resize fixture", &articles)?;
+    let app = App::new(store, false)?;
+    Ok((directory, app))
 }

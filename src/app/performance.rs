@@ -174,7 +174,7 @@ impl App {
                 "\nPending: navigation={} selector={} notes={} ",
                 "session={} images={} web={} maintenance={}\n"
             ),
-            self.navigation_loading,
+            self.nav.navigation_loading(),
             self.picker_pending(),
             self.notes_pending(),
             self.session_pending(),

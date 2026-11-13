@@ -53,7 +53,7 @@ fn live_background_search_selects_the_best_title_before_enter() -> Result<()> {
     }
     settle_navigation(&mut app)?;
     assert!(matches!(app.mode, Mode::Input(_)));
-    assert_eq!(app.page_total, 5);
+    assert_eq!(app.navigation().page_total, 5);
     assert_eq!(
         app.current().map(|article| article.title.as_str()),
         Some("Why Is My Kubernetes Job Still Pending?")
@@ -66,9 +66,10 @@ fn live_background_search_selects_the_best_title_before_enter() -> Result<()> {
     assert_eq!(app.current().map(|article| article.id), selected);
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     settle_navigation(&mut app)?;
-    assert!(app.search.is_empty());
+    assert!(app.navigation().search.is_empty());
     assert_eq!(
-        app.library
+        app.navigation()
+            .library
             .articles
             .first()
             .map(|article| article.title.as_str()),
@@ -83,7 +84,7 @@ fn settle_navigation(app: &mut App) -> Result<()> {
         std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
         app.poll_navigation()?;
-        if !app.navigation_loading {
+        if !app.navigation().navigation_loading {
             return Ok(());
         }
         anyhow::ensure!(

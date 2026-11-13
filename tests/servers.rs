@@ -27,31 +27,38 @@ fn connections_have_their_own_section_and_removal_keeps_cached_content()
         command(&mut app, "server https://reader.example LUME_TOKEN")?,
         Action::Refresh
     );
-    let id = app.library.servers[0].id;
-    assert_eq!(app.view, View::Server(id));
+    let id = app.navigation().library.servers[0].id;
+    assert_eq!(*app.navigation().view, View::Server(id));
     let root = app
+        .navigation()
         .navigation
         .iter()
         .find(|item| item.view == View::Server(id))
         .context("Server navigation")?;
     assert_eq!(root.group, "SERVERS");
     assert_eq!(root.count, 0);
-    assert!(app.navigation.iter().any(|item| item.group == "FEEDS"));
-    command(&mut app, "server-disable")?;
-    assert!(!app.library.servers[0].enabled);
     assert!(
-        app.navigation
+        app.navigation()
+            .navigation
+            .iter()
+            .any(|item| item.group == "FEEDS")
+    );
+    command(&mut app, "server-disable")?;
+    assert!(!app.navigation().library.servers[0].enabled);
+    assert!(
+        app.navigation()
+            .navigation
             .iter()
             .any(|item| item.title.contains("paused"))
     );
     assert_eq!(command(&mut app, "server-enable")?, Action::Refresh);
     app.focus = Focus::Library;
     app.key(KeyCode::Char('d').into())?;
-    assert_eq!(app.library.servers.len(), 1);
+    assert_eq!(app.navigation().library.servers.len(), 1);
     app.key(KeyCode::Char('d').into())?;
-    assert!(app.library.servers.is_empty());
-    assert_eq!(app.view, View::All);
-    assert_eq!(app.library.articles[0].id, original);
+    assert!(app.navigation().library.servers.is_empty());
+    assert_eq!(*app.navigation().view, View::All);
+    assert_eq!(app.navigation().library.articles[0].id, original);
     Ok(())
 }
 
@@ -60,6 +67,7 @@ fn remote_feeds_are_nested_and_collapsed_counts_do_not_double() -> Result<()> {
     let (_directory, store, id) = remote_library()?;
     let mut app = App::new(store, false)?;
     let feed = app
+        .navigation()
         .library
         .feeds
         .iter()
@@ -67,6 +75,7 @@ fn remote_feeds_are_nested_and_collapsed_counts_do_not_double() -> Result<()> {
         .context("Remote subscription")?
         .id;
     let item = app
+        .navigation()
         .navigation
         .iter()
         .find(|item| item.view == View::Feed(feed))
@@ -75,12 +84,16 @@ fn remote_feeds_are_nested_and_collapsed_counts_do_not_double() -> Result<()> {
     assert!(item.title.starts_with("  · "));
     app.set_view(View::Server(id))?;
     command(&mut app, "collapse servers")?;
-    assert_eq!(app.view, View::Group("SERVERS".into()));
-    assert_eq!(app.navigation[app.nav_selected].count, 1);
+    assert_eq!(*app.navigation().view, View::Group("SERVERS".into()));
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].count,
+        1
+    );
     app.focus = Focus::Library;
     app.key(KeyCode::Enter.into())?;
     assert!(
-        app.navigation
+        app.navigation()
+            .navigation
             .iter()
             .any(|item| item.view == View::Server(id))
     );
@@ -241,8 +254,11 @@ fn pinning_a_server_keeps_collapsed_child_counts_visible() -> Result<()> {
     app.set_view(View::Server(id))?;
     command(&mut app, "pin")?;
     command(&mut app, "collapse servers")?;
-    assert_eq!(app.navigation[app.nav_selected].count, 1);
-    assert!(app.navigation.iter().any(|item| item.view == View::Server(id)
+    assert_eq!(
+        app.navigation().navigation[app.navigation().nav_selected].count,
+        1
+    );
+    assert!(app.navigation().navigation.iter().any(|item| item.view == View::Server(id)
         && item.group == "PINNED"));
     Ok(())
 }
@@ -286,12 +302,12 @@ fn the_connection_picker_reveals_servers_in_folded_sections() -> Result<()> {
     command(&mut app, "collapse servers")?;
     command(&mut app, "servers")?;
     app.key(KeyCode::Enter.into())?;
-    assert_eq!(app.view, View::Server(id));
+    assert_eq!(*app.navigation().view, View::Server(id));
     command(&mut app, "pin")?;
     command(&mut app, "collapse pinned")?;
     command(&mut app, "servers")?;
     app.key(KeyCode::Enter.into())?;
-    assert_eq!(app.view, View::Server(id));
+    assert_eq!(*app.navigation().view, View::Server(id));
     Ok(())
 }
 
@@ -519,7 +535,7 @@ fn masked_token_command_publishes_the_key_without_exposing_it_in_frames_or_debug
         command(&mut app, "server https://reader.example --token")?,
         Action::None
     );
-    assert!(app.library.servers.is_empty());
+    assert!(app.navigation().library.servers.is_empty());
     app.paste("private-ui-token\n")?;
     assert!(!format!("{:?}", app.mode).contains("private-ui-token"));
     let mut terminal = Terminal::new(TestBackend::new(100, 32))?;
@@ -542,7 +558,10 @@ fn masked_token_command_publishes_the_key_without_exposing_it_in_frames_or_debug
         Some("private-ui-token")
     );
     assert!(saved.servers[0].token_env.is_empty());
-    assert!(!format!("{:?}", app.library.servers).contains("private-ui-token"));
+    assert!(
+        !format!("{:?}", app.navigation().library.servers)
+            .contains("private-ui-token")
+    );
     Ok(())
 }
 
@@ -557,7 +576,7 @@ fn token_entry_cancels_and_rejects_controls_or_excessive_pastes_without_partial_
     assert!(app.paste(&"x".repeat(4097)).is_err());
     app.paste("discarded-secret")?;
     app.key(KeyCode::Esc.into())?;
-    assert!(app.library.servers.is_empty());
+    assert!(app.navigation().library.servers.is_empty());
     assert!(matches!(app.mode, lume::app::Mode::Normal));
     command(&mut app, "server https://reader.example --token")?;
     app.paste("replace-this")?;
@@ -567,7 +586,7 @@ fn token_entry_cancels_and_rejects_controls_or_excessive_pastes_without_partial_
     app.key(KeyCode::Backspace.into())?;
     assert_eq!(app.key(KeyCode::Enter.into())?, Action::Refresh);
     assert_eq!(
-        app.library.servers[0]
+        app.navigation().library.servers[0]
             .token
             .as_ref()
             .map(|key| key.expose()),

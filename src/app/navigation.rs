@@ -14,8 +14,7 @@ impl App {
         if let Some((first, skip)) =
             crate::ui::navigation_origin(self, self.screen)
         {
-            self.navigation_first = first;
-            self.navigation_skip = skip;
+            self.nav.pin_navigation(first, skip);
         }
     }
 
@@ -26,7 +25,7 @@ impl App {
             &self.workspace,
         );
         if let Some(area) = areas.articles {
-            self.articles_first = crate::ui::article_origin(self, area);
+            self.nav.pin_articles(crate::ui::article_origin(self, area));
         }
     }
 
@@ -36,13 +35,13 @@ impl App {
         }
         self.defer_navigation(super::navigation_worker::Request::Search {
             query: self.article_query(),
-            selected: self.selected,
+            selected: self.nav.selected(),
         });
         Ok(())
     }
 
     pub(super) fn commit_article_search(&mut self) -> Result<()> {
-        if self.navigation_loading {
+        if self.nav.navigation_loading() {
             self.filter()
         } else if self.reader_stale() {
             self.load_current_deferred()
@@ -54,7 +53,7 @@ impl App {
     pub(crate) fn rebuild_navigation(&mut self) -> Result<()> {
         let items = catalog_navigation(
             &self.store,
-            &self.library,
+            self.nav.library(),
             self.workspace.last_visit,
         )?;
         self.install_navigation(items);
@@ -67,72 +66,45 @@ impl App {
             super::Mode::Input(input)
                 if matches!(input.kind, super::InputKind::LibrarySearch)
         );
-        let selected = editing
-            .then(|| self.navigation.get(self.nav_selected))
-            .flatten()
-            .map(|item| item.view.clone());
-        self.navigation_sections
-            .install(items, &self.workspace, &self.library);
-        self.project_navigation();
-        if let Some(selected) = selected
-            && let Some(index) = self
-                .navigation
-                .iter()
-                .position(|item| item.view.same_destination(&selected))
-            && self.navigation_position(index).is_some()
-        {
-            self.nav_selected = index;
-        }
+        self.nav.install_navigation(items, &self.workspace, editing);
     }
 
     pub(super) fn project_navigation(&mut self) {
-        self.navigation = self
-            .navigation_sections
-            .project(&self.workspace.collapsed_groups);
-        self.nav_selected = self
-            .navigation
-            .iter()
-            .position(|item| item.view.same_destination(&self.view))
-            .unwrap_or(1);
-        self.view = self.navigation[self.nav_selected].view.clone();
-        self.refresh_library_search();
+        self.nav.project_navigation(&self.workspace);
     }
 
     pub(crate) fn filter(&mut self) -> Result<()> {
-        if matches!(self.view, View::Group(_)) {
+        if matches!(self.nav.view(), View::Group(_)) {
             return self.clear_section_page();
         }
         let query = self.article_query();
         if self.navigation_worker.is_some() {
             self.defer_navigation(super::navigation_worker::Request::Page {
                 query,
-                selected: self.selected,
+                selected: self.nav.selected(),
             });
-            self.library.articles.clear();
-            self.visible.clear();
+            self.nav.clear_page();
             return Ok(());
         }
         self.filter_now()
     }
 
     pub(super) fn filter_now(&mut self) -> Result<()> {
-        if matches!(self.view, View::Group(_)) {
+        if matches!(self.nav.view(), View::Group(_)) {
             return self.clear_section_page();
         }
         let (offset, page) =
             self.store.article_window(&self.article_query())?;
-        self.page_offset = offset;
-        self.apply_page(page)
+        self.nav.install_offset_page(offset, page);
+        self.load_current()
     }
 
     fn clear_section_page(&mut self) -> Result<()> {
-        let clear = self.navigation_loading
-            || self.projecting_navigation
-            || !self.library.articles.is_empty()
+        let clear = self.nav.navigation_loading()
+            || self.nav.projecting_navigation()
+            || !self.nav.library().articles.is_empty()
             || !self.reader.view().reader_text.is_empty();
-        self.page_total = 0;
-        self.library.articles.clear();
-        self.visible.clear();
+        self.nav.clear_section();
         if clear {
             self.load_current()?;
         }
@@ -140,48 +112,36 @@ impl App {
     }
 
     pub(super) fn article_query(&self) -> ArticleQuery {
-        ArticleQuery {
-            view: self.view.clone(),
-            text: self.search.clone(),
-            offset: self.page_offset,
-            limit: self.page_limit(),
-            retained: self.retained_article,
-        }
-    }
-
-    fn page_limit(&self) -> usize {
-        // Match Store's bounded page contract before doing cursor arithmetic.
-        self.page_size.clamp(1, 500)
-    }
-
-    fn apply_page(&mut self, page: crate::model::ArticlePage) -> Result<()> {
-        self.page_total = page.total;
-        self.library.articles = page.articles;
-        self.visible = (0..self.library.articles.len()).collect();
-        self.selected = self.selected.min(self.visible.len().saturating_sub(1));
-        self.load_current()
+        self.nav.article_query()
     }
 
     pub(super) fn restore_page_selection(
         &mut self,
         article: i64,
     ) -> Result<()> {
-        if !self.library.articles.iter().any(|item| item.id == article) {
+        if !self
+            .nav
+            .library()
+            .articles
+            .iter()
+            .any(|item| item.id == article)
+        {
             let Some((offset, page)) =
                 self.store.page_containing(&self.article_query(), article)?
             else {
                 return Ok(());
             };
-            self.page_offset = offset;
-            self.apply_page(page)?;
+            self.nav.install_offset_page(offset, page);
+            self.load_current()?;
         }
         if let Some(position) = self
-            .library
+            .nav
+            .library()
             .articles
             .iter()
             .position(|item| item.id == article)
         {
-            self.selected = position;
+            self.nav.select_article(position);
             self.load_current()?;
         }
         Ok(())
@@ -196,17 +156,7 @@ impl App {
         self.reveal_server(&view)?;
         self.close_notebook();
         self.save_reading_position()?;
-        self.retained_article = None;
-        self.nav_selected = self
-            .navigation
-            .iter()
-            .position(|item| item.view.same_destination(&view))
-            .unwrap_or(1);
-        self.view = self.navigation[self.nav_selected].view.clone();
-        self.page_offset = 0;
-        self.selected = 0;
-        self.articles_first = 0;
-        self.search.clear();
+        self.nav.select_destination(&view);
         self.filter()
     }
 
@@ -217,11 +167,11 @@ impl App {
     ) -> Result<()> {
         match self.focus {
             Focus::Library => {
-                let previous = self.nav_selected;
+                let previous = self.nav.nav_selected();
                 if let Some(next) = self.move_library_match(forward, distance)
                     && next != previous
                 {
-                    self.set_view(self.navigation[next].view.clone())?;
+                    self.set_view(self.nav.navigation()[next].view.clone())?;
                 }
             }
             Focus::Articles => self.move_article(forward, distance)?,
@@ -232,25 +182,17 @@ impl App {
     }
 
     fn move_article(&mut self, forward: bool, distance: usize) -> Result<()> {
-        let previous = self.page_offset + self.selected;
-        let position = shifted(previous, self.page_total, forward, distance);
-        if position == previous {
+        let Some(position) = self.nav.next_article_position(forward, distance)
+        else {
             return Ok(());
-        }
+        };
         self.pin_article_viewport();
         let preview = matches!(&self.mode, super::Mode::Input(input)
             if matches!(input.kind, super::InputKind::Search));
         if !preview {
             self.save_reading_position()?;
         }
-        let page = position / self.page_limit() * self.page_limit();
-        self.selected = position % self.page_limit();
-        if page != self.page_offset
-            || self.library.articles.is_empty()
-            || (preview && self.navigation_loading)
-        {
-            self.articles_first = 0;
-            self.page_offset = page;
+        if self.nav.move_article_cursor(position, preview) {
             if preview {
                 self.filter_preview()?;
             } else {
@@ -294,7 +236,8 @@ impl App {
         if self.current().is_none() {
             return Ok(());
         }
-        self.retained_article = self.current().map(|article| article.id);
+        self.nav
+            .retain_article(self.current().map(|article| article.id));
         self.focus = Focus::Reader;
         self.workspace.show_reader = true;
         Ok(())
@@ -303,9 +246,9 @@ impl App {
     pub(super) fn refresh_read_counts(&mut self) -> Result<()> {
         let navigation = super::catalog_worker::read_counts(
             &self.store,
-            &self.library,
+            self.nav.library(),
             self.workspace.last_visit,
-            self.navigation_sections.catalog(),
+            self.nav.navigation_sections().catalog(),
         )?;
         self.install_navigation(navigation);
         Ok(())
@@ -318,8 +261,7 @@ impl App {
     pub fn jump_article(&mut self, article: i64) -> Result<()> {
         self.suspend_notebook_for_source();
         self.save_reading_position()?;
-        self.view = View::All;
-        self.search.clear();
+        self.nav.begin_jump();
         if self.navigation_worker.is_some() {
             self.defer_navigation(super::navigation_worker::Request::Jump {
                 query: self.article_query(),
@@ -327,15 +269,9 @@ impl App {
             });
         } else {
             let position = self.store.article_position(article)?;
-            self.page_offset = position / self.page_limit() * self.page_limit();
-            self.selected = position % self.page_limit();
+            self.nav.jump_position(position);
             self.filter_now()?;
         }
-        self.nav_selected = self
-            .navigation
-            .iter()
-            .position(|item| item.view == View::All)
-            .unwrap_or(0);
         self.workspace.show_reader = true;
         self.focus = Focus::Reader;
         Ok(())
@@ -344,32 +280,22 @@ impl App {
     pub(crate) fn restore_article(&mut self, article: i64) -> Result<()> {
         // Another session may delete or restore the saved target. Keep the
         // current destination instead of reopening an article outside it.
-        if self.store.is_deleted(article)? != (self.view == View::Trash) {
+        if self.store.is_deleted(article)? != (*self.nav.view() == View::Trash)
+        {
             return Ok(());
         }
         if let Some(position) = self
-            .library
+            .nav
+            .library()
             .articles
             .iter()
             .position(|item| item.id == article)
         {
-            self.selected = position;
+            self.nav.select_article(position);
             return self.load_current();
         }
         self.jump_article(article)
     }
-}
-
-fn shifted(
-    position: usize,
-    len: usize,
-    forward: bool,
-    distance: usize,
-) -> usize {
-    if forward {
-        return position.saturating_add(distance).min(len.saturating_sub(1));
-    }
-    position.saturating_sub(distance)
 }
 
 pub(super) fn sensitive(
@@ -410,25 +336,7 @@ impl App {
         query: ArticleQuery,
         page: ArticlePage,
     ) -> Result<()> {
-        if query.view != self.view
-            || query.text != self.search
-            || query.offset != self.page_offset
-            || self.navigation_loading
-        {
-            return Ok(());
-        }
-        let selected = self.current().map(|article| article.id);
-        self.selected = page
-            .articles
-            .iter()
-            .position(|article| Some(article.id) == selected)
-            .unwrap_or(
-                self.selected.min(page.articles.len().saturating_sub(1)),
-            );
-        self.page_total = page.total;
-        self.library.articles = page.articles;
-        self.visible = (0..self.library.articles.len()).collect();
-        if self.current().map(|article| article.id) != selected {
+        if self.nav.install_metadata_page(query, page) {
             self.load_current()?;
         }
         Ok(())
@@ -504,4 +412,46 @@ fn catalog_destinations(
     );
     destinations.extend(super::servers::destinations(library));
     destinations
+}
+
+impl App {
+    /// Select a visible cached sidebar destination without changing article scope.
+    ///
+    /// # Errors
+    /// Returns an error when the destination is hidden or no longer available.
+    pub fn select_library_destination(
+        &mut self,
+        destination: &View,
+    ) -> Result<()> {
+        self.nav.select_library_destination(destination)
+    }
+
+    /// Resize metadata pages, preserving the captured identity or pending cursor.
+    /// In-flight previews and source jumps retain their read intent and arrival.
+    ///
+    /// # Errors
+    /// Returns checkpoint or metadata read failures.
+    pub fn set_page_size(&mut self, size: usize) -> Result<()> {
+        if self.nav.page_size() == size.clamp(1, 500) {
+            return Ok(());
+        }
+        let article = if self.nav.navigation_loading() {
+            self.navigation_worker.as_ref().and_then(
+                super::navigation_worker::NavigationWorker::captured_article,
+            )
+        } else {
+            self.current().map(|article| article.id)
+        };
+        self.save_reading_position()?;
+        self.nav.resize_page(size);
+        if self.navigation_worker.is_some() {
+            self.resize_navigation(article);
+        } else {
+            self.filter_now()?;
+            if let Some(article) = article {
+                self.restore_page_selection(article)?;
+            }
+        }
+        Ok(())
+    }
 }

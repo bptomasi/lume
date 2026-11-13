@@ -161,7 +161,7 @@ impl App {
         );
         crate::search::parse(&query)?;
         self.set_view(View::Recommended)?;
-        self.search = query;
+        self.nav.preview_query(query);
         self.filter()?;
         self.focus = super::super::Focus::Articles;
         self.status =

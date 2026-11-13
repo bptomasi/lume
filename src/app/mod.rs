@@ -32,6 +32,8 @@ mod layouts;
 mod maintenance;
 mod navigation;
 mod navigation_sections;
+mod navigation_state;
+pub use navigation_state::NavigationView;
 mod navigation_worker;
 mod note_actions;
 mod note_catalog;
@@ -79,7 +81,7 @@ pub use events::InputBatch;
 pub use help::HELP;
 pub use images::ImageInspector;
 pub use images::ReaderImages;
-pub use notebook::{NoteAction, NoteContext, Notebook, ReviewTarget};
+pub use notebook::{NoteAction, NoteContext, NotebookView, ReviewTarget};
 pub use pane_motion::FloatingPane;
 use personal_tasks::Edit as NoteEdit;
 pub use picker::{Choice, ChoiceAction, Picker, PickerKind, WorkspaceCommand};
@@ -94,7 +96,7 @@ use anyhow::Result;
 use crossterm::event::KeyEvent;
 
 use crate::{
-    model::{Article, Comment, Library},
+    model::{Article, Comment},
     store::Store,
 };
 
@@ -252,43 +254,21 @@ pub enum Action {
 /// State owned by the UI thread. Drawing reads this without performing I/O.
 pub struct App {
     reader: reader_state::ReaderState,
+    nav: navigation_state::NavigationState,
     configuration: configuration::ConfigurationState,
-    /// Independent annotation workspace, suspended while a draft is open.
-    pub notebook: Option<Box<Notebook>>,
-    notebook_return: Option<Box<Notebook>>,
+    notebooks: notebook::NotebookState,
     pub(crate) store: Store,
     pub(crate) layouts: crate::model::LayoutHistory,
-    /// Bounded, body-free library snapshot.
-    pub library: Library,
-    /// Navigation destinations in display order.
-    pub navigation: Vec<NavItem>,
-    navigation_sections: navigation_sections::Sections,
-    library_search: pane_search::LibrarySearch,
     picker_reads: Option<picker_reads::PickerReads>,
     performance: performance::Performance,
     web: web_reading::WebReading,
     network_enabled: bool,
     maintenance: Option<maintenance::Maintenance>,
     storage_diagnostics: Option<maintenance::Diagnostics>,
-    /// Selected navigation row.
-    pub nav_selected: usize,
-    /// Transient Library viewport: filtered entry position and leading rows.
-    pub(crate) navigation_first: usize,
-    pub(crate) navigation_skip: usize,
-    /// Current article filter.
-    pub view: View,
     /// Current keyboard focus.
     pub focus: Focus,
     /// Current modal editor state.
     pub mode: Mode,
-    /// Search terms, matched against headline, feed and author.
-    pub search: String,
-    /// Matching indices in `library.articles`.
-    pub visible: Vec<usize>,
-    /// Selected position in `visible`.
-    pub selected: usize,
-    /// First visible article-page position; drawing and pointer hits share it.
-    pub(crate) articles_first: usize,
     pub(crate) pending_rule: Option<crate::model::RulePreview>,
     /// Captured target of the one outstanding article fetch.
     pub article_fetching: Option<crate::model::ArticleTarget>,
@@ -304,15 +284,8 @@ pub struct App {
     pending_destination_delete: Option<View>,
     pending_article_delete: Option<i64>,
     pub(crate) fullscreen_focus: Option<Focus>,
-    pub(crate) retained_article: Option<i64>,
     /// Persistent layout and session preferences.
     pub workspace: crate::model::Workspace,
-    /// Current page's absolute offset.
-    pub page_offset: usize,
-    /// Total matching rows across the entire library.
-    pub page_total: usize,
-    /// Requested metadata page size, clamped to Store's 1–500 row contract.
-    pub page_size: usize,
     /// Separate image loading state; text layout never waits for it.
     pub images: ReaderImages,
     headlines: std::cell::RefCell<headlines::Headlines>,
@@ -328,23 +301,14 @@ pub struct App {
     note_flush_failure: Option<anyhow::Error>,
     pending_note_deletes: std::collections::BTreeMap<u64, i64>,
     recovery: recovery::Recovery,
-    note_inspector: Option<notebook::inspection::Inspector>,
-    suspended_note: Option<Box<Input>>,
-    catalog_loading: bool,
-    library_revision: u64,
-    projecting_navigation: bool,
     article_edits: article_edits::ArticleEdits,
     immediate_layout: bool,
     progress_memory: std::cell::RefCell<session_writer::ProgressMemory>,
-    /// Selected metadata/content is being loaded without blocking input.
-    pub navigation_loading: bool,
     vim: vim::Vim,
     session_problem: Option<String>,
     /// Scrollable help position.
     pub help_scroll: usize,
     pub(crate) help_search: help::HelpSearch,
-    /// Captured article identities for a reversible bulk operation.
-    pub marked: std::collections::BTreeSet<i64>,
     screen: ratatui::layout::Rect,
     pointer: pointer::Pointer,
     panel_prefix: bool,
@@ -353,6 +317,16 @@ pub struct App {
 }
 
 impl App {
+    /// Borrow the active annotation workspace without exposing its read workers.
+    pub fn notebook(&self) -> Option<NotebookView<'_>> {
+        self.notebooks.view()
+    }
+
+    /// Borrow cached library and navigation presentation without I/O.
+    pub fn navigation(&self) -> NavigationView<'_> {
+        self.nav.presentation()
+    }
+
     /// Borrow cached reader presentation without parsing or I/O.
     pub fn reader(&self) -> ReaderView<'_> {
         let mut view = self.reader.view();
@@ -395,34 +369,28 @@ impl App {
         let layouts = store.layouts(&workspace)?;
         let mut app = Self {
             reader: reader_state::ReaderState::new()?,
+            nav: navigation_state::NavigationState::new(
+                library,
+                workspace.view.clone(),
+                page_offset,
+                retained_article,
+                !eager,
+            ),
             configuration: configuration::ConfigurationState::default(),
-            notebook: None,
-            notebook_return: None,
+            notebooks: notebook::NotebookState::default(),
             store,
-            library,
-            navigation: Vec::new(),
-            navigation_sections: navigation_sections::Sections::default(),
-            library_search: pane_search::LibrarySearch::default(),
             picker_reads: None,
             performance: performance::Performance::default(),
             web: web_reading::WebReading::default(),
             network_enabled: false,
             maintenance: None,
             storage_diagnostics: None,
-            nav_selected: 0,
-            navigation_first: 0,
-            navigation_skip: 0,
-            view: workspace.view.clone(),
             focus: if workspace.fullscreen {
                 Focus::Reader
             } else {
                 Focus::Articles
             },
             mode: Mode::Normal,
-            search: String::new(),
-            visible: Vec::new(),
-            selected: 0,
-            articles_first: 0,
             pending_rule: None,
             article_fetching: None,
             pending_document: None,
@@ -436,12 +404,8 @@ impl App {
             pending_destination_delete: None,
             pending_article_delete: None,
             fullscreen_focus: None,
-            retained_article,
             layouts,
             workspace,
-            page_offset,
-            page_total: 0,
-            page_size: 200,
             images: ReaderImages::default(),
             headlines: std::cell::RefCell::default(),
             navigation_worker: None,
@@ -454,20 +418,13 @@ impl App {
             note_flush_failure: None,
             pending_note_deletes: std::collections::BTreeMap::new(),
             recovery: recovery::Recovery::default(),
-            note_inspector: None,
-            suspended_note: None,
-            catalog_loading: false,
-            library_revision: 0,
-            projecting_navigation: false,
             article_edits: article_edits::ArticleEdits::default(),
             immediate_layout: false,
             progress_memory: std::cell::RefCell::default(),
-            navigation_loading: !eager,
             vim: vim::Vim::default(),
             session_problem: None,
             help_scroll: 0,
             help_search: help::HelpSearch::default(),
-            marked: std::collections::BTreeSet::new(),
             screen: ratatui::layout::Rect::default(),
             pointer: pointer::Pointer::default(),
             panel_prefix: false,
@@ -482,7 +439,7 @@ impl App {
             }
         } else {
             app.install_navigation(navigation::pending_navigation(
-                &app.library,
+                app.navigation().library,
                 app.workspace.last_visit,
             ));
         }
@@ -499,9 +456,7 @@ impl App {
 
     /// Return the selected article, if the current view has any matches.
     pub fn current(&self) -> Option<&Article> {
-        self.visible
-            .get(self.selected)
-            .and_then(|index| self.library.articles.get(*index))
+        self.nav.current()
     }
 
     /// Handle a terminal key without performing network I/O.
@@ -521,15 +476,15 @@ impl App {
     /// # Errors
     /// Returns SQLite or selected-content errors.
     pub fn reload(&mut self) -> Result<()> {
-        self.library_revision = self.library_revision.wrapping_add(1);
+        self.nav.invalidate_library();
         if self.navigation_worker.is_some() {
             self.save_reading_position()?;
-            self.catalog_loading = true;
+            self.nav.begin_catalog();
             self.request_catalog(catalog_worker::Scope::Library);
             self.invalidate_notebook();
             return Ok(());
         }
-        self.navigation_loading = false;
+        self.nav.cancel_loading();
         self.invalidate_notebook();
         self.reload_now()
     }
@@ -538,7 +493,7 @@ impl App {
         self.save_reading_position()?;
         let selected_id = self.current().map(|article| article.id);
         let reader = self.capture_reader();
-        self.library = self.store.catalog()?;
+        self.nav.replace_catalog(self.store.catalog()?);
         self.rebuild_navigation()?;
         self.filter_now()?;
         if let Some(id) = selected_id {

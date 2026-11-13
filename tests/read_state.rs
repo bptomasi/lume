@@ -35,8 +35,8 @@ fn marking_read_populates_read_without_losing_personal_data() -> Result<()> {
     press(&mut app, KeyCode::Char('m'))?;
     command(&mut app, "read")?;
 
-    assert_eq!(app.view, View::Read);
-    assert_eq!(app.page_total, 1);
+    assert_eq!(*app.navigation().view, View::Read);
+    assert_eq!(app.navigation().page_total, 1);
     assert_eq!(app.current().map(|article| article.id), Some(id));
     let stored = Store::open(&directory.path().join("library.sqlite3"))?;
     assert_eq!(stored.view_count(&View::Inbox)?, 0);
@@ -56,13 +56,13 @@ fn returning_to_unread_removes_from_read_and_undo_restores_it() -> Result<()> {
 
     command(&mut app, "mark-unread")?;
 
-    assert_eq!(app.page_total, 0);
+    assert_eq!(app.navigation().page_total, 0);
     assert!(app.current().is_none());
     let stored = Store::open(&directory.path().join("library.sqlite3"))?;
     assert_eq!(stored.view_count(&View::Read)?, 0);
     assert_eq!(stored.view_count(&View::Inbox)?, 1);
     command(&mut app, "undo")?;
-    assert_eq!(app.page_total, 1);
+    assert_eq!(app.navigation().page_total, 1);
     assert_eq!(app.current().map(|article| article.id), Some(id));
     Ok(())
 }
@@ -79,7 +79,7 @@ fn explicit_mark_read_is_idempotent_and_one_undo_reverts_it() -> Result<()> {
 
     assert!(app.current().is_some_and(|article| article.unread));
     command(&mut app, "read")?;
-    assert_eq!(app.page_total, 0);
+    assert_eq!(app.navigation().page_total, 0);
     assert!(command(&mut app, "mark-read").is_err());
     Ok(())
 }
@@ -92,6 +92,7 @@ fn marking_an_article_updates_read_and_restores_that_folder_after_restart()
     let id = app.current().ok_or_else(|| anyhow!("Missing article"))?.id;
     command(&mut app, "mark-read")?;
     let read_count = app
+        .navigation()
         .navigation
         .iter()
         .find(|item| item.view == View::Read)
@@ -104,9 +105,9 @@ fn marking_an_article_updates_read_and_restores_that_folder_after_restart()
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     let restored = App::new(store, false)?;
 
-    assert_eq!(restored.view, View::Read);
+    assert_eq!(*restored.navigation().view, View::Read);
     assert_eq!(restored.current().map(|article| article.id), Some(id));
-    assert_eq!(restored.page_total, 1);
+    assert_eq!(restored.navigation().page_total, 1);
     Ok(())
 }
 
@@ -134,7 +135,11 @@ fn explicit_read_updates_boolean_read_sensitive_counts_and_is_idempotent()
     command(&mut app, "mark-read")?;
 
     for (name, expected) in [("Pending", 0), ("Done", 1), ("Everything", 1)] {
-        let item = app.navigation.iter().find(|item| item.title == name);
+        let item = app
+            .navigation()
+            .navigation
+            .iter()
+            .find(|item| item.title == name);
         assert_eq!(item.map(|item| item.count), Some(expected), "{name}");
     }
     command(&mut app, "undo")?;

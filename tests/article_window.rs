@@ -84,19 +84,21 @@ fn repeated_visible_clicks_keep_card_positions_and_pointer_targets()
         for local in [bottom, 0, middle, middle] {
             let expected = before[local].context("Card missing")?;
             click(&mut app, area, local)?;
-            assert_eq!(app.selected, expected);
+            assert_eq!(app.navigation().selected, expected);
             assert_eq!(targets(&app, area), before, "Click moved the cards");
             let mut terminal =
                 Terminal::new(TestBackend::new(SCREEN.width, SCREEN.height))?;
             terminal.draw(|frame| ui::draw(frame, &app))?;
-            let id = app.visible[expected];
+            let id = app.navigation().visible[expected];
             let text = (area.x + 1..area.right() - 1)
                 .map(|x| {
                     terminal.backend().buffer()[(x, area.y + 1 + local as u16)]
                         .symbol()
                 })
                 .collect::<String>();
-            assert!(text.contains(&app.library.articles[id].title));
+            assert!(
+                text.contains(&app.navigation().library.articles[id].title)
+            );
         }
     }
     Ok(())
@@ -133,7 +135,10 @@ fn background_article_delivery_preserves_the_clicked_card_window() -> Result<()>
     for local in [20, 4, 16, 0] {
         click(&mut app, area, local)?;
         common::settle_notes(&mut app)?;
-        assert_eq!(app.selected, before[local].context("Missing card")?);
+        assert_eq!(
+            app.navigation().selected,
+            before[local].context("Missing card")?
+        );
         assert_eq!(targets(&app, area), before);
     }
     app.end_session()?;
@@ -143,21 +148,27 @@ fn background_article_delivery_preserves_the_clicked_card_window() -> Result<()>
 #[test]
 fn new_pages_and_queries_do_not_reuse_an_out_of_range_window() -> Result<()> {
     let (_directory, mut app) = articles(false)?;
-    app.page_size = 8;
+    app.set_page_size(8)?;
     app.set_view(View::All)?;
     for _ in 0..7 {
         key(&mut app, KeyCode::Char('j'))?;
     }
     assert_eq!(targets(&app, area(&app)?)[0], Some(1));
     key(&mut app, KeyCode::Char('j'))?;
-    assert_eq!((app.page_offset, app.selected), (8, 0));
+    assert_eq!(
+        (app.navigation().page_offset, app.navigation().selected),
+        (8, 0)
+    );
     assert_eq!(targets(&app, area(&app)?)[0], Some(0));
     key(&mut app, KeyCode::Char('k'))?;
-    assert_eq!((app.page_offset, app.selected), (0, 7));
+    assert_eq!(
+        (app.navigation().page_offset, app.navigation().selected),
+        (0, 7)
+    );
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("Article 59")?;
     app.resize_workspace(SCREEN);
-    assert_eq!(app.selected, 0);
+    assert_eq!(app.navigation().selected, 0);
     let targets = targets(&app, area(&app)?);
     assert_eq!(targets[0], None, "Search field must not select a card");
     assert_eq!(targets[2], Some(0));

@@ -143,7 +143,8 @@ fn stale_reader_rejects_article_actions_and_aliases_before_mutation()
 -> Result<()> {
     let (_directory, mut app) = isolated_app()?;
     let before = app.current().cloned();
-    app.navigation_loading = true;
+    app.enable_background_navigation(&app.store.database_path()?)?;
+    app.load_workspace();
     for text in [
         "mark-read",
         "favorite",

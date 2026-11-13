@@ -870,7 +870,7 @@ fn linked_http_reading_stays_temporary_until_explicitly_saved() -> Result<()> {
             .contains("Durable")
     );
     assert_eq!(app.current().context("Original article")?.id, original);
-    assert_eq!(app.library.articles.len(), 1);
+    assert_eq!(app.navigation().library.articles.len(), 1);
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     assert!(!app.web_active());
     Ok(())
@@ -989,7 +989,7 @@ fn browser_resource_case(headers: &str) -> Result<()> {
     assert_eq!(app.current().context("Original")?.id, article);
     assert_eq!(app.cursor_offset(), cursor);
     assert_eq!(app.reader().comments.len(), notes);
-    assert_eq!(app.library.articles.len(), 1);
+    assert_eq!(app.navigation().library.articles.len(), 1);
     Ok(())
 }
 

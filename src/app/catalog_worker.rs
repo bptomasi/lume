@@ -146,11 +146,11 @@ impl CatalogWorker {
 
 impl App {
     pub(super) fn request_catalog(&mut self, scope: Scope) {
-        self.catalog_loading = true;
+        self.nav.begin_catalog();
         if let Some(worker) = &mut self.catalog_worker {
             let pending = worker.worker.pending() || worker.ready.is_some();
             if pending
-                && worker.revision == self.library_revision
+                && worker.revision == self.nav.library_revision()
                 && worker.scope.covers(scope)
             {
                 return;
@@ -161,11 +161,11 @@ impl App {
                 scope
             };
             worker.ready = None;
-            worker.revision = self.library_revision;
+            worker.revision = self.nav.library_revision();
             worker.worker.submit(Request {
                 last_visit: self.workspace.last_visit,
                 previous: if matches!(worker.scope, Scope::Changes(_)) {
-                    self.navigation_sections.catalog().to_vec()
+                    self.nav.navigation_sections().catalog().to_vec()
                 } else {
                     Vec::new()
                 },
@@ -187,9 +187,9 @@ impl App {
         let Some(result) = worker.ready.take() else {
             return Ok(false);
         };
-        self.catalog_loading = false;
+        self.nav.complete_catalog();
         let scope = worker.scope;
-        if worker.revision != self.library_revision {
+        if worker.revision != self.nav.library_revision() {
             self.request_catalog(scope);
             return Ok(false);
         }
@@ -202,32 +202,30 @@ impl App {
             return Ok(scope == Scope::Library);
         };
         if changes == crate::search::Changes::READ
-            && self.retained_article.is_some()
+            && self.nav.retained_article().is_some()
         {
             return Ok(false);
         }
         Ok(super::navigation::sensitive(
-            &self.view,
-            &self.library.smart_lists,
+            self.nav.view(),
+            &self.nav.library().smart_lists,
             changes,
-        )? || crate::search::parse(&self.search)?.depends_on(changes))
+        )? || crate::search::parse(self.nav.search())?.depends_on(changes))
     }
 
     fn publish_catalog(
         &mut self,
-        mut catalog: Catalog,
+        catalog: Catalog,
         scope: Scope,
     ) -> Result<()> {
-        catalog.library.articles = std::mem::take(&mut self.library.articles);
-        self.library = catalog.library;
-        let view = self.view.clone();
+        self.nav.replace_catalog(catalog.library);
+        let view = self.nav.view().clone();
         self.install_navigation(catalog.navigation);
-        if !view.same_destination(&self.view) {
-            self.page_offset = 0;
-            self.selected = 0;
-            self.retained_article = None;
+        if !view.same_destination(self.nav.view()) {
+            self.nav.reset_page();
+            self.nav.retain_article(None);
             self.filter()?;
-        } else if !self.navigation_loading
+        } else if !self.nav.navigation_loading()
             && self.catalog_page_changed(scope)?
         {
             self.refresh_catalog_page();
@@ -251,7 +249,7 @@ mod tests {
         app.enable_background_navigation(&path)?;
         app.catalog_worker.as_mut().context("Catalog worker")?.ready =
             Some(Err(anyhow::anyhow!("obsolete count failure")));
-        app.library_revision = 1;
+        app.nav.invalidate_library();
 
         assert!(!app.poll_catalog()?);
 
@@ -337,6 +335,7 @@ mod invalidation_tests {
         app.store.set_unread(id, false)?;
         app.refresh_read_counts()?;
         let group = app
+            .navigation()
             .navigation
             .iter()
             .find(|item| {
@@ -347,6 +346,7 @@ mod invalidation_tests {
         app.workspace.collapsed_groups.clear();
         app.project_navigation();
         let unread = app
+            .navigation()
             .library
             .smart_lists
             .iter()
@@ -354,7 +354,8 @@ mod invalidation_tests {
             .context("Unread list")?
             .id;
         assert_eq!(
-            app.navigation
+            app.navigation()
+                .navigation
                 .iter()
                 .find(|item| item.view == crate::model::View::Smart(unread))
                 .context("Expanded count")?
@@ -374,7 +375,7 @@ mod invalidation_tests {
         app.catalog_worker.as_mut().context("Worker")?.ready =
             Some(Ok(Catalog {
                 library,
-                navigation: app.navigation_sections.catalog().to_vec(),
+                navigation: app.nav.navigation_sections().catalog().to_vec(),
             }));
         app.request_catalog(Scope::Counts);
         assert!(

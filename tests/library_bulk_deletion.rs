@@ -1,7 +1,7 @@
 //! Sidebar views delete their entire matching set; definitions keep articles.
 mod common;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use crossterm::event::KeyCode;
 use lume::{
     app::{App, Focus},
@@ -48,11 +48,7 @@ fn matching(store: &Store, view: View) -> Result<Vec<i64>> {
 
 fn dd(app: &mut App, view: View) -> Result<()> {
     app.focus = Focus::Library;
-    app.nav_selected = app
-        .navigation
-        .iter()
-        .position(|item| item.view == view)
-        .context("Missing Library destination")?;
+    app.select_library_destination(&view)?;
     app.key(KeyCode::Char('d').into())?;
     app.key(KeyCode::Char('d').into())?;
     Ok(())
@@ -143,7 +139,7 @@ fn sidebar_dd_trashes_a_view_and_trash_dd_permanently_empties_it() -> Result<()>
 {
     let (directory, store) = fixture(20)?;
     let mut app = App::new(store, false)?;
-    app.page_size = 1;
+    app.set_page_size(1)?;
     app.set_view(View::All)?;
     dd(&mut app, View::All)?;
     let observer = Store::open(&directory.path().join("library.sqlite3"))?;
@@ -174,10 +170,10 @@ fn smart_list_and_folder_deletion_keep_every_matching_article_and_note()
         assert_eq!(observer.view_count(&View::Trash)?, 0);
         assert_eq!(observer.comments(target)?.len(), 1);
     }
-    assert!(app.library.smart_lists.is_empty());
-    assert!(app.library.collections.is_empty());
+    assert!(app.navigation().library.smart_lists.is_empty());
+    assert!(app.navigation().library.collections.is_empty());
     app.key(KeyCode::Char('u').into())?;
-    assert_eq!(app.library.collections.len(), 1);
+    assert_eq!(app.navigation().library.collections.len(), 1);
     Ok(())
 }
 

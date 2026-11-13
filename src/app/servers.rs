@@ -50,7 +50,7 @@ impl App {
     fn finish_server_connection(&mut self, id: i64) -> Result<Action> {
         let view = View::Server(id);
         self.reveal_server(&view)?;
-        self.view = view;
+        self.nav.project_destination(view);
         self.reload()?;
         self.focus = Focus::Library;
         self.status = "Server added · collecting in the background".into();
@@ -102,10 +102,11 @@ impl App {
     }
 
     fn selected_server(&self) -> Result<i64> {
-        match self.view {
+        match *self.nav.view() {
             View::Server(id) => Ok(id),
             View::Feed(id) => self
-                .library
+                .nav
+                .library()
                 .feeds
                 .iter()
                 .find(|feed| feed.id == id)
@@ -118,16 +119,17 @@ impl App {
 
     fn inspect_servers(&mut self) -> Result<()> {
         ensure!(
-            !self.library.servers.is_empty(),
+            !self.nav.library().servers.is_empty(),
             "No servers · :server URL TOKEN_ENV adds a connection"
         );
         let choices = self
-            .library
+            .nav
+            .library()
             .servers
             .iter()
             .map(|server| {
                 let mut choice = server_choice(server);
-                for feed in self.library.feeds.iter().filter(|feed| {
+                for feed in self.nav.library().feeds.iter().filter(|feed| {
                     feed.server
                         .as_ref()
                         .is_some_and(|remote| remote.server_id == server.id)

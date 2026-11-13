@@ -181,16 +181,13 @@ impl App {
             PickerKind::Commands => {
                 let mut choices = command_choices();
                 choices.extend(self.deletion_choice());
-                choices.extend(self.navigation.iter().map(|item| Choice {
-                    title: format!("Go to {}", item.title),
-                    detail: format!("{} · {} articles", item.group, item.count),
-                    action: ChoiceAction::SetView(item.view.clone()),
-                }));
+                choices.extend(destination_choices(self.nav.navigation()));
                 choices
             }
             PickerKind::Folders => self.folder_choices(),
             PickerKind::Lists { .. } => self
-                .library
+                .nav
+                .library()
                 .collections
                 .iter()
                 .map(|list| Choice {
@@ -220,10 +217,12 @@ impl App {
             detail: "Create an empty personal article folder".into(),
             action: ChoiceAction::Run(WorkspaceCommand::NewList),
         }];
-        choices.extend(self.library.collections.iter().map(|folder| Choice {
-            title: folder.name.clone(),
-            detail: "Open this personal article folder".into(),
-            action: ChoiceAction::SetView(View::Collection(folder.id)),
+        choices.extend(self.nav.library().collections.iter().map(|folder| {
+            Choice {
+                title: folder.name.clone(),
+                detail: "Open this personal article folder".into(),
+                action: ChoiceAction::SetView(View::Collection(folder.id)),
+            }
         }));
         choices
     }
@@ -647,4 +646,14 @@ pub(super) fn article_choices(
             action: ChoiceAction::JumpArticle(article.id),
         })
         .collect())
+}
+
+fn destination_choices(
+    items: &[super::NavItem],
+) -> impl Iterator<Item = Choice> + '_ {
+    items.iter().map(|item| Choice {
+        title: format!("Go to {}", item.title),
+        detail: format!("{} · {} articles", item.group, item.count),
+        action: ChoiceAction::SetView(item.view.clone()),
+    })
 }

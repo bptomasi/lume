@@ -42,6 +42,27 @@ pub(super) enum Arrival {
     Synthesis(String),
 }
 
+impl Request {
+    /// Keep the read's intent and captured identity across page-size changes.
+    fn resized(self, query: ArticleQuery, selected: usize) -> Self {
+        match self {
+            Self::Search { .. } => Self::Search { query, selected },
+            Self::Page { .. } => Self::Page { query, selected },
+            Self::Jump { article, .. } => Self::Jump { query, article },
+            Self::Refresh { article, .. } => Self::Refresh {
+                query,
+                selected,
+                article,
+            },
+            Self::Article { id, .. } => Self::Refresh {
+                query,
+                selected,
+                article: Some(id),
+            },
+        }
+    }
+}
+
 pub(super) struct Completed {
     page: Option<(usize, ArticlePage, usize)>,
     article: Option<i64>,
@@ -75,6 +96,17 @@ impl NavigationWorker {
             request: None,
             arrival: None,
         })
+    }
+
+    /// Only identity-bound requests retain an article across page contracts.
+    /// Page/search requests continue from their requested absolute cursor.
+    pub(super) fn captured_article(&self) -> Option<i64> {
+        match self.request.as_ref()? {
+            Request::Jump { article, .. } => Some(*article),
+            Request::Article { id, .. } => Some(*id),
+            Request::Refresh { article, .. } => *article,
+            Request::Search { .. } | Request::Page { .. } => None,
+        }
     }
 
     pub(super) fn cancel(&mut self) {
@@ -213,47 +245,80 @@ impl App {
         self.request_catalog(super::catalog_worker::Scope::Counts);
         self.defer_navigation(Request::Refresh {
             query: self.article_query(),
-            selected: self.selected,
+            selected: self.nav.selected(),
             article: self.workspace.article,
         });
     }
 
     pub(super) fn defer_navigation(&mut self, request: Request) {
+        self.begin_navigation();
+        if let Some(worker) = &mut self.navigation_worker {
+            worker.submit(request, self.nav.library_revision());
+        }
+    }
+
+    fn begin_navigation(&mut self) {
         self.performance.begin(super::Operation::Article);
         self.cancel_reader_pointer();
         self.reader.hover_note(None);
         self.reader.cancel_selection();
-        self.projecting_navigation = false;
-        if let Some(worker) = &mut self.navigation_worker {
-            worker.submit(request, self.library_revision);
-        }
-        self.navigation_loading = true;
+        self.nav.begin_navigation();
         self.status =
             "Loading selection… · navigation remains available".into();
     }
 
+    pub(super) fn resize_navigation(&mut self, article: Option<i64>) {
+        let pending = self.nav.navigation_loading();
+        let query = self.article_query();
+        let selected = self.nav.selected();
+        let preview = matches!(&self.mode, Mode::Input(input)
+            if matches!(input.kind, super::InputKind::Search));
+        let Some(worker) = &mut self.navigation_worker else {
+            return;
+        };
+        let request =
+            if let Some(request) = worker.request.clone().filter(|_| pending) {
+                request.resized(query, selected)
+            } else if preview {
+                Request::Search { query, selected }
+            } else {
+                Request::Refresh {
+                    query,
+                    selected,
+                    article,
+                }
+            };
+        // Resizing replaces the read contract, not the captured source arrival.
+        let arrival = worker.arrival.take();
+        worker.submit(request, self.nav.library_revision());
+        worker.arrival = arrival;
+        self.begin_navigation();
+    }
+
     pub(super) fn refresh_catalog_page(&mut self) {
-        if matches!(self.view, super::View::Group(_)) {
+        if matches!(self.nav.view(), super::View::Group(_)) {
             return;
         }
-        self.projecting_navigation = true;
+        self.nav.begin_projection();
         self.reader.hover_note(None);
         let request = Request::Refresh {
             query: self.article_query(),
-            selected: self.selected,
+            selected: self.nav.selected(),
             article: self.current().map(|article| article.id),
         };
         if let Some(worker) = &mut self.navigation_worker {
-            worker.submit(request, self.library_revision);
+            worker.submit(request, self.nav.library_revision());
         }
     }
 
     fn refresh_stale_navigation(&mut self) {
         if let Some(worker) = &mut self.navigation_worker
-            && let Some(request @ Request::Jump { .. }) = worker.request.clone()
+            && let Some(
+                request @ (Request::Jump { .. } | Request::Search { .. }),
+            ) = worker.request.clone()
         {
             let arrival = worker.arrival.take();
-            worker.submit(request, self.library_revision);
+            worker.submit(request, self.nav.library_revision());
             worker.arrival = arrival;
             return;
         }
@@ -265,7 +330,7 @@ impl App {
         if preserve
             && !self.article_edits.reconcile_required
             && let Some(article) = self.current()
-            && self.retained_article == Some(article.id)
+            && self.nav.retained_article() == Some(article.id)
         {
             self.defer_navigation(Request::Article {
                 id: article.id,
@@ -278,14 +343,14 @@ impl App {
 
     /// Whether a catalog or page refresh still awaits safe delivery.
     pub fn catalog_pending(&self) -> bool {
-        self.catalog_loading
+        self.nav.catalog_loading()
             || self.navigation_worker.as_ref().is_some_and(|worker| {
                 worker.worker.pending() || worker.ready.is_some()
             })
     }
 
     pub(super) fn session_article(&self) -> Option<i64> {
-        if !self.navigation_loading {
+        if !self.nav.navigation_loading() {
             return self.current().map(|article| article.id);
         }
         match self
@@ -367,7 +432,7 @@ impl App {
         let Some(result) = worker.ready.take() else {
             return Ok(catalog_changed);
         };
-        if worker.revision != self.library_revision {
+        if worker.revision != self.nav.library_revision() {
             self.refresh_stale_navigation();
             return Ok(catalog_changed);
         }
@@ -412,16 +477,15 @@ impl App {
                 == crate::model::ContentSource::Full;
             let body = reading.source_body(full, url);
             if !self.reader.prepare_source(body) {
-                self.projecting_navigation = true;
+                self.nav.begin_projection();
                 if let Some(worker) = &mut self.navigation_worker {
                     worker.ready = Some(result);
                 }
                 return Ok(false);
             }
         }
-        let navigating = self.navigation_loading;
-        self.navigation_loading = false;
-        self.projecting_navigation = false;
+        let navigating = self.nav.navigation_loading();
+        self.nav.complete_navigation();
         self.apply_navigation(result.context("Navigation failed")?)?;
         if navigating {
             self.status = "Selection loaded".into();
@@ -456,13 +520,13 @@ impl App {
     }
 
     pub(super) fn invalidate_reading_refresh(&mut self) {
-        self.library_revision = self.library_revision.wrapping_add(1);
-        if self.catalog_loading {
+        self.nav.invalidate_library();
+        if self.nav.catalog_loading() {
             self.request_catalog(super::catalog_worker::Scope::Changes(
                 crate::search::Changes::NOTES,
             ));
         }
-        if self.projecting_navigation && !self.navigation_loading {
+        if self.nav.projecting_navigation() && !self.nav.navigation_loading() {
             self.refresh_catalog_page();
         }
     }
@@ -471,11 +535,7 @@ impl App {
         let snapshot = result.reading.as_ref().map(|_| self.capture_reader());
         if let Some((offset, page, selected)) = result.page {
             self.article_edits.reconcile_required = false;
-            self.page_offset = offset;
-            self.selected = selected;
-            self.page_total = page.total;
-            self.library.articles = page.articles;
-            self.visible = (0..self.library.articles.len()).collect();
+            self.nav.install_window(offset, page, selected);
             self.overlay_article_edits();
         }
         if self.current().map(|article| article.id) == result.article {
@@ -494,7 +554,7 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use super::App;
+    use super::{App, Arrival};
     use anyhow::{Context, Result};
 
     #[test]
@@ -509,12 +569,154 @@ mod tests {
             .as_mut()
             .context("Navigation worker")?
             .ready = Some(Err(anyhow::anyhow!("obsolete page failure")));
-        app.library_revision = 1;
+        app.nav.invalidate_library();
 
         assert!(!app.poll_navigation()?);
 
         assert!(app.catalog_pending(), "Latest page was not requested");
         assert!(!app.status.contains("obsolete"));
+        app.end_session()?;
+        Ok(())
+    }
+
+    fn jump_application() -> Result<(tempfile::TempDir, App, i64)> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("library.sqlite3");
+        let mut store = crate::store::Store::open(&path)?;
+        let id = store.subscribe("https://journal.example/feed")?;
+        let feed = store
+            .feeds()?
+            .into_iter()
+            .find(|feed| feed.id == id)
+            .context("Jump fixture feed")?;
+        let mut parsed = crate::source::parse(
+            include_bytes!("../../tests/fixtures/rss.xml"),
+            &feed.url,
+        )?;
+        parsed.articles[0].body =
+            "First paragraph.\n\nTarget paragraph.\n".into();
+        store.ingest(&feed, &parsed.title, &parsed.articles)?;
+        let article = store.library()?.articles.remove(0);
+        store.cache_document(
+            &crate::model::ArticleTarget {
+                article: article.id,
+                url: article.url,
+            },
+            &crate::model::ExtractedDocument {
+                final_url: "https://journal.example/full".into(),
+                body: "Full introduction.\n\nTarget paragraph.\n".into(),
+            },
+        )?;
+        let mut app = App::new(store, false)?;
+        let article = app.current().context("Jump fixture article")?.id;
+        app.enable_background_navigation(&path)?;
+        app.jump_article(article)?;
+        Ok((directory, app, article))
+    }
+
+    fn settle_jump(app: &mut App) -> Result<()> {
+        let deadline =
+            std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while app.navigation().navigation_loading
+            || app.reader_pending()
+            || app.catalog_pending()
+        {
+            app.poll_reader();
+            app.poll_navigation()?;
+            anyhow::ensure!(
+                std::time::Instant::now() < deadline,
+                "Jump did not settle"
+            );
+            std::thread::yield_now();
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn resizing_a_jump_applies_its_reader_arrival_once() -> Result<()> {
+        let (_directory, mut app, article) = jump_application()?;
+        app.workspace.content_source = crate::model::ContentSource::Full;
+        app.on_navigation_arrival(Arrival::Reader(
+            crate::app::ReaderLocation {
+                article,
+                source: crate::model::ContentSource::Full,
+                revision: 1,
+                anchor: 20,
+                quote: Some("Target paragraph.".into()),
+            },
+        ))?;
+        app.set_page_size(0)?;
+        app.set_page_size(usize::MAX)?;
+        settle_jump(&mut app)?;
+
+        assert_eq!(app.current().context("Jump selection")?.id, article);
+        assert_eq!(app.reader_location()?.anchor, 20);
+        assert_eq!(
+            app.reader().content_source,
+            crate::model::ContentSource::Full
+        );
+        assert_eq!(app.focus, crate::app::Focus::Reader);
+        app.focus = crate::app::Focus::Articles;
+        assert!(!app.poll_navigation()?);
+        assert_eq!(app.focus, crate::app::Focus::Articles);
+        app.end_session()?;
+        Ok(())
+    }
+
+    #[test]
+    fn resizing_a_jump_installs_its_synthesis_arrival_once() -> Result<()> {
+        let (_directory, mut app, article) = jump_application()?;
+        app.on_navigation_arrival(Arrival::Synthesis(
+            "Captured synthesis evidence".into(),
+        ))?;
+        app.set_page_size(1)?;
+        app.set_page_size(500)?;
+        app.set_page_size(usize::MAX)?;
+        settle_jump(&mut app)?;
+
+        let crate::app::Mode::Input(input) = &app.mode else {
+            anyhow::bail!("Synthesis editor did not open");
+        };
+        assert!(matches!(input.kind, crate::app::InputKind::Comment {
+            article: id, comment: None,
+        } if id == article));
+        assert_eq!(input.text, "Captured synthesis evidence");
+        assert_eq!(input.initial_kind, Some(crate::model::NoteKind::Synthesis));
+        app.paste(" plus newer edits")?;
+        assert!(!app.poll_navigation()?);
+        let crate::app::Mode::Input(input) = &app.mode else {
+            anyhow::bail!("Synthesis editor was replaced");
+        };
+        assert!(input.text.contains("plus newer edits"));
+        app.end_session()?;
+        Ok(())
+    }
+
+    #[test]
+    fn stale_resized_search_retries_without_loading_the_preview_source()
+    -> Result<()> {
+        let (_directory, mut app, article) = jump_application()?;
+        settle_jump(&mut app)?;
+        let body = app.reader().body.to_owned();
+        app.focus = crate::app::Focus::Articles;
+        app.key(crossterm::event::KeyCode::Char('/').into())?;
+        app.paste("title:cache")?;
+        app.set_page_size(1)?;
+        app.nav.invalidate_library();
+
+        settle_jump(&mut app)?;
+
+        assert_eq!(app.current().context("Search selection")?.id, article);
+        assert_eq!(app.reader().body, body);
+        let worker = app.navigation_worker.as_ref().context("Worker")?;
+        assert!(matches!(
+            worker.request,
+            Some(super::Request::Search { .. })
+        ));
+        assert_eq!(worker.revision, app.nav.library_revision());
+        assert!(matches!(app.mode, crate::app::Mode::Input(_)));
+        app.key(crossterm::event::KeyCode::Esc.into())?;
+        settle_jump(&mut app)?;
         app.end_session()?;
         Ok(())
     }

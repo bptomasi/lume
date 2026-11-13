@@ -38,7 +38,7 @@ fn settle(app: &mut App) -> Result<()> {
         app.poll_navigation()?;
         app.poll_note_workspace()?;
         if !app.recommendations_pending()
-            && !app.navigation_loading
+            && !app.navigation().navigation_loading
             && !app.note_catalog_pending()
         {
             return Ok(());
@@ -71,8 +71,8 @@ fn interests_feedback_why_and_palette_are_available_through_actual_commands()
     );
     command(&mut app, "recommendations")?;
     settle(&mut app)?;
-    assert_eq!(app.view, View::Recommended);
-    assert!(app.page_total > 0);
+    assert_eq!(*app.navigation().view, View::Recommended);
+    assert!(app.navigation().page_total > 0);
     let article = app.current().context("No recommended article")?.id;
     command(&mut app, "recommend-why")?;
     let Mode::Document(document) = &app.mode else {
@@ -110,7 +110,7 @@ fn recommendation_commands_cannot_rate_a_hidden_notebook_article() -> Result<()>
         app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     }
     command(&mut app, "recommendations")?;
-    assert!(app.notebook.is_none());
+    assert!(app.notebook().is_none());
     Ok(())
 }
 

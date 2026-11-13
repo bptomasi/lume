@@ -75,7 +75,7 @@ fn hints(app: &App) -> &'static str {
     if app.layout_prefix_pending() {
         return "  Ctrl-w · h/j/k/l focus · H/J/K/L move · s/v split · u/r history · Esc cancel";
     }
-    if app.notebook.is_some() {
+    if app.notebook().is_some() {
         return "  / notes · e edit · Enter source · t tags · T type · p pin · r resolve · v mark · s synthesize · dd / u · Esc return";
     }
     if app.focus == Focus::Annotations {
@@ -202,7 +202,7 @@ pub(super) fn draw_panel_move(frame: &mut Frame<'_>, app: &App) {
 fn restore_buttons(frame: &mut Frame<'_>, app: &App) {
     for (pane, button) in super::pane_buttons(frame.area(), &app.workspace) {
         let visible = app.workspace.pane_visible(pane);
-        let caption = if app.notebook.is_some() {
+        let caption = if app.notebook().is_some() {
             match pane {
                 Focus::Library => "Lists",
                 Focus::Articles => "Notes",
@@ -306,7 +306,7 @@ fn editor_mode(input: &crate::app::Input) -> &'static str {
 }
 
 fn focus_caption(app: &App) -> &'static str {
-    if app.notebook.is_some() {
+    if app.notebook().is_some() {
         return match app.focus {
             Focus::Library => "Collections",
             Focus::Articles => "Notes",

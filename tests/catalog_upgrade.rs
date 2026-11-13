@@ -74,7 +74,7 @@ fn historical_labels_keep_criteria_identities_and_the_active_view() -> Result<()
         assert!(store.smart_lists()?.iter().all(|s| s.name != old.name));
     }
     let app = App::new(store, false)?;
-    assert_eq!(app.view, selected);
+    assert_eq!(*app.navigation().view, selected);
     Ok(())
 }
 

@@ -7,7 +7,8 @@ use super::super::{App, InputKind, ReaderLocation};
 impl App {
     pub(in crate::app) fn edit_notebook_note(&mut self) -> Result<()> {
         let context = self
-            .notebook
+            .notebooks
+            .active
             .as_ref()
             .and_then(|notebook| notebook.current_context())
             .context("Wait for the selected note's context")?;
@@ -29,7 +30,8 @@ impl App {
 
     pub(super) fn notebook_source(&mut self) -> Result<()> {
         let context = self
-            .notebook
+            .notebooks
+            .active
             .as_ref()
             .and_then(|notebook| notebook.current_context())
             .context("Wait for the selected note's context")?;
@@ -61,14 +63,11 @@ impl App {
         &mut self,
         text: &str,
     ) -> Result<()> {
-        let notebook = self.notebook.as_mut().context("Open Notebook first")?;
-        if notebook.query == text {
-            return Ok(());
-        }
-        crate::search::notes::validate(text)?;
-        notebook.query = text.into();
-        notebook.offset = 0;
-        notebook.selected = 0;
-        notebook.refresh()
+        let notebook = self
+            .notebooks
+            .active
+            .as_mut()
+            .context("Open Notebook first")?;
+        notebook.set_query(text)
     }
 }

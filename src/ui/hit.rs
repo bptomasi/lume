@@ -20,9 +20,13 @@ pub fn navigation_at(app: &App, area: Rect, row: u16) -> Option<usize> {
 pub(super) fn article_window(app: &App, height: u16) -> (usize, usize, u16) {
     let row_height = if app.workspace.compact { 2 } else { 4 };
     let capacity = usize::from(height / row_height).max(1);
-    let last = app.visible.len().saturating_sub(capacity);
-    let selected = app.selected.min(app.visible.len().saturating_sub(1));
+    let last = app.navigation().visible.len().saturating_sub(capacity);
+    let selected = app
+        .navigation()
+        .selected
+        .min(app.navigation().visible.len().saturating_sub(1));
     let first = app
+        .navigation()
         .articles_first
         .min(last)
         .min(selected)
@@ -52,7 +56,8 @@ pub fn article_at(app: &App, area: Rect, row: u16) -> Option<usize> {
     let (first, capacity, height) = article_window(app, inner.height);
     let local = usize::from((row - inner.y) / height);
     let position = first + local;
-    (local < capacity && position < app.visible.len()).then_some(position)
+    (local < capacity && position < app.navigation().visible.len())
+        .then_some(position)
 }
 
 pub(super) fn annotation_window(app: &App, height: u16) -> (usize, usize) {

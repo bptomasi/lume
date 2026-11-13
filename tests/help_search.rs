@@ -47,7 +47,7 @@ fn live_help_search_moves_between_matches_and_esc_clears_before_closing()
     key(&mut app, KeyCode::Esc)?;
     assert!(matches!(app.mode, Mode::Normal));
     assert_eq!(app.current().context("Selection lost")?.id, article);
-    assert!(app.search.is_empty());
+    assert!(app.navigation().search.is_empty());
     Ok(())
 }
 

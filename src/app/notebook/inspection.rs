@@ -33,24 +33,8 @@ impl App {
         &mut self,
         request: Inspection,
     ) -> Result<()> {
-        if self.note_inspector.is_none() {
-            let store = Store::open(&self.store.database_path()?)?;
-            self.note_inspector = Some(Inspector {
-                worker: Latest::start_cancellable(
-                    "lume-note-inspection",
-                    move |request, cancel| {
-                        store.read_cancellable(cancel, |store| {
-                            prepare(store, request)
-                        })
-                    },
-                )?,
-            });
-        }
-        self.note_inspector
-            .as_mut()
-            .context("Note inspection unavailable")?
-            .worker
-            .submit(request);
+        self.notebooks
+            .inspect(&self.store.database_path()?, request)?;
         self.status = "Preparing note inspection… · Esc cancels".into();
         Ok(())
     }
@@ -60,11 +44,7 @@ impl App {
     /// # Errors
     /// Returns inspection failures; a suspended editor is recovered intact.
     pub fn poll_note_inspection(&mut self) -> Result<bool> {
-        let Some(result) = self
-            .note_inspector
-            .as_mut()
-            .and_then(|inspector| inspector.worker.poll())
-        else {
+        let Some(result) = self.notebooks.poll_inspection() else {
             return Ok(false);
         };
         match result {
@@ -98,22 +78,19 @@ impl App {
     }
 
     pub(in crate::app) fn cancel_note_inspection(&mut self) {
-        if let Some(inspector) = &mut self.note_inspector {
-            inspector.worker.cancel();
-        }
+        self.notebooks.cancel_inspection();
         self.resume_note_editor();
     }
 
     /// Whether a replaceable note inspection remains in flight.
     pub fn note_inspection_pending(&self) -> bool {
-        self.note_inspector
-            .as_ref()
-            .is_some_and(|inspector| inspector.worker.pending())
+        self.notebooks.inspection_pending()
     }
 
     pub(in crate::app) fn synthesize_notes(&mut self) -> Result<()> {
         let notes = self
-            .notebook
+            .notebooks
+            .active
             .as_ref()
             .context("Open Notebook first")?
             .marked
@@ -244,4 +221,50 @@ fn synthesis(store: &Store, ids: &[i64]) -> Result<Prepared> {
         );
     }
     Ok(Prepared::Synthesis { article, text })
+}
+
+impl super::NotebookState {
+    pub(in crate::app) fn inspect(
+        &mut self,
+        path: &std::path::Path,
+        request: Inspection,
+    ) -> Result<()> {
+        if self.inspector.is_none() {
+            let store = Store::open(path)?;
+            self.inspector = Some(Inspector {
+                worker: Latest::start_cancellable(
+                    "lume-note-inspection",
+                    move |request, cancel| {
+                        store.read_cancellable(cancel, |store| {
+                            prepare(store, request)
+                        })
+                    },
+                )?,
+            });
+        }
+        self.inspector
+            .as_mut()
+            .context("Note inspection unavailable")?
+            .worker
+            .submit(request);
+        Ok(())
+    }
+
+    fn poll_inspection(&mut self) -> Option<Result<Prepared>> {
+        self.inspector
+            .as_mut()
+            .and_then(|inspector| inspector.worker.poll())
+    }
+
+    fn cancel_inspection(&mut self) {
+        if let Some(inspector) = &mut self.inspector {
+            inspector.worker.cancel();
+        }
+    }
+
+    pub(in crate::app) fn inspection_pending(&self) -> bool {
+        self.inspector
+            .as_ref()
+            .is_some_and(|inspector| inspector.worker.pending())
+    }
 }

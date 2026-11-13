@@ -24,8 +24,14 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
                 app.key(KeyEvent::new(code, KeyModifiers::NONE))?;
             }
             terminal.draw(|frame| ui::draw(frame, &app))?;
-            ensure!(app.search == "systems", "Caret motion changed the query");
-            ensure!(app.page_total == articles, "Live results changed");
+            ensure!(
+                app.navigation().search == "systems",
+                "Caret motion changed the query"
+            );
+            ensure!(
+                app.navigation().page_total == articles,
+                "Live results changed"
+            );
             ensure!(matches!(app.mode, Mode::Input(_)), "Query editor closed");
             ensure!(
                 app.current().map(|article| article.id) == Some(selected),
@@ -62,7 +68,8 @@ fn replacements(
                 app.poll_navigation()?;
                 app.poll_reader();
                 app.poll_note_workspace()?;
-                if !app.navigation_loading && !app.reader_pending() {
+                if !app.navigation().navigation_loading && !app.reader_pending()
+                {
                     break;
                 }
                 ensure!(
@@ -71,7 +78,10 @@ fn replacements(
                 );
                 std::thread::yield_now();
             }
-            ensure!(app.page_total == count, "Newest page drifted");
+            ensure!(
+                app.navigation().page_total == count,
+                "Newest page drifted"
+            );
             ensure!(
                 app.reader().reader_text.contains("A cached source"),
                 "Newest source disappeared"

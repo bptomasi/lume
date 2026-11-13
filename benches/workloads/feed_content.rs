@@ -135,7 +135,7 @@ fn notices(iterations: usize, stress: bool) -> Result<()> {
                     notice == (app.reader().body_kind != BodyKind::Text),
                     "Reader notice mismatches cached content"
                 );
-                let code = if app.selected == 4 {
+                let code = if app.navigation().selected == 4 {
                     KeyCode::Home
                 } else {
                     KeyCode::Down

@@ -17,7 +17,7 @@ use super::{Action, App, Focus, Mode, View};
 impl App {
     pub(super) fn selected_article_target(&self) -> Result<ArticleTarget> {
         ensure!(
-            self.view != View::Trash,
+            *self.nav.view() != View::Trash,
             "Restore the article before fetching"
         );
         let article = self.current().context("Select an article first")?;
@@ -33,10 +33,10 @@ impl App {
     /// Network availability and worker admission belong to the terminal runtime.
     pub fn automatic_article_request(&self, now: i64) -> Option<ArticleTarget> {
         if self.demo
-            || self.navigation_loading
+            || self.nav.navigation_loading()
             || self.focus != Focus::Reader
             || self.workspace.content_source == ContentSource::Feed
-            || self.view == View::Annotated
+            || *self.nav.view() == View::Annotated
             || self.article_fetching.is_some()
             || !matches!(self.mode, Mode::Normal)
             || self.reader.selecting()
@@ -185,7 +185,7 @@ impl App {
     }
 
     fn change_fetch_policy(&mut self, argument: &str) -> Result<()> {
-        let feed = if let View::Feed(id) = self.view {
+        let feed = if let View::Feed(id) = *self.nav.view() {
             id
         } else {
             self.current()

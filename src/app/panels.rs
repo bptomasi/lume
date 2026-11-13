@@ -28,10 +28,10 @@ impl App {
         }
         let areas = ui::workspace_areas(area, self.focus, &self.workspace);
         if let Some(articles) = areas.articles {
-            self.articles_first = ui::article_origin(self, articles);
+            self.nav.pin_articles(ui::article_origin(self, articles));
         }
         if let Some(reader) = areas.reader {
-            if self.notebook.is_some() {
+            if self.notebook().is_some() {
                 self.resize_notebook_context(
                     reader.width.saturating_sub(2).into(),
                 );

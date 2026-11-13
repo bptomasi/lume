@@ -81,14 +81,7 @@ impl App {
                 state.ready_page = result.page;
             }
             state.refresh_needed = update.remaining;
-            if let Some(row) = self
-                .navigation
-                .iter_mut()
-                .find(|row| row.view == View::Recommended)
-            {
-                changed |= row.count != update.total;
-                row.count = update.total;
-            }
+            changed |= self.nav.update_recommendation_count(update.total);
         }
         if !state.worker.pending() && Instant::now() >= state.next_check {
             state.worker.submit(None, query.clone())?;
@@ -103,23 +96,22 @@ impl App {
     }
 
     fn recommendation_query(&self) -> Option<ArticleQuery> {
-        (self.view == View::Recommended && self.notebook.is_none()).then(|| {
-            ArticleQuery {
+        (*self.nav.view() == View::Recommended && self.notebook().is_none())
+            .then(|| ArticleQuery {
                 view: View::Recommended,
-                text: self.search.clone(),
-                offset: self.page_offset,
-                limit: self.page_size.clamp(1, 500),
+                text: self.nav.search().clone(),
+                offset: self.nav.page_offset(),
+                limit: self.nav.page_size().clamp(1, 500),
                 retained: self.current().map(|article| article.id),
-            }
-        })
+            })
     }
 
     fn install_ready_recommendations(&mut self) -> Result<bool> {
-        if self.notebook.is_some()
+        if self.notebook().is_some()
             || self.focus == super::Focus::Reader
             || !matches!(self.mode, Mode::Normal)
             || self.reader.selecting()
-            || self.navigation_loading
+            || self.nav.navigation_loading()
         {
             return Ok(false);
         }
@@ -128,8 +120,8 @@ impl App {
             .as_mut()
             .and_then(|state| state.ready_page.take());
         if let Some((query, page)) = page {
-            if page.total == self.page_total
-                && page.articles == self.library.articles
+            if page.total == self.nav.page_total()
+                && page.articles == self.nav.library().articles
             {
                 return Ok(false);
             }

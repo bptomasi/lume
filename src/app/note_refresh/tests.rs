@@ -40,8 +40,9 @@ fn note_completions_preserve_retained_rows_until_matching_reading_data_arrives()
     let (_directory, mut app) = application()?;
     let before = app.reader().reader_text.to_owned();
     let previous_note = app.reader().comments[0].id;
-    app.selected = 1;
-    app.navigation_loading = true;
+    app.enable_background_navigation(&app.store.database_path()?)?;
+    app.focus = crate::app::Focus::Articles;
+    app.key(crossterm::event::KeyCode::Down.into())?;
     let article = app.current().context("Selected article")?.id;
     app.store.save_comment(article, None, "New target note")?;
     let comments = app.store.comments(article)?;

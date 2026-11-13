@@ -8,7 +8,7 @@ use std::{
 use anyhow::{Context, Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use lume::{
-    app::{App, Focus, NavItem},
+    app::{App, Focus, NavigationView},
     model::{FeedOrigin, IncomingArticle, View},
     reader::cursor,
     store::Store,
@@ -35,12 +35,13 @@ fn library_frames(
     iterations: usize,
 ) -> Result<()> {
     app.focus = Focus::Library;
-    let middle = app.navigation.len() / 2;
+    let destinations = library_destinations(app.navigation())?;
+    let mut step = 0;
     super::measure(
         "library cursor + full interactive frame",
         iterations * 50,
         || {
-            app.nav_selected = middle + app.nav_selected % 8;
+            app.select_library_destination(&destinations[step % 8])?;
             app.resize_workspace(Rect::new(0, 0, 144, 44));
             terminal.draw(|frame| ui::draw_interactive(frame, app))?;
             let area = ui::workspace_areas(
@@ -57,10 +58,11 @@ fn library_frames(
                 })
                 .context("Selected Library row is not visible")?;
             ensure!(
-                ui::navigation_at(app, area, row) == Some(app.nav_selected),
+                ui::navigation_at(app, area, row)
+                    == Some(app.navigation().nav_selected),
                 "Rendered navigation and mouse hit disagree"
             );
-            app.nav_selected += 1;
+            step += 1;
             Ok(())
         },
     )
@@ -128,19 +130,24 @@ fn application(stress: bool) -> Result<(tempfile::TempDir, App)> {
     let feed = store.feeds()?.remove(0);
     let repeats = if stress { 4000 } else { 400 };
     store.ingest(&feed, "Interaction", &[article(repeats)])?;
-    let mut app = App::new(store, false)?;
     let destinations = if stress { 4096 } else { 128 };
-    app.navigation
-        .extend((0..destinations).map(|index| NavItem {
-            view: View::Feed(index as i64 + 100),
-            title: format!("Engineering source {index}"),
-            count: index % 200,
-            group: if index < destinations / 2 {
-                "FEEDS"
-            } else {
-                "SMART LISTS"
-            },
-        }));
+    for index in 0..destinations {
+        let title = format!("Engineering source {index}");
+        if index < destinations / 2 {
+            let address = format!("https://source{index}.example/feed");
+            store.subscribe(&address)?;
+            store.rename_feed_title_if_current(&address, &address, &title)?;
+        } else {
+            store.save_smart_list(
+                &title,
+                &lume::model::SmartFilter {
+                    paused: true,
+                    ..Default::default()
+                },
+            )?;
+        }
+    }
+    let mut app = App::new(store, false)?;
     app.resize_workspace(Rect::new(0, 0, 144, 44));
     let deadline = Instant::now() + Duration::from_secs(10);
     while app.reader_pending() && Instant::now() < deadline {
@@ -167,4 +174,20 @@ fn article(repeats: usize) -> IncomingArticle {
         ),
         body_origin: FeedOrigin::Feed,
     }
+}
+
+fn library_destinations(navigation: NavigationView<'_>) -> Result<Vec<View>> {
+    let destinations = navigation
+        .navigation
+        .iter()
+        .filter(|item| !matches!(item.view, View::Group(_)))
+        .skip(navigation.navigation.len() / 2)
+        .take(8)
+        .map(|item| item.view.clone())
+        .collect::<Vec<_>>();
+    ensure!(
+        destinations.len() == 8,
+        "Eight cached destinations required"
+    );
+    Ok(destinations)
 }

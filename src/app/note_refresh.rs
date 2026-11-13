@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 
-use super::{App, View};
+use super::App;
 
 impl App {
     pub(super) fn refresh_notes(&mut self, article: i64) -> Result<()> {
@@ -24,7 +24,7 @@ impl App {
         self.invalidate_reading_refresh();
         self.refresh_note_catalog();
         let count = comments.len();
-        self.update_note_counts(article, count);
+        self.nav.update_note_counts(article, count);
         if self.current().is_none_or(|item| item.id != article)
             || self.reading_article() != Some(article)
         {
@@ -32,36 +32,13 @@ impl App {
         }
         let snapshot = self.capture_reader();
         self.reader.replace_comments(comments);
-        if self.projecting_navigation {
+        if self.nav.projecting_navigation() {
             return;
         }
         self.wrap_reader();
         self.restore_reader(snapshot);
         self.clamp_cursor();
         self.ensure_cursor_visible();
-    }
-    fn update_note_counts(&mut self, article: i64, count: usize) {
-        if let Some(metadata) = self
-            .library
-            .articles
-            .iter_mut()
-            .find(|item| item.id == article)
-        {
-            let had_notes = metadata.comments > 0;
-            metadata.comments = count;
-            if had_notes != (count > 0)
-                && let Some(row) = self
-                    .navigation
-                    .iter_mut()
-                    .find(|row| row.view == View::Annotated)
-            {
-                row.count = if count > 0 {
-                    row.count.saturating_add(1)
-                } else {
-                    row.count.saturating_sub(1)
-                };
-            }
-        }
     }
 }
 

@@ -18,7 +18,7 @@ pub struct ReaderIdentity {
 
 impl App {
     pub(super) fn guard_stale_command(&self, command: Command) -> Result<()> {
-        if self.notebook.is_some() || !self.reader_stale() {
+        if self.notebook().is_some() || !self.reader_stale() {
             return Ok(());
         }
         anyhow::ensure!(
@@ -59,7 +59,7 @@ impl App {
         if !self.reader.poll_render_worker() {
             return false;
         }
-        if self.navigation_loading || self.projecting_navigation {
+        if self.nav.navigation_loading() || self.nav.projecting_navigation() {
             return false;
         }
         if self.reader.render_worker_stopped() {
@@ -72,8 +72,8 @@ impl App {
 
     /// Whether the selected publisher source has not produced readable rows yet.
     pub fn article_preparing(&self) -> bool {
-        self.navigation_loading
-            || (self.view != View::Annotated
+        self.nav.navigation_loading()
+            || (*self.nav.view() != View::Annotated
                 && self.reader.view().body_kind == BodyKind::Text
                 && !self.reader.source_ready())
     }
@@ -82,8 +82,8 @@ impl App {
     /// Source-bound actions must wait for the matching content identity.
     pub fn reader_stale(&self) -> bool {
         self.reading_article().is_some()
-            && (self.navigation_loading
-                || self.projecting_navigation
+            && (self.nav.navigation_loading()
+                || self.nav.projecting_navigation()
                 || self.current().map(|article| article.id)
                     != self.reading_article())
     }
@@ -119,8 +119,7 @@ impl App {
         if let Some(worker) = &mut self.navigation_worker {
             worker.cancel();
         }
-        self.navigation_loading = false;
-        self.projecting_navigation = false;
+        self.nav.complete_navigation();
         self.cancel_reader_pointer();
         let Some(article) = self.current() else {
             self.clear_current();
@@ -218,8 +217,8 @@ impl App {
     pub fn save_session(&mut self) -> Result<()> {
         let position = self.save_reading_position();
         self.workspace.article = self.session_article();
-        self.workspace.view = self.view.clone();
-        self.workspace.page_offset = self.page_offset;
+        self.workspace.view = self.nav.view().clone();
+        self.workspace.page_offset = self.nav.page_offset();
         let preferences = self.persist_preferences();
         finish_writes([position, preferences])
     }

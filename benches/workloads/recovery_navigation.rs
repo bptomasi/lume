@@ -66,15 +66,16 @@ fn startup(
             app.enable_background_navigation(database)?;
             app.load_workspace();
             deliveries.push(settle(&mut app, started)?.as_secs_f64() * 1000.0);
-            ensure!(
-                app.page_total == expected,
-                "Wrong startup destination count"
-            );
+            let total = app.navigation().page_total;
+            ensure!(total == expected, "Wrong startup destination count");
             let id = app.current().context("Startup article")?.id;
             let started = Instant::now();
             app.jump_article(id)?;
             admissions.push(started.elapsed().as_secs_f64() * 1_000_000.0);
-            ensure!(app.navigation_loading, "Jump did not defer work");
+            ensure!(
+                app.navigation().navigation_loading,
+                "Jump did not defer work"
+            );
             settle(&mut app, started)?;
             ensure!(
                 app.reader_identity()
@@ -95,7 +96,7 @@ fn startup(
 fn settle(app: &mut App, started: Instant) -> Result<Duration> {
     let deadline = started + Duration::from_secs(10);
     let mut first = None;
-    while app.navigation_loading
+    while app.navigation().navigation_loading
         || app.catalog_pending()
         || app.reader_pending()
     {
@@ -104,7 +105,7 @@ fn settle(app: &mut App, started: Instant) -> Result<Duration> {
         app.poll_navigation()?;
         app.poll_note_tasks()?;
         if first.is_none()
-            && !app.navigation_loading
+            && !app.navigation().navigation_loading
             && !app.article_preparing()
         {
             first = Some(started.elapsed());

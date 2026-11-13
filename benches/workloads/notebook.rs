@@ -182,8 +182,7 @@ fn advance_context(
     forward: bool,
 ) -> Result<f64> {
     let previous = app
-        .notebook
-        .as_ref()
+        .notebook()
         .and_then(|book| book.current())
         .context("Missing note")?
         .id;
@@ -195,8 +194,7 @@ fn advance_context(
     settle(app)?;
     terminal.draw(|frame| ui::draw(frame, app))?;
     let note = app
-        .notebook
-        .as_ref()
+        .notebook()
         .and_then(|book| book.current_context())
         .context("Missing ready context")?;
     ensure!(note.note.comment.id != previous, "Key did not move a note");

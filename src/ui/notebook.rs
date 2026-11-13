@@ -9,14 +9,14 @@ use ratatui::{
 };
 
 use crate::{
-    app::{App, Focus, Notebook},
+    app::{App, Focus, NotebookView},
     content,
 };
 
 use super::{Areas, theme::*};
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App, areas: &Areas) {
-    let Some(notebook) = &app.notebook else {
+    let Some(notebook) = &app.notebook() else {
         return;
     };
     if let Some(area) = areas.library {
@@ -36,7 +36,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, areas: &Areas) {
 fn collections(
     frame: &mut Frame<'_>,
     app: &App,
-    notebook: &Notebook,
+    notebook: &NotebookView<'_>,
     area: Rect,
 ) {
     let block = panel(" Collections ".into(), app.focus == Focus::Library);
@@ -61,7 +61,12 @@ fn collections(
     );
 }
 
-fn notes(frame: &mut Frame<'_>, app: &App, notebook: &Notebook, area: Rect) {
+fn notes(
+    frame: &mut Frame<'_>,
+    app: &App,
+    notebook: &NotebookView<'_>,
+    area: Rect,
+) {
     let title = format!(
         " Notes · {}{} ",
         notebook.page.total,
@@ -111,7 +116,7 @@ fn empty_notes(frame: &mut Frame<'_>, loading: bool, area: Rect) {
 
 fn note_card(
     frame: &mut Frame<'_>,
-    notebook: &Notebook,
+    notebook: &NotebookView<'_>,
     index: usize,
     note: &crate::model::NoteSummary,
     area: Rect,
@@ -150,7 +155,7 @@ fn note_card(
 }
 
 fn note_heading(
-    notebook: &Notebook,
+    notebook: &NotebookView<'_>,
     note: &crate::model::NoteSummary,
     selected: bool,
 ) -> String {
@@ -174,7 +179,12 @@ fn note_heading(
     )
 }
 
-fn context(frame: &mut Frame<'_>, app: &App, notebook: &Notebook, area: Rect) {
+fn context(
+    frame: &mut Frame<'_>,
+    app: &App,
+    notebook: &NotebookView<'_>,
+    area: Rect,
+) {
     let block = panel(" Context ".into(), app.focus == Focus::Reader);
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -213,7 +223,10 @@ fn source_heading() -> [Line<'static>; 3] {
     ]
 }
 
-pub(crate) fn context_scroll_limit(notebook: &Notebook, height: u16) -> usize {
+pub(crate) fn context_scroll_limit(
+    notebook: &NotebookView<'_>,
+    height: u16,
+) -> usize {
     let Some(context) = notebook.current_context() else {
         return 0;
     };
@@ -247,7 +260,7 @@ fn context_headings(context: &crate::app::NoteContext) -> Vec<Line<'static>> {
 fn backlinks(
     frame: &mut Frame<'_>,
     app: &App,
-    notebook: &Notebook,
+    notebook: &NotebookView<'_>,
     area: Rect,
 ) {
     let block = panel(" Backlinks ".into(), app.focus == Focus::Annotations);
@@ -312,7 +325,7 @@ fn match_line(preview: &str, fallback: &str) -> Line<'static> {
 }
 
 fn reference_line(
-    notebook: &Notebook,
+    notebook: &NotebookView<'_>,
     note: &crate::model::NoteSummary,
 ) -> Line<'static> {
     let selected = notebook
