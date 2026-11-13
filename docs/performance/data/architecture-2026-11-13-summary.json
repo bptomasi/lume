@@ -1,0 +1,1448 @@
+{
+  "candidate_revision": "fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa",
+  "host": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+  "binary_sha256": {
+    "before": "008ad4f6174165c588a749a871cbf4e37b78f100a405a0688ecef675adef5881",
+    "after": "cd93d198692fbe007fc6365068b87d6a80f420f558ea65f71304dac8fea78adc"
+  },
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "2",
+    "RUST_TEST_THREADS": "2"
+  },
+  "warmups_per_workload_per_binary": 1,
+  "sequence_per_workload": "ABBA ABBA ABBA",
+  "a": "before",
+  "b": "after",
+  "limitations": [
+    "Before uses SQLite 3.46; after uses SQLite 3.54.1.",
+    "RSS is whole-process maximum including fixture construction.",
+    "Harness means and medians have three-decimal millisecond precision.",
+    "No physical terminal or network latency is measured."
+  ],
+  "summary": {
+    "shutdown": {
+      "24 session saves + 8 flags + 4 preferences + shutdown flush": {
+        "statistic": "median of six run mean_ms observations",
+        "before": {
+          "values_ms": [
+            7.122,
+            7.187,
+            7.255,
+            7.46,
+            7.877,
+            7.037
+          ],
+          "median_ms": 7.221,
+          "min_ms": 7.037,
+          "max_ms": 7.877
+        },
+        "after": {
+          "values_ms": [
+            8.323,
+            6.883,
+            7.465,
+            7.389,
+            6.66,
+            7.101
+          ],
+          "median_ms": 7.245,
+          "min_ms": 6.66,
+          "max_ms": 8.323
+        },
+        "change_percent": 0.33236393851268087
+      }
+    },
+    "library-sections": {
+      "FEEDS Enter + frame": {
+        "statistic": "median of six run median_ms observations",
+        "before": {
+          "values_ms": [
+            0.193,
+            0.179,
+            0.18,
+            0.191,
+            0.196,
+            0.192
+          ],
+          "median_ms": 0.1915,
+          "min_ms": 0.179,
+          "max_ms": 0.196
+        },
+        "after": {
+          "values_ms": [
+            0.182,
+            0.192,
+            0.195,
+            0.194,
+            0.192,
+            0.186
+          ],
+          "median_ms": 0.192,
+          "min_ms": 0.182,
+          "max_ms": 0.195
+        },
+        "change_percent": 0.26109660574411553
+      },
+      "SMART LISTS Enter + frame": {
+        "statistic": "median of six run median_ms observations",
+        "before": {
+          "values_ms": [
+            0.203,
+            0.186,
+            0.188,
+            0.195,
+            0.199,
+            0.196
+          ],
+          "median_ms": 0.1955,
+          "min_ms": 0.186,
+          "max_ms": 0.203
+        },
+        "after": {
+          "values_ms": [
+            0.191,
+            0.192,
+            0.196,
+            0.199,
+            0.199,
+            0.193
+          ],
+          "median_ms": 0.1945,
+          "min_ms": 0.191,
+          "max_ms": 0.199
+        },
+        "change_percent": -0.5115089514066473
+      },
+      "SERVERS Enter + frame": {
+        "statistic": "median of six run median_ms observations",
+        "before": {
+          "values_ms": [
+            0.197,
+            0.187,
+            0.188,
+            0.197,
+            0.196,
+            0.204
+          ],
+          "median_ms": 0.1965,
+          "min_ms": 0.187,
+          "max_ms": 0.204
+        },
+        "after": {
+          "values_ms": [
+            0.186,
+            0.196,
+            0.19,
+            0.195,
+            0.197,
+            0.192
+          ],
+          "median_ms": 0.1935,
+          "min_ms": 0.186,
+          "max_ms": 0.197
+        },
+        "change_percent": -1.526717557251911
+      }
+    },
+    "motion-review": {
+      "empty image-cache cleanup": {
+        "statistic": "median of six run mean_ms observations",
+        "before": {
+          "values_ms": [
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002
+          ],
+          "median_ms": 0.002,
+          "min_ms": 0.002,
+          "max_ms": 0.002
+        },
+        "after": {
+          "values_ms": [
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002
+          ],
+          "median_ms": 0.002,
+          "min_ms": 0.002,
+          "max_ms": 0.002
+        },
+        "change_percent": 0.0
+      },
+      "reader motion pair + two full pane frames": {
+        "statistic": "median of six run mean_ms observations",
+        "before": {
+          "values_ms": [
+            0.389,
+            0.388,
+            0.388,
+            0.401,
+            0.394,
+            0.396
+          ],
+          "median_ms": 0.3915,
+          "min_ms": 0.388,
+          "max_ms": 0.401
+        },
+        "after": {
+          "values_ms": [
+            0.378,
+            0.387,
+            0.39,
+            0.388,
+            0.392,
+            0.388
+          ],
+          "median_ms": 0.388,
+          "min_ms": 0.378,
+          "max_ms": 0.392
+        },
+        "change_percent": -0.8939974457215838
+      }
+    },
+    "notebook": {
+      "note FTS + same-note filters + last page + snippets": {
+        "statistic": "median of six run mean_ms observations",
+        "before": {
+          "values_ms": [
+            5.98,
+            5.855,
+            5.863,
+            5.696,
+            5.958,
+            6.063
+          ],
+          "median_ms": 5.910500000000001,
+          "min_ms": 5.696,
+          "max_ms": 6.063
+        },
+        "after": {
+          "values_ms": [
+            6.568,
+            6.287,
+            6.283,
+            6.384,
+            6.345,
+            6.574
+          ],
+          "median_ms": 6.3645,
+          "min_ms": 6.283,
+          "max_ms": 6.574
+        },
+        "change_percent": 7.681245241519319
+      },
+      "owned note + source context + Markdown layout": {
+        "statistic": "median of six run mean_ms observations",
+        "before": {
+          "values_ms": [
+            0.054,
+            0.056,
+            0.054,
+            0.053,
+            0.054,
+            0.055
+          ],
+          "median_ms": 0.054,
+          "min_ms": 0.053,
+          "max_ms": 0.056
+        },
+        "after": {
+          "values_ms": [
+            0.079,
+            0.077,
+            0.077,
+            0.077,
+            0.085,
+            0.081
+          ],
+          "median_ms": 0.078,
+          "min_ms": 0.077,
+          "max_ms": 0.085
+        },
+        "change_percent": 44.44444444444444
+      },
+      "checkpoint + references + metadata + review + repair/version + undo": {
+        "statistic": "median of six run mean_ms observations",
+        "before": {
+          "values_ms": [
+            2.652,
+            2.6,
+            2.604,
+            2.616,
+            2.676,
+            2.677
+          ],
+          "median_ms": 2.6340000000000003,
+          "min_ms": 2.6,
+          "max_ms": 2.677
+        },
+        "after": {
+          "values_ms": [
+            3.02,
+            2.942,
+            2.993,
+            2.995,
+            2.98,
+            3.062
+          ],
+          "median_ms": 2.9939999999999998,
+          "min_ms": 2.942,
+          "max_ms": 3.062
+        },
+        "change_percent": 13.667425968109326
+      },
+      "nested image wikilinks + checked backlink": {
+        "statistic": "median of six run mean_ms observations",
+        "before": {
+          "values_ms": [
+            0.281,
+            0.274,
+            0.271,
+            0.274,
+            0.278,
+            0.284
+          ],
+          "median_ms": 0.276,
+          "min_ms": 0.271,
+          "max_ms": 0.284
+        },
+        "after": {
+          "values_ms": [
+            0.327,
+            0.317,
+            0.317,
+            0.325,
+            0.325,
+            0.337
+          ],
+          "median_ms": 0.325,
+          "min_ms": 0.317,
+          "max_ms": 0.337
+        },
+        "change_percent": 17.753623188405786
+      },
+      "note key + ready context + actual frame": {
+        "statistic": "median of six run mean_ms observations",
+        "before": {
+          "values_ms": [
+            0.26,
+            0.271,
+            0.263,
+            0.268,
+            0.251,
+            0.257
+          ],
+          "median_ms": 0.2615,
+          "min_ms": 0.251,
+          "max_ms": 0.271
+        },
+        "after": {
+          "values_ms": [
+            0.306,
+            0.288,
+            0.272,
+            0.29,
+            0.279,
+            0.312
+          ],
+          "median_ms": 0.289,
+          "min_ms": 0.272,
+          "max_ms": 0.312
+        },
+        "change_percent": 10.516252390057357
+      },
+      "stable note files + citations + publication": {
+        "statistic": "median of six run mean_ms observations",
+        "before": {
+          "values_ms": [
+            9.948,
+            9.942,
+            10.08,
+            9.89,
+            9.968,
+            9.773
+          ],
+          "median_ms": 9.945,
+          "min_ms": 9.773,
+          "max_ms": 10.08
+        },
+        "after": {
+          "values_ms": [
+            13.6,
+            13.719,
+            13.705,
+            13.796,
+            13.362,
+            13.278
+          ],
+          "median_ms": 13.6525,
+          "min_ms": 13.278,
+          "max_ms": 13.796
+        },
+        "change_percent": 37.280040221216694
+      },
+      "incremental note files + exact-byte ownership": {
+        "statistic": "median of six run mean_ms observations",
+        "before": {
+          "values_ms": [
+            7.091,
+            7.043,
+            7.038,
+            6.943,
+            7.006,
+            7.029
+          ],
+          "median_ms": 7.0335,
+          "min_ms": 6.943,
+          "max_ms": 7.091
+        },
+        "after": {
+          "values_ms": [
+            10.14,
+            9.928,
+            9.927,
+            9.771,
+            10.07,
+            10.309
+          ],
+          "median_ms": 9.999,
+          "min_ms": 9.771,
+          "max_ms": 10.309
+        },
+        "change_percent": 42.162507997440834
+      }
+    }
+  },
+  "run_count": 56,
+  "all_exit_codes_zero": true,
+  "build": {
+    "revision": "fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa",
+    "compiler": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.1\nLLVM version: 23.1.1\n",
+    "release_profile": {
+      "lto": "thin",
+      "codegen-units": 1,
+      "strip": "debuginfo"
+    },
+    "build_environment": {
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_BUILD_JOBS": "2",
+      "RUST_TEST_THREADS": "2",
+      "RUSTUP_TOOLCHAIN": "1.99.1",
+      "RUSTFLAGS": null,
+      "CARGO_ENCODED_RUSTFLAGS": null,
+      "CARGO_TARGET_DIR": null
+    },
+    "artifacts": {
+      "lume-full": {
+        "path": "/tmp/lume-architecture-after/lume-full",
+        "bytes": 28353800,
+        "sha256": "b3ed3c9ae7d047c3fe467b46c5dbe9f704f2b0717cf68ae44c6f096a32a01321",
+        "version": "lume 0.2.3 (fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa)"
+      },
+      "reader": {
+        "path": "/tmp/lume-architecture-after/reader",
+        "bytes": 28873000,
+        "sha256": "cd93d198692fbe007fc6365068b87d6a80f420f558ea65f71304dac8fea78adc"
+      },
+      "lume-minimal": {
+        "path": "/tmp/lume-architecture-after/lume-minimal",
+        "bytes": 21269656,
+        "sha256": "b3cc6f68065b3118320e31e0dc70402387793623f3c302520282d598a59eead5",
+        "version": "lume 0.2.3 (fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa)"
+      }
+    },
+    "full-build": {
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "build",
+        "--locked",
+        "--release",
+        "--offline"
+      ],
+      "seconds": 165.246,
+      "exit_code": 0,
+      "log": "/tmp/lume-architecture-after/full-build.log"
+    },
+    "reader-build": {
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "bench",
+        "--locked",
+        "--bench",
+        "reader",
+        "--no-run",
+        "--offline",
+        "--message-format=json"
+      ],
+      "seconds": 55.466,
+      "exit_code": 0,
+      "log": "/tmp/lume-architecture-after/reader-build.log"
+    },
+    "minimal-build": {
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "build",
+        "--locked",
+        "--release",
+        "--no-default-features",
+        "--offline"
+      ],
+      "seconds": 107.109,
+      "exit_code": 0,
+      "log": "/tmp/lume-architecture-after/minimal-build.log"
+    },
+    "restore-full-build": {
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "build",
+        "--locked",
+        "--release",
+        "--offline"
+      ],
+      "seconds": 0.125,
+      "exit_code": 0,
+      "log": "/tmp/lume-architecture-after/restore-full-build.log"
+    }
+  },
+  "qualification": {
+    "native": {
+      "passed": 1186,
+      "failed": 0,
+      "ignored": 34,
+      "harnesses": 104,
+      "result": {
+        "command": [
+          "make",
+          "-j1",
+          "check",
+          "CARGO=cargo +1.99.1"
+        ],
+        "returncode": 0,
+        "elapsed_seconds": 181.261,
+        "log": "/tmp/lume-architecture-final/native.log",
+        "revision": "fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa",
+        "compiler": "1.99.1"
+      }
+    },
+    "minimal": {
+      "passed": 1101,
+      "failed": 0,
+      "ignored": 29,
+      "harnesses": 101,
+      "result": {
+        "command": [
+          "python3",
+          "tools/ci.py",
+          "qualify",
+          "--compiler",
+          "pinned",
+          "--profile",
+          "minimal",
+          "--offline"
+        ],
+        "returncode": 0,
+        "elapsed_seconds": 94.933,
+        "log": "/tmp/lume-architecture-final/minimal.log",
+        "revision": "fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa",
+        "compiler": "1.99.1"
+      }
+    },
+    "text": {
+      "passed": 1133,
+      "failed": 0,
+      "ignored": 35,
+      "harnesses": 101,
+      "result": {
+        "command": [
+          "python3",
+          "tools/ci.py",
+          "qualify",
+          "--compiler",
+          "pinned",
+          "--profile",
+          "text",
+          "--offline"
+        ],
+        "returncode": 0,
+        "elapsed_seconds": 119.127,
+        "log": "/tmp/lume-architecture-final/text.log",
+        "revision": "fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa",
+        "compiler": "1.99.1"
+      }
+    },
+    "graphics": {
+      "passed": 1165,
+      "failed": 0,
+      "ignored": 28,
+      "harnesses": 104,
+      "result": {
+        "command": [
+          "python3",
+          "tools/ci.py",
+          "qualify",
+          "--compiler",
+          "pinned",
+          "--profile",
+          "graphics",
+          "--offline"
+        ],
+        "returncode": 0,
+        "elapsed_seconds": 103.091,
+        "log": "/tmp/lume-architecture-final/graphics.log",
+        "revision": "fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa",
+        "compiler": "1.99.1"
+      }
+    },
+    "svg": {
+      "passed": 1101,
+      "failed": 0,
+      "ignored": 28,
+      "harnesses": 101,
+      "result": {
+        "command": [
+          "python3",
+          "tools/ci.py",
+          "qualify",
+          "--compiler",
+          "pinned",
+          "--profile",
+          "svg",
+          "--offline"
+        ],
+        "returncode": 0,
+        "elapsed_seconds": 100.747,
+        "log": "/tmp/lume-architecture-final/svg.log",
+        "revision": "fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa",
+        "compiler": "1.99.1"
+      }
+    },
+    "sixel": {
+      "passed": 1127,
+      "failed": 0,
+      "ignored": 29,
+      "harnesses": 101,
+      "result": {
+        "command": [
+          "python3",
+          "tools/ci.py",
+          "qualify",
+          "--compiler",
+          "pinned",
+          "--profile",
+          "sixel",
+          "--offline"
+        ],
+        "returncode": 0,
+        "elapsed_seconds": 105.147,
+        "log": "/tmp/lume-architecture-final/sixel.log",
+        "revision": "fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa",
+        "compiler": "1.99.1"
+      }
+    },
+    "minimum-default": {
+      "passed": 1186,
+      "failed": 0,
+      "ignored": 34,
+      "harnesses": 104,
+      "result": {
+        "command": [
+          "python3",
+          "tools/ci.py",
+          "qualify",
+          "--compiler",
+          "minimum",
+          "--profile",
+          "default",
+          "--offline"
+        ],
+        "returncode": 0,
+        "elapsed_seconds": 179.29,
+        "log": "/tmp/lume-architecture-final/minimum-default.log",
+        "revision": "fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa",
+        "compiler": "1.96.0"
+      }
+    },
+    "minimum-minimal": {
+      "passed": 1101,
+      "failed": 0,
+      "ignored": 29,
+      "harnesses": 101,
+      "result": {
+        "command": [
+          "python3",
+          "tools/ci.py",
+          "qualify",
+          "--compiler",
+          "minimum",
+          "--profile",
+          "minimal",
+          "--offline"
+        ],
+        "returncode": 0,
+        "elapsed_seconds": 93.719,
+        "log": "/tmp/lume-architecture-final/minimum-minimal.log",
+        "revision": "fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa",
+        "compiler": "1.96.0"
+      }
+    },
+    "http-default": {
+      "passed": 34,
+      "failed": 0,
+      "ignored": 0,
+      "harnesses": 2,
+      "result": {
+        "command": [
+          "make",
+          "-j1",
+          "check-http",
+          "CARGO=cargo +1.99.1"
+        ],
+        "returncode": 0,
+        "elapsed_seconds": 12.416,
+        "log": "/tmp/lume-architecture-final/http-default.log",
+        "revision": "02171da7d0f10bf7a61b3ff337e518432d6f7fe1",
+        "compiler": "1.99.1"
+      }
+    },
+    "http-minimal": {
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "harnesses": 2,
+      "result": {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "test",
+          "--locked",
+          "--no-default-features",
+          "--test",
+          "http",
+          "--test",
+          "image_http",
+          "--",
+          "--ignored"
+        ],
+        "returncode": 0,
+        "elapsed_seconds": 11.217,
+        "log": "/tmp/lume-architecture-final/http-minimal.log",
+        "revision": "02171da7d0f10bf7a61b3ff337e518432d6f7fe1",
+        "compiler": "1.99.1"
+      }
+    }
+  },
+  "foot": {
+    "geometry": {
+      "pid": 2431790,
+      "columns": 120,
+      "rows": 40,
+      "cell_pixels": [
+        14,
+        29
+      ]
+    },
+    "welcome": {
+      "native_pixel_art": true,
+      "entry_key_consumed": true
+    },
+    "decoded_strips": [
+      {
+        "size": [
+          1120,
+          29
+        ],
+        "sha256": "96274d2c98fcc74055739235e0a5cadc61bda3ff94fbfda6896c6b9421050a05"
+      },
+      {
+        "size": [
+          1120,
+          29
+        ],
+        "sha256": "b9eb0a23b5c5b009127781b7ef2596c2b802ecdc748352c8d0bed25d3efeb759"
+      },
+      {
+        "size": [
+          1120,
+          29
+        ],
+        "sha256": "65e93e46c9d020a9bda228fe3b94d276fc0daae392cea3eda1804849f48379e6"
+      },
+      {
+        "size": [
+          1120,
+          29
+        ],
+        "sha256": "720d29a64cd7d60749c36c0b5a02a0253c48442f21a0c0efcd90b91133282991"
+      },
+      {
+        "size": [
+          1120,
+          29
+        ],
+        "sha256": "70c8b87686b7eef03526380b9c5c4c7d28d68a0965c3c727c7c96b3c6a2fc5af"
+      },
+      {
+        "size": [
+          1120,
+          29
+        ],
+        "sha256": "10b83546e7a2b2637f9cbfc09873efc64d0f00848d709416764f73e2b556d665"
+      },
+      {
+        "size": [
+          1120,
+          29
+        ],
+        "sha256": "e2e944a181533ecf1ad1027de8d2168adf747612c6bc9a036189856eee1018dc"
+      },
+      {
+        "size": [
+          1120,
+          29
+        ],
+        "sha256": "efbd0d1665c3071308fb3bc69b9b429cc76f6b095b61605417b6488249109870"
+      },
+      {
+        "size": [
+          1120,
+          29
+        ],
+        "sha256": "adec3b793eb0b99fb472a35faada58afe4372fa49ae3156786a8f664b8e496d2"
+      },
+      {
+        "size": [
+          1120,
+          29
+        ],
+        "sha256": "d9090d490349ff51781fb695d3be9cc8e4562b8f8043f6b27c09bd124bc7abd0"
+      },
+      {
+        "size": [
+          1120,
+          29
+        ],
+        "sha256": "96274d2c98fcc74055739235e0a5cadc61bda3ff94fbfda6896c6b9421050a05"
+      },
+      {
+        "size": [
+          1120,
+          17
+        ],
+        "sha256": "bc03e92d68e38618f163d6c426dade815b5d525448c5d0b45bbe0011994b11ff"
+      }
+    ],
+    "image_themes": [
+      {
+        "theme": "gruvbox",
+        "changed_from_lume": true,
+        "strips": [
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            17
+          ]
+        ]
+      },
+      {
+        "theme": "lume",
+        "changed_from_lume": false,
+        "strips": [
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            29
+          ],
+          [
+            1120,
+            17
+          ]
+        ]
+      }
+    ],
+    "scroll_rows": [
+      [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28
+      ],
+      [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26
+      ],
+      [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
+      ],
+      [
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      [
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ],
+      [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ],
+      [
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      [
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
+      ],
+      [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26
+      ],
+      [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28
+      ]
+    ],
+    "selection": {
+      "keyboard": [
+        {
+          "mode": "v",
+          "rows": [
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              17
+            ]
+          ]
+        },
+        {
+          "mode": "V",
+          "rows": [
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              29
+            ],
+            [
+              1120,
+              17
+            ]
+          ]
+        }
+      ],
+      "mouse_down_scroll": [
+        [
+          1120,
+          29
+        ],
+        [
+          1120,
+          29
+        ],
+        [
+          1120,
+          29
+        ],
+        [
+          1120,
+          29
+        ],
+        [
+          1120,
+          29
+        ],
+        [
+          1120,
+          29
+        ],
+        [
+          1120,
+          29
+        ],
+        [
+          1120,
+          29
+        ],
+        [
+          1120,
+          29
+        ],
+        [
+          1120,
+          29
+        ],
+        [
+          1120,
+          29
+        ],
+        [
+          1120,
+          17
+        ]
+      ]
+    },
+    "reader_aliases": {
+      "keys": "ggIVvAy",
+      "yank": "Request ownership",
+      "host_clipboard": "disabled"
+    },
+    "help_search": {
+      "live_query": "resize",
+      "next_previous": true,
+      "escape_clears_first": true,
+      "unicode_formula": true
+    },
+    "inspector": {
+      "fit": [
+        [
+          1624,
+          488
+        ]
+      ],
+      "zoom": [
+        [
+          1624,
+          975
+        ]
+      ],
+      "motion": {
+        "pan": [
+          [
+            1624,
+            975
+          ]
+        ],
+        "rapid_requests_fit_restored": true,
+        "fit_wire_identical": true
+      },
+      "reopened_after_scroll": [
+        [
+          [
+            1624,
+            488
+          ]
+        ],
+        [
+          [
+            1624,
+            488
+          ]
+        ],
+        [
+          [
+            1624,
+            488
+          ]
+        ]
+      ]
+    },
+    "reading_services": {
+      "linked_native_images": true,
+      "back_restores_images": true,
+      "diagnostics_opt_in": true
+    },
+    "preferences": {
+      "formula_policies": [
+        {
+          "enabled": false,
+          "visible": "$R{\\mathcal{I}}=\\text{Combine}\\circ\\text{Disintegrate}$",
+          "copied": "$R{\\mathcal{I}}=\\text{Combine}\\circ\\text{Disintegrate}$"
+        },
+        {
+          "enabled": true,
+          "visible": "R\u2110 = Combine \u2218 Disintegrate",
+          "copied": "R\u2110 = Combine \u2218 Disintegrate"
+        }
+      ],
+      "settings_enter_edit_ctrl_s_save": true
+    },
+    "graphic_formulas": {
+      "decoded_formula_images": [
+        {
+          "width": 75,
+          "height": 58
+        },
+        {
+          "width": 176,
+          "height": 58
+        }
+      ],
+      "inspector_zoom": true,
+      "original_latex_copy": true,
+      "returns_to_text": true
+    },
+    "cleanup": {
+      "returncode": 0,
+      "termios_restored": true
+    },
+    "publisher_content_preserved": true,
+    "passed": true,
+    "binary_sha256": "b3ed3c9ae7d047c3fe467b46c5dbe9f704f2b0717cf68ae44c6f096a32a01321",
+    "foot_version": "foot version: 1.21.0 +pgo +ime +graphemes -assertions",
+    "lume_version": "lume 0.2.3 (fe81ac6b3e5078f10fa8ce90f27bb303cfec1faa)",
+    "startup_output_milestones": {
+      "welcome_output_ms": 21.355163,
+      "library_output_ms": 252.03005,
+      "reader_output_ms": 252.133358
+    }
+  }
+}

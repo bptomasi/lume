@@ -45,6 +45,9 @@ pages, replaceable read projections, independent catalog counts, ordered persona
 writes, background content/image preparation and durable configuration
 publication. Algorithm choice alone is not evidence of a speed improvement.
 
+Current evidence:
+[architecture qualification](performance/architecture-review-2026-11-13.md).
+
 ## Reproduce
 
 `make check` runs correctness scenarios for every implemented benchmark. Full

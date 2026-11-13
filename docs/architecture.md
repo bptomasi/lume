@@ -57,6 +57,9 @@ container, external database or model runtime.
 Optional [build capabilities](build-features.md) retain portable configuration
 and cached data while selecting rendering and transport adapters.
 
+Current cleanup and qualification:
+[architecture review, measurements and limitations](performance/architecture-review-2026-11-13.md).
+
 ## Ownership and flow
 
 - `main`, `cli`, `configuration` and `terminal` compose paths, configuration
