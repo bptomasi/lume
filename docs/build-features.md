@@ -36,8 +36,7 @@ Disabled server definitions do not cause this warning.
 
 An unavailable SVG source is remembered by URL identity in a 64 KiB session
 cache, within the shared preparation budget, so scrolling, resizing and
-protocol changes cannot repeatedly prepare it. An
-unsupported vector already in the disk cache is not downloaded again merely
+protocol changes cannot repeatedly prepare it. An unsupported vector already in the disk cache is not downloaded again merely
 because this build cannot decode it. `:images retry` clears session rejection
 state and validates the current bytes once; use it after replacing a cached
 resource. A source that is still SVG reports the same capability reason.
@@ -67,18 +66,6 @@ the feature removes Lume's quantizer/preparation path, not every protocol
 package from the graph. Package counts alone do not establish binary size,
 compile time, runtime speed or memory improvements.
 
-With the current locked versions and Rust 1.99.1, active normal/build
-dependencies measured on 2026-11-13 are:
-
-| Graph scope | Default | No default features |
-| --- | ---: | ---: |
-| Linux `x86_64-unknown-linux-gnu` | 342 | 246 |
-
-These counts exclude Lume itself, deduplicate package name/version pairs and
-include build dependencies. The reduced Linux graph omits math-core, RaTeX,
-resvg, Syntect and Quantette, including build-time Syntect. It retains
-`icy_sixel` through ratatui-image. The cargo-about inventory covers the
-supported feature/platform union: 398 licensed packages including Lume, with
-four inactive lock entries.
-`cargo tree --target all` also enumerates permanently false `cfg(any())`
-edges, so its raw count is not an active-package count.
+The license inventory in `assets/licenses/` covers the supported feature and
+platform union. Use the generated inventory and Cargo commands for current
+package/version details rather than comparing historical dependency counts.

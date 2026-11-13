@@ -16,10 +16,10 @@ platforms, Linux, eBPF and networking. If the recommendation profile has no
 interests, the preset adds its explicit engineering vocabulary. Existing personal
 reading data and active custom search criteria are retained.
 
-`lume starter` remains a compatibility alias. Installation does not collect
-articles immediately; opening Lume starts background collection, or use
+`lume starter` remains a compatibility alias. Applying the preset does not
+collect articles immediately; opening Lume starts background collection, or use
 `lume sync`. `--offline` retains the library and disables network requests.
-Reinstallation re-enables bundled subscriptions that were archived.
+Applying the preset again re-enables its archived subscriptions.
 
 The source data is versioned separately from application defaults:
 

@@ -2,12 +2,10 @@
 
 ## At a glance
 
-Lume has two application crates: a CLI/terminal composition binary and a reader
-library. Production root-module dependencies are acyclic within each crate.
-`App` coordinates 23 private fields; reader, navigation, notebook, interaction,
-layout and worker owners enforce their own invariants. Borrowed presentation
-views expose cached state to renderers without exposing application authority.
-UI can depend on those view types in `app`; App cannot depend on UI.
+Lume is a local terminal reader with two application crates: the CLI/terminal
+composition binary and the reader library. SQLite owns articles and private
+reading data; declarative TOML owns preferences and source/list definitions.
+New libraries have no implicit subscriptions or recommendation interests.
 
 ```mermaid
 flowchart TD
@@ -19,761 +17,143 @@ flowchart TD
     UI --> Presentation[presentation: geometry, hits, palette]
     App --> Services
     App --> Reader[reader / media: prepared content]
-    App --> Store[store: durable personal and publisher data]
+    App --> Store[store: durable data]
+    App --> Source[source: publisher and server adapters]
     Services --> Store
     Services --> Config[config: declarative TOML]
-    App --> Source[source: bounded publisher adapters]
-    Store --> Model[model: neutral data contracts]
+    Store --> Model[model: neutral contracts]
 ```
 
-The diagram summarizes dependency direction, not every import. Config owns TOML;
-`configuration_service` coordinates TOML and SQLite. `backup_service`,
-`retention_service` and `offline_service` orchestrate operations whose durable
-primitives remain in Store; `disk_usage` inspects filesystem usage. Neutral DTOs
-and cancellation primitives keep service orchestration out of Store.
+This is an ownership map, not every import. UI intentionally imports cached
+view types from `app`; it never receives App mutation authority. App does not
+depend on UI. Production root-module graphs are acyclic within each crate.
 
-| Change | Start here | Contract / evidence |
-| --- | --- | --- |
-| Input or commands | `app`, `command` | [Typed dispatch and owners](#verification-and-evolution) |
-| Reader, pane or overlay drawing | `reader`, `app::presentation_views`, `ui` | [Cached views and layout](#reading-layout-and-images) |
-| Durable data or SQL | Owner's `sql/`, `store` | [Contention and durability](#interactive-work-and-durability) |
-| TOML reconciliation | `config`, `configuration_service` | [Merge and publication](#declarative-configuration-and-private-state) |
-| Background work | Owner worker / service | [Admission and deadline drains](#interactive-work-and-durability) |
-| Optional adapters | `media`, `reader`, `source` | [Capability/fallback matrix](build-features.md) |
-| Compiler or release process | `rust-toolchain.toml`, `tools/ci.py` | [Development gates](development.md#compiler-and-capability-qualification), [measurements](performance.md) |
-
-Read next: [ownership and flow](#ownership-and-flow),
-[responsive work](#responsive-interactive-work),
-[reading/layout/images](#reading-layout-and-images),
-[verification](#verification-and-evolution),
-[interactive durability](#interactive-work-and-durability), and
-[reading services](#explicit-reading-services).
-The sections below retain the detailed contracts and their evolution.
-
-Lume is an independent, local terminal reader. The library is the product's
-persistence boundary; sources, terminal protocols and filesystem publication
-are adapters with explicit limits. No component requires a hosted service,
-container, external database or model runtime.
-Optional [build capabilities](build-features.md) retain portable configuration
-and cached data while selecting rendering and transport adapters.
-
-Current cleanup and qualification:
-[architecture review, measurements and limitations](performance/architecture-review-2026-11-13.md).
-
-## Ownership and flow
-
-- `main`, `cli`, `configuration` and `terminal` compose paths, configuration
-  adoption, noninteractive commands and terminal lifetime.
-- `config` owns the TOML schema, validation, structural merge, document editing,
-  file publication and bounded background reconciliation.
-- `store` owns schema evolution, transactions, stable local identities, search,
-  history, publisher caches and private reading state. Its configuration adapter
-  maps portable IDs onto local definitions.
-- `source` validates URLs, discovers and decodes feeds, collects with bounded
-  concurrency, and extracts original articles. It also mirrors optional
-  Miniflux subscriptions and entries with bounded pages. Publisher refreshes
-  preserve personal flags, memberships, notes and article deletion.
-- `app` owns focus, modes, selection and workflows, composing typed storage and
-  background contracts. `App::presentation` borrows cached pane, chrome and
-  overlay views; UI components receive only their relevant view. `ui` never
-  borrows App and never runs SQL, HTTP, Markdown parsing, syntax compilation
-  or image encoding while drawing.
-- `reader` owns source offsets, wrapping, code styling and source-based motion.
-  `media` owns bounded image retrieval, decoding, SVG rasterization and caches.
-- `recommendation` owns explicit matching policy, transparent scores and bounded
-  diversity. Its default profile is empty. `catalog` is an opt-in preset adapter.
-- `exchange` owns OPML and private atomic Markdown export, including incremental
-  exports that retain local edits as conflicts.
-
-## Declarative configuration and private state
-
-Configuration contains subscriptions, extraction selectors, folder/query
-identities, explicit recommendation preferences, shortcuts and appearance.
-Articles, notes, highlights, feedback, favorites, memberships, progress and
-session/history data remain in SQLite. Exporting configuration never exports
-article bodies or annotation text.
-
-`configuration_bindings` maps stable portable keys onto local row IDs. These
-bindings prevent renames from creating new folders or detaching source groups.
-Generated keys use SQLite random identifiers; they are identifiers, not access
-credentials. Local and file definitions normalize by key for deterministic
-comparison, while the TOML document preserves existing record order.
-
-Definition triggers increment a durable revision. Workspace triggers compare
-only appearance fields; selection, progress and last-visit updates do not
-schedule configuration publication. Publisher titles, validators, source health,
-article ingestion and annotation writes are outside this revision boundary.
-
-The last successful configuration snapshot and revision form a publication base.
-Reconciliation merges that base, current library definitions and the edited file.
-Unrelated fields and keyed records compose; incompatible edits to the same field
-return a conflict instead of overwriting either input. Unknown keys, versions,
-queries, selectors, references and dimensions fail before application.
-
-A reconciler acquires the adjacent file lock before a SQLite IMMEDIATE
-transaction. It captures state, merges definitions, applies only changed records,
-archives removed definitions, publishes a same-directory temporary file and
-acknowledges the new base. It never deletes article or annotation rows. Soft
-archival of folders preserves memberships for restoration by the same ID.
-
-Filesystem replacement and SQLite commit are not one atomic transaction. If
-publication succeeds and database acknowledgement fails, the complete file and
-pending SQLite edit survive. On replay, still-unbound existing definitions adopt
-matching portable keys from that file before the merge, avoiding duplicate
-identities after a crash. Explicit recovery backs up both competing inputs
-before choosing file or library authority.
-
-Lume's writers share an advisory file lock. Its guard explicitly unlocks before
-closing, so a child spawn's briefly inherited file description cannot retain a
-completed writer's lock until exec. Publication compares current bytes
-before replacement to detect an external editor's intervening save. An editor
-need not honor advisory locks, so the final comparison/rename window cannot
-provide a universal external-writer transaction guarantee. Temporary files are
-private by default; existing configuration permissions and symlinks are retained.
-
-`config::formatting` applies layout to the existing `toml_edit` tree: generated
-records become table arrays and long scalar arrays become multiline values.
-Explicit formatting validates typed equivalence before atomic publication and
-does not open SQLite. Commented inline containers retain their layout because
-the library's table conversion clears child decoration. Definition publication
-patches either representation by portable identity, preserving comments when a
-source is changed or disabled. Formatting runs outside the input/render lane.
-
-## Responsive interactive work
-
-Within a paragraph, `reader::wrapping` consumes ordered display/source spans
-as wrapped rows advance. It retires completed prefixes instead of rescanning
-all formatting for every row. `reader::links` separately collects bounded labels
-from parser events, including hard breaks and image alternatives. Destination
-lookup preserves first-seen order without copying the preceding paragraph.
-Eligible prose rows can use cached word-gap expansion. `reader::viewport`
-projects these extra cells back to the original byte of the word separator,
-so mouse hits, Vim motion, search, yanks and note anchors share one text identity.
-Each unwrapped code/table row also retains its source block key; horizontal
-positions belong to that key and survive reflow without moving sibling blocks.
-`reader::index::Navigation` separately retains each link's source range, so
-Enter follows the occurrence under the cursor even when labels repeat or wrap.
-HTTP(S) destinations open as temporary read-only linked readings. Same-page fragments use
-preserved HTML IDs or heading slugs and the reader's bounded jump history;
-missing sections report their absence without guessing a different passage.
-
-The reader enables pulldown-cmark's table events and captures styled cells with
-their original byte mappings. `reader::tables` owns Unicode column widths,
-alignment and rounded borders; Ratatui still owns terminal rendering. Prepared
-grid rows share the indexed horizontal viewport used by code, with separate
-row ranges retaining the ordinary panel background. The inspector reuses cached
-rows when available. Selection and annotation project cell text back to source;
-decorative borders and padding have no quotation mapping.
-HTML `thead`/`th` and fully bold first rows identify publisher headers. Plain or
-partly emphasized data rows do not become invented column labels.
-
-HTML lists retain paragraph ownership, numbering and nested indentation when
-normalized to Markdown. The reader defers each marker until item content begins,
-so loose-list paragraph boundaries cannot flush an isolated bullet. Wrapped
-continuations carry visual insets separate from readable bytes. The cached cell
-index applies those insets to drawing, mouse hits and cursor positions; copying
-and source-based annotation anchors retain their original byte correspondence.
-Previously saved caches can contain repeated empty list items followed by
-detached paragraphs. The reader recognizes only the early normalizer's exact
-whitespace signature using CommonMark events. It joins those markers in a
-temporary parser view and translates every event range back to the original
-bytes. This works offline and requires no database or note migration; ordinary
-empty items and code samples retain CommonMark semantics.
-
-Padded grid output has a shared 1 MiB budget per article, at most 64 columns,
-2,000 rows including the header, and 4,096 terminal cells per row. Exceeding a
-limit displays an explicit notice and the original Markdown, preserving later
-article content. The inspector has its own total 1 MiB preview bound. Code
-backgrounds are painted across visible rows before token and selection styles;
-this never pads the stored or copied code text. Table preparation stays on the
-existing layout worker, and drawing only projects cached visible cells.
-
-The terminal initializes an application from reconciled state, then presents the
-native-cell lighthouse. The first actual key press is consumed. Focus, modifier,
-release and resize events cannot accidentally activate a library operation;
-resize redraws the scene. Collection can continue behind the welcome screen.
-
-Catalog snapshots batch ordinary totals and feed/server/folder groups;
-identical saved filters share one count within that snapshot. Personal mutation
-masks invalidate only predicates observing the changed read/favorite/queue flag,
-article tags or annotations, including nested boolean expressions. Annotation
-count/page results carry the library revision and retain folded children.
-Other counts survive, including children hidden by section folding. Repeated
-requests at the same revision reuse an active/prepared snapshot; a stronger
-full-library refresh upgrades it. Unknown edits, failures, deletion, undo and
-publisher updates retain full reconciliation.
-
-Interactive navigation uses a replaceable read lane and a separate catalog/count
-lane, each with its own SQLite connection. Pages hydrate only a bounded set of
-ordered identities; count and page share a read snapshot. Epochs reject obsolete
-successes and failures after navigation or mutation. Previous readable content
-remains visible while replacement Markdown and syntax work finish. Stale source
-presentation cannot authorize article mutations.
-
-Personal edits use ordered bounded writes. They are not replaced by later edits
-or acknowledged before their completions reach the UI. Progress and layout writes
-have their own ordered admission and explicit flush boundary. Where a workflow
-reads mutable state before writing, an IMMEDIATE transaction acquires write
-authority first, avoiding WAL read-to-write snapshot upgrade failures.
-
-Note completions update catalog counts independently of the reader. Replacing
-visible annotations also requires the selected and displayed article identities
-to match the completion; retained content from another article is left intact
-until navigation delivers its matching snapshot. Cursor offsets falling within
-whitespace omitted by wrapping clamp to the preceding visible row.
-
-The configuration lane owns file observation, parsing and publication. It polls
-only the owner/revision fields and file metadata while idle; the publication
-snapshot is excluded from this hot query. It does not reread TOML on each
-key or frame. Startup always validates the current file. Successful observations
-retain the input timestamp so an edit made during reconciliation is retried.
-Single-writer merges reuse validated definitions without building a JSON tree;
-only concurrent structural merges need that representation. Complete bounded
-notifications allow safe coalescing. Definitions
-wait for ordinary reading mode without selections or active gestures. UI
-installation compares the last presented appearance against current edits so
-an old completion cannot overwrite newer in-memory choices. Catalog fingerprints
-avoid reloading metadata for appearance-only publications.
-
-Shutdown flushes recommendation, personal and session writers before stopping
-configuration reconciliation. Publication errors remain visible and pending
-SQLite edits survive restart. Worker failures are reported rather than silently
-turning the file and library into unrelated configuration authorities.
-
-Personal mutations reserve SQLite write authority before reading baselines,
-undo payloads, tags, draft ownership or Full-cache targets. WAL readers remain
-independent. Recommendation refreshes first check for an empty dirty queue in a
-read snapshot; idle polls never reserve the writer. Nonempty bounded batches
-capture their actual queue only after obtaining write authority.
-
-Bulk flag edits validate all captured identities and Trash state before one
-conditional UPDATE. Undo retains only rows that changed. Tag replacement
-inserts/removes only the difference; repeated flags, bulk memberships, tags
-and unchanged note text do not consume an undo entry. Existing tags can be added again at the
-64-tag limit without error. Full-cache timestamp updates preserve text revision
-and progress, and guarded search triggers skip unchanged article, Full and feed
-text. Schema V28 installs those guards without rewriting indexed/user content.
-
-## Reading, layout and images
-
-Normalized Markdown retains source offsets for cursor motion, Unicode selections,
-search, links and annotations. Highlights retain their original quotations and
-source identity; unmatched positions remain explicit rather than guessing a new
-anchor. Feed and full-article provenance remain distinguishable. Full-article
-extraction uses the qualified Readability/CSS libraries and reports short,
-obstructed or failed extraction without replacing a good cached document.
-Clear copyright-only results are rejected even when wrapped in invisible anchor
-markup. If automatic extraction fails, unique `article`, `main` or `role=main`
-containers are tried under the same size/element limits. Explicit CSS rules
-remain authoritative. Previously cached obstructions fall back to the original
-feed in the reader; neither source nor its annotations are deleted.
-
-Sparse row checkpoints bound Unicode work for long code rows. Drawing projects
-only visible cells and preserves syntax, search, selection and cursor offsets.
-Layout and wrapping run outside input where they are expensive; tests cover
-long rows, resizing and libraries larger than the displayed metadata page.
-
-Headline presentation retains at most 64 wrapped title/date entries. Identity,
-exact title, publication time and pane width determine reuse; metadata larger
-than 4 KiB is displayed without retention. Reader motion can reuse this work
-without caching live selection, favorite/read flags or feed labels. Images
-skip workspace geometry/admission when their visible-slot interval is empty.
-
-Article deletion acknowledges a committed visibility change separately from
-generic library edits. In ordinary reading mode, acknowledgement removes its
-bounded metadata row immediately and preserves the selected surviving identity.
-The next page/source and sidebar counts refresh independently. The count result
-does not enqueue a second page load. Generation checks reject earlier snapshots;
-source-bound editors and selections defer publication through the existing
-navigation guards. Failed writes never remove a row. Grouped-page counts come
-from the authoritative query because another occurrence can replace a deleted
-representative. The synchronous adapter performs one catalog reload.
-
-Sidebar deletion captures a typed destination. Built-in views use the existing
-SQL predicates to update every match and return only IDs, without counting or
-loading pages/bodies. One compact undo entry restores the batch. Grouped-view
-emptying includes duplicate occurrences. Smart lists and folders remove only
-their definitions; explicit source removal preserves durable personal context.
-Pins/order change only after commit acknowledgement, including failed writes
-and navigation while work is pending. Repeated removal of the same sidebar
-destination is rejected before admission until acknowledgement, including
-failure, releases it. Article edits retain their ordered individual semantics.
-Definition identity clocks prevent deleted folder, smart-list and note-query
-IDs from being reassigned; migration also reserves folder IDs held by undo.
-Background folder/smart-list removal refreshes definitions through the selective
-catalog lane, retaining unrelated counts and article pages. Folder removal
-invalidates membership-sensitive views; source removal still requests the full
-catalog because article visibility can change. An empty change set skips query
-dependency parsing. A pending broader refresh keeps its stronger scope.
-
-Permanent Trash cleanup records publisher/remote-alias tombstones and removes
-note versions, drafts, export snapshots and dangling checkpoint targets in one
-transaction. Foreign keys cascade notes, study cards, references, memberships,
-recommendations, server mappings and image-reference rows; FTS triggers remove
-article/note entries. Ownership indexes cover every foreign-key child lookup.
-The bounded undo journal is inspected one payload at a time using flat sorted
-ID buffers, skipped entirely when empty. Purging part of a bulk deletion prunes
-only those IDs from its inverse. Folder and annotation inverses retain their
-surviving memberships/links, including inside nested batches. Modified payloads
-are serialized once after recursive pruning. Recoverable note history and
-indirect undo targets also protect articles from automatic retention, preventing
-foreign-key failures or lost versions.
-
-`presentation::geometry` computes fixed columns and binary splits with bounded
-rectangle arithmetic. Rendering, focus and pointer hit testing share that geometry.
-Each split reserves the combined minimum dimensions of its expanded children;
-resizing cannot suppress Articles while the terminal can fit the whole tree.
-Focus cycling retains the saved pane order independently of spatial focus.
-Standard reset restores canonical pane order, visibility and widths as one undoable
-change, retaining source selection and prose preferences. Notebook layout
-remains independent. Built-in profiles start from canonical dimensions rather
-than inheriting a rearranged active workspace; saved profiles are preserved.
-
-The neutral `presentation` modules own shared rectangles, navigation rows,
-article/annotation hit windows, headline labels and bounded pane pictures.
-Application input depends on these contracts without depending on UI. View
-factories borrow cached slices and metadata without allocating, parsing or
-admitting work; note-hit lookup remains lazy behind visible footer hints.
-`frame_composition` coordinates the mutable interactive frame: paint themed
-panes and overlays, capture the bounded gesture source, then paint motion and
-native images. Image inspection returns after its own base paint; linked pages
-paint native images without capturing article panes. Immutable `ui::draw` stays
-available for previews and cached frame tests.
-
-Library search caches normalized destination names when the catalog changes.
-Typing filters those names without SQLite work; article search reuses the
-bounded latest-request navigation worker and the existing destination query.
-An active article query ranks title starts, contiguous title phrases and other
-title matches ahead of body-only matches. SQLite FTS5 uses the same Unicode
-tokenizer for membership and ranking; weighted BM25 resolves relevance within
-each tier, followed by publication time and identity for stable ties. Ranking
-uses only positive text from the active query. Saved-list filters, exclusions
-and destination scopes remain membership constraints. Empty and metadata-only
-queries keep the destination's normal order. Count queries do not score, and
-only the requested page loads article metadata. Page totals are cached against
-the read snapshot and complete typed bound values; expanded debug SQL is never
-a cache identity because it truncates embedded NULs. Adjacent date-ordered
-windows seek by publication time and ID. Empty/out-of-range pages skip metadata.
-Navigation resolves a stale offset to the last valid page under one snapshot,
-with the same clamped limit in synchronous and background paths.
-Identity-based page jumps use
-the same relevance order as pagination, including in the background worker.
-Both fields reserve rows inside their own panes. Renderers and pointer hit
-testing share that geometry. Cancel restores the sidebar destination by identity,
-so a catalog refresh cannot retarget it. Reader Escape clears source-local search
-marks before changing fullscreen or library state. Subsequent Escape restores
-the layout and returns focus to Articles, revealing that pane if collapsed.
-Leaving Reader with an empty search does not cause a redundant article reload.
-
-Query editors reuse results while only their caret moves. Native editor change
-signals avoid rebuilding draft text on those motions; article and notebook
-queries only refresh when their text changes. Sidebar refreshes preserve an
-uncommitted match by destination identity. Its row window walks backward from
-the selected match only far enough to fill the viewport, then streams visible
-rows. Drawing and pointer hits share that projection without a separate cache
-that could become stale when the catalog changes. Title truncation and count
-alignment use grapheme widths in terminal cells.
-
-### Terminal frame map
-
-| Surface | Frame owner |
+| Responsibility | Owner |
 | --- | --- |
-| Library, Articles, Reader, Annotations and Notebook panes | `ui::theme::panel` |
-| Help, commands, note/card editors, forms, pickers and documents | `ui::popup::draw_frame` |
-| Settings, Space actions, Ctrl-w guide and hovered notes | `ui::popup::draw_frame` |
-| Floating and compact dragged panes | Captured panel or `presentation::pane_picture` |
-| Reader tables and their text inspections | `reader::tables` |
+| Terminal lifetime and command-line composition | `main`, `cli`, `terminal` |
+| TOML schema, validation and editing | `config` |
+| Reconcile configuration with durable identities | `configuration_service` |
+| Schema, transactions, publisher and personal data | `store` |
+| Input workflows, focus and private state lifecycles | `app` state owners |
+| Cached pane/chrome/overlay drawing | `ui`, composed by `frame_composition` |
+| Source positions, Markdown and wrapping | `reader` |
+| Image transport, decoding and prepared protocols | `media` |
+| Feed discovery, collection and extraction | `source` |
+| Local scoring and explicit source presets | `recommendation`, `catalog` |
+| OPML and atomic Markdown publication | `exchange` |
+| Backup, retention and offline orchestration | `backup_service`, `retention_service`, `offline_service` |
+| Filesystem usage inspection and cache cleanup | `disk_usage` |
 
-Frames retain the Unicode arcs `╭ ╮ ╰ ╯`. Popup titles leave connected border
-segments beside both upper corners, even with wide Unicode text. The terminal
-owns glyph rasterization; these character-cell outlines have no pixel radius
-setting. Fullscreen image views, welcome art and split insertion markers are
-not framed windows. Native image occlusion uses the same popup footprints.
-Hovered note previews bound cleaning and row allocation rather than preparing
-an entire long note on every frame.
+Neutral validation, URL, command and presentation contracts keep lower layers
+independent of application interaction. Shared domain types belong in `model`;
+services compose durable primitives rather than putting orchestration in Store.
 
-The workspace owns pane topology, visibility and widths. Keyboard and mouse use
-those same operations and hit regions. The reader's centered fullscreen column
-defaults to 80 terminal cells, independent of panel widths. Captured pane images
-support bounded pointer-following drag and settling; gestures persist on commit.
-Directional focus uses those rendered rectangles, preferring neighbors with
-overlapping rows or columns. It never wraps at an edge or treats a pane's center
-as proof that it lies in that direction. Responsive suppression falls back to
-the same topology at a size that fits every expanded pane; explicit collapse
-still excludes a pane. Tab cycling retains the saved panel order.
+## Data authority and configuration
 
-Image workers enforce byte, dimension, pixel, encoding and cache budgets. SVG
-resource resolvers reject external and embedded resource loads. Native Foot
-rendering uses prepared cell-height Sixel strips from the qualified encoder,
-not a custom protocol implementation. Scrolling reuses those strips; menus and
-selections clip only intersecting regions. The inspector fits or zooms from
-source bytes/paths. Portable halfblock previews remain available independently
-of native protocols.
+Publisher refreshes update publisher fields while preserving personal flags,
+folder membership, notes, highlights and deletion state. Feed text and fetched
+Full text have separate identities/revisions. A publisher URL change prevents
+stale extracted content from being used without deleting private annotations.
 
-Two download lanes own replaceable source requests: crop/zoom changes for the
-same URL retarget the existing download, while sources outside the current
-viewport stop before cache access or decoding when observed in time. The latest
-crop is captured after acquiring the shared decoder lock. Obsolete completions
-do not enter the presentation cache or request a frame. Queue saturation is
-retryable rather than a permanent image error. Dropping the worker cancels its
-remaining intentions without joining HTTP. The existing ureq connector now polls response/body reads in bounded 50 ms
-slices to observe cancellation without extra download threads. TLS/proxy setup,
-framing and global deadlines remain with ureq; connecting/resolving still uses
-its existing deadline. Terminal encoding happens after releasing the shared
-source decoder lock, with at most two bounded fitted canvases in flight.
+TOML definitions use portable IDs; SQLite maps them to local identities.
+`configuration_service` coordinates adoption and publication. File replacement
+is private and atomic, serialized with advisory locks and guarded by the last
+read bytes. Three-way conflicts preserve both external edits and pending data.
+SQLite and filesystem publication are separate durability boundaries; do not
+pretend they form one distributed transaction. See
+[configuration and recovery](configuration.md).
 
-Image source reuse is bounded independently from prepared terminal cells. Two
-raster entries share 32 MiB, with eviction before allocating a new decoded
-source; format headers and pixel/allocation admission are checked before that
-allocation. A full-source native fit borrows the cached raster instead of
-copying a redundant crop. Opaque-source classification is retained instead of rescanning
-alpha on every fit. Two SVG trees share a 512 KiB raw-input budget and preserve
-shared font setup. Raster sources survive intervening vector preparations.
-SVG paints directly onto an opaque theme canvas, avoiding an unpremultiply/
-recomposite round trip; fitted opaque pixels need only the optional odd-row
-padding used by halfblocks. Native encoders and their existing bounds own wire
-format and color quantization.
+Store owns SQL, parameter binding, row decoding and transaction boundaries.
+[SQL ownership](sql-ownership.md) covers static statements and composed queries.
+Executed migration names, SQL and checksums are immutable. Publisher refresh,
+restore and deletion changes need native fixtures that preserve personal data,
+search indexes and identity/history contracts.
 
-Unicode formula projection admits explicit enclosures, braces, tensor indices
-and wide/lower accents from the existing parser. Browser-specific MathML
-restrictions are irrelevant to that bounded Unicode projection; macro state
-remains local and unknown commands still fail closed to raw source. Positive
-and negative text/vector results share the existing bounded per-document
-caches; repeated failures still consume the document admission budget.
-Generated MathML text-style wrappers project transparently, normalizing mtext
-nonbreaking spaces for paragraph wrapping and preserving uniform text modifiers.
-Graphic admission follows spatial MathML structure instead of source length:
-styled prose and linear expressions do not request image work. Display math
-and two-dimensional notation retain vector outlines and exact source mappings.
+## Application state and workers
 
-Automatic read intent is owned by `app::auto_read`, independently of selection
-and saved position. A bounded union of at most 1,024 displayed byte intervals
-tracks publisher coverage, excluding appended notes and horizontally hidden
-code. Cached viewport keys avoid recording unchanged rows on idle polls. A
-monotonic clock counts only eligible focused Reader time; dialogs, gestures,
-selection and lost terminal focus pause it, and gaps over one second are not
-credited. Source changes reset coverage; unchanged publisher text survives
-reflow. Explicit read/unread intent blocks automation for that article visit.
-One qualifying observation admits the existing ordered personal write; there
-are no database reads/writes, new timers or frames on ordinary idle polls.
+App coordinates private reader, navigation, notebook, layout, interaction and
+worker state. Each owner maintains its invariants through narrow methods.
+Borrowed presentation views expose cached data without allowing arbitrary
+changes to workspace, selection, modes or workers. Command identities and owner
+routing come from the typed registry in `command`; aliases share those routes.
 
-Server credential entry is a distinct masked mode, outside general command
-and draft editors. The modal owns only a transient bounded value; the store
-validates the API-token type and atomically reconnects the existing portable
-connection. Publication/redaction uses the ordinary configuration worker.
+Expensive reads, collection, extraction, layout and image preparation run on
+bounded workers. Connections belong to their worker thread. Replaceable work
+cancels obsolete generations; publication checks captured identities, source
+revisions and dimensions again before replacing visible state. Cancellation
+is cooperative, and resource limits still apply to work that cannot stop early.
 
-## Verification and evolution
+Personal edits use an ordered durable lane. Appearance/progress and independent
+services have their own lifecycle boundaries. Input admission stays nonblocking;
+explicit flush/shutdown waits use deadlines and completion notifications.
+Consumed failures remain visible until reported or retried. Shutdown attempts
+independent durability boundaries and restores the terminal even when a write
+fails. SQLite contention classification belongs to Store.
 
-Refinery owns immutable, contiguous migration history and checksum validation.
-The bootstrap and executed migrations are not renamed or rewritten. V11 adds
-configuration revision/binding state and reversible definition archival. Older
-populated libraries retain the former implicit recommendation profile explicitly;
-new libraries start neutral. Migration tests exercise real owned SQLite files.
-V13 observes justification-only appearance changes and admits previously enabled
-preferences for configuration publication without replacing personal data.
-V19 replaces unstable remote page offsets with entry IDs and retains multiple
-remote identities for one canonical article. Incomplete legacy passes restart
-from their retained timestamp watermark; cached articles and notes are preserved.
+Catalog counts and navigation grouping are prepared outside drawing. Folding
+projects cached groups; it does not query the database. Count/layout caches
+must retain their scope, revision and invalidation contracts. Avoid replacing
+fresh reads with a result cache unless cross-connection edits and cancellation
+remain correct.
 
-Native tests cover public behavior and credible failures. Visual snapshots cover
-reviewed terminal cells, styles, themes and sizes. Real HTTP fixtures qualify
-network boundaries. Owned Foot windows complement buffer tests;
-protocol acknowledgement is not physical key-to-photon measurement.
-See [development](development.md), [performance](performance.md),
-[configuration](configuration.md) and [dependency policy](dependency-security.md).
+## Reader, notebook and rendering
 
-## Interactive work and durability
+The reader preserves original source bytes and maps visible cells back to
+source positions. Reflow, justification, tables, syntax colors and formulas
+must retain selection/copy/annotation correspondence. Stored anchors are checked
+against their captured source and revision; ambiguous relocation stays explicit.
+Unknown or unsupported math retains source instead of silently dropping it.
 
-The terminal paints the lighthouse before constructing article projections.
-Interactive construction restores metadata/preferences; separate latest-result
-workers count destinations and load the saved page/document. Migration and
-initial configuration adoption precede the interactive runtime; those phases
-remain explicit startup work. Navigation requests carry captured identities,
-library revisions and optional reader-location/synthesis arrivals. An obsolete
-completion cannot install source text or run the arrival action against a newer
-selection. `ReaderIdentity` combines displayed article/source/revision; storage
-reading snapshots carry their article identity and installation verifies it.
-Rendered parser mappings form the prepared reader projection consumed by UI.
+Notebook context loads its complete annotation once and derives a bounded
+preview from it. Full reference edges remain in the annotation, not the preview.
+Search count, rows and resolved page offset share a read snapshot. Export
+enumeration reads bounded IDs without reconstructing discarded previews or
+recounting the library. Each exported note retains its own coherent snapshot;
+file ownership and local-edit conflicts remain with `exchange`.
 
-One bounded ordered personal writer owns notes, read/favorite/queue flags,
-trash, tags, folders, memberships and undo. Admission happens before optimistic
-flag presentation. Captured flags overlay older database pages until their
-acknowledgements; failures request an authoritative reconciliation. Folder
-creation/membership commits atomically with one inverse history entry. The
-folder selector stages names until Enter instead of inventing SQLite IDs or
-writing from cursor input. A disconnected writer acknowledges each outstanding
-ticket as uncertain failure; it cannot leave an endless pending indicator.
+UI performs no SQL, HTTP, Markdown parsing, syntax compilation or image encoding.
+The frame compositor orders base drawing, native overlay returns, capture and
+foreground. Cached geometry, hit maps and rows must agree for mouse and keyboard
+navigation. Native images are clipped to the viewport and overlay regions.
 
-Appearance/progress use a separate ordered session writer because they do not
-share personal undo. Only these idempotent writes retry transient SQLite locks,
-with three attempts and bounded worker-side backoff. Failed latest values remain
-per-key in a bounded recovery backlog. An explicit flush retries them; a newer
-successful value clears only its own key. `:save-status` retains the last error
-in the session, and `:w` retries without reporting unresolved writes as saved.
-External configuration publication uses a nonblocking
-barrier plus a local-edit guard before replacing cached appearance. Drafts,
-ranking edits, session saves and configuration publication have independently
-attempted shutdown boundaries, including drawing/input/setup errors. Errors are
-aggregated, terminal restoration still runs, and a failed unrelated edit cannot
-suppress dirty-note recovery. Shutdown may wait for admitted durable work;
-ordinary input never waits for the configuration barrier.
+Media workers enforce encoded-byte, decoded-pixel, allocation and cache budgets.
+Original bytes and native pixels are reused for inspection rather than enlarging
+character previews. Obsolete requests are canceled or discarded before publish;
+zoom/pan must recheck the requested crop before expensive encoding.
 
-Dense note markers build one source interval index per projection, preserving
-original display order even for reordered/overlapping mappings. Exact saved
-anchors are checked first; repeated unresolved quotations share one relocation
-result during annotation reconstruction. Rendering never writes note state.
-These indexes retain domain-specific ambiguity rules; no universal task
-executor, parser or cache framework is introduced.
+Sixel uses a shared image palette/diffusion pass before cell-height strip
+encoding. Exact-color handling, sparse/dense encoding and buffer reuse must
+preserve protocol/pixel fidelity. Transparent pixels are composited before
+resampling. SVG rejects external resources; formulas use bounded local parsers
+and embedded outlines. Text and capability fallbacks remain explicit. See
+[build capabilities](build-features.md), [dependency boundaries](dependency-security.md)
+and [performance measurement](performance.md).
 
-## Explicit reading services
+## Reading services and recovery
 
-Article selectors use independent lazy `Latest` lanes for queries and previews.
-Each connection belongs to its thread. Query edits cancel old preview generations;
-reopening a selector resets both lanes. Sixteen bounded previews are retained
-only while that selector is open. Moving a generic selector does not refilter
-its unchanged candidate query. Rendering consumes prepared rows only.
+Feeds and Miniflux adapters respect offline policy, byte limits, hostname
+coordination and retry deadlines. Only the coordinator publishes collection
+results to SQLite. Removed, disabled or reconfigured sources cannot commit
+stale discovery/history results. [Server collection](server-collection.md)
+describes the per-feed cursor contract.
 
-Linked readings own an independent `WebPage`, not a fabricated article identity.
-The existing HTTP extractor, Markdown parser and cursor/projection contracts
-prepare text on a worker. Page history retains at most eight prepared pages.
-Width changes request replacement layout; source positions are restored only
-when it arrives, including movements made while layout was pending. The immutable
-link/heading index is shared until formula semantics change. Height-only resize
-clamps and reveals the cursor without rebuilding layout. HTTP is disabled by the
-runtime's offline/demo modes. The original Markdown supplies both layout and
-navigation indexes, preserving source offsets around images and formulas.
-Linked pages retain their own image slots; a borrowed active viewport shares
-the bounded image worker, cache and rendering code with the Reader. Only visible
-slots are admitted, resolved against the linked page's final URL. History and
-resize reuse the same source anchors, while image inspection suspends the page.
-Native image rows are clipped to the linked column and hidden under overlays.
-The original Markdown remains intact for an explicit save. Save creates a real
-article in a disabled, noncollecting manual source and an ordinary Saved pages
-folder. Existing article bodies and personal fields remain untouched. A delayed
-save carries its captured visit generation, so it cannot redirect a later
-navigation, including another visit to the same URL. Back during a pending open
-discards that response before consuming section history. Page/reflow delivery
-invalidates mouse drag anchors, whose byte offsets belong to the old layout.
-Failed opens retain the previous page and its ability to reflow.
-The HTTP owner distinguishes extracted HTML from browser resources before
-reading response bodies. Non-HTML types and explicit attachments return their
-final URL as a typed outcome. Only a current linked-page completion may publish
-a one-shot browser request; the terminal owns OS launching. Navigation cancels
-undelivered requests, and the previous reading is restored before dispatch.
-Background article extraction continues to reject these resources without
-modifying its last successful cache or launching applications.
+Retention plans distinguish heavy cached content from article deletion and
+explain protection. Favorites, user-owned memberships, notes/highlights,
+reading queues and active offline/session references must survive automatic
+reclamation. Deletion code owns cascades, shared-image references and undo;
+smart-list membership is a query projection, not ownership of an article.
 
-`app::maintenance` admits one explicit operation at a time on an ordered lane.
-Mutations are never superseded by new requests. Progress delivery is bounded
-and may coalesce; final results are acknowledged. Closing a report does not
-reopen it when work finishes. Dropping requests cancellation without waiting
-for HTTP; already admitted SQLite transactions finish atomically.
+Backups use SQLite's online backup API so committed WAL data is included.
+Restore stages into an isolated destination, validates identity/integrity and
+never overwrites an existing library. Offline package publication and cleanup
+must retain protected originals and make partial failures visible. See
+[backup and rollback](release.md#consistent-snapshots).
 
-`offline_service` captures at most 100 article identities and URLs from Read
-next or a personal folder. The existing extractor/decoder validate every new
-body/image.
-An adjacent advisory file lock serializes preparations across processes.
-Checkpoints in SQLite retain per-item availability, errors and logical bytes;
-resume revalidates entries. A package defaults to 64 MiB and cannot exceed its
-explicit 1–512 MiB budget. Original images live in the separate `images/offline`
-namespace, limited globally to 512 MiB and 4096 owned files. Ordinary image
-pruning never touches that namespace. Releasing a package removes only owned
-pinned files and its checkpoint, retaining article text. In-flight network work
-obeys existing HTTP deadlines; cancellation is observed between requests.
-The lock also owns a package-local image accounting/decoder lifetime. It scans
-the pinned namespace once per preparation, not once per article. Capacity is
-updated only after atomic publication succeeds, so rejected pins cannot consume
-the budget available to later items.
+## Verification
 
-`disk_usage` inspects text and disk usage on the same maintenance lane.
-Full-cache reclamation uses small IMMEDIATE transactions, protecting current
-personal, offline and session context, including recoverable note drafts.
-Clearing body bytes retains cache identities and
-fires the existing FTS/recommendation triggers. Image reclamation drains the
-durable dirty-reference queue and reads indexed image URLs. It removes only
-unreferenced owned regular files older than the scan. Short, version-checked
-IMMEDIATE batches prevent new publisher references from racing with unlink;
-an obsolete snapshot stops reclamation. It preserves symlinks, foreign files
-and pinned images.
-SQLite page reuse is reported separately from physical file shrinkage. A
-multi-batch operation can partially complete; it is never presented as one
-filesystem/database transaction.
-
-Retention has a separate declarative policy and a local preview acknowledgement.
-Its SQLite owner materializes source cutoffs, smart-list matches and candidate
-identities in temporary tables under a read snapshot; this stage never acquires
-an IMMEDIATE write lease or hydrates all bodies. Each bounded mutation batch
-then acquires that lease, checks `data_version` against the captured plan and
-rechecks mandatory personal protections. An external commit interrupts the pass
-before another batch. Full-cache clearing reuses existing document/FTS revision
-semantics; article deletion records original and remote-alias tombstones first.
-A monotonic article identity clock prevents deleted IDs from being reused by
-later news. A single adoption marker supplies legacy reading-state grace
-without rewriting the library during migration.
-
-Image planning is skipped when no image lifetime applies or the ordinary cache
-is empty or wholly newer than the earliest possible expiry. Otherwise durable
-Feed/Full image references resolve to the strictest lifetime, with protection
-and unlimited age taking precedence. Cleanup rechecks file
-type, size and modification time under a bounded write lease. It never treats
-filesystem and SQLite changes as an atomic unit. Automatic scheduling caches
-its policy/deadline in the UI and persists last-run time; input and drawing do
-not poll SQLite or parse TOML. The same maintenance domain serves CLI commands.
-
-Routine publisher refreshes compare stored publisher fields before deriving
-reading duration or canonical URLs. Unchanged article payloads, HTTP validators
-and failure strings do not write SQLite or touch FTS. An IMMEDIATE lease covers
-the comparison and any subsequent update, preserving validator rollback and
-avoiding read-to-write snapshot races. Feed/Full progress and workspace/layout
-checkpoints use conditional database writes, so idempotence also survives
-intervening changes from another connection.
-
-Image reference ownership lives in `store/image_references`: publisher and Full
-revisions dirty a durable queue. Maintenance reads bounded batches, parses
-outside the write lease and publishes only when the captured generation still
-matches. Completed queue rows retain their generation, preventing an ABA race
-with another indexer. Unchanged history needs no body parsing. A 64-bit URL-digest prefix index selects
-only potential matches for files present in the ordinary cache; complete SHA-256
-paths still decide ownership, so prefix collisions cannot affect expiry. Shared
-URLs aggregate to their strictest cutoff in SQLite. Retention plans
-check cancellation between 256-article batches and deduplicated smart queries;
-incomplete previews never acknowledge the policy or offer application.
-Protection explanations share the mutation owner's canonical predicates.
-Explicit storage diagnostics read logical source bytes, physical SQLite objects
-and internal-content FTS copies under one snapshot; they do not run per frame.
-Their replaceable read lane is independent of ordered maintenance. Generation
-cancellation interrupts SQLite scans and checks each owned image-directory
-entry; a cancelled inventory never publishes partial totals. Reports distinguish
-logical body amplification, content-table pages and other FTS pages.
-
-Per-server history settings bound both API response size and work per refresh.
-Initial imports persist descending entry-ID checkpoints together with their
-articles, independently of incremental changed-time/ascending-ID cursors. A
-failed page set cannot publish a partial cursor. Explicit history restart keeps
-article identity, personal flags and notes. Global entry collection remains an
-investigation: a shared initial cap cannot replace independent feed coverage.
-
-`backup_service` owns optional bundles and rotation; `store/snapshots` owns the
-SQLite online-copy and isolated restore contracts. `config::backups` validates
-policy; `store/backup_schedule` persists policy and successful-run metadata.
-`retention_service` orchestrates policy previews and bounded application, while
-`config::retention` owns policy and `store/retention` owns plans and transactions.
-Neutral `model::retention` and `model::disk_usage` results keep Store independent
-of these services. Formatting implementations stay in the service modules;
-cooperative cancellation checks and distinct error types live in `cancellation`.
-CLI configuration arguments live in `configuration_arguments`; main dispatches
-diagnostics before Store creation and recovery before normal reconciliation.
-The maintenance lane caches due deadlines and checks durable successful
-publication time after admission.
-Its cross-process lock precedes the optional offline-package lock and the read
-snapshot; the offline lock is released before recording the successful run.
-Private same-filesystem staging, streamed SHA-256 and hard-link publication
-avoid whole-file buffers and a second publication copy. A manifest is published
-last. Restore verifies copied bytes in private staging before exposing a new
-destination. Rotation rechecks an exact file inventory and removes only listed
-files from complete bundles in the source path's namespace. Extra files and
-other libraries are preserved; publication survives a later rotation failure.
-
-Inline server credentials use a redacting debug type. Only authenticated HTTP
-and private configuration storage expose bytes. Public configuration inspection
-uses a redacted document prepared on the publication worker; raw TOML and its
-SQLite snapshots intentionally retain the key. Environment references never
-persist expanded credentials.
-
-Reading sessions greedily select at most eight cached unread recommendations
-within a 1–240 minute total estimate. Repeated sources/interests have diminishing
-returns and canonical duplicates are excluded; this is not an optimal knapsack
-solver or a quality guarantee. Confirmation persists the captured order and
-current index. Advancing uses an IMMEDIATE transaction, skips unavailable or
-retargeted identities, and leaves read flags and feedback unchanged. Sessions,
-offline checkpoints and temporary pages are reading state, not portable TOML
-subscription definitions.
-
-Optional diagnostics retain at most 512 microsecond samples for each processing
-boundary. Percentiles sort only on inspection. Disabled diagnostics record no
-timestamps or samples. Timings cover input dispatch, frame/flush, article-ready
-navigation, selector search/preview and ordered save admission-to-delivery;
-they do not include compositor display latency or send telemetry.
-
-Notebook listing snapshots also capture the recent-search generation. A local
-history acknowledgement advances it, so an older list completion cannot erase
-newly saved searches. New list requests can still adopt a current snapshot.
-
-Recent Markdown layouts retain at most three prior exact source/width/options
-snapshots in addition to the current layout, under an estimated 8 MiB retained
-budget. Styles have a separate revision; invalidation discards cached old colors.
-Personal annotations and current article identity are reapplied by the app and
-never stored in the base layout cache. Oversized layouts are not retained.
-
-Retention inspection restricts source cutoffs, smart-list membership and
-candidate/protection materialization to the requested article. The reasons and
-metadata share a read snapshot, with cooperative cancellation and the captured
-library version checked before delivery. Transient Reader protection comes
-from the selected article, independently of an explicit inspection target.
-Inspection also evaluates protection under unlimited lifetimes without arming
-cleanup. Reference hash prefixes are prepared before acquiring the write lease;
-only generation checks and index publication occur inside that lease.
-
-Downloaded server pages recheck their captured connection and pagination cursor
-under an IMMEDIATE transaction. Changed credentials/root/settings, disabled or
-removed subscriptions and advanced/restarted cursors discard obsolete results.
-Content, cursor and successful source health publish together; failure health
-also rechecks the captured context before writing. Personal reading edits do
-not invalidate a publisher response. Trusted local batch import retains its
-separate ingestion entry point.
-
-Subscription discovery uses the same connection check before publishing its
-feed set and server health atomically. A discovery response from an obsolete
-connection excludes that server from entry collection for the current pass.
-
-Native Sixel preparation directly indexes sources with at most 256 distinct
-displayable RGB percentage triples. Samples that differ only below the
-terminal color precision share one exact palette entry, preserving antialiased
-edges without lossy quantization.
-Richer images deduplicate color conversion before the
-qualified Oklab quantizer and Floyd–Steinberg diffusion. Resolution, source
-cropping and the palette budget remain independent of this optimization.
-The public Quantette stages are composed explicitly to measure color preparation,
-Wu palette construction and continuous diffusion independently. RGB input is
-borrowed through Palette's checked cast and the final index vector is consumed,
-avoiding the former three-byte-per-pixel RGB copy and one-byte index copy.
-Byte-for-byte reference tests retain the original Pipeline as the oracle.
-
-`:performance on` admits thread-scoped image measurements for new worker jobs.
-`:performance status` shows decode, fit/matte, exact-color detection, color
-preparation, palette, diffusion/mapping and encoding samples. A cache hit that
-does not decode supplies no artificial zero-time decode sample. ImageWork also
-includes disk/HTTP and shared decoder wait; individual stages do not. Samples
-remain bounded to 512 per operation, with no URLs, image bytes or telemetry.
-Disabled measurements read no clocks. The scoped experimental quantizers in
-`media::profiling` are developer comparisons, not persisted application policy.
-
-`make bench-sixel` exercises this same production decoder and both native and
-cell-height Sixel encoders. It compares the original Pipeline, the buffer-reusing
-equivalent, direct Oklab conversion, disabled diffusion and icy_sixel RGB
-median-cut. Independent ImageMagick decoding checks pixels and partial strips;
-the optimized default must preserve both wire bytes and decoded colors. Timing,
-process RSS, encoded bytes, RGB/PSNR and Oklab error, plus eight-pixel neighborhood
-error, are reported separately. See [the measurement method](performance/sixel-method.md).
-Six-row band planning uses one bounded palette map and copies only a single
-color plane for each emission. icy_sixel still owns framing, palette encoding
-and run-length encoding; no full palette map is copied for each sparse run.
-An independent test decoder reconstructs every indexed pixel across dense,
-sparse, partial and repeated bands. Physical display qualification remains a
-separate desktop-dependent gate.
-
-The terminal presenter treats entering or leaving a native image inspector as
-a pixel-surface boundary. It clears the physical surface and Ratatui's previous
-buffer inside the synchronized Sixel update, then commits the boundary state
-only after a successful draw. Cached pan, zoom and ordinary reader frames keep
-incremental drawing; image caches and reader state are retained. Real Foot
-qualification repeats mouse opening, closing and bidirectional scrolling three
-times and requires clearing before both cached inspector and reader pixels.
-
-Sixel palette compaction compares the integer RGB percentages the terminal
-actually receives, using the qualified encoder's rounding. Registers with
-identical wire colors merge without changing a displayed pixel. Compaction
-inspects at most 256 palette entries and remaps byte indices only if entries
-merge. The fast RGB indexing and Oklab/Floyd–Steinberg quantization paths keep
-their existing decisions, resolution and budgets. A per-pixel percentage hash
-index was rejected after optimized measurements showed a regression.
+[Development](development.md#quality-gates) defines compiler, native, HTTP and
+terminal gates. Source/SQL ownership inspectors enforce declared boundaries,
+with documented lexical limits; they do not replace compiler checking or
+behavioral/failure tests. Keep changes focused on one owner contract and review
+the complete diff. A performance change needs equivalent-work measurements and
+fidelity checks, not only an appealing algorithm or fewer lines of code.

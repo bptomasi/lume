@@ -2,23 +2,8 @@
 
 Use the exact stable toolchain in `rust-toolchain.toml`; CI must use the same
 version. Install the normal C build tools required by bundled SQLite. Local
-tool checks require Python 3.11 or newer. Product runtime requires no Python interpreter,
-source checkout, containers or external database.
-
-The [disk compression review](compression-review.md) records a separate proposal
-and its measurement requirements; compression has not been enabled by it.
-
-In the Articles pane, `dd` moves the selected article to Trash; `u` restores it
-through undo, and `:trash` / `:restore-article` provide explicit recovery. The
-first `d` waits for a second press on the same article. Escape, another key,
-pointer navigation or focus loss cancels the prefix. Held-key autorepeat never
-completes it. In Library and annotations, `dd` keeps its existing contextual
-behavior. Use `:organize` to edit folder membership independently of Trash.
-
-The Articles list updates after the deletion transaction commits, independently
-of sidebar recounts and preparation of the next article. Failed writes retain
-the row. Modal editors and selections preserve their captured source until
-normal reading resumes; undo remains on the same ordered personal-write lane.
+tool checks require Python 3.11 or newer. Product runtime requires no Python
+interpreter, source checkout, containers or external database.
 
 ## Build and installation commands
 
@@ -55,8 +40,9 @@ and benchmark correctness tests, Python tooling tests and syntax checks.
 It also runs the production architecture and native SQL ownership guards.
 `check-release` additionally requires the current RustSec gate, real loopback
 HTTP fixtures and the locked release build. Install cargo-audit 0.22.2 explicitly
-with `cargo install cargo-audit --version 0.22.2 --locked --no-default-features`. Required HTTP tests are not silently skipped. Ordinary
-checks never start containers or bootstrap development tools.
+with `cargo install cargo-audit --version 0.22.2 --locked --no-default-features`.
+Required HTTP tests are not silently skipped. Ordinary checks never start
+containers or bootstrap development tools.
 
 Keep `Cargo.lock` versioned and use `--locked`. Dependency changes update only
 the intended packages, record their selection and retain distribution notices.
@@ -71,15 +57,6 @@ the actual `rustc -Vv` output for CI caches. `Cargo.toml` independently owns
 `package.rust-version`; `tools/ci.py install --compiler minimum` installs that
 minimum, never substitutes stable, and uses explicit `cargo +VERSION` calls.
 Local release gates continue to use the repository's pinned compiler.
-
-On 2026-11-13, the official rustup Rust 1.96.0 toolchain
-(`rustc 1.96.0 (ac68faa20 2026-05-25)`) passed locked offline all-target checks
-with full defaults and native correctness with default and minimal features.
-The default run passed 1,178 native tests and both checked benchmark targets;
-minimal passed 1,093 native tests and the shared capabilities target. Their
-34/28 ignored real HTTP cases were not qualified by those runs. This supports
-the existing 1.96 minimum without changing the pinned release compiler; it does
-not claim a hosted CI or final release qualification.
 
 The reader CI job runs full defaults through local, advisory, HTTP, release and
 Foot gates. A bounded matrix additionally tests the actual minimum compiler
@@ -102,7 +79,7 @@ To reproduce a reduced profile using its source-declared compiler:
 
 ```sh
 python3 tools/ci.py install --compiler minimum
-CARGO_TARGET_DIR=/tmp/lume-minimum python3 tools/ci.py qualify \
+CARGO_TARGET_DIR=.local/build/minimum python3 tools/ci.py qualify \
   --compiler minimum --profile minimal
 python3 tools/ci.py qualify --profile sixel
 ```
@@ -181,15 +158,16 @@ make bench-configuration
 
 Workloads check results independently and separate scenario setup from measured
 operations. Process memory and I/O include setup where the report states so.
-Fresh reports go under ignored `.local/benchmarks/`; retain a small reviewed
-baseline under `docs/performance/`. Compare repeated runs before claiming a
-speedup. See [performance](performance.md).
+Generated reports belong under ignored `.local/benchmarks/` or with the build's
+CI artifacts. Keep reusable fixtures and checked workloads in source, rather
+than committing session logs or links to disposable files. Compare repeated
+runs before claiming a speedup. See [performance](performance.md).
 
-To build outside the checkout:
+To use a separate ignored build directory:
 
 ```sh
-CARGO_TARGET_DIR=/tmp/lume-build CARGO_INCREMENTAL=0 make check
-CARGO_TARGET_DIR=/tmp/lume-build make build
+CARGO_TARGET_DIR=.local/build CARGO_INCREMENTAL=0 make check
+CARGO_TARGET_DIR=.local/build make build
 ```
 
 The same target directory must be supplied when selecting the resulting binary
@@ -199,10 +177,13 @@ for installation or desktop qualification. Build artifacts are disposable;
 ## Visual review
 
 ```sh
-cargo run --locked --example preview -- /tmp/lume-preview.json
-python3 tools/render_preview.py /tmp/lume-preview.json /tmp/lume-preview.png
-cargo run --locked --example welcome -- /tmp/lume-welcome.json 120 40
-python3 tools/render_preview.py /tmp/lume-welcome.json /tmp/lume-welcome.png
+mkdir -p .local/previews
+cargo run --locked --example preview -- .local/previews/reader.json
+python3 tools/render_preview.py \
+  .local/previews/reader.json .local/previews/reader.png
+cargo run --locked --example welcome -- .local/previews/welcome.json 120 40
+python3 tools/render_preview.py \
+  .local/previews/welcome.json .local/previews/welcome.png
 ```
 
 These export real Ratatui cells using original demonstration content. The PNG
@@ -240,7 +221,7 @@ and `fonts-dejavu-core` to reproduce this isolated environment:
 
 ```sh
 xvfb-run -a -s '-screen 0 1920x1440x24' \
-  python3 tools/qualify_wayland.py --artifacts /tmp/lume-wayland -- \
+  python3 tools/qualify_wayland.py --artifacts .local/qualification/wayland -- \
   make check-foot PYTHON=.venv/bin/python
 ```
 
