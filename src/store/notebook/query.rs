@@ -16,27 +16,36 @@ impl Store {
     pub fn note_detail(&self, id: i64) -> Result<crate::model::NoteDetail> {
         let transaction = self.connection.unchecked_transaction()?;
         let summary = self.note_summary(id)?;
-        let article = self.article(summary.article)?;
         let note = self.annotation(summary.article, id)?;
+        // Source placement needs no article counts or presentation metadata.
+        // Full notes must not load the unrelated feed body.
+        let (url, feed_body): (String, String) = self.connection.query_row(
+            include_str!("../sql/notebook/select_source_context.sql"),
+            (
+                summary.article,
+                note.comment.source == crate::model::ContentSource::Feed,
+            ),
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
         let (body, source_available, source_revision) =
             if note.comment.source == crate::model::ContentSource::Full {
                 self.cached_document(summary.article)?
                     .filter(|document| {
-                        document.url == article.url && !document.body.is_empty()
+                        document.url == url && !document.body.is_empty()
                     })
                     .map_or_else(
                         || (String::new(), false, 0),
                         |document| (document.body, true, document.revision),
                     )
             } else {
-                (self.body(summary.article)?, true, 0)
+                (feed_body, true, 0)
             };
         let detail = crate::model::NoteDetail {
             backlinks: self.note_backlinks(id)?,
             references: self.note_references(id)?,
             summary,
             note,
-            url: article.url,
+            url,
             body,
             source_available,
             source_revision,

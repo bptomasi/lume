@@ -65,6 +65,8 @@ mod motion_review;
 mod note_interactions;
 #[path = "workloads/note_study.rs"]
 mod note_study;
+#[path = "workloads/notebook_profile.rs"]
+mod notebook_profile;
 #[path = "workloads/page_navigation.rs"]
 mod page_navigation;
 #[path = "workloads/pane_search.rs"]
@@ -169,6 +171,7 @@ fn component_workloads(iterations: usize, stress: bool) -> Result<()> {
 }
 
 const COMPONENT_WORKLOADS: &[Workload] = &[
+    notebook_profile::run,
     images::production_profile,
     inspector_loading::run,
     retention_inspection::run,
@@ -259,6 +262,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--servers-only", servers::run),
     ("--recommendations-only", recommendations::run),
     ("--notebook-only", annotation_notebook::run),
+    ("--notebook-profile-only", notebook_profile::run),
     ("--notes-only", note_interactions::run),
     ("--workspaces-only", workspaces::run),
     ("--panes-only", panes::run),

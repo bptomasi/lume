@@ -61,7 +61,7 @@ fn nested_image_links(
     )
 }
 
-fn seed(
+pub(super) fn seed(
     path: &std::path::Path,
     notes: usize,
     articles: usize,
