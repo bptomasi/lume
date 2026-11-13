@@ -4,13 +4,14 @@
 //! every subsequent SQL migration. Grouped execution keeps schema changes and
 //! migration history atomic, including FTS indexing of existing annotations.
 
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use refinery::{Migration, Runner};
 use rusqlite::{Connection, OptionalExtension, Transaction};
 
 pub(super) const LATEST_SCHEMA_VERSION: i64 = 28;
 
 pub(super) fn run(connection: &mut Connection) -> Result<()> {
+    validate_history(connection)?;
     let version: i64 = connection.query_row(
         include_str!("sql/migrations/select_user_version.sql"),
         [],
@@ -30,6 +31,39 @@ pub(super) fn run(connection: &mut Connection) -> Result<()> {
         .map(|(name, sql)| Migration::unapplied(name, sql))
         .collect::<std::result::Result<Vec<_>, _>>()?;
     Runner::new(&migrations).set_grouped(true).run(connection)?;
+    Ok(())
+}
+
+fn validate_history(connection: &Connection) -> Result<()> {
+    let exists: bool = connection.query_row(
+        include_str!("sql/migrations/select_history_exists.sql"),
+        [],
+        |row| row.get(0),
+    )?;
+    if !exists {
+        return Ok(());
+    }
+    // Refinery's SQLite adapter assumes its timestamp/checksum representations
+    // are valid and panics otherwise. Use the identical parser before entering
+    // that adapter; leave all identity/checksum comparisons to Refinery itself.
+    let mut statement = connection
+        .prepare(include_str!("sql/migrations/select_history_values.sql"))?;
+    let mut rows = statement.query([])?;
+    while let Some(row) = rows.next()? {
+        let version: refinery::SchemaVersion = row.get(0)?;
+        let date: String = row.get(1)?;
+        let checksum: String = row.get(2)?;
+        time::OffsetDateTime::parse(
+            &date,
+            &time::format_description::well_known::Rfc3339,
+        )
+        .with_context(|| {
+            format!("Invalid migration timestamp for V{version}")
+        })?;
+        checksum.parse::<u64>().with_context(|| {
+            format!("Invalid migration checksum for V{version}")
+        })?;
+    }
     Ok(())
 }
 
@@ -209,3 +243,6 @@ const MIGRATIONS: &[(&str, &str)] = &[
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod compatibility_tests;

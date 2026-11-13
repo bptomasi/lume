@@ -126,7 +126,7 @@ pub(super) fn selective_counts(
 
 impl CatalogWorker {
     pub(super) fn start(path: &Path) -> Result<Self> {
-        let store = Store::open(path)?;
+        let mut store = Store::open(path)?;
         Ok(Self {
             worker: Latest::start_cancellable(
                 "lume-catalog",

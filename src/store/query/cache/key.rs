@@ -1,7 +1,7 @@
 //! Debug SQL is not an identity: SQLite truncates expanded strings at NULs.
 use super::super::{Criteria, filter_values};
 use crate::model::ArticleQuery;
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use rusqlite::types::{ToSqlOutput, Value};
 
 #[derive(PartialEq)]
@@ -22,7 +22,8 @@ impl Key {
         let mut values = filter_values(criteria, query)
             .into_iter()
             .map(|(_, value)| match value.to_sql()? {
-                ToSqlOutput::Borrowed(value) => Ok(value.into()),
+                ToSqlOutput::Borrowed(value) => Value::try_from(value)
+                    .context("Could not retain the page cache parameter"),
                 ToSqlOutput::Owned(value) => Ok(value),
                 _ => bail!("Unsupported page cache parameter"),
             })

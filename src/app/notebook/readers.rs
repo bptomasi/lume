@@ -52,8 +52,8 @@ pub(super) struct Readers {
 
 impl Readers {
     pub(super) fn start(path: &Path) -> Result<Self> {
-        let list_store = Store::open(path)?;
-        let context_store = Store::open(path)?;
+        let mut list_store = Store::open(path)?;
+        let mut context_store = Store::open(path)?;
         Ok(Self {
             list: Latest::start_cancellable(
                 "lume-note-search",

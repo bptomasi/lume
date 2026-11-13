@@ -67,7 +67,6 @@ fn permanent_deletion_cascades_every_owner_and_keeps_unrelated_data()
         .prepare(include_str!("../sql/deletion/test_select_cascades.sql"))?;
     let columns = statement
         .column_names()
-        .into_iter()
         .map(str::to_owned)
         .collect::<Vec<_>>();
     statement.query_row([], |row| {

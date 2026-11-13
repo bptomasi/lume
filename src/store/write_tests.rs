@@ -39,7 +39,7 @@ impl Fixture {
         Ok((target, document))
     }
 
-    fn competing_writer(&self) -> Result<Arc<AtomicU8>> {
+    fn competing_writer(&mut self) -> Result<Arc<AtomicU8>> {
         let rival =
             Connection::open(self.directory.path().join("library.sqlite3"))?;
         rival.busy_timeout(Duration::ZERO)?;
@@ -76,7 +76,7 @@ impl Fixture {
                 }
                 Authorization::Allow
             },
-        ));
+        ))?;
         Ok(observed)
     }
 }
@@ -85,12 +85,12 @@ impl Fixture {
 fn personal_writes_exclude_competing_commits_before_their_first_change()
 -> Result<()> {
     for operation in 0..7 {
-        let fixture = Fixture::new()?;
-        let store = &fixture.store;
+        let mut fixture = Fixture::new()?;
         if operation == 5 {
-            store.set_starred(1, true)?;
+            fixture.store.set_starred(1, true)?;
         }
         let observed = fixture.competing_writer()?;
+        let store = &fixture.store;
         match operation {
             0 => store.set_tags(TagTarget::Article(1), &["new".into()])?,
             1 => {
@@ -116,9 +116,10 @@ fn personal_writes_exclude_competing_commits_before_their_first_change()
             2,
             "operation {operation}"
         );
-        store
+        fixture
+            .store
             .connection
-            .authorizer(None::<fn(AuthContext<'_>) -> Authorization>);
+            .authorizer(None::<fn(AuthContext<'_>) -> Authorization>)?;
     }
     Ok(())
 }

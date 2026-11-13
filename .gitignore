@@ -29,6 +29,9 @@
 *.sqlite3-wal
 *.sqlite3-journal
 
+# Public, immutable databases written by the previously shipped engine.
+!tests/fixtures/sqlite-3.46.0/*.sqlite3
+
 # Python bytecode used by preview tooling.
 __pycache__/
 *.py[cod]

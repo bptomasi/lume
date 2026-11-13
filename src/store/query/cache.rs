@@ -3,7 +3,7 @@ use crate::model::{ArticlePage, ArticleQuery};
 mod key;
 use anyhow::Result;
 pub(super) use key::Key;
-use rusqlite::{Connection, DatabaseName, TransactionState};
+use rusqlite::{Connection, MAIN_DB, TransactionState};
 
 struct Entry {
     key: Key,
@@ -40,9 +40,7 @@ pub(super) fn epoch(connection: &Connection) -> Result<Option<(i64, u64)>> {
         [],
         |_| Ok(()),
     )?;
-    if connection.transaction_state(Some(DatabaseName::Main))?
-        == TransactionState::Write
-    {
+    if connection.transaction_state(Some(MAIN_DB))? == TransactionState::Write {
         return Ok(None);
     }
     let version =

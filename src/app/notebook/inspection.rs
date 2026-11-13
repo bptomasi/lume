@@ -231,7 +231,7 @@ impl super::NotebookState {
         request: Inspection,
     ) -> Result<()> {
         if self.inspector.is_none() {
-            let store = Store::open(path)?;
+            let mut store = Store::open(path)?;
             self.inspector = Some(Inspector {
                 worker: Latest::start_cancellable(
                     "lume-note-inspection",

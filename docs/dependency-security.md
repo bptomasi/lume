@@ -55,7 +55,7 @@ of all supported features; inactive locked entries are listed separately.
 | --- | --- | --- |
 | Terminal | Ratatui 0.29.0, Crossterm 0.28.1, tui-textarea 0.7.0 | Qualified compatible pair/editor. Library-owned event parsing, cached buffer rendering and bounded drafts; no custom terminal parser. |
 | Feed and transport | feed-rs 3.0.0, ureq 3.4.2, Rustls 0.23.46, native-certs 0.8.4 | Multi-format decoding, bounded requests, redirects and verified OS trust. Offline policy and resource limits remain in Lume. |
-| SQLite | rusqlite 0.32.1 with bundled SQLite, Refinery 0.8.16 | Real transactions, WAL/FTS5 and immutable checksum-verified migrations; no external database. |
+| SQLite | rusqlite 0.41.0 with bundled SQLite 3.54.1, Refinery 0.10.0/core 0.10.1 | Real transactions, WAL/FTS5 and immutable checksum-verified migrations; no external database. |
 | Extraction | dom_smoothie 0.18.2, dom_query 0.28.0 | Readability and CSS parsing, with explicit ambiguous/short/obstructed extraction handling. Qualified MPL scope applies. |
 | Rich text | html5gum 0.8.3, pulldown-cmark 0.13.6, Syntect 5.3.0, textwrap 0.16.4 | Bounded HTML normalization, Markdown structure and source offsets, reviewed text grammars and Unicode wrapping. |
 | Search | nom 8.0.0 and bundled SQLite FTS5 | Qualified grammar combinators and indexing. Lume owns fields, precedence, limits and parameterized compilation; queries are never raw user SQL. |
@@ -102,6 +102,88 @@ retain those mappings instead. No Markdown/HTML parser, ANSI formatter or new
 dependency is introduced. Column, row, width and padding budgets are enforced
 before publishing a grid; bounded inspection falls back to original Markdown.
 
+## SQLite security update (2026-11-13)
+
+Select the published **rusqlite 0.41.0**, **libsqlite3-sys 0.39.1** (bundled
+**SQLite 3.54.1**) and **Refinery 0.10.0** facade with locked
+**refinery-core 0.10.1**. The latter is the official adapter release supporting
+Rusqlite 0.41; the facade has no 0.10.1 registry release. This removes
+[RUSTSEC-2026-0459](https://github.com/RustSec/advisory-db/blob/main/crates/libsqlite3-sys/RUSTSEC-2026-0459.md),
+which affects opening crafted database/WAL pairs with mismatched page sizes.
+Restore and legacy-library import make this boundary relevant to Lume. Retain
+bundled SQLite; no system-library substitution or vulnerability exception is
+used. Direct versions and the complete resolved graph remain locked.
+
+Rusqlite's [0.41.1 patch](https://github.com/rusqlite/rusqlite/releases/tag/v0.41.1)
+fixes SQLCipher PRAGMA handling and zero-argument scalar functions. Those
+optional paths are disabled here; the selected 0.41.0 wrapper resolves the
+patched native SQLite bundle through libsqlite3-sys 0.39.1.
+
+These established multi-contributor projects maintain their SQLite wrapper,
+engine and migration adapters publicly. The compatible Refinery release follows
+its upstream Rusqlite support update; SQLite 3.54.1 also includes the 3.54.0
+maintenance fixes. Rusqlite/libsqlite3-sys and the Refinery facade remain MIT;
+Refinery's core/macros remain MIT OR Apache-2.0, and SQLite remains public
+domain. Published Rust minimums are 1.89 for Rusqlite, 1.88 for libsqlite3-sys
+and 1.92 for Refinery, within Lume's existing 1.96 floor.
+The pre-1.0 wrapper and adapter APIs require intentional upgrades and native
+qualification; no third-party code or security audit is implied by adoption.
+
+Only the existing bundled/backup/hooks and statement-cache capabilities are
+selected directly, with default features disabled. Explicit `fallible_uint`
+retains checked unsigned parameter/result conversion. Refinery's Rusqlite edge
+also selects upstream defaults: its wasm backend adds MIT-licensed
+`sqlite-wasm-rs` and `rsqlite-vfs` to the locked platform union, without adding
+Linux runtime code. The statement cache updates hashlink to 0.12.2 and reuses
+hashbrown 0.17.1; obsolete ahash/hashbrown 0.14 and async-trait packages leave
+the graph. No ORM, database server, additional TLS backend or int8 migration
+versions are enabled. Existing informational advisory consumers are unchanged.
+
+Refinery still hashes `(name, i32 version, SQL)` with SipHasher13, reads its
+existing decimal checksum/RFC3339 history and commits grouped migrations in
+one transaction. Historical SQL and history rows are never rewritten. Native
+fixtures written with the previously shipped SQLite 3.46.0/Refinery 0.8.16
+qualify old V7/V27 data, exact checksum/name/timestamp preservation, FTS,
+progress, isolated restore and no-clobber backup. Changed numeric checksums
+remain Refinery errors. Its adapter still assumes valid timestamp/checksum
+representations; a reproduced upstream panic on malformed history justifies
+owner prevalidation. Reuse already locked **time 0.3.55** (MIT OR Apache-2.0)
+as an exact direct dependency with only `parsing`, using the identical
+`OffsetDateTime`/`Rfc3339` parser before calling Refinery. This adds no package
+or parser feature to the resolved graph. It validates representation without
+implementing migrations or replacing Refinery's identity/checksum checks.
+
+Rusqlite's renamed database identifier and fallible borrowed-value conversion
+are adapted without lossy UTF-8 conversion. Hooks now require exclusive access
+and return errors; disposable reader workers own mutable Store handles for
+registration, while query closures retain shared access. Normal registration
+and removal failures propagate, retaining any query failure context. Unwinding
+attempts removal and always disables the callback. Native cancellation, error,
+unwind and connection-reuse tests qualify cleanup. Transactions, WAL snapshots,
+FTS queries, checked numeric binding, contention classification, backup and
+retention correctness remain required checks.
+
+Update only transitive **rustix 1.1.5 to 1.1.6** for
+[RUSTSEC-2026-0486](https://github.com/RustSec/advisory-db/blob/main/crates/rustix/RUSTSEC-2026-0486.md).
+Bytecode Alliance's multi-contributor syscall library fixes zero-length xattr
+buffer initialization in its maintained patch line. Tempfile's feature set and
+API stay unchanged; its MIT/Apache-2.0/LLVM-exception license alternatives and
+Rust 1.65 minimum remain compatible. The registry resolver reuses already
+locked windows-sys 0.52.0 for compatible Windows edges. No new informational
+review or waiver is introduced for either patched advisory.
+
+The frozen architecture benchmark executable uses the previous SQLite engine.
+Any final paired Store/application timings therefore include this security
+engine upgrade and cannot isolate the architectural refactor alone. Native
+correctness workloads do not establish speed or memory improvement.
+
+Sources: [Rusqlite release](https://github.com/rusqlite/rusqlite/releases/tag/v0.41.0),
+[Refinery support change](https://github.com/rust-db/refinery/pull/457),
+[Refinery release history](https://github.com/rust-db/refinery/blob/main/CHANGELOG.md),
+[SQLite 3.54.1](https://sqlite.org/releaselog/3_54_1.html),
+[Rustix fix](https://github.com/bytecodealliance/rustix/commit/8e6aaa6713d2bb64b1fdd8c472e3a32a10a76d70),
+[time parser](https://docs.rs/time/0.3.55/time/struct.OffsetDateTime.html#method.parse).
+
 ## Declarative configuration
 
 Select `toml_edit` **0.25.15+spec-1.1.0**, pinned exactly, with only `parse`,
@@ -143,8 +225,8 @@ Sources: [toml_edit API](https://docs.rs/toml_edit/0.25.15+spec-1.1.0/toml_edit/
 [Crossterm](https://docs.rs/crossterm/0.28.1/crossterm/),
 [SQLite transactions](https://sqlite.org/lang_transaction.html),
 [SQLite FTS5](https://sqlite.org/fts5.html),
-[rusqlite](https://docs.rs/rusqlite/0.32.1/rusqlite/),
-[Refinery](https://docs.rs/refinery/0.8.16/refinery/),
+[rusqlite](https://docs.rs/rusqlite/0.41.0/rusqlite/),
+[Refinery](https://docs.rs/refinery/0.10.0/refinery/),
 [dom_smoothie](https://docs.rs/dom_smoothie/0.18.2/dom_smoothie/),
 [dom_query](https://docs.rs/dom_query/0.28.0/dom_query/),
 [image-rs](https://github.com/image-rs/image),
@@ -228,7 +310,7 @@ XML input at 512 KiB. Gzip never raises those limits. Failures cannot publish
 partial cache entries or replace the last good extracted document.
 
 The SQLite online backup API is enabled on the existing pinned rusqlite
-**0.32.1** dependency. This adds no library to the runtime graph. SQLite owns
+**0.41.0** dependency. This adds no library to the runtime graph. SQLite owns
 snapshot consistency; Lume owns deadline, private permissions, identity checks,
 non-overwrite publication and isolated restore validation. See
 [SQLite's backup contract](https://sqlite.org/backup.html).
@@ -334,8 +416,9 @@ upstream benchmark claims do not establish Lume performance or security.
 
 The reviewed graphic formula path adds 51 active packages to the previous
 348-package feature graph, primarily the RaTeX font/layout stack and palette
-arithmetic. It does not load its font data in text mode. The complete lock and
-inventory qualify 399 active packages and four explicitly inactive entries.
+arithmetic. It does not load its font data in text mode. After the SQLite
+security update, the complete lock and inventory qualify 398 active packages
+and four explicitly inactive entries.
 Responsive image selection admits width descriptors through 4096 pixels and
 densities through 4x; decoded image byte, dimension and pixel limits remain
 independent of the publisher's descriptor.
@@ -382,11 +465,13 @@ before obsolete servers reply; cache, limits and crop reuse are also exercised.
 
 ## Scoped SQLite read cancellation
 
-The pinned rusqlite 0.32.1 now enables `hooks` alongside `bundled` and `backup`.
+The pinned rusqlite 0.41.0 enables `hooks` alongside `bundled` and `backup`.
 This adds no package or native library; it exposes SQLite's established progress
 callback through rusqlite's safe API. A disposable read owns its connection and
 installs a generation/flag predicate every 2,048 VM instructions. The scoped
-owner removes the callback on every return, including interruption. Personal
-writes never install this callback. Cancellation is cooperative, does not claim
-to preempt external library calls, and must preserve transaction rollback and
-connection reuse. Locked dependency versions and license obligations are unchanged.
+owner removes the callback on completion and interruption and attempts removal
+on unwinding. Registration/removal failures return errors; an unregister failure
+or unwinding always leaves the predicate inactive. Personal writes never install
+this callback. Cancellation is cooperative, does not claim to preempt external
+library calls, and must preserve transaction rollback and connection reuse.
+The SQLite security review above records the selected versions and licenses.

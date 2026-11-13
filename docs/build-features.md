@@ -72,13 +72,13 @@ dependencies measured on 2026-11-13 are:
 
 | Graph scope | Default | No default features |
 | --- | ---: | ---: |
-| Linux `x86_64-unknown-linux-gnu` | 345 | 250 |
+| Linux `x86_64-unknown-linux-gnu` | 342 | 246 |
 
 These counts exclude Lume itself, deduplicate package name/version pairs and
 include build dependencies. The reduced Linux graph omits math-core, RaTeX,
 resvg, Syntect and Quantette, including build-time Syntect. It retains
 `icy_sixel` through ratatui-image. The cargo-about inventory covers the
-supported feature/platform union: 399 licensed packages including Lume, with
+supported feature/platform union: 398 licensed packages including Lume, with
 four inactive lock entries.
 `cargo tree --target all` also enumerates permanently false `cfg(any())`
 edges, so its raw count is not an active-package count.

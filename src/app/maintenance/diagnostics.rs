@@ -20,7 +20,7 @@ impl Diagnostics {
                 if store.is_none() {
                     store = Some(Store::open(&path)?);
                 }
-                let store = store.as_ref().context("Inspection connection")?;
+                let store = store.as_mut().context("Inspection connection")?;
                 store.read_cancellable(cancel.clone(), |store| {
                     if details {
                         let details =

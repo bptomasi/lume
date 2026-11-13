@@ -1,7 +1,7 @@
 {
   "generator": "cargo-about 0.9.2",
-  "lock_sha256": "d460bdad2cad87daa7212da882f2cb374611797d0a9585f93eb6ac44e617e187",
-  "manifest_sha256": "ad61009228aa47ca38ddce2c552124dddd97d7295205d3fcaf9174367704b17d",
+  "lock_sha256": "d13eb51ce1706b5390f2137f423f409c4a9f6b475389e7bef5b4d18e3802939a",
+  "manifest_sha256": "4644e7f511262361fa0b8732f328cb9e2d95329ba1c82c6645eaa75588401c98",
   "policy_sha256": "b00f99a4f88922e6aa93c2449d6e0bef161fb589a9c0f3080f5662fe2674bcd9",
   "packages": [
     {
@@ -18,11 +18,6 @@
       "name": "adler2",
       "version": "2.0.1",
       "license": "0BSD OR MIT OR Apache-2.0"
-    },
-    {
-      "name": "ahash",
-      "version": "0.8.12",
-      "license": "MIT OR Apache-2.0"
     },
     {
       "name": "aho-corasick",
@@ -77,11 +72,6 @@
     {
       "name": "arrayvec",
       "version": "0.7.8",
-      "license": "MIT OR Apache-2.0"
-    },
-    {
-      "name": "async-trait",
-      "version": "0.1.92",
       "license": "MIT OR Apache-2.0"
     },
     {
@@ -511,11 +501,6 @@
     },
     {
       "name": "hashbrown",
-      "version": "0.14.5",
-      "license": "MIT OR Apache-2.0"
-    },
-    {
-      "name": "hashbrown",
       "version": "0.15.5",
       "license": "MIT OR Apache-2.0"
     },
@@ -526,7 +511,7 @@
     },
     {
       "name": "hashlink",
-      "version": "0.9.1",
+      "version": "0.12.2",
       "license": "MIT OR Apache-2.0"
     },
     {
@@ -701,7 +686,7 @@
     },
     {
       "name": "libsqlite3-sys",
-      "version": "0.30.1",
+      "version": "0.39.1",
       "license": "MIT"
     },
     {
@@ -1141,17 +1126,17 @@
     },
     {
       "name": "refinery",
-      "version": "0.8.16",
+      "version": "0.10.0",
       "license": "MIT"
     },
     {
       "name": "refinery-core",
-      "version": "0.8.16",
+      "version": "0.10.1",
       "license": "MIT OR Apache-2.0"
     },
     {
       "name": "refinery-macros",
-      "version": "0.8.16",
+      "version": "0.10.0",
       "license": "MIT OR Apache-2.0"
     },
     {
@@ -1200,8 +1185,13 @@
       "license": "MIT OR Apache-2.0"
     },
     {
+      "name": "rsqlite-vfs",
+      "version": "0.2.0",
+      "license": "MIT"
+    },
+    {
       "name": "rusqlite",
-      "version": "0.32.1",
+      "version": "0.41.0",
       "license": "MIT"
     },
     {
@@ -1236,7 +1226,7 @@
     },
     {
       "name": "rustix",
-      "version": "1.1.5",
+      "version": "1.1.6",
       "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
     },
     {
@@ -1403,6 +1393,11 @@
       "name": "smallvec",
       "version": "1.16.2",
       "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "sqlite-wasm-rs",
+      "version": "0.6.3",
+      "license": "MIT"
     },
     {
       "name": "stable-arena",
@@ -2019,7 +2014,7 @@
     }
   ],
   "files": {
-    "THIRD_PARTY_LICENSES.txt": "c54445ac48bb5ef01a502215bab1ff7c209f5b689cacb8a10181234ea3f11e11",
+    "THIRD_PARTY_LICENSES.txt": "5300bc588a1b49283269edf491a5c5aeaf3561c1153014fe53cad0b8888a3743",
     "sources/cssparser-0.37.0.crate": "8c9cdaae01d5ed7882b04d795e7f752f46ff52d2fa3b50a20d28c464510bba98",
     "sources/cssparser-macros-0.7.0.crate": "10a2a99df6e410a8ff4245aa2006499ea662245f967cc7c0a38c83ef8eb44dbf",
     "sources/dtoa-short-0.3.5.crate": "cd1511a7b6a56299bd043a9c167a6d2bfb37bf84a6dfceaba651168adfb43c87",

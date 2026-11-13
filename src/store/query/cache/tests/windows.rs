@@ -33,11 +33,10 @@ fn window_recovery_normalizes_limits_and_empty_or_stale_offsets() -> Result<()>
 fn out_of_range_pages_skip_metadata_and_unchanged_totals_skip_recounting()
 -> Result<()> {
     let directory = tempfile::tempdir()?;
-    let store = fixture(&directory.path().join("skip.sqlite3"))?;
+    let mut store = fixture(&directory.path().join("skip.sqlite3"))?;
     store.query_articles(&query(0))?;
-    store
-        .connection
-        .authorizer(Some(|context: AuthContext<'_>| match context.action {
+    store.connection.authorizer(Some(
+        |context: AuthContext<'_>| match context.action {
             AuthAction::Read {
                 table_name: "comments",
                 ..
@@ -46,7 +45,8 @@ fn out_of_range_pages_skip_metadata_and_unchanged_totals_skip_recounting()
                 function_name: "count",
             } => Authorization::Deny,
             _ => Authorization::Allow,
-        }));
+        },
+    ))?;
     let page = store.query_articles(&query(usize::MAX))?;
     assert_eq!(page.total, 75);
     assert!(page.articles.is_empty());
@@ -62,7 +62,7 @@ fn out_of_range_pages_skip_metadata_and_unchanged_totals_skip_recounting()
     );
     store
         .connection
-        .authorizer(None::<fn(AuthContext<'_>) -> Authorization>);
+        .authorizer(None::<fn(AuthContext<'_>) -> Authorization>)?;
     assert_eq!(store.query_articles(&query(0))?.total, 75);
     Ok(())
 }
@@ -72,7 +72,7 @@ fn tail_recovery_keeps_the_count_snapshot_when_another_writer_deletes_articles()
 -> Result<()> {
     let directory = tempfile::tempdir()?;
     let path = directory.path().join("coherent.sqlite3");
-    let store = fixture(&path)?;
+    let mut store = fixture(&path)?;
     let writer = Store::open(&path)?;
     let mut committed = false;
     store
@@ -100,12 +100,12 @@ fn tail_recovery_keeps_the_count_snapshot_when_another_writer_deletes_articles()
                 }
             }
             Authorization::Allow
-        }));
+        }))?;
     let (offset, page) = store.article_window(&query(999))?;
     assert_eq!((offset, page.total, page.articles.len()), (70, 75, 5));
     store
         .connection
-        .authorizer(None::<fn(AuthContext<'_>) -> Authorization>);
+        .authorizer(None::<fn(AuthContext<'_>) -> Authorization>)?;
     assert_eq!(store.query_articles(&query(0))?.total, 0);
     Ok(())
 }

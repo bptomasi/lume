@@ -62,11 +62,11 @@ impl PickerReads {
 fn connection<'a>(
     store: &'a mut Option<Store>,
     path: &std::path::Path,
-) -> Result<&'a Store> {
+) -> Result<&'a mut Store> {
     if store.is_none() {
         *store = Some(Store::open(path)?);
     }
-    store.as_ref().context("Selector connection unavailable")
+    store.as_mut().context("Selector connection unavailable")
 }
 
 impl App {
