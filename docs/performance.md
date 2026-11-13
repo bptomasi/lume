@@ -46,7 +46,8 @@ writes, background content/image preparation and durable configuration
 publication. Algorithm choice alone is not evidence of a speed improvement.
 
 Current evidence:
-[architecture qualification](performance/architecture-review-2026-11-13.md).
+[notebook query follow-up](performance/notebook-query-review-2026-11-13.md)
+and [architecture qualification](performance/architecture-review-2026-11-13.md).
 
 ## Reproduce
 

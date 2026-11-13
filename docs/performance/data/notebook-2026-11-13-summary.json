@@ -1,0 +1,715 @@
+{
+  "build": {
+    "base_revision": "addb4d49b5dd79a7ff80201c9a81665e9144569c",
+    "source_sha256": {
+      "src/store/notebook/query.rs": "f80f74de7363b8b02518035c69f15c1d3141d4ea0560b9d81b0e1aaee75859f2",
+      "src/store/notebook/export.rs": "00c766c76a78297082c241c1bc9612f5fd455770f6455c7b0daa6cde6fe5a576",
+      "src/store/sql/notebook/select_source_context.sql": "93f953368020baa8ad30c10439d50c56d3bd4b5e5d2d6d354f8de4db8bdef945",
+      "src/store/sql/notebook/select_export_source.sql": "045772d01416890f35899e5abe610f61b274daf6a3ef014cc20399afe91adc2a",
+      "tests/notebook_sources.rs": "9d5a8a8fdef16054209aba11ed901fc9e8103d719c35a645a3e0b1277fe517dc",
+      "benches/reader.rs": "f8648c2c365803f0ac851fd03e85b25ef9fb5dd8e0457de417556965e991a44d",
+      "benches/workloads/notebook.rs": "026ce4023933dcfc832e68b001731e9de2724c02060d8d20171ab4de86e56c33",
+      "benches/workloads/notebook_profile.rs": "5c9dd142f31a64f1c3880dfa357d7b99d892044b14313e03340f6e64b8c811db"
+    },
+    "compiler": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.1\nLLVM version: 23.1.1\n",
+    "environment": {
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_BUILD_JOBS": "2",
+      "RUST_TEST_THREADS": "2",
+      "RUSTUP_TOOLCHAIN": "1.99.1",
+      "RUSTFLAGS": null,
+      "CARGO_ENCODED_RUSTFLAGS": null,
+      "CARGO_TARGET_DIR": null
+    },
+    "command": [
+      "cargo",
+      "+1.99.1",
+      "bench",
+      "--locked",
+      "--bench",
+      "reader",
+      "--no-run",
+      "--offline",
+      "--message-format=json"
+    ],
+    "exit_code": 0,
+    "wall_seconds": 282.237715,
+    "artifact": {
+      "path": "/tmp/lume-notebook-diagnosis/reader",
+      "sha256": "f4a1cf7b193649485d5eaef815bc8a17190109db0bac1bc86db959146dceda42",
+      "bytes": 28912416
+    }
+  },
+  "comparisons": {
+    "same-engine": {
+      "candidate_git_base_revision": "addb4d49b5dd79a7ff80201c9a81665e9144569c",
+      "host": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+      "binary_sha256": {
+        "before": "cd93d198692fbe007fc6365068b87d6a80f420f558ea65f71304dac8fea78adc",
+        "after": "f4a1cf7b193649485d5eaef815bc8a17190109db0bac1bc86db959146dceda42"
+      },
+      "environment": {
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_BUILD_JOBS": "2",
+        "RUST_TEST_THREADS": "2"
+      },
+      "warmups_per_workload_per_binary": 1,
+      "sequence_per_workload": "ABBA ABBA ABBA",
+      "a": "before",
+      "b": "after",
+      "limitations": [
+        "Both use SQLite 3.54.1 and rusqlite 0.41.0; candidate uses narrower source reads.",
+        "RSS is whole-process maximum including fixture construction.",
+        "Harness means and medians have three-decimal millisecond precision.",
+        "No physical terminal or network latency is measured."
+      ],
+      "summary": {
+        "notebook": {
+          "note FTS + same-note filters + last page + snippets": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                6.553,
+                6.665,
+                6.567,
+                6.411,
+                6.368,
+                6.728
+              ],
+              "median_ms": 6.5600000000000005,
+              "min_ms": 6.368,
+              "max_ms": 6.728
+            },
+            "after": {
+              "values_ms": [
+                6.353,
+                6.641,
+                6.389,
+                6.422,
+                6.326,
+                6.65
+              ],
+              "median_ms": 6.4055,
+              "min_ms": 6.326,
+              "max_ms": 6.65
+            },
+            "change_percent": -2.35518292682928
+          },
+          "owned note + source context + Markdown layout": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                0.082,
+                0.08,
+                0.082,
+                0.077,
+                0.08,
+                0.079
+              ],
+              "median_ms": 0.08,
+              "min_ms": 0.077,
+              "max_ms": 0.082
+            },
+            "after": {
+              "values_ms": [
+                0.064,
+                0.067,
+                0.062,
+                0.065,
+                0.064,
+                0.065
+              ],
+              "median_ms": 0.0645,
+              "min_ms": 0.062,
+              "max_ms": 0.067
+            },
+            "change_percent": -19.374999999999996
+          },
+          "checkpoint + references + metadata + review + repair/version + undo": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                3.043,
+                3.102,
+                3.109,
+                3.125,
+                2.999,
+                3.089
+              ],
+              "median_ms": 3.0955,
+              "min_ms": 2.999,
+              "max_ms": 3.125
+            },
+            "after": {
+              "values_ms": [
+                2.985,
+                3.049,
+                3.01,
+                3.007,
+                2.974,
+                3.095
+              ],
+              "median_ms": 3.0084999999999997,
+              "min_ms": 2.974,
+              "max_ms": 3.095
+            },
+            "change_percent": -2.810531416572448
+          },
+          "nested image wikilinks + checked backlink": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                0.332,
+                0.336,
+                0.339,
+                0.335,
+                0.328,
+                0.346
+              ],
+              "median_ms": 0.3355,
+              "min_ms": 0.328,
+              "max_ms": 0.346
+            },
+            "after": {
+              "values_ms": [
+                0.331,
+                0.336,
+                0.343,
+                0.331,
+                0.322,
+                0.336
+              ],
+              "median_ms": 0.3335,
+              "min_ms": 0.322,
+              "max_ms": 0.343
+            },
+            "change_percent": -0.5961251862891204
+          },
+          "note key + ready context + actual frame": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                0.302,
+                0.292,
+                0.286,
+                0.313,
+                0.292,
+                0.269
+              ],
+              "median_ms": 0.292,
+              "min_ms": 0.269,
+              "max_ms": 0.313
+            },
+            "after": {
+              "values_ms": [
+                0.273,
+                0.265,
+                0.265,
+                0.261,
+                0.245,
+                0.276
+              ],
+              "median_ms": 0.265,
+              "min_ms": 0.245,
+              "max_ms": 0.276
+            },
+            "change_percent": -9.246575342465746
+          },
+          "stable note files + citations + publication": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                13.699,
+                13.666,
+                13.584,
+                13.975,
+                13.452,
+                13.285
+              ],
+              "median_ms": 13.625,
+              "min_ms": 13.285,
+              "max_ms": 13.975
+            },
+            "after": {
+              "values_ms": [
+                8.72,
+                8.626,
+                8.872,
+                9.163,
+                8.945,
+                8.954
+              ],
+              "median_ms": 8.9085,
+              "min_ms": 8.626,
+              "max_ms": 9.163
+            },
+            "change_percent": -34.61651376146789
+          },
+          "incremental note files + exact-byte ownership": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                10.33,
+                10.457,
+                10.0,
+                9.917,
+                10.049,
+                9.913
+              ],
+              "median_ms": 10.0245,
+              "min_ms": 9.913,
+              "max_ms": 10.457
+            },
+            "after": {
+              "values_ms": [
+                6.5,
+                6.456,
+                6.46,
+                6.275,
+                6.28,
+                6.561
+              ],
+              "median_ms": 6.458,
+              "min_ms": 6.275,
+              "max_ms": 6.561
+            },
+            "change_percent": -35.57783430595042
+          }
+        }
+      },
+      "run_count": 14,
+      "all_exit_codes_zero": true
+    },
+    "combined": {
+      "candidate_git_base_revision": "addb4d49b5dd79a7ff80201c9a81665e9144569c",
+      "host": "Linux-7.1.8+deb13-amd64-x86_64-with-glibc2.41",
+      "binary_sha256": {
+        "before": "008ad4f6174165c588a749a871cbf4e37b78f100a405a0688ecef675adef5881",
+        "after": "f4a1cf7b193649485d5eaef815bc8a17190109db0bac1bc86db959146dceda42"
+      },
+      "environment": {
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_BUILD_JOBS": "2",
+        "RUST_TEST_THREADS": "2"
+      },
+      "warmups_per_workload_per_binary": 1,
+      "sequence_per_workload": "ABBA ABBA ABBA",
+      "a": "before",
+      "b": "after",
+      "limitations": [
+        "Combined comparison: frozen SQLite 3.46 baseline versus patched engine plus architecture and narrower source reads; not an isolated engine comparison.",
+        "RSS is whole-process maximum including fixture construction.",
+        "Harness means and medians have three-decimal millisecond precision.",
+        "No physical terminal or network latency is measured."
+      ],
+      "summary": {
+        "notebook": {
+          "note FTS + same-note filters + last page + snippets": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                6.008,
+                6.107,
+                5.881,
+                5.889,
+                5.851,
+                5.804
+              ],
+              "median_ms": 5.885,
+              "min_ms": 5.804,
+              "max_ms": 6.107
+            },
+            "after": {
+              "values_ms": [
+                6.659,
+                6.768,
+                6.773,
+                6.364,
+                6.412,
+                6.47
+              ],
+              "median_ms": 6.5645,
+              "min_ms": 6.364,
+              "max_ms": 6.773
+            },
+            "change_percent": 11.546304163126585
+          },
+          "owned note + source context + Markdown layout": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                0.054,
+                0.058,
+                0.053,
+                0.053,
+                0.055,
+                0.052
+              ],
+              "median_ms": 0.0535,
+              "min_ms": 0.052,
+              "max_ms": 0.058
+            },
+            "after": {
+              "values_ms": [
+                0.066,
+                0.073,
+                0.069,
+                0.063,
+                0.066,
+                0.065
+              ],
+              "median_ms": 0.066,
+              "min_ms": 0.063,
+              "max_ms": 0.073
+            },
+            "change_percent": 23.364485981308427
+          },
+          "checkpoint + references + metadata + review + repair/version + undo": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                2.599,
+                2.699,
+                2.648,
+                2.601,
+                2.668,
+                2.56
+              ],
+              "median_ms": 2.6245000000000003,
+              "min_ms": 2.56,
+              "max_ms": 2.699
+            },
+            "after": {
+              "values_ms": [
+                3.011,
+                3.075,
+                3.077,
+                3.005,
+                3.01,
+                2.993
+              ],
+              "median_ms": 3.0105,
+              "min_ms": 2.993,
+              "max_ms": 3.077
+            },
+            "change_percent": 14.70756334539911
+          },
+          "nested image wikilinks + checked backlink": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                0.27,
+                0.286,
+                0.281,
+                0.269,
+                0.286,
+                0.269
+              ],
+              "median_ms": 0.2755,
+              "min_ms": 0.269,
+              "max_ms": 0.286
+            },
+            "after": {
+              "values_ms": [
+                0.339,
+                0.343,
+                0.333,
+                0.332,
+                0.321,
+                0.321
+              ],
+              "median_ms": 0.3325,
+              "min_ms": 0.321,
+              "max_ms": 0.343
+            },
+            "change_percent": 20.68965517241379
+          },
+          "note key + ready context + actual frame": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                0.251,
+                0.258,
+                0.254,
+                0.241,
+                0.261,
+                0.258
+              ],
+              "median_ms": 0.256,
+              "min_ms": 0.241,
+              "max_ms": 0.261
+            },
+            "after": {
+              "values_ms": [
+                0.282,
+                0.278,
+                0.286,
+                0.26,
+                0.286,
+                0.254
+              ],
+              "median_ms": 0.28,
+              "min_ms": 0.254,
+              "max_ms": 0.286
+            },
+            "change_percent": 9.375
+          },
+          "stable note files + citations + publication": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                9.953,
+                9.906,
+                9.913,
+                9.928,
+                9.926,
+                9.863
+              ],
+              "median_ms": 9.9195,
+              "min_ms": 9.863,
+              "max_ms": 9.953
+            },
+            "after": {
+              "values_ms": [
+                8.959,
+                8.932,
+                8.778,
+                8.739,
+                15.567,
+                8.848
+              ],
+              "median_ms": 8.89,
+              "min_ms": 8.739,
+              "max_ms": 15.567
+            },
+            "change_percent": -10.37854730581177
+          },
+          "incremental note files + exact-byte ownership": {
+            "statistic": "median of six run mean_ms observations",
+            "before": {
+              "values_ms": [
+                6.989,
+                7.272,
+                7.291,
+                6.938,
+                7.218,
+                6.908
+              ],
+              "median_ms": 7.1035,
+              "min_ms": 6.908,
+              "max_ms": 7.291
+            },
+            "after": {
+              "values_ms": [
+                6.383,
+                6.534,
+                6.478,
+                6.467,
+                6.493,
+                6.322
+              ],
+              "median_ms": 6.4725,
+              "min_ms": 6.322,
+              "max_ms": 6.534
+            },
+            "change_percent": -8.882945027099321
+          }
+        }
+      },
+      "run_count": 14,
+      "all_exit_codes_zero": true
+    }
+  },
+  "query_phases": {
+    "original note summary": {
+      "prepare_us": 15.085,
+      "execute_bind_us": 1.677,
+      "materialize_us": 0.548,
+      "reset_us": 0.547,
+      "finalize_us": 0.6,
+      "vm_steps": 64
+    },
+    "original article metadata and note count": {
+      "prepare_us": 6.583,
+      "execute_bind_us": 2.711,
+      "materialize_us": 0.394,
+      "reset_us": 0.415,
+      "finalize_us": 0.246,
+      "vm_steps": 331
+    },
+    "export ownership and URL": {
+      "prepare_us": 6.187,
+      "execute_bind_us": 0.761,
+      "materialize_us": 0.102,
+      "reset_us": 0.417,
+      "finalize_us": 0.087,
+      "vm_steps": 24
+    },
+    "Feed source": {
+      "prepare_us": 1.385,
+      "execute_bind_us": 0.464,
+      "materialize_us": 0.095,
+      "reset_us": 0.33,
+      "finalize_us": 0.063,
+      "vm_steps": 12
+    },
+    "Full source without feed body": {
+      "prepare_us": 1.4,
+      "execute_bind_us": 0.459,
+      "materialize_us": 0.079,
+      "reset_us": 0.332,
+      "finalize_us": 0.061,
+      "vm_steps": 11
+    }
+  },
+  "isolated_libraries": {
+    "scope": "Standalone point-query probes; not full production workflow timing.",
+    "phases": [
+      {
+        "phase": "clippy-minimal",
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "clippy",
+          "--locked",
+          "--offline",
+          "--no-default-features",
+          "--lib",
+          "--test",
+          "notebook_sources",
+          "--test",
+          "notebook_storage",
+          "--test",
+          "notebook_exports",
+          "--test",
+          "notebook",
+          "--test",
+          "article_notes",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit_code": 0,
+        "seconds": 9.043352395994589
+      },
+      {
+        "phase": "build-probe-old",
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--offline",
+          "--release",
+          "--manifest-path",
+          "/tmp/lume-notebook-diagnosis/probe-old/Cargo.toml"
+        ],
+        "exit_code": 0,
+        "seconds": 33.05486266606022
+      },
+      {
+        "phase": "build-probe-current",
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--offline",
+          "--release",
+          "--manifest-path",
+          "/tmp/lume-notebook-diagnosis/probe-current/Cargo.toml"
+        ],
+        "exit_code": 0,
+        "seconds": 35.585272860946134
+      }
+    ],
+    "old": {
+      "manifest": "[package]\nname = \"query-probe-old\"\nversion = \"0.0.0\"\nedition = \"2024\"\n[dependencies]\nrusqlite = { version = \"=0.32.1\", default-features = false, features = [\"bundled\", \"backup\", \"hooks\"] }\nlibsqlite3-sys = \"=0.30.1\"\n[profile.release]\nlto = \"thin\"\ncodegen-units = 1\nstrip = \"debuginfo\"\n",
+      "lock_sha256": "b1022b0b98fd134317044c4634c52ea1237b8a725caeef92660cde9f763e6ef4",
+      "source_sha256": "911c3fabaf7247aa8d913e946698b5fa7d63da9ba7715f054dc103978a1df2ad",
+      "binary_sha256": "e750977c0e14aa603521ee166827c098c01881c32c60ebfeb8cf52fd837c1157"
+    },
+    "current": {
+      "manifest": "[package]\nname = \"query-probe-current\"\nversion = \"0.0.0\"\nedition = \"2024\"\n[dependencies]\nrusqlite = { version = \"=0.41.0\", default-features = false, features = [\"bundled\", \"backup\", \"hooks\", \"cache\", \"fallible_uint\"] }\nlibsqlite3-sys = \"=0.39.1\"\n[profile.release]\nlto = \"thin\"\ncodegen-units = 1\nstrip = \"debuginfo\"\n",
+      "lock_sha256": "53fad1f01fae881375790487200d1dde2b9b564bf2e01c87855e8a606c298187",
+      "source_sha256": "911c3fabaf7247aa8d913e946698b5fa7d63da9ba7715f054dc103978a1df2ad",
+      "binary_sha256": "950e6f5270fbd4771bced3613dee4287773b80c2e92362cf4a740f165c38774f"
+    },
+    "wal_control": {
+      "journal_mode": "wal",
+      "fixture_note_count": 10000,
+      "rows": 216,
+      "medians_us": {
+        "summary": {
+          "old": {
+            "prepare_us": 15.40905,
+            "execute_bind_us": 2.0032,
+            "materialize_us": 0.5245500000000001,
+            "reset_us": 0.613,
+            "finalize_us": 0.7044
+          },
+          "current": {
+            "prepare_us": 15.03485,
+            "execute_bind_us": 1.87745,
+            "materialize_us": 0.5089,
+            "reset_us": 0.57365,
+            "finalize_us": 0.5684
+          }
+        },
+        "article": {
+          "old": {
+            "prepare_us": 6.56295,
+            "execute_bind_us": 2.86515,
+            "materialize_us": 0.4239,
+            "reset_us": 0.48585,
+            "finalize_us": 0.267
+          },
+          "current": {
+            "prepare_us": 6.45415,
+            "execute_bind_us": 2.8764000000000003,
+            "materialize_us": 0.38634999999999997,
+            "reset_us": 0.40625,
+            "finalize_us": 0.24795
+          }
+        },
+        "metadata": {
+          "old": {
+            "prepare_us": 1.5713,
+            "execute_bind_us": 0.71705,
+            "materialize_us": 0.13140000000000002,
+            "reset_us": 0.37285,
+            "finalize_us": 0.11545
+          },
+          "current": {
+            "prepare_us": 1.65115,
+            "execute_bind_us": 0.7036,
+            "materialize_us": 0.1123,
+            "reset_us": 0.32645,
+            "finalize_us": 0.0948
+          }
+        }
+      },
+      "scope": "Same point-query binaries and logical fixture; persistent WAL mode. No explicit multi-query snapshot or full domain mapper."
+    }
+  },
+  "validation": {
+    "native-default": {
+      "passed": 62,
+      "failed": 0,
+      "ignored": 0
+    },
+    "native-minimal": {
+      "passed": 62,
+      "failed": 0,
+      "ignored": 0
+    },
+    "check-final": {
+      "passed": 1189,
+      "failed": 0,
+      "ignored": 34
+    }
+  },
+  "accepted_source_commit": "549724d0f4d140eea98d3e2f84d7836af52d6909",
+  "measured_source_hashes_match_commit": true
+}
