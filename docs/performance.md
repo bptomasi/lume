@@ -1,5 +1,45 @@
 # Performance and qualification
 
+## Start here
+
+Correctness runs and timing runs answer different questions. `make check`
+executes native behavioral tests and checked benchmark scenarios; `make bench`
+measures representative work. Real HTTP, the optimized build and real Foot
+qualification have explicit gates in [development](development.md#quality-gates).
+An unavailable or ignored gate is not a pass. A compiler or feature-matrix CI
+definition is not evidence of a hosted run.
+
+Use the exact release compiler from `rust-toolchain.toml` for release evidence.
+The separate minimum-compiler job reads `package.rust-version` from Cargo.toml;
+its results establish compatibility, not equivalent timing. Reduced capability
+builds can produce different syntax and formula output, so shared inputs alone
+do not justify comparing their speed. See [capabilities](build-features.md) and
+[compiler qualification](development.md#compiler-and-capability-qualification).
+
+For a new comparison, record revision, compiler identity, flags, features,
+fixture, binary hash and timing scope. Run checked representative workloads
+repeatedly, serially on the same host. Inspect old/new timed setup and rendering
+outputs before pairing samples. Retain failures, mixed results and memory/I/O
+scope. Buffer timings do not establish physical display latency.
+
+Navigation: [reproduce](#reproduce), [retained evidence](#retained-evidence),
+[measurement boundaries](#boundaries),
+[configuration/installer](#configuration-and-installer-review),
+[query/navigation](#query-editing-and-navigation-review),
+[live search/formulas](#live-search-and-formula-preparation),
+[typesetting/color](#optional-typesetting-and-image-color-review),
+[eight-upgrade qualification](#eight-upgrade-qualification--2026-10-23),
+[retention/images](#retention-inspection-and-native-image-preparation),
+[inspector/palette](#cached-inspector-restoration-and-sixel-palette-compaction),
+[cancellation/pagination](#cancellable-work-and-deep-pagination-2026-10-24),
+[deletion](#deletion-ownership-review-2026-10-24),
+[pagination](#final-pagination-review-2026-10-24),
+[definition removal](#definition-removal-review-2026-10-25),
+[linked pages](#linked-page-review-2026-10-30),
+[database/image preparation](#database-writes-and-image-preparation-2026-10-30),
+and [Sixel encoder](#exact-sixel-encoder-qualification).
+Historical reports below keep their original scope and values.
+
 Lume keeps expensive work away from navigation and rendering: bounded metadata
 pages, replaceable read projections, independent catalog counts, ordered personal
 writes, background content/image preparation and durable configuration

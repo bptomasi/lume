@@ -15,7 +15,8 @@ CARGO_AUDIT ?= cargo-audit
 REPORT_DIR ?= reports
 MIGRATE_FROM ?=
 
-.PHONY: help paths check check-release check-http check-sql fmt format
+.PHONY: help paths check check-release check-http check-sql check-architecture
+.PHONY: fmt format
 .PHONY: lint test bench build run demo clean
 .PHONY: install upgrade test-tools bench-tools bench-notes bench-recommendations
 .PHONY: bench-reading bench-images bench-interaction bench-code check-image-display check-foot
@@ -42,6 +43,8 @@ help:
 		'' \
 		'Checks:' \
 		'  check                 Run all local checks; no services required' \
+		'  check-architecture    Verify production ownership and App/UI boundaries' \
+		'  check-sql             Verify native SQL ownership' \
 		'  check-release         Local, current security, HTTP and release build' \
 		'  check-security        Current RustSec gate; requires cargo-audit 0.22.2' \
 		'  bench-sixel           Profile Sixel stages, memory and emitted color fidelity' \
@@ -80,6 +83,7 @@ paths:
 		'Use lume config path for the runtime configuration location.'
 
 check:
+	$(MAKE) check-architecture
 	$(MAKE) check-sql
 	$(MAKE) check-licenses
 	$(MAKE) fmt
@@ -96,11 +100,14 @@ check:
 		tools/bench_discovery.py \
 		tools/bench_code.py tools/bench_configuration.py tools/bench_reading.py \
 		tools/advisories.py tools/dependency_inventory.py tools/visual_dependencies.py \
-		tools/rust_source.py tools/sql_ownership.py \
+		tools/rust_source.py tools/sql_ownership.py tools/architecture.py tools/ci.py \
 		tools/package_release.py tools/publish_release.py tools/qualify_wayland.py
 
 check-sql:
 	$(PYTHON) tools/sql_ownership.py
+
+check-architecture:
+	$(PYTHON) tools/architecture.py
 
 fmt:
 	$(CARGO) fmt --all -- --check

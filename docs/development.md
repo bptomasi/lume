@@ -52,6 +52,7 @@ make check-release
 
 `check` serially composes formatting, Clippy for every target, native behavioral
 and benchmark correctness tests, Python tooling tests and syntax checks.
+It also runs the production architecture and native SQL ownership guards.
 `check-release` additionally requires the current RustSec gate, real loopback
 HTTP fixtures and the locked release build. Install cargo-audit 0.22.2 explicitly
 with `cargo install cargo-audit --version 0.22.2 --locked --no-default-features`. Required HTTP tests are not silently skipped. Ordinary
@@ -61,6 +62,83 @@ Keep `Cargo.lock` versioned and use `--locked`. Dependency changes update only
 the intended packages, record their selection and retain distribution notices.
 Never substitute a local toolchain/source tree without identifying it explicitly.
 See [dependency policy](dependency-security.md).
+
+## Compiler and capability qualification
+
+`rust-toolchain.toml` is the only release compiler/version/component source.
+`tools/ci.py install` reads it, installs that exact toolchain and fingerprints
+the actual `rustc -Vv` output for CI caches. `Cargo.toml` independently owns
+`package.rust-version`; `tools/ci.py install --compiler minimum` installs that
+minimum, never substitutes stable, and uses explicit `cargo +VERSION` calls.
+Local release gates continue to use the repository's pinned compiler.
+
+On 2026-11-13, the official rustup Rust 1.96.0 toolchain
+(`rustc 1.96.0 (ac68faa20 2026-05-25)`) passed locked offline all-target checks
+with full defaults and native correctness with default and minimal features.
+The default run passed 1,178 native tests and both checked benchmark targets;
+minimal passed 1,093 native tests and the shared capabilities target. Their
+34/28 ignored real HTTP cases were not qualified by those runs. This supports
+the existing 1.96 minimum without changing the pinned release compiler; it does
+not claim a hosted CI or final release qualification.
+
+The reader CI job runs full defaults through local, advisory, HTTP, release and
+Foot gates. A bounded matrix additionally tests the actual minimum compiler
+with default and minimal features, and the pinned compiler with minimal,
+text (`math,syntax,miniflux`), graphics (`graphic-math,sixel`), SVG-only and
+Sixel-only features. Each runs all applicable native targets and checked
+benchmark scenarios; pinned profiles also require strict Clippy. The full reader
+benchmark requires all six default capabilities. The shared capabilities bench
+checks conditional output without claiming identical work across profiles.
+
+All matrix jobs and the reader job must succeed before tagged publication.
+The publisher still downloads the full-default reader artifact from that run.
+Caches separate compiler fingerprints and debug settings. Reduced pinned jobs
+restore compatible reader dependencies but never save redundant target trees;
+only the reader and minimum/default jobs write compiled caches, on the default
+branch. The matrix permits at most two concurrent jobs, each with two build
+jobs and two test threads; it does not multiply release or desktop builds.
+
+To reproduce a reduced profile using its source-declared compiler:
+
+```sh
+python3 tools/ci.py install --compiler minimum
+CARGO_TARGET_DIR=/tmp/lume-minimum python3 tools/ci.py qualify \
+  --compiler minimum --profile minimal
+python3 tools/ci.py qualify --profile sixel
+```
+
+The architecture guard treats each library, binary and build-script crate
+separately. Its nodes are declared root modules plus the composition root.
+It resolves grouped imports, aliases, reexports, relative and `#[path]` modules,
+and explicit `crate`/library paths. Explicit test-only subtrees are excluded;
+production reachability wins when the same file has both uses. Unreachable
+production files fail instead of escaping inspection. Other cfg predicates
+remain production conservatively; there is no cycle exemption list.
+
+The same guard retains private App fields, rejects UI access to App (including
+declared aliases and views containing App), forbids App-to-UI imports and catches
+`mem::take`/`replace` of a known scalar Copy getter temporary. Real field borrows,
+mutable-reference getters and `RefCell` borrows remain valid. This is lexical
+inspection of declared architectural units, not Rust name/type checking: macros,
+inferred receiver types and unknown return types remain compiler/reviewer work.
+Regressions exercise both newly rejected dependencies and valid boundaries.
+
+## Focused changes and review
+
+Keep future commits focused on one owner contract or independently reviewable
+behavior. Pair a state extraction with its invariant/failure tests; pair a new
+adapter with its capability fallback and relevant checked workload. Separate
+mechanical moves from behavioral changes when that makes the resulting diff
+easier to verify. Preserve released history rather than rewriting old commits
+to improve their size.
+
+Before committing, review the complete diff for ownership, readable functions,
+unintended data/config changes and meaningful assertions. Run the affected
+native tests plus `make check-architecture check-sql fmt`, then the appropriate
+Clippy/profile gates. Final integration still requires `make check-release`
+and the real terminal gate after UI changes. Report compiler versions, feature
+profiles, actual checks and any blocked gate explicitly. See the
+[architecture map](architecture.md#at-a-glance) for where a change belongs.
 
 ## Real terminal qualification
 

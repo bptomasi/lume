@@ -1,5 +1,55 @@
 # Architecture
 
+## At a glance
+
+Lume has two application crates: a CLI/terminal composition binary and a reader
+library. Production root-module dependencies are acyclic within each crate.
+`App` coordinates 23 private fields; reader, navigation, notebook, interaction,
+layout and worker owners enforce their own invariants. Borrowed presentation
+views expose cached state to renderers without exposing application authority.
+UI can depend on those view types in `app`; App cannot depend on UI.
+
+```mermaid
+flowchart TD
+    Binary[CLI / terminal binary] --> Composition[frame_composition]
+    Binary --> Services[configuration / backup / retention / offline services]
+    Composition --> App[app: private state owners and workers]
+    Composition --> UI[ui: borrowed presentation views]
+    UI --> App
+    UI --> Presentation[presentation: geometry, hits, palette]
+    App --> Services
+    App --> Reader[reader / media: prepared content]
+    App --> Store[store: durable personal and publisher data]
+    Services --> Store
+    Services --> Config[config: declarative TOML]
+    App --> Source[source: bounded publisher adapters]
+    Store --> Model[model: neutral data contracts]
+```
+
+The diagram summarizes dependency direction, not every import. Config owns TOML;
+`configuration_service` coordinates TOML and SQLite. `backup_service`,
+`retention_service` and `offline_service` orchestrate operations whose durable
+primitives remain in Store; `disk_usage` inspects filesystem usage. Neutral DTOs
+and cancellation primitives keep service orchestration out of Store.
+
+| Change | Start here | Contract / evidence |
+| --- | --- | --- |
+| Input or commands | `app`, `command` | [Typed dispatch and owners](#verification-and-evolution) |
+| Reader, pane or overlay drawing | `reader`, `app::presentation_views`, `ui` | [Cached views and layout](#reading-layout-and-images) |
+| Durable data or SQL | Owner's `sql/`, `store` | [Contention and durability](#interactive-work-and-durability) |
+| TOML reconciliation | `config`, `configuration_service` | [Merge and publication](#declarative-configuration-and-private-state) |
+| Background work | Owner worker / service | [Admission and deadline drains](#interactive-work-and-durability) |
+| Optional adapters | `media`, `reader`, `source` | [Capability/fallback matrix](build-features.md) |
+| Compiler or release process | `rust-toolchain.toml`, `tools/ci.py` | [Development gates](development.md#compiler-and-capability-qualification), [measurements](performance.md) |
+
+Read next: [ownership and flow](#ownership-and-flow),
+[responsive work](#responsive-interactive-work),
+[reading/layout/images](#reading-layout-and-images),
+[verification](#verification-and-evolution),
+[interactive durability](#interactive-work-and-durability), and
+[reading services](#explicit-reading-services).
+The sections below retain the detailed contracts and their evolution.
+
 Lume is an independent, local terminal reader. The library is the product's
 persistence boundary; sources, terminal protocols and filesystem publication
 are adapters with explicit limits. No component requires a hosted service,
