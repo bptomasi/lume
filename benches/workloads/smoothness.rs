@@ -39,7 +39,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
                 app.view
             );
             ensure!(
-                app.reader_text.contains("value"),
+                app.reader().reader_text.contains("value"),
                 "Plain code unavailable"
             );
         }
@@ -57,7 +57,7 @@ fn reader_frames(
     app.focus = Focus::Reader;
     app.workspace.fullscreen = true;
     let mut samples = Vec::new();
-    let original = app.reader_text.clone();
+    let original = app.reader().reader_text.to_owned();
     for _ in 0..iterations * 10 {
         for character in "gg3WgeE0jklb$".chars() {
             let start = Instant::now();
@@ -68,17 +68,19 @@ fn reader_frames(
             frame(app, terminal)?;
             samples.push(start.elapsed().as_secs_f64() * 1000.0);
             ensure!(
-                app.cursor_offset() <= app.reader_text.len(),
+                app.cursor_offset() <= app.reader().reader_text.len(),
                 "Invalid cursor"
             );
             ensure!(
-                app.reader_text.is_char_boundary(app.cursor_offset()),
+                app.reader()
+                    .reader_text
+                    .is_char_boundary(app.cursor_offset()),
                 "Split UTF-8"
             );
         }
     }
     ensure!(
-        app.reader_text == original,
+        app.reader().reader_text == original,
         "Motion modified readable content"
     );
     report("Vim input + runtime resize/poll + frame", samples);
@@ -107,9 +109,10 @@ fn finish_colors(app: &mut App) -> Result<()> {
     }
     ensure!(!app.reader_pending(), "Syntax worker deadline exceeded");
     ensure!(
-        app.reader_styled
+        app.reader()
+            .reader_styled
             .iter()
-            .zip(&app.code_lines)
+            .zip(app.reader().code_lines)
             .filter(|(_, code)| **code)
             .map(|(line, _)| line)
             .flat_map(|line| &line.spans)

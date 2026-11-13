@@ -133,7 +133,7 @@ fn source_excerpt(detail: &crate::model::NoteDetail) -> Excerpt {
             quote: None,
         };
     }
-    let Some(range) = super::super::passages::locate_quote(
+    let Some(range) = crate::reader::locate_quote(
         &detail.body,
         &comment.quote,
         if comment.source_revision == detail.source_revision {

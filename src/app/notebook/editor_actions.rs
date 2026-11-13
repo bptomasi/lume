@@ -134,8 +134,10 @@ impl App {
         ensure!(self.notebook.is_none(), "Open the source article first");
         let (article, passage) = self.captured_passage()?;
         let note = self
+            .reader
+            .view()
             .comments
-            .get(self.comment_selected)
+            .get(self.reader.view().comment_selected)
             .context("Select a note with [ or ] first")?;
         let current = Arc::new(self.store.annotation(article, note.id)?);
         self.show_document(

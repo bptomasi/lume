@@ -89,7 +89,11 @@ fn enter_on_article_link_loads_and_paints_the_linked_image() -> Result<()> {
         ImageProtocol::Blocks,
     )?;
     let parent = app.current().context("Parent")?.id;
-    let before = (app.reader_text.clone(), app.cursor_offset(), app.scroll);
+    let before = (
+        app.reader().reader_text.to_owned(),
+        app.cursor_offset(),
+        app.reader().scroll,
+    );
     key(&mut app, KeyCode::Enter)?;
     settle(&mut app)?;
     let request = image_key(&app)?;
@@ -112,7 +116,11 @@ fn enter_on_article_link_loads_and_paints_the_linked_image() -> Result<()> {
     key(&mut app, KeyCode::Esc)?;
     assert_eq!(app.current().context("Restored parent")?.id, parent);
     assert_eq!(
-        (app.reader_text.clone(), app.cursor_offset(), app.scroll),
+        (
+            app.reader().reader_text.to_owned(),
+            app.cursor_offset(),
+            app.reader().scroll
+        ),
         before
     );
     Ok(())

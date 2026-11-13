@@ -18,11 +18,14 @@ use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
 pub fn run(iterations: usize, stress: bool) -> Result<()> {
     let (_directory, mut app) = application(stress)?;
-    let original = app.reader_text.clone();
+    let original = app.reader().reader_text.to_owned();
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     library_frames(&mut app, &mut terminal, iterations)?;
     selection_frames(&mut app, &mut terminal, iterations)?;
-    ensure!(app.reader_text == original, "Input changed readable text");
+    ensure!(
+        app.reader().reader_text == original,
+        "Input changed readable text"
+    );
     boundaries(iterations, stress)
 }
 
@@ -73,8 +76,9 @@ fn selection_frames(
     app.resize_workspace(Rect::new(0, 0, 144, 44));
     press(app, KeyCode::Char('G'))?;
     while app
+        .reader()
         .reader_lines
-        .get(app.reader_cursor)
+        .get(app.reader().reader_cursor)
         .is_some_and(|line| line.is_empty())
     {
         press(app, KeyCode::Char('k'))?;
@@ -82,9 +86,9 @@ fn selection_frames(
     press(app, KeyCode::Char('V'))?;
     let text = app.selected_range().context("Linewise selection")?;
     ensure!(
-        app.reader_text[text.clone()].contains("final passage"),
+        app.reader().reader_text[text.clone()].contains("final passage"),
         "Wrong final row: {:?}",
-        &app.reader_text[text.clone()]
+        &app.reader().reader_text[text.clone()]
     );
     super::measure(
         "deep linewise selection + full interactive frame",

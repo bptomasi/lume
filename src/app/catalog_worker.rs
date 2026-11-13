@@ -181,7 +181,7 @@ impl App {
         if let Some(result) = worker.worker.poll() {
             worker.ready = Some(result);
         }
-        if !matches!(self.mode, Mode::Normal) || self.selection.is_some() {
+        if !matches!(self.mode, Mode::Normal) || self.reader.selecting() {
             return Ok(false);
         }
         let Some(result) = worker.ready.take() else {

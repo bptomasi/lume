@@ -40,32 +40,36 @@ fn eventual_real_syntax_colors_preserve_selection_cursor_text_and_source()
 -> Result<()> {
     let (_directory, mut app) = application()?;
     keys(&mut app, "2j0v3l")?;
-    let before = (
-        app.reader_text.clone(),
-        app.cursor_offset(),
-        app.selected_range(),
+    let reading = app.reader();
+    let text = reading.reader_text.to_owned();
+    let cursor = reading.cursor_offset();
+    let selection = reading.selected_range();
+    let source = (
+        reading.content_source,
+        reading.content_revision,
+        reading.body.to_owned(),
     );
-    let source = (app.content_source, app.content_revision, app.body.clone());
     let deadline = Instant::now() + Duration::from_secs(5);
     while app.reader_pending() && Instant::now() < deadline {
         app.poll_reader();
         thread::sleep(Duration::from_millis(1));
     }
     ensure!(!app.reader_pending(), "Real syntax work did not complete");
+    let reading = app.reader();
+    assert_eq!(reading.reader_text, text);
+    assert_eq!(reading.cursor_offset(), cursor);
+    assert_eq!(reading.selected_range(), selection);
     assert_eq!(
         (
-            app.reader_text.clone(),
-            app.cursor_offset(),
-            app.selected_range()
+            reading.content_source,
+            reading.content_revision,
+            reading.body.to_owned()
         ),
-        before
-    );
-    assert_eq!(
-        (app.content_source, app.content_revision, app.body.clone()),
         source
     );
     assert!(
-        app.reader_styled
+        app.reader()
+            .reader_styled
             .iter()
             .flat_map(|line| &line.spans)
             .any(|span| span.style.fg == Some(Color::Rgb(216, 164, 116)))
@@ -120,10 +124,7 @@ fn background_markdown_and_syntax_keep_the_same_selected_code() -> Result<()> {
         thread::yield_now();
     }
     keys(&mut app, "2j0v3l")?;
-    let selected = app.reader_text[app
-        .selected_range()
-        .ok_or_else(|| anyhow::anyhow!("No code selection"))?]
-    .to_owned();
+    let selected = common::reader::selected_text(&app)?;
     app.resize_reader(45, 12);
     while app.reader_pending() {
         app.poll_reader();
@@ -133,14 +134,10 @@ fn background_markdown_and_syntax_keep_the_same_selected_code() -> Result<()> {
         );
         thread::yield_now();
     }
-    assert_eq!(
-        &app.reader_text[app
-            .selected_range()
-            .ok_or_else(|| anyhow::anyhow!("Selection lost"))?],
-        selected
-    );
+    assert_eq!(common::reader::selected_text(&app)?, selected);
     assert!(
-        app.reader_styled
+        app.reader()
+            .reader_styled
             .iter()
             .flat_map(|line| &line.spans)
             .any(|span| span.style.fg == Some(Color::Rgb(216, 164, 116)))
@@ -158,12 +155,14 @@ fn formula_application() -> Result<(tempfile::TempDir, App)> {
     let mut app = App::new(store, false)?;
     app.focus = Focus::Reader;
     app.resize_reader(60, 8);
-    app.reader_cursor = app
+    let row = app
+        .reader()
         .reader_lines
         .iter()
         .position(|row| row.contains("Anchor target"))
         .ok_or_else(|| anyhow::anyhow!("Source marker"))?;
-    app.reader_column = 0;
+    let byte = 0;
+    common::reader::cursor(&mut app, row, byte)?;
     Ok((directory, app))
 }
 
@@ -184,7 +183,7 @@ fn formula_switch_reprojects_cached_text_and_preserves_source_cursor()
                 &directory.path().join("library.sqlite3"),
             )?;
         }
-        let source = app.body.clone();
+        let source = app.reader().body.to_owned();
         for command in [
             "latex-formulas off",
             "latex-formulas on",
@@ -197,16 +196,17 @@ fn formula_switch_reprojects_cached_text_and_preserves_source_cursor()
                 ensure!(Instant::now() < deadline, "Formula reflow timed out");
                 thread::sleep(Duration::from_millis(1));
             }
-            assert_eq!(app.body, source);
+            assert_eq!(app.reader().body, source);
             assert!(
-                app.reader_lines[app.reader_cursor].contains("Anchor target")
+                app.reader().reader_lines[app.reader().reader_cursor]
+                    .contains("Anchor target")
             );
             assert_eq!(
-                app.reader_text.contains("x²"),
+                app.reader().reader_text.contains("x²"),
                 app.workspace.latex_formulas
             );
             assert_eq!(
-                app.reader_text.contains("$x^2$"),
+                app.reader().reader_text.contains("$x^2$"),
                 !app.workspace.latex_formulas
             );
         }
@@ -237,8 +237,8 @@ fn rapid_formula_toggles_discard_obsolete_background_layouts() -> Result<()> {
         );
         thread::sleep(Duration::from_millis(1));
     }
-    assert!(app.reader_text.contains("$x^2$"));
-    assert!(!app.reader_text.contains("x²"));
+    assert!(app.reader().reader_text.contains("$x^2$"));
+    assert!(!app.reader().reader_text.contains("x²"));
     Ok(())
 }
 
@@ -246,10 +246,10 @@ fn rapid_formula_toggles_discard_obsolete_background_layouts() -> Result<()> {
 fn invalid_formula_policy_preserves_the_previous_setting_and_source()
 -> Result<()> {
     let (_directory, mut app) = formula_application()?;
-    let text = app.reader_text.clone();
+    let text = app.reader().reader_text.to_owned();
     assert!(formula_command(&mut app, "latex-formulas nonsense").is_err());
     assert!(app.workspace.latex_formulas);
-    assert_eq!(app.reader_text, text);
+    assert_eq!(app.reader().reader_text, text);
     Ok(())
 }
 
@@ -262,9 +262,9 @@ fn formula_setting_has_a_reversible_live_preview() -> Result<()> {
     }
     app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE))?;
     assert!(!app.workspace.latex_formulas);
-    assert!(app.reader_text.contains("$x^2$"));
+    assert!(app.reader().reader_text.contains("$x^2$"));
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     assert!(app.workspace.latex_formulas);
-    assert!(app.reader_text.contains("x²"));
+    assert!(app.reader().reader_text.contains("x²"));
     Ok(())
 }

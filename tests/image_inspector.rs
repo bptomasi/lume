@@ -74,8 +74,11 @@ fn reading() -> Result<(tempfile::TempDir, App)> {
     app.focus = Focus::Reader;
     app.workspace.fullscreen = true;
     app.resize_workspace(Rect::new(0, 0, 144, 44));
-    app.reader_cursor = app.images.slots[0].caption;
-    let key = app.image_key(&app.images.slots[0]).context("Inline key")?;
+    let row = app.reader().image_slots[0].caption;
+    common::reader::cursor(&mut app, row, 0)?;
+    let key = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Inline key")?;
     let cache = directory.path().join("images");
     media::cache::write(&cache, &key.url, SVG)?;
     app.enable_images(cache, true)?;
@@ -107,7 +110,7 @@ fn responsive_hidden_reader_does_not_admit_background_image_work() -> Result<()>
     app.resize_workspace(Rect::new(0, 0, 30, 15));
     settle(&mut app)?;
     let key = app
-        .image_key(&app.images.slots[0])
+        .image_key(&app.reader().image_slots[0])
         .context("Visible image")?;
     assert!(app.images.thumbnail(&key).is_some());
     Ok(())
@@ -126,11 +129,11 @@ struct ReaderState {
 impl ReaderState {
     fn capture(app: &App) -> Result<Self> {
         Ok(Self {
-            body: app.body.clone(),
-            readable: app.reader_text.clone(),
-            scroll: app.scroll,
+            body: app.reader().body.to_owned(),
+            readable: app.reader().reader_text.to_owned(),
+            scroll: app.reader().scroll,
             cursor: app.cursor_offset(),
-            selection: app.selection,
+            selection: app.reader().selection,
             workspace: serde_json::to_string(&app.workspace)?,
         })
     }
@@ -230,7 +233,8 @@ fn hostile_preparation_keys_are_rejected_before_allocating_viewports()
 fn inspector_zoom_mouse_and_close_preserve_reader_selection_and_layout()
 -> Result<()> {
     let (_directory, mut app) = reading()?;
-    app.selection = Some(app.cursor_offset());
+    let anchor = app.cursor_offset();
+    common::reader::select(&mut app, anchor)?;
     let before = ReaderState::capture(&app)?;
     press(&mut app, KeyCode::Enter)?;
     assert!(matches!(app.mode, Mode::Image(_)));
@@ -336,7 +340,9 @@ fn fitting_an_image_avoids_redundant_pan_jobs_and_resets_the_crop() -> Result<()
 fn corrupt_offline_cache_keeps_the_decoder_reason_and_can_be_replaced()
 -> Result<()> {
     let (directory, mut app) = reading()?;
-    let key = app.image_key(&app.images.slots[0]).context("Inline key")?;
+    let key = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Inline key")?;
     let cache = directory.path().join("images");
     media::cache::write(&cache, &key.url, b"<html>Login required</html>")?;
     settle(&mut app)?;

@@ -92,7 +92,9 @@ fn http_image_download_is_cached_and_reopens_in_an_offline_session()
 -> Result<()> {
     let server = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
     let (directory, mut app) = reading(&server.url)?;
-    let key = app.image_key(&app.images.slots[0]).context("Image key")?;
+    let key = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Image key")?;
     app.poll_images();
     let request = server.request.recv_timeout(Duration::from_secs(5))?;
     assert!(request.contains("image/svg+xml"));
@@ -137,14 +139,16 @@ fn delayed_http_images_leave_cursor_input_available_and_do_not_bleed_after_navig
     incoming.articles[0].body = "Independent article without images.".into();
     store.ingest(&feed, &incoming.title, &incoming.articles)?;
     app.reload()?;
-    let old_key = app.image_key(&app.images.slots[0]).context("Old key")?;
+    let old_key = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Old key")?;
     app.poll_images();
     server.request.recv_timeout(Duration::from_secs(5))?;
 
     let started = Instant::now();
     app.key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))?;
     assert!(started.elapsed() < Duration::from_secs(1));
-    assert_eq!(app.reader_column, 1);
+    assert_eq!(app.reader().reader_column, 1);
     assert!(app.images_pending());
     app.focus = Focus::Articles;
     app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
@@ -155,8 +159,8 @@ fn delayed_http_images_leave_cursor_input_available_and_do_not_bleed_after_navig
     settle(&mut app)?;
 
     assert_eq!(app.current().map(|article| article.id), Some(current));
-    assert_eq!(app.body, "Independent article without images.");
-    assert!(app.images.slots.is_empty());
+    assert_eq!(app.reader().body, "Independent article without images.");
+    assert!(app.reader().image_slots.is_empty());
     assert!(app.images.thumbnail(&old_key).is_none());
     server
         .finished
@@ -172,7 +176,8 @@ fn delayed_inspection_discards_old_crops_without_blocking_zoom_or_close()
     let server = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
     let (_directory, mut app) = reading(&server.url)?;
     app.resize_workspace(ratatui::layout::Rect::new(0, 0, 144, 44));
-    app.reader_cursor = app.images.slots[0].caption;
+    let row = app.reader().image_slots[0].caption;
+    common::reader::cursor(&mut app, row, 0)?;
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     let old = app.image_inspector_key().context("Initial inspection")?;
     app.poll_images();
@@ -212,8 +217,10 @@ fn http_error_and_non_image_content_keep_the_article_and_show_recoverable_errors
     ] {
         let server = server(status, "Content-Type: text/html\r\n", body)?;
         let (_directory, mut app) = reading(&server.url)?;
-        let key = app.image_key(&app.images.slots[0]).context("Image key")?;
-        let original = app.body.clone();
+        let key = app
+            .image_key(&app.reader().image_slots[0])
+            .context("Image key")?;
+        let original = app.reader().body.to_owned();
         app.poll_images();
         server.request.recv_timeout(Duration::from_secs(5))?;
         server.release.send(())?;
@@ -221,7 +228,7 @@ fn http_error_and_non_image_content_keep_the_article_and_show_recoverable_errors
 
         assert!(app.images.error(&key).is_some());
         assert!(app.images.thumbnail(&key).is_none());
-        assert_eq!(app.body, original);
+        assert_eq!(app.reader().body, original);
         server
             .finished
             .recv_timeout(Duration::from_secs(5))?
@@ -247,7 +254,9 @@ fn decoded_image_limit_applies_after_gzip_and_rejects_invalid_streams()
             body,
         )?;
         let (directory, mut app) = reading(&server.url)?;
-        let key = app.image_key(&app.images.slots[0]).context("Image key")?;
+        let key = app
+            .image_key(&app.reader().image_slots[0])
+            .context("Image key")?;
         app.poll_images();
         server.request.recv_timeout(Duration::from_secs(5))?;
         server.release.send(())?;
@@ -293,7 +302,9 @@ fn slow_first_download_does_not_block_a_second_visible_image() -> Result<()> {
     // Receiving both requests before releasing either response proves that
     // HTTP work overlaps, without depending on machine-speed thresholds.
     second.release.send(())?;
-    let key = app.image_key(&app.images.slots[1]).context("Second key")?;
+    let key = app
+        .image_key(&app.reader().image_slots[1])
+        .context("Second key")?;
     let deadline = Instant::now() + Duration::from_secs(5);
     while app.images.thumbnail(&key).is_none() {
         app.poll_images();
@@ -322,20 +333,17 @@ fn obsolete_header_waits_free_both_lanes_before_the_server_responds()
     let latest = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
     let (directory, mut app) = reading(&first.url)?;
     let mut store = Store::open(&directory.path().join("library.sqlite3"))?;
-    let feed = store.feeds()?.remove(0);
-    let mut parsed =
-        source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
-    parsed.articles[0].body =
-        format!("![First]({})\n\n![Second]({})", first.url, second.url);
-    store.ingest(&feed, &parsed.title, &parsed.articles)?;
+    replace_body(
+        &mut store,
+        format!("![First]({})\n\n![Second]({})", first.url, second.url,),
+    )?;
     app.reload()?;
     app.resize_reader(70, 40);
     app.poll_images();
     app.poll_images();
     first.request.recv_timeout(Duration::from_secs(2))?;
     second.request.recv_timeout(Duration::from_secs(2))?;
-    parsed.articles[0].body = format!("![Latest]({})", latest.url);
-    store.ingest(&feed, &parsed.title, &parsed.articles)?;
+    replace_body(&mut store, format!("![Latest]({})", latest.url))?;
     app.reload()?;
     let start = Instant::now();
     app.poll_images();
@@ -344,7 +352,10 @@ fn obsolete_header_waits_free_both_lanes_before_the_server_responds()
     assert!(canceled < Duration::from_secs(2));
     latest.release.send(())?;
     settle(&mut app)?;
-    let key = app.image_key(&app.images.slots[0]).context("Latest key")?;
+    let reading = app.reader();
+    let key = app
+        .image_key(&reading.image_slots[0])
+        .context("Latest key")?;
     assert!(app.images.thumbnail(&key).is_some());
     // Obsolete responses can observe the client's intentional socket closure.
     first.finish_canceled()?;
@@ -367,4 +378,13 @@ impl Server {
         let _reply = self.finished.recv_timeout(Duration::from_secs(5))?;
         Ok(())
     }
+}
+
+fn replace_body(store: &mut Store, body: String) -> Result<()> {
+    let feed = store.feeds()?.remove(0);
+    let mut parsed =
+        source::parse(include_bytes!("fixtures/rss.xml"), &feed.url)?;
+    parsed.articles[0].body = body;
+    store.ingest(&feed, &parsed.title, &parsed.articles)?;
+    Ok(())
 }

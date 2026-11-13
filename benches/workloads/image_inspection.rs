@@ -89,11 +89,14 @@ fn verify(decoder: &mut Decoder, bytes: &[u8], key: &ImageKey) -> Result<()> {
 
 fn cached_frames(bytes: &[u8], iterations: usize) -> Result<()> {
     let (directory, mut app) = super::image_app()?;
-    let key = app.image_key(&app.images.slots[0]).context("Inline key")?;
+    let key = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Inline key")?;
     let cache_dir = directory.path().join("images");
     cache::write(&cache_dir, &key.url, bytes)?;
     app.enable_images(cache_dir, true)?;
-    app.reader_cursor = app.images.slots[0].caption;
+    let row = app.reader().image_slots[0].caption;
+    crate::reader_input::cursor(&mut app, row, 0)?;
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     press(&mut app, '+')?;
     super::settle(&mut app)?;

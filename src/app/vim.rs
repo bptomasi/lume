@@ -3,20 +3,18 @@
 //! Counts and multi-key prefixes are transient input, never persisted. Motions
 //! use cached readable-text boundaries and never execute SQL or parse Markdown.
 
-mod motions;
-
 use anyhow::Result;
 use crossterm::event::KeyCode;
 
-use crate::reader::motion::{WordIndex, WordMotion};
+use crate::reader::motion::WordMotion;
 
 use super::{App, Focus};
 
 #[derive(Clone, Copy)]
 pub(super) struct Find {
-    character: char,
-    forward: bool,
-    till: bool,
+    pub(super) character: char,
+    pub(super) forward: bool,
+    pub(super) till: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -33,7 +31,6 @@ enum Prefix {
 
 #[derive(Default)]
 pub(super) struct Vim {
-    pub(super) words: WordIndex,
     count: usize,
     prefix: Option<Prefix>,
     last_find: Option<Find>,
@@ -55,7 +52,7 @@ impl App {
         self.panel_prefix
             || self.vim.count > 0
             || self.vim.prefix.is_some()
-            || self.note_marks.delete.is_some()
+            || self.reader.pending_note_delete().is_some()
             || self.pending_destination_delete.is_some()
             || self.pending_article_delete.is_some()
     }
@@ -116,7 +113,7 @@ impl App {
                 till: matches!(code, KeyCode::Char('t' | 'T')),
                 count,
             }),
-            KeyCode::Char('i' | 'a') if self.selection.is_some() => {
+            KeyCode::Char('i' | 'a') if self.reader.selecting() => {
                 Some(Prefix::Object(code == KeyCode::Char('a')))
             }
             _ => return false,
@@ -174,7 +171,7 @@ impl App {
             }
             _ => return false,
         }
-        self.pending_anchor = None;
+        self.reader.cancel_restore();
         true
     }
 
@@ -188,7 +185,7 @@ impl App {
             KeyCode::Char('G') => self.goto_reader_row(if explicit {
                 count - 1
             } else {
-                self.reader_lines.len().saturating_sub(1)
+                self.reader.view().reader_lines.len().saturating_sub(1)
             }),
             KeyCode::Char('H' | 'M' | 'L') => self.viewport_row(code, count),
             KeyCode::Char('{' | '}') => {
@@ -206,8 +203,8 @@ impl App {
                 }
             }
             KeyCode::Char('n' | 'N')
-                if self.selection.is_none()
-                    && !self.reader_tools.needle.is_empty() =>
+                if !self.reader.selecting()
+                    && !self.reader.view().reader_tools.needle.is_empty() =>
             {
                 for _ in 0..count {
                     self.next_reader_match(code == KeyCode::Char('n'))?;
@@ -215,7 +212,7 @@ impl App {
             }
             _ => return Ok(false),
         }
-        self.pending_anchor = None;
+        self.reader.cancel_restore();
         Ok(true)
     }
 }
@@ -249,11 +246,11 @@ impl App {
         }
         let (forward, distance) = match code {
             KeyCode::Char('f' | 'b') => {
-                (code == KeyCode::Char('f'), count * self.reader_height)
+                (code == KeyCode::Char('f'), count * self.reader.height())
             }
             KeyCode::Char('d' | 'u') => (
                 code == KeyCode::Char('d'),
-                count * (self.reader_height / 2).max(1),
+                count * (self.reader.height() / 2).max(1),
             ),
             KeyCode::Char('e' | 'y') => {
                 self.scroll_reader(code == KeyCode::Char('e'), count);
@@ -275,25 +272,5 @@ impl App {
         self.vim.clear_input();
         self.move_reader(forward, distance);
         Ok(true)
-    }
-
-    pub(super) fn scroll_reader(&mut self, forward: bool, count: usize) {
-        self.pending_anchor = None;
-        self.scroll = if forward {
-            self.scroll.saturating_add(count)
-        } else {
-            self.scroll.saturating_sub(count)
-        };
-        self.scroll = self
-            .scroll
-            .min(self.reader_lines.len().saturating_sub(self.reader_height));
-        self.reader_cursor = self.reader_cursor.clamp(
-            self.scroll,
-            (self.scroll + self.reader_height)
-                .min(self.reader_lines.len())
-                .saturating_sub(1)
-                .max(self.scroll),
-        );
-        self.clamp_cursor();
     }
 }

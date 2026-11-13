@@ -196,8 +196,7 @@ impl App {
             if matches!(input.kind, InputKind::LibrarySearch) {
                 self.cancel_library_search();
             } else if matches!(input.kind, InputKind::ReaderSearch) {
-                self.reader_tools.needle.clear();
-                self.reader_tools.hits.clear();
+                self.reader.search_reader("");
             }
         }
         if let Mode::Input(input) = &self.mode

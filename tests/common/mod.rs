@@ -3,6 +3,7 @@
 use anyhow::{Result, anyhow};
 use lume::{model::Feed, source, store::Store};
 
+#[allow(dead_code, reason = "Each integration target selects its own setup")]
 pub fn seeded_store() -> Result<(tempfile::TempDir, Store, Feed)> {
     let directory = tempfile::tempdir()?;
     let mut store = Store::open(&directory.path().join("library.sqlite3"))?;
@@ -45,3 +46,5 @@ pub fn settle_notes(app: &mut lume::app::App) -> Result<()> {
         std::thread::sleep(std::time::Duration::from_millis(1));
     }
 }
+
+pub mod reader;

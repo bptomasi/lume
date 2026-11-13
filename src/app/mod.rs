@@ -26,7 +26,6 @@ mod formulas;
 mod headlines;
 mod help;
 pub(crate) use headlines::Labels as HeadlineLabels;
-mod horizontal;
 mod images;
 mod input;
 mod layouts;
@@ -55,7 +54,10 @@ mod picker;
 mod picker_reads;
 mod pointer;
 mod reader_links;
+mod reader_state;
+mod reader_state_api;
 mod reader_tools;
+pub use reader_state::ReaderView;
 mod reading;
 pub use reading::ReaderIdentity;
 mod reading_data;
@@ -82,7 +84,8 @@ pub use pane_motion::FloatingPane;
 use personal_tasks::Edit as NoteEdit;
 pub use picker::{Choice, ChoiceAction, Picker, PickerKind, WorkspaceCommand};
 pub use pointer::PanelDrag;
-pub use reader_tools::{ReaderLocation, ReaderTools};
+pub use reader_state::ReaderTools;
+pub use reader_tools::ReaderLocation;
 pub use settings::{SettingsDraft, key_name};
 pub use study::StudyAction;
 pub use workspace::SmartForm;
@@ -248,6 +251,7 @@ pub enum Action {
 
 /// State owned by the UI thread. Drawing reads this without performing I/O.
 pub struct App {
+    reader: reader_state::ReaderState,
     configuration: configuration::ConfigurationState,
     /// Independent annotation workspace, suspended while a draft is open.
     pub notebook: Option<Box<Notebook>>,
@@ -285,46 +289,11 @@ pub struct App {
     pub selected: usize,
     /// First visible article-page position; drawing and pointer hits share it.
     pub(crate) articles_first: usize,
-    /// Cached body of the selected article.
-    pub body: String,
-    /// Cached feed-content availability; never inferred during drawing.
-    pub body_kind: crate::content::BodyKind,
-    /// Source currently displayed, which can fall back from Full to Feed.
-    pub content_source: crate::model::ContentSource,
-    /// Current Full body revision, or zero for Feed.
-    pub content_revision: i64,
-    /// Selected article's independent cache and last fetch outcome.
-    pub document: Option<crate::model::CachedDocument>,
-    /// Parser-recorded Feed/Summary/Missing origin of the selected entry.
-    pub feed_origin: crate::model::FeedOrigin,
-    /// Cached extraction quality warning, outside quotation/source mappings.
-    pub article_warning: String,
     pub(crate) pending_rule: Option<crate::model::RulePreview>,
-    /// Automatic fetching policy of the selected subscription.
-    pub fetch_policy: crate::model::FetchPolicy,
     /// Captured target of the one outstanding article fetch.
     pub article_fetching: Option<crate::model::ArticleTarget>,
     pub(crate) pending_document: Option<crate::model::ArticleTarget>,
     pub(crate) last_article_attempt: Option<(crate::model::ArticleTarget, i64)>,
-    pub(crate) feed_body_kind: crate::content::BodyKind,
-    pub(crate) feed_links: Vec<(String, String)>,
-    /// Cached reading-time estimate at 220 words per minute.
-    pub reading_minutes: usize,
-    /// Comments belonging to the selected article.
-    pub comments: Vec<Comment>,
-    /// Cached article-local annotation rows in resolved source order.
-    pub annotations: Vec<AnnotationEntry>,
-    note_marks: note_marks::NoteMarks,
-    /// Selected comment for edit/delete operations.
-    pub comment_selected: usize,
-    /// Cached wrapped lines, refreshed on selection or width changes.
-    pub reader_lines: Vec<String>,
-    /// First visible reader line.
-    pub scroll: usize,
-    /// Current reader width in terminal columns.
-    pub reader_width: usize,
-    /// Visible body rows, used to clamp scrolling to a full final page.
-    pub reader_height: usize,
     /// User-facing status, including recoverable failures.
     pub status: String,
     /// Whether a collection pass is outstanding.
@@ -336,7 +305,6 @@ pub struct App {
     pending_article_delete: Option<i64>,
     pub(crate) fullscreen_focus: Option<Focus>,
     pub(crate) retained_article: Option<i64>,
-    pub(crate) pending_anchor: Option<usize>,
     /// Persistent layout and session preferences.
     pub workspace: crate::model::Workspace,
     /// Current page's absolute offset.
@@ -345,24 +313,8 @@ pub struct App {
     pub page_total: usize,
     /// Requested metadata page size, clamped to Store's 1–500 row contract.
     pub page_size: usize,
-    /// Readable-text byte anchor in visual selection mode.
-    pub selection: Option<usize>,
-    /// Active reader selection cursor.
-    pub reader_cursor: usize,
-    /// Grapheme-aligned byte within the active display row.
-    pub reader_column: usize,
-    /// Preferred terminal column while traversing short rows.
-    pub(crate) reader_goal: Option<usize>,
-    /// Whether visual selection includes complete display rows.
-    pub linewise: bool,
-    /// Readable text before soft wrapping, used by precise selections.
-    pub reader_text: String,
-    /// Cached article structure, local search and source-bound jump history.
-    pub reader_tools: ReaderTools,
     /// Separate image loading state; text layout never waits for it.
     pub images: ReaderImages,
-    renderer: crate::reader::LiveRenderer,
-    auto_read: auto_read::AutoRead,
     headlines: std::cell::RefCell<headlines::Headlines>,
     navigation_worker: Option<navigation_worker::NavigationWorker>,
     catalog_worker: Option<catalog_worker::CatalogWorker>,
@@ -378,42 +330,16 @@ pub struct App {
     recovery: recovery::Recovery,
     note_inspector: Option<notebook::inspection::Inspector>,
     suspended_note: Option<Box<Input>>,
-    displayed_article: Option<Article>,
     catalog_loading: bool,
     library_revision: u64,
     projecting_navigation: bool,
     article_edits: article_edits::ArticleEdits,
     immediate_layout: bool,
-    pending_reflow: bool,
-    formula_position: Option<formulas::FormulaPosition>,
     progress_memory: std::cell::RefCell<session_writer::ProgressMemory>,
     /// Selected metadata/content is being loaded without blocking input.
     pub navigation_loading: bool,
     vim: vim::Vim,
-    /// Readable-text byte ranges corresponding to display rows.
-    pub reader_ranges: Vec<std::ops::Range<usize>>,
-    /// Parser-owned correspondence for article quotations.
-    pub reader_mappings: Vec<crate::reader::SourceMapping>,
-    /// End of article text before private notes are appended.
-    pub(crate) article_text_end: usize,
-    /// Original source ranges for selectable rendered lines.
-    pub line_ranges: Vec<std::ops::Range<usize>>,
-    pub(crate) reader_columns: Vec<Option<crate::reader::viewport::RowIndex>>,
-    /// Cached rich lines; drawing does not parse or highlight.
-    pub reader_styled: Vec<ratatui::text::Line<'static>>,
-    /// HTTP(S) references extracted from the current content.
-    pub links: Vec<(String, String)>,
-    /// Horizontal code/table scroll in terminal columns.
-    pub horizontal: usize,
-    horizontal_state: horizontal::Horizontal,
-    horizontal_groups: Vec<Option<usize>>,
-    prose_lines: Vec<bool>,
-    reader_insets: Vec<usize>,
     session_problem: Option<String>,
-    /// Display rows that preserve columns, including code blocks and tables.
-    pub code_lines: Vec<bool>,
-    /// Display row ranges of tables, which keep the ordinary panel background.
-    pub table_rows: Vec<std::ops::Range<usize>>,
     /// Scrollable help position.
     pub help_scroll: usize,
     pub(crate) help_search: help::HelpSearch,
@@ -427,6 +353,15 @@ pub struct App {
 }
 
 impl App {
+    /// Borrow cached reader presentation without parsing or I/O.
+    pub fn reader(&self) -> ReaderView<'_> {
+        let mut view = self.reader.view();
+        if !self.reader_stale() {
+            view.displayed_article = self.current();
+        }
+        view
+    }
+
     /// Load a local library and its initial inbox view.
     ///
     /// # Errors
@@ -459,6 +394,7 @@ impl App {
         };
         let layouts = store.layouts(&workspace)?;
         let mut app = Self {
+            reader: reader_state::ReaderState::new()?,
             configuration: configuration::ConfigurationState::default(),
             notebook: None,
             notebook_return: None,
@@ -487,29 +423,10 @@ impl App {
             visible: Vec::new(),
             selected: 0,
             articles_first: 0,
-            body: String::new(),
-            body_kind: crate::content::BodyKind::Missing,
-            content_source: crate::model::ContentSource::Feed,
-            content_revision: 0,
-            document: None,
-            feed_origin: crate::model::FeedOrigin::Feed,
-            article_warning: String::new(),
             pending_rule: None,
-            fetch_policy: crate::model::FetchPolicy::Missing,
             article_fetching: None,
             pending_document: None,
             last_article_attempt: None,
-            feed_body_kind: crate::content::BodyKind::Missing,
-            feed_links: Vec::new(),
-            reading_minutes: 0,
-            comments: Vec::new(),
-            annotations: Vec::new(),
-            note_marks: note_marks::NoteMarks::default(),
-            comment_selected: 0,
-            reader_lines: Vec::new(),
-            scroll: 0,
-            reader_width: 72,
-            reader_height: 20,
             status:
                 "Welcome to Lume · ? for shortcuts · :feed URL to subscribe"
                     .into(),
@@ -521,21 +438,11 @@ impl App {
             fullscreen_focus: None,
             retained_article,
             layouts,
-            pending_anchor: None,
             workspace,
             page_offset,
             page_total: 0,
             page_size: 200,
-            selection: None,
-            reader_cursor: 0,
-            reader_column: 0,
-            reader_goal: None,
-            linewise: false,
-            reader_text: String::new(),
-            reader_tools: ReaderTools::default(),
             images: ReaderImages::default(),
-            renderer: crate::reader::LiveRenderer::start()?,
-            auto_read: auto_read::AutoRead::default(),
             headlines: std::cell::RefCell::default(),
             navigation_worker: None,
             catalog_worker: None,
@@ -549,32 +456,15 @@ impl App {
             recovery: recovery::Recovery::default(),
             note_inspector: None,
             suspended_note: None,
-            displayed_article: None,
             catalog_loading: false,
             library_revision: 0,
             projecting_navigation: false,
             article_edits: article_edits::ArticleEdits::default(),
             immediate_layout: false,
-            pending_reflow: false,
-            formula_position: None,
             progress_memory: std::cell::RefCell::default(),
             navigation_loading: !eager,
             vim: vim::Vim::default(),
-            reader_ranges: Vec::new(),
-            reader_mappings: Vec::new(),
-            article_text_end: 0,
-            line_ranges: Vec::new(),
-            reader_columns: Vec::new(),
-            reader_styled: Vec::new(),
-            links: Vec::new(),
-            horizontal: 0,
-            horizontal_state: horizontal::Horizontal::default(),
-            horizontal_groups: Vec::new(),
-            prose_lines: Vec::new(),
-            reader_insets: Vec::new(),
             session_problem: None,
-            code_lines: Vec::new(),
-            table_rows: Vec::new(),
             help_scroll: 0,
             help_search: help::HelpSearch::default(),
             marked: std::collections::BTreeSet::new(),
@@ -656,48 +546,5 @@ impl App {
         }
         self.restore_reader(reader);
         Ok(())
-    }
-
-    /// Reflow only when the reader width changes.
-    pub fn resize_reader(&mut self, width: usize, height: usize) {
-        let width = width.max(1);
-        if self.reader_width == width
-            && self.reader_height == height.max(1)
-            && self.pending_anchor.is_none()
-        {
-            return;
-        }
-        let cursor = self.cursor_offset();
-        let pending = self.pending_anchor.take();
-        let anchor = pending.unwrap_or_else(|| {
-            self.line_ranges
-                .get(self.scroll)
-                .map_or(0, |range| range.start)
-        });
-        self.reader_height = height.max(1);
-        let reflow = self.reader_width != width;
-        if reflow {
-            self.reader_width = width;
-            if !self.navigation_loading && !self.projecting_navigation {
-                self.wrap_reader();
-            }
-        }
-        if self.renderer.preparing(&self.body, self.reader_width) {
-            self.pending_reflow |= pending.is_none() && reflow;
-            self.pending_anchor = Some(anchor);
-            self.clamp_scroll();
-            return;
-        }
-        let preserve_cursor =
-            self.pending_reflow || reflow && pending.is_none();
-        self.pending_reflow = false;
-        if reflow || pending.is_some() {
-            self.restore_anchor(anchor);
-        }
-        if preserve_cursor {
-            self.place_cursor(cursor);
-            self.ensure_cursor_visible();
-        }
-        self.clamp_scroll();
     }
 }

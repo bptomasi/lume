@@ -56,7 +56,7 @@ impl App {
 
     /// Present a pending preview only when the user is no longer editing.
     pub fn present_rule_preview(&mut self) -> bool {
-        if !matches!(self.mode, Mode::Normal) || self.selection.is_some() {
+        if !matches!(self.mode, Mode::Normal) || self.reader.selecting() {
             return false;
         }
         let Some(preview) = self.pending_rule.take() else {

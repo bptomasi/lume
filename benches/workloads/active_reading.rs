@@ -1,4 +1,6 @@
 //! Idle polls and changing viewports qualify bounded coverage without writes.
+//! Reader setup now dispatches normal motions/selections. Timed closures
+//! include that input cost; old direct-state timings are not comparable.
 use anyhow::{Context, Result, ensure};
 use crossterm::event::KeyCode;
 use lume::{
@@ -63,8 +65,10 @@ fn measure_polls(
     super::measure(label, iterations, || {
         for _ in 0..1000 {
             if scroll {
-                app.scroll = (app.scroll + app.reader_height.max(1))
-                    % app.reader_lines.len().max(1);
+                let scroll = (app.reader().scroll
+                    + app.reader().reader_height.max(1))
+                    % app.reader().reader_lines.len().max(1);
+                crate::reader_input::scroll(app, scroll)?;
             }
             *now += Duration::from_millis(1);
             ensure!(

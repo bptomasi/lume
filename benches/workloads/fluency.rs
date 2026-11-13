@@ -17,7 +17,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     let mut terminal = Terminal::new(TestBackend::new(160, 44))?;
     println!(
         "live search · articles={count} · selected source={} bytes",
-        app.body.len()
+        app.reader().body.len()
     );
     super::measure(
         "article query edits + metadata publication + frames",

@@ -71,11 +71,12 @@ fn reader_content(app: &App) -> Result<Rect> {
 
 fn reader_row(app: &App, needle: &str) -> Result<u16> {
     let row = app
+        .reader()
         .reader_lines
         .iter()
         .position(|line| line.contains(needle))
         .context("Missing fixture row")?;
-    Ok(reader_content(app)?.y + row as u16 - app.scroll as u16)
+    Ok(reader_content(app)?.y + row as u16 - app.reader().scroll as u16)
 }
 
 #[test]
@@ -365,9 +366,10 @@ fn annotations_sort_by_source_position_and_general_notes_follow_passages()
     command(&mut app, "annotations")?;
 
     let ordered = app
+        .reader()
         .annotations
         .iter()
-        .map(|entry| app.comments[entry.comment_index].body.as_str())
+        .map(|entry| app.reader().comments[entry.comment_index].body.as_str())
         .collect::<Vec<_>>();
     assert_eq!(
         ordered,
@@ -377,7 +379,10 @@ fn annotations_sort_by_source_position_and_general_notes_follow_passages()
     press(&mut app, KeyCode::Down)?;
     press(&mut app, KeyCode::Enter)?;
     assert_eq!(app.focus, Focus::Reader);
-    assert!(app.reader_lines[app.reader_cursor].contains("Later recovery"));
+    assert!(
+        app.reader().reader_lines[app.reader().reader_cursor]
+            .contains("Later recovery")
+    );
     assert!(app.workspace.show_annotations);
     Ok(())
 }
@@ -440,7 +445,7 @@ fn resized_and_reordered_layouts_render_all_four_panes_without_overflow()
         }
         assert!(areas.annotations.is_some());
     }
-    assert!(app.annotations.is_empty());
+    assert!(app.reader().annotations.is_empty());
     Ok(())
 }
 
@@ -470,12 +475,15 @@ fn ambiguous_refreshed_quotes_remain_unplaced_and_cannot_jump_to_a_guess()
 
     command(&mut app, "annotations")?;
 
-    assert_eq!(app.annotations[0].position, AnnotationPosition::Unplaced);
+    assert_eq!(
+        app.reader().annotations[0].position,
+        AnnotationPosition::Unplaced
+    );
     let error = press(&mut app, KeyCode::Enter)
         .err()
         .context("Ambiguous jump succeeded")?;
     assert!(error.to_string().contains("ambiguous"));
-    assert_eq!(app.comments[0].quote, "Later recovery");
+    assert_eq!(app.reader().comments[0].quote, "Later recovery");
     Ok(())
 }
 
@@ -487,11 +495,11 @@ fn notes_from_the_other_source_are_labeled_and_mouse_jumps_validate_that_source(
     app.resize_workspace(SCREEN);
     command(&mut app, "annotations")?;
     assert!(matches!(
-        app.annotations[0].position,
+        app.reader().annotations[0].position,
         AnnotationPosition::Located { .. }
     ));
     assert!(matches!(
-        app.annotations[1].position,
+        app.reader().annotations[1].position,
         AnnotationPosition::OtherSource { .. }
     ));
     let pane = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
@@ -500,9 +508,11 @@ fn notes_from_the_other_source_are_labeled_and_mouse_jumps_validate_that_source(
 
     click(&mut app, pane.x + 3, pane.y + 8)?;
 
-    assert_eq!(app.content_source, ContentSource::Feed);
-    assert!(app.reader_lines[app.reader_cursor].contains("café"));
-    assert_eq!(app.comments.len(), 2);
+    assert_eq!(app.reader().content_source, ContentSource::Feed);
+    assert!(
+        app.reader().reader_lines[app.reader().reader_cursor].contains("café")
+    );
+    assert_eq!(app.reader().comments.len(), 2);
     Ok(())
 }
 
@@ -520,12 +530,12 @@ fn deleting_a_focused_annotation_never_deletes_its_article_and_undo_restores_it(
 
     press(&mut app, KeyCode::Char('D'))?;
 
-    assert!(app.annotations.is_empty());
+    assert!(app.reader().annotations.is_empty());
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     assert!(!store.is_deleted(id)?);
     press(&mut app, KeyCode::Char('u'))?;
-    assert_eq!(app.comments[0].body, "A recoverable note");
-    assert_eq!(app.annotations.len(), 1);
+    assert_eq!(app.reader().comments[0].body, "A recoverable note");
+    assert_eq!(app.reader().annotations.len(), 1);
     Ok(())
 }
 
@@ -564,7 +574,7 @@ fn mouse_can_activate_a_filtered_palette_choice_without_clicking_through()
     assert!(app.workspace.show_annotations);
     assert_eq!(app.focus, Focus::Annotations);
     assert!(matches!(app.mode, lume::app::Mode::Normal));
-    assert!(app.selection.is_none());
+    assert!(app.reader().selection.is_none());
     Ok(())
 }
 
@@ -625,7 +635,10 @@ fn resizing_with_wrapped_private_notes_preserves_publisher_selection()
 
     app.resize_reader(24, 20);
 
-    assert!(app.selection.is_some(), "Reflow discarded the selection");
+    assert!(
+        app.reader().selection.is_some(),
+        "Reflow discarded the selection"
+    );
     assert_eq!(press(&mut app, KeyCode::Char('y'))?, expected);
     Ok(())
 }
@@ -1001,7 +1014,7 @@ fn held_pane_follows_the_grab_offset_with_frozen_cells_and_no_layout_write()
 -> Result<()> {
     let (directory, mut app) = application()?;
     let original = app.workspace.panel_order;
-    let text = app.reader_text.clone();
+    let text = app.reader().reader_text.to_owned();
     let area = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
         .reader
         .context("Missing reader")?;
@@ -1028,7 +1041,7 @@ fn held_pane_follows_the_grab_offset_with_frozen_cells_and_no_layout_write()
     held_cell.set_bg(ratatui::style::Color::Rgb(13, 13, 15));
     assert_eq!(after[(floating.area.x + 4, floating.area.y + 1)], held_cell);
     assert_eq!(app.workspace.panel_order, original);
-    assert_eq!(app.reader_text, text);
+    assert_eq!(app.reader().reader_text, text);
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     assert_eq!(store.workspace()?.panel_order, original);
     Ok(())

@@ -112,7 +112,7 @@ impl App {
             }
             catalog.ready = Some(result?);
         }
-        if !matches!(self.mode, Mode::Normal) || self.selection.is_some() {
+        if !matches!(self.mode, Mode::Normal) || self.reader.selecting() {
             return Ok(false);
         }
         let Some(snapshot) = catalog.ready.take() else {

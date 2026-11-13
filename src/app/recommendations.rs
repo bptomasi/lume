@@ -118,7 +118,7 @@ impl App {
         if self.notebook.is_some()
             || self.focus == super::Focus::Reader
             || !matches!(self.mode, Mode::Normal)
-            || self.selection.is_some()
+            || self.reader.selecting()
             || self.navigation_loading
         {
             return Ok(false);

@@ -19,7 +19,7 @@ fn normal_mode_opens_reader_and_insert_mode_keeps_vim_letters() -> Result<()> {
     type_text(&mut app, "jk:q are my thoughts")?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
     assert!(matches!(app.mode, Mode::Normal));
-    assert_eq!(app.comments[0].body, "jk:q are my thoughts");
+    assert_eq!(app.reader().comments[0].body, "jk:q are my thoughts");
     assert_eq!(app.current().map(|article| article.id), id);
     Ok(())
 }
@@ -39,7 +39,7 @@ fn invalid_comment_retains_draft_and_can_be_corrected() -> Result<()> {
     type_text(&mut app, "ação 🦀")?;
     press(&mut app, KeyCode::Backspace)?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
-    assert_eq!(app.comments[0].body, "ação ");
+    assert_eq!(app.reader().comments[0].body, "ação ");
     Ok(())
 }
 
@@ -69,7 +69,7 @@ fn pasted_comments_do_not_execute_commands_and_respect_utf8_limits()
     press(&mut app, KeyCode::Enter)?;
     app.paste(":q\nA private thought\u{1b}")?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
-    assert_eq!(app.comments[0].body, ":q\nA private thought");
+    assert_eq!(app.reader().comments[0].body, ":q\nA private thought");
     app.focus = Focus::Reader;
     type_text(&mut app, ":note")?;
     press(&mut app, KeyCode::Enter)?;
@@ -90,12 +90,12 @@ fn reader_end_and_resize_keep_a_full_final_page() -> Result<()> {
     app.resize_reader(45, 12);
     press(&mut app, KeyCode::Enter)?;
     type_text(&mut app, "G")?;
-    assert_eq!(app.scroll, app.reader_lines.len() - 12);
-    let previous = app.scroll;
+    assert_eq!(app.reader().scroll, app.reader().reader_lines.len() - 12);
+    let previous = app.reader().scroll;
     app.reload()?;
-    assert_eq!(app.scroll, previous);
+    assert_eq!(app.reader().scroll, previous);
     app.resize_reader(45, 20);
-    assert_eq!(app.scroll, app.reader_lines.len() - 20);
+    assert_eq!(app.reader().scroll, app.reader().reader_lines.len() - 20);
     Ok(())
 }
 

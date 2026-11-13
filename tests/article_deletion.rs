@@ -57,7 +57,7 @@ fn committed_deletion_updates_the_page_before_counts_or_next_source_arrive()
     assert!(observed.is_deleted(target)?);
     settle_library(&mut app)?;
     assert_eq!(
-        app.displayed_article().map(|item| item.id),
+        app.reader().displayed_article.map(|item| item.id),
         app.current().map(|item| item.id)
     );
     press(&mut app, KeyCode::Char('u'))?;
@@ -129,7 +129,7 @@ fn consecutive_commits_target_distinct_rows_without_waiting_for_recounts()
     keys(&mut app, "dd")?;
     settle_writes(&mut app)?;
     assert!(app.current().is_none());
-    assert!(app.displayed_article().is_none());
+    assert!(app.reader().displayed_article.is_none());
     settle_library(&mut app)?;
     assert_eq!(Store::open(&path)?.view_count(&View::Trash)?, 2);
     keys(&mut app, "uu")?;

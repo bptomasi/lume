@@ -129,9 +129,10 @@ fn notices(iterations: usize, stress: bool) -> Result<()> {
         || {
             for _ in 0..5 {
                 terminal.draw(|frame| ui::draw(frame, &app))?;
-                let notice = app.reader_text.contains("This feed supplied");
+                let notice =
+                    app.reader().reader_text.contains("This feed supplied");
                 ensure!(
-                    notice == (app.body_kind != BodyKind::Text),
+                    notice == (app.reader().body_kind != BodyKind::Text),
                     "Reader notice mismatches cached content"
                 );
                 let code = if app.selected == 4 {

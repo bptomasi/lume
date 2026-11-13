@@ -62,9 +62,10 @@ fn a_jump_to_the_end_does_not_count_hidden_text_as_seen() -> Result<()> {
     assert_eq!(advance(&mut app, &mut now, 60)?, 0);
     assert_eq!(observed.view_count(&View::Inbox)?, 1);
     let mut marked = false;
-    for scroll in (0..app.reader_lines.len()).step_by(app.reader_height.max(1))
+    for scroll in (0..app.reader().reader_lines.len())
+        .step_by(app.reader().reader_height.max(1))
     {
-        app.scroll = scroll;
+        common::reader::scroll(&mut app, scroll)?;
         marked |= app.poll_auto_read(now)?;
     }
     assert!(marked);
@@ -149,14 +150,15 @@ fn horizontally_hidden_code_does_not_count_toward_displayed_coverage()
     let body = format!("```text\n{}\n```", "abcdefghij".repeat(200));
     let (_directory, mut app, observed) = application(&body)?;
     app.key(KeyCode::Char('$').into())?;
-    app.horizontal = 0;
+    let horizontal = 0;
+    common::reader::horizontal(&mut app, horizontal)?;
     let mut now = Instant::now();
     app.poll_auto_read(now)?;
     assert_eq!(advance(&mut app, &mut now, 60)?, 0);
     assert_eq!(observed.view_count(&View::Inbox)?, 1);
     let mut marked = false;
-    for horizontal in (0..2000).step_by(app.reader_width.max(1)) {
-        app.horizontal = horizontal;
+    for horizontal in (0..2000).step_by(app.reader().reader_width.max(1)) {
+        common::reader::horizontal(&mut app, horizontal)?;
         marked |= app.poll_auto_read(now)?;
     }
     assert!(marked);

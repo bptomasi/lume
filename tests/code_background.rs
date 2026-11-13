@@ -51,8 +51,8 @@ fn fenced_code_has_one_solid_background_including_blank_and_short_rows()
                 }
             }
             assert_eq!(buffer[(column.right() - 1, column.y + 4)].bg, panel);
-            assert_eq!(app.body, body);
-            assert_eq!(app.reader_lines[0], "let answer = 42;");
+            assert_eq!(app.reader().body, body);
+            assert_eq!(app.reader().reader_lines[0], "let answer = 42;");
         }
     }
     Ok(())
@@ -71,8 +71,8 @@ fn standalone_code_uses_a_block_but_inline_fragments_keep_their_own_background()
     terminal.draw(|frame| ui::draw(frame, &app))?;
 
     let buffer = terminal.backend().buffer();
-    assert!(app.code_lines[0]);
-    assert!(!app.code_lines[2]);
+    assert!(app.reader().code_lines[0]);
+    assert!(!app.reader().code_lines[2]);
     assert_eq!(
         buffer[(column.right() - 1, column.y)].bg,
         Color::Rgb(37, 35, 33)
@@ -104,7 +104,7 @@ fn tables_keep_the_uniform_panel_background_while_code_remains_distinct()
     terminal.draw(|frame| ui::draw(frame, &app))?;
 
     let buffer = terminal.backend().buffer();
-    for row in app.table_rows[0].clone() {
+    for row in app.reader().table_rows[0].clone() {
         assert_eq!(
             buffer[(column.x + 2, column.y + row as u16)].bg,
             Color::Rgb(23, 23, 26)

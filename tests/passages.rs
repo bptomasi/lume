@@ -112,10 +112,10 @@ fn graphemes_and_vertical_goal_preserve_combining_marks_and_wide_cells()
     );
     let (_directory, mut app) = reading("```\nabcdef\nx\nabcdef\n```", 20, 2)?;
     keys(&mut app, "lllj")?;
-    assert_eq!(app.reader_column, 0);
+    assert_eq!(app.reader().reader_column, 0);
     keys(&mut app, "j")?;
-    assert_eq!(app.reader_column, 3);
-    assert_eq!(app.scroll, 1);
+    assert_eq!(app.reader().reader_column, 3);
+    assert_eq!(app.reader().scroll, 1);
     Ok(())
 }
 
@@ -130,7 +130,7 @@ fn linewise_selection_preserves_code_and_tab_changes_focus() -> Result<()> {
     );
     press(&mut app, KeyCode::Esc)?;
     keys(&mut app, "0$")?;
-    assert_eq!(app.reader_column, 6);
+    assert_eq!(app.reader().reader_column, 6);
     press(&mut app, KeyCode::BackTab)?;
     assert_eq!(app.focus, Focus::Articles);
     Ok(())
@@ -138,7 +138,12 @@ fn linewise_selection_preserves_code_and_tab_changes_focus() -> Result<()> {
 
 fn marked_bytes(app: &App) -> Vec<usize> {
     let mut marked = Vec::new();
-    for (line, range) in app.reader_styled.iter().zip(&app.reader_ranges) {
+    for (line, range) in app
+        .reader()
+        .reader_styled
+        .iter()
+        .zip(app.reader().reader_ranges)
+    {
         let mut offset = range.start;
         for span in &line.spans {
             if span.style.bg == Some(Color::Rgb(65, 53, 32)) {
@@ -156,8 +161,8 @@ fn saved_marks_keep_exact_duplicate_identity_and_support_notes_and_undo()
     let body = "first target and second target";
     let (directory, mut app) = reading(body, 40, 5)?;
     keys(&mut app, "wwwwvllllls")?;
-    assert_eq!(app.comments[0].quote, "target");
-    assert_eq!(app.comments[0].anchor, 24);
+    assert_eq!(app.reader().comments[0].quote, "target");
+    assert_eq!(app.reader().comments[0].anchor, 24);
     assert_eq!(marked_bytes(&app), (24..30).collect::<Vec<_>>());
     keys(&mut app, ":edit-note")?;
     press(&mut app, KeyCode::Enter)?;
@@ -167,10 +172,10 @@ fn saved_marks_keep_exact_duplicate_identity_and_support_notes_and_undo()
     drop(app);
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     let mut app = App::new(store, false)?;
-    assert_eq!(app.comments[0].body, "A precise note");
+    assert_eq!(app.reader().comments[0].body, "A precise note");
     assert_eq!(marked_bytes(&app), (24..30).collect::<Vec<_>>());
     keys(&mut app, "uu")?;
-    assert!(app.comments.is_empty());
+    assert!(app.reader().comments.is_empty());
     assert!(marked_bytes(&app).is_empty());
     Ok(())
 }
@@ -190,7 +195,7 @@ fn publisher_changes_relocate_unique_quotes_and_leave_ambiguous_quotes_unmarked(
     )?;
     app.reload()?;
     assert!(marked_bytes(&app).is_empty());
-    assert_eq!(app.comments[0].quote, "target");
+    assert_eq!(app.reader().comments[0].quote, "target");
     writer.ingest(&feed, "Updated", &[article("Only target remains")])?;
     app.reload()?;
     assert_eq!(marked_bytes(&app), (5..11).collect::<Vec<_>>());
@@ -205,8 +210,8 @@ fn oversized_and_empty_selections_fail_without_saving_or_losing_the_selection()
     keys(&mut app, "v$")?;
     assert!(press(&mut app, KeyCode::Char('y')).is_err());
     assert!(press(&mut app, KeyCode::Char('s')).is_err());
-    assert!(app.selection.is_some());
-    assert!(app.comments.is_empty());
+    assert!(app.reader().selection.is_some());
+    assert!(app.reader().comments.is_empty());
     let directory = tempfile::tempdir()?;
     let mut empty =
         App::new(Store::open(&directory.path().join("empty.db"))?, false)?;
@@ -267,9 +272,9 @@ fn repeating_a_visual_action_does_not_toggle_the_queue_or_save_again()
             assert_eq!(action, Action::None);
         }
     }
-    assert_eq!(app.comments.len(), 1);
+    assert_eq!(app.reader().comments.len(), 1);
     assert!(!app.current().context("Missing article")?.queued);
-    assert!(app.selection.is_none());
+    assert!(app.reader().selection.is_none());
     Ok(())
 }
 
@@ -278,13 +283,13 @@ fn reflow_preserves_a_cursor_and_selection_on_an_empty_display_row()
 -> Result<()> {
     let (_directory, mut app) = reading("alpha\n\nbeta gamma delta", 12, 4)?;
     keys(&mut app, "jv")?;
-    assert_eq!(app.reader_cursor, 1);
+    assert_eq!(app.reader().reader_cursor, 1);
     assert_eq!(
         press(&mut app, KeyCode::Char('y'))?,
         Action::Copy("\n".into())
     );
     app.resize_reader(40, 4);
-    assert_eq!(app.reader_cursor, 1);
+    assert_eq!(app.reader().reader_cursor, 1);
     assert_eq!(
         press(&mut app, KeyCode::Char('y'))?,
         Action::Copy("\n".into())

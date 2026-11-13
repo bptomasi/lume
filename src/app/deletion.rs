@@ -11,7 +11,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 impl App {
     pub(super) fn article_delete_key(&mut self, key: KeyEvent) -> Result<bool> {
         if self.focus != Focus::Articles
-            || self.selection.is_some()
+            || self.reader.selecting()
             || !key.modifiers.difference(KeyModifiers::SHIFT).is_empty()
         {
             return Ok(false);
@@ -182,7 +182,7 @@ impl App {
             self.retained_article = None;
         }
         if matches!(self.mode, super::Mode::Normal)
-            && self.selection.is_none()
+            && !self.reader.selecting()
             && self.notebook.is_none()
         {
             if remove {
@@ -207,7 +207,7 @@ impl App {
             if self.view.same_destination(&view)
                 && matches!(self.mode, super::Mode::Normal)
                 && self.notebook.is_none()
-                && self.selection.is_none()
+                && !self.reader.selecting()
             {
                 self.library.articles.clear();
                 self.visible.clear();

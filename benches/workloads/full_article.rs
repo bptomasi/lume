@@ -225,17 +225,19 @@ fn source_switches(store: Store, iterations: usize) -> Result<()> {
     super::measure("Feed/Full switches + cached frame", iterations, || {
         command(&mut app, ":content feed")?;
         ensure!(
-            app.body == DISCUSSION && app.content_source == ContentSource::Feed,
+            app.reader().body == DISCUSSION
+                && app.reader().content_source == ContentSource::Feed,
             "Feed source unavailable"
         );
         command(&mut app, ":content full")?;
         ensure!(
-            app.content_source == ContentSource::Full
-                && app.body.contains("Preserve the contract"),
+            app.reader().content_source == ContentSource::Full
+                && app.reader().body.contains("Preserve the contract"),
             "Full source unavailable"
         );
         ensure!(
-            app.links
+            app.reader()
+                .links
                 .iter()
                 .any(|(_, url)| url == "https://community.example/discussion"),
             "Community discussion link lost"

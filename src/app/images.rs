@@ -19,10 +19,8 @@ use crate::{
 
 use super::{Action, App};
 
-/// Current reader slots and a bounded cache of worker-prepared terminal cells.
+/// Shared image-loading service and bounded prepared-cell cache.
 pub struct ReaderImages {
-    /// Non-overlapping source slots in display-row order, for this article.
-    pub slots: Vec<ImageSlot>,
     /// Permit loading new images; cached thumbnails remain visible when paused.
     pub enabled: bool,
     worker: Option<Worker>,
@@ -40,7 +38,6 @@ pub struct ReaderImages {
 impl Default for ReaderImages {
     fn default() -> Self {
         Self {
-            slots: Vec::new(),
             enabled: true,
             worker: None,
             pending: Vec::new(),
@@ -57,14 +54,6 @@ impl Default for ReaderImages {
 }
 
 impl ReaderImages {
-    /// Visible references, including captions, in reader display order.
-    ///
-    /// Reader construction orders non-overlapping slots by their display rows.
-    /// Binary bounds keep admission and drawing independent of offscreen images.
-    pub fn visible_slots(&self, scroll: usize, height: usize) -> &[ImageSlot] {
-        viewport::visible(&self.slots, scroll, height)
-    }
-
     /// Ready cells for this exact URL, viewport and transparency background.
     pub fn thumbnail(&self, key: &ImageKey) -> Option<&Thumbnail> {
         self.cached(key)?.as_ref().ok()
@@ -188,20 +177,6 @@ impl App {
         self.images.worker = Some(Worker::start(directory, offline)?);
         self.images.pending.clear();
         Ok(())
-    }
-
-    pub(super) fn resolve_image_urls(&mut self) {
-        let address = self
-            .document
-            .as_ref()
-            .filter(|_| {
-                self.content_source == crate::model::ContentSource::Full
-            })
-            .map(|document| document.final_url.as_str())
-            .filter(|url| !url.is_empty())
-            .or_else(|| self.current().map(|article| article.url.as_str()));
-        let base = address.and_then(|url| crate::urls::feed_url(url).ok());
-        resolve_urls(&mut self.images.slots, base.as_ref());
     }
 
     /// Exact preparation key for an already resolved publisher image slot.

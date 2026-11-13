@@ -69,20 +69,23 @@ fn finish_notebook(app: &mut App) -> Result<()> {
 }
 
 fn preview_note_hover(app: &mut App) -> Result<()> {
-    use crossterm::event::{KeyModifiers, MouseEvent, MouseEventKind};
+    use crossterm::event::{KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
     let screen = ratatui::layout::Rect::new(0, 0, 144, 44);
     let area = ui::workspace_areas(screen, app.focus, &app.workspace)
         .reader
         .context("Missing reader")?;
     let column = ui::workspace_reader_content(area, &app.workspace);
-    let row = (0..app.reader_lines.len())
+    let row = (0..app.reader().reader_lines.len())
         .find(|row| !app.reader_note_markers(*row).is_empty())
         .context("Missing note marker")?;
-    app.scroll = row;
+    app.focus = lume::app::Focus::Reader;
+    for character in format!("{}Gzt", row + 1).chars() {
+        app.key(KeyCode::Char(character).into())?;
+    }
     app.mouse(MouseEvent {
         kind: MouseEventKind::Moved,
         column: column.x - 1,
-        row: column.y,
+        row: column.y + (row - app.reader().scroll) as u16,
         modifiers: KeyModifiers::NONE,
     })?;
     Ok(())

@@ -36,11 +36,11 @@ fn reset_restores_columns_and_widths_and_can_be_undone_after_reopening()
     command(&mut app, "fullscreen")?;
     let before = PanelLayout::capture(&app.workspace);
     let article = app.current().context("No article")?.id;
-    let source = app.body.clone();
+    let source = app.reader().body.to_owned();
     command(&mut app, "layout-reset")?;
     assert_standard(&app);
     assert_eq!(app.current().context("Lost article")?.id, article);
-    assert_eq!(app.body, source);
+    assert_eq!(app.reader().body, source);
     assert_eq!(app.workspace.reading_width, 90);
     assert_eq!(app.workspace.theme, "nord");
     assert!(app.workspace.justify);

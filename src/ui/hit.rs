@@ -56,16 +56,18 @@ pub fn article_at(app: &App, area: Rect, row: u16) -> Option<usize> {
 }
 
 pub(super) fn annotation_window(app: &App, height: u16) -> (usize, usize) {
+    let reading = app.reader();
     let capacity = usize::from(height / 6).max(1);
-    let selected = app.annotation_selected().unwrap_or(0);
+    let selected = reading.annotation_selected().unwrap_or(0);
     let first = selected
         .saturating_sub(capacity / 2)
-        .min(app.annotations.len().saturating_sub(capacity));
+        .min(reading.annotations.len().saturating_sub(capacity));
     (first, capacity)
 }
 
 /// Sorted annotation position under a card, excluding the panel border.
 pub fn annotation_at(app: &App, area: Rect, row: u16) -> Option<usize> {
+    let reading = app.reader();
     let inner = area.inner(ratatui::layout::Margin::new(1, 1));
     if row < inner.y || row >= inner.bottom() {
         return None;
@@ -73,5 +75,6 @@ pub fn annotation_at(app: &App, area: Rect, row: u16) -> Option<usize> {
     let (first, capacity) = annotation_window(app, inner.height);
     let local = usize::from((row - inner.y) / 6);
     let position = first + local;
-    (local < capacity && position < app.annotations.len()).then_some(position)
+    (local < capacity && position < reading.annotations.len())
+        .then_some(position)
 }

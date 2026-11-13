@@ -45,9 +45,14 @@ impl App {
         let id = note.comment.id;
         self.suspend_notebook_for_source();
         self.jump_reader(location)?;
-        if let Some(index) = self.comments.iter().position(|note| note.id == id)
+        if let Some(index) = self
+            .reader
+            .view()
+            .comments
+            .iter()
+            .position(|note| note.id == id)
         {
-            self.comment_selected = index;
+            self.reader.select_comment(index);
         }
         Ok(())
     }

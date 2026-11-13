@@ -298,7 +298,7 @@ impl App {
         };
         // Preserve focus so narrow layouts do not replace a visible target
         // when a header is pressed. Geometry remains fixed until release.
-        self.selection = None;
+        self.reader.cancel_selection();
         self.vim.clear_input();
         self.panel_prefix = false;
         self.status = capture.hint();

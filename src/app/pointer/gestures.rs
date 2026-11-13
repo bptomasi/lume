@@ -50,7 +50,8 @@ impl App {
     }
 
     pub(super) fn begin_selection(&mut self, area: Rect, event: MouseEvent) {
-        if self.article_preparing() || self.reader_text.is_empty() {
+        if self.article_preparing() || self.reader.view().reader_text.is_empty()
+        {
             return;
         }
         let content = ui::workspace_reader_content(area, &self.workspace);
@@ -65,13 +66,12 @@ impl App {
         };
         self.pointer.gesture = Some(Gesture::Select(SelectionCapture {
             article: article.id,
-            source: self.content_source,
-            revision: self.content_revision,
+            source: self.reader.source(),
+            revision: self.reader.revision(),
             anchor,
             moved: false,
         }));
-        self.selection = Some(anchor);
-        self.linewise = false;
+        self.reader.select_from(anchor, false);
         self.place_cursor(anchor);
         self.ensure_cursor_visible();
     }
@@ -145,7 +145,7 @@ impl App {
             }
             Some(Gesture::Select(capture)) => {
                 if !capture.moved {
-                    self.selection = None;
+                    self.reader.cancel_selection();
                 }
                 self.status =
                     "Reader selection · y yank · s highlight · n annotate"
@@ -162,8 +162,8 @@ impl App {
         event: MouseEvent,
     ) -> bool {
         if self.current().is_none_or(|item| item.id != capture.article)
-            || self.content_source != capture.source
-            || self.content_revision != capture.revision
+            || self.reader.source() != capture.source
+            || self.reader.revision() != capture.revision
         {
             return false;
         }
@@ -197,17 +197,17 @@ impl App {
             return None;
         }
         let row = event.row.clamp(content.y, content.bottom() - 1);
-        let index = self.scroll + usize::from(row - content.y);
-        self.reader_lines.get(index)?;
+        let index = self.reader.first_row() + usize::from(row - content.y);
+        self.reader.view().reader_lines.get(index)?;
         let column = event.column.clamp(content.x, content.right() - 1);
         let goal = usize::from(column - content.x)
-            + if self.code_lines.get(index) == Some(&true) {
+            + if self.reader.view().code_lines.get(index) == Some(&true) {
                 self.horizontal_for_row(index)
             } else {
                 0
             };
         let byte = self.row_byte_at(index, goal);
-        Some(self.reader_ranges.get(index)?.start + byte)
+        Some(self.reader.view().reader_ranges.get(index)?.start + byte)
     }
 }
 

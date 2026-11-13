@@ -55,7 +55,7 @@ fn keyboard_progress_advances_before_any_scroll_and_returns_to_zero()
     for _ in 0..20 {
         key(&mut app, KeyCode::Char('j'))?;
     }
-    assert_eq!(app.scroll, 0);
+    assert_eq!(app.reader().scroll, 0);
     assert!(
         percent(&app)? >= 20,
         "Reading on the first screen stayed at 0%"
@@ -76,15 +76,15 @@ fn keyboard_progress_advances_before_any_scroll_and_returns_to_zero()
 fn short_articles_advance_with_the_cursor_without_requiring_scroll()
 -> Result<()> {
     let (_directory, mut app) = reader(12)?;
-    assert!(app.reader_lines.len() < app.reader_height);
+    assert!(app.reader().reader_lines.len() < app.reader().reader_height);
     assert_eq!(percent(&app)?, 0);
     for _ in 0..6 {
         key(&mut app, KeyCode::Char('j'))?;
     }
-    assert_eq!(app.scroll, 0);
+    assert_eq!(app.reader().scroll, 0);
     assert!((25..75).contains(&percent(&app)?));
     key(&mut app, KeyCode::Char('G'))?;
-    assert_eq!(app.scroll, 0);
+    assert_eq!(app.reader().scroll, 0);
     assert_eq!(percent(&app)?, 100);
     Ok(())
 }
@@ -100,8 +100,8 @@ fn clicking_a_lower_visible_row_updates_progress_without_scrolling()
         row: content.y + 20,
         modifiers: KeyModifiers::NONE,
     })?;
-    assert_eq!(app.reader_cursor, 20);
-    assert_eq!(app.scroll, 0);
+    assert_eq!(app.reader().reader_cursor, 20);
+    assert_eq!(app.reader().scroll, 0);
     assert!(percent(&app)? >= 20);
     app.resize_reader(content.width.into(), 8);
     assert!(percent(&app)? >= 20);

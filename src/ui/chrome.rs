@@ -94,13 +94,14 @@ fn hints(app: &App) -> &'static str {
 }
 
 fn reader_hints(app: &App) -> &'static str {
-    if app.selection.is_some() {
+    let reading = app.reader();
+    if reading.selection.is_some() {
         return "  y copy  ·  s highlight  ·  n note  ·  Esc cancel";
     }
     if app.cursor_note().is_some() {
         return "  Enter edit · dd delete · u undo · :annotations · Tab panels";
     }
-    if app.reader_tools.needle.is_empty() {
+    if reading.reader_tools.needle.is_empty() {
         return "  w/W/e word · / find · n note · :annotate · Ctrl-w layout";
     }
     concat!(
@@ -251,8 +252,9 @@ fn collapsed_workspace(frame: &mut Frame<'_>) {
 }
 
 fn status_line(app: &App) -> Line<'static> {
+    let reading = app.reader();
     let (mode, color) = match &app.mode {
-        Mode::Normal if app.selection.is_some() => (" VISUAL ", AMBER),
+        Mode::Normal if reading.selection.is_some() => (" VISUAL ", AMBER),
         Mode::Normal => (" NORMAL ", ACCENT),
         Mode::Web => (" WEB ", BLUE),
         Mode::Help => (" HELP ", BLUE),

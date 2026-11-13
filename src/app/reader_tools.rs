@@ -2,11 +2,9 @@
 
 use crate::app::commands::routing;
 
-use std::{collections::VecDeque, ops::Range};
-
 use anyhow::{Context, Result, ensure};
 
-use crate::{model::ContentSource, reader::index::DocumentIndex};
+use crate::model::ContentSource;
 
 use super::{Action, App, Choice, ChoiceAction, Focus, InputKind};
 
@@ -23,19 +21,6 @@ pub struct ReaderLocation {
     pub anchor: usize,
     /// Optional immutable highlight text, required for safe revision relocation.
     pub quote: Option<String>,
-}
-
-/// Reader-only navigation caches and bounded jump history.
-#[derive(Default)]
-pub struct ReaderTools {
-    /// Width-independent CommonMark structure.
-    pub index: DocumentIndex,
-    /// Literal case-sensitive search, separate from library filtering.
-    pub needle: String,
-    /// At most 4,096 readable-text matches.
-    pub hits: Vec<Range<usize>>,
-    back: VecDeque<ReaderLocation>,
-    forward: Vec<ReaderLocation>,
 }
 
 impl App {
@@ -140,25 +125,12 @@ impl App {
 
     pub(super) fn search_reader(&mut self, needle: &str) -> Result<()> {
         ensure!(needle.len() <= 1024, "Reader search exceeds 1 KiB");
-        self.reader_tools.needle = needle.to_owned();
-        self.refresh_reader_search();
+        self.reader.search_reader(needle);
         self.next_reader_match(true)
     }
 
-    pub(super) fn refresh_reader_search(&mut self) {
-        self.reader_tools.hits = if self.reader_tools.needle.is_empty() {
-            Vec::new()
-        } else {
-            self.reader_text[..self.article_text_end]
-                .match_indices(&self.reader_tools.needle)
-                .take(4096)
-                .map(|(start, text)| start..start + text.len())
-                .collect()
-        };
-    }
-
     pub(super) fn next_reader_match(&mut self, forward: bool) -> Result<()> {
-        let hits = &self.reader_tools.hits;
+        let hits = &self.reader.view().reader_tools.hits;
         let cursor = self.cursor_offset();
         let found = if forward {
             hits.iter().find(|hit| hit.start > cursor).or(hits.first())
@@ -178,7 +150,7 @@ impl App {
         self.workspace.show_reader = true;
         self.status = format!(
             "{} reader matches · :find-next / :find-prev",
-            self.reader_tools.hits.len()
+            self.reader.view().reader_tools.hits.len()
         );
         Ok(())
     }
@@ -186,6 +158,8 @@ impl App {
     fn show_outline(&mut self) -> Result<()> {
         let location = self.reader_location()?;
         let choices = self
+            .reader
+            .view()
             .reader_tools
             .index
             .headings
@@ -193,8 +167,12 @@ impl App {
             .map(|heading| {
                 let mut target = location.clone();
                 target.anchor = heading.range.start;
-                target.quote =
-                    self.body.get(heading.range.clone()).map(str::to_owned);
+                target.quote = self
+                    .reader
+                    .view()
+                    .body
+                    .get(heading.range.clone())
+                    .map(str::to_owned);
                 Choice {
                     title: format!(
                         "{}{}",
@@ -216,7 +194,7 @@ impl App {
         let location = self.reader_location()?;
         let mut choices = Vec::new();
         let query = query.to_lowercase();
-        for comment in &self.comments {
+        for comment in self.reader.view().comments {
             if comment.quote.is_empty()
                 || !format!("{} {}", comment.quote, comment.body)
                     .to_lowercase()
@@ -238,51 +216,10 @@ impl App {
         self.inspect(choices)
     }
 
-    pub(super) fn reader_location(&self) -> Result<ReaderLocation> {
-        self.guard_stale_command(crate::command::Command::JumpBack)?;
-        let offset = self.cursor_offset();
-        let end = crate::reader::cursor::next(&self.reader_text, offset);
-        let anchor =
-            crate::reader::to_source(&self.reader_mappings, offset..end)
-                .map(|range| range.start)
-                .unwrap_or_else(|| {
-                    self.line_ranges
-                        .get(self.reader_cursor)
-                        .map_or(0, |range| range.start)
-                });
-        Ok(ReaderLocation {
-            article: self.current().context("Select an article")?.id,
-            source: self.content_source,
-            revision: self.content_revision,
-            anchor,
-            quote: self
-                .body
-                .get(anchor..)
-                .map(|tail| tail.chars().take(64).collect()),
-        })
-    }
-
-    pub(super) fn remember_reader_jump(&mut self) {
-        if self.reader_stale() {
-            return;
-        }
-        if let Ok(location) = self.reader_location() {
-            self.reader_tools.back.push_back(location);
-            if self.reader_tools.back.len() > 128 {
-                self.reader_tools.back.pop_front();
-            }
-            self.reader_tools.forward.clear();
-        }
-    }
-
     pub(super) fn jump_reader(&mut self, target: ReaderLocation) -> Result<()> {
         let previous = self.reader_location()?;
         self.restore_reader_location(target)?;
-        self.reader_tools.back.push_back(previous);
-        if self.reader_tools.back.len() > 128 {
-            self.reader_tools.back.pop_front();
-        }
-        self.reader_tools.forward.clear();
+        self.reader.record_reader_jump(previous);
         Ok(())
     }
 
@@ -293,8 +230,8 @@ impl App {
         if self
             .current()
             .is_some_and(|article| article.id == target.article)
-            && self.content_source == target.source
-            && self.content_revision == target.revision
+            && self.reader.source() == target.source
+            && self.reader.revision() == target.revision
             && self.view != super::View::Annotated
         {
             return self.apply_reader_location(target);
@@ -324,14 +261,14 @@ impl App {
         target: ReaderLocation,
     ) -> Result<()> {
         ensure!(
-            self.content_source == target.source,
+            self.reader.source() == target.source,
             "Requested source is unavailable; original quote remains saved"
         );
         let anchor = self.resolve_reader_location(&target)?;
-        self.pending_anchor = None;
+        self.reader.cancel_restore();
         self.restore_anchor(anchor);
         if let Some(range) = crate::reader::to_display(
-            &self.reader_mappings,
+            self.reader.view().reader_mappings,
             anchor..anchor.saturating_add(1),
         )
         .first()
@@ -344,49 +281,20 @@ impl App {
         Ok(())
     }
 
-    fn resolve_reader_location(
-        &self,
-        target: &ReaderLocation,
-    ) -> Result<usize> {
-        if let Some(quote) = &target.quote {
-            let anchor = if self.content_revision == target.revision {
-                target.anchor
-            } else {
-                self.body.len()
-            };
-            return super::passages::locate_quote(&self.body, quote, anchor)
-                .map(|range| range.start)
-                .context("Passage changed or is ambiguous; original quote remains saved");
-        }
-        ensure!(
-            self.content_revision == target.revision,
-            "Passage revision changed"
-        );
-        Ok(target.anchor)
-    }
-
     pub(super) fn jump_history(&mut self, forward: bool) -> Result<()> {
         let current = self.reader_location()?;
-        let target = if forward {
-            self.reader_tools.forward.last().cloned()
-        } else {
-            self.reader_tools.back.back().cloned()
-        }
-        .context("No further reader jump history")?;
+        let target = self
+            .reader
+            .history_target(forward)
+            .context("No further reader jump history")?;
         self.restore_reader_location(target)?;
-        if forward {
-            self.reader_tools.forward.pop();
-            self.reader_tools.back.push_back(current);
-        } else {
-            self.reader_tools.back.pop_back();
-            self.reader_tools.forward.push(current);
-        }
+        self.reader.advance_history(current, forward);
         Ok(())
     }
 
     fn copy_code(&self) -> Result<Action> {
         let anchor = self.reader_location()?.anchor;
-        let blocks = &self.reader_tools.index.code;
+        let blocks = &self.reader.view().reader_tools.index.code;
         let block = blocks
             .iter()
             .find(|block| block.range.contains(&anchor))
@@ -400,32 +308,37 @@ impl App {
     }
 
     fn show_tables(&mut self) -> Result<()> {
-        let tables = &self.reader_tools.index.tables;
+        let tables = &self.reader.view().reader_tools.index.tables;
         ensure!(!tables.is_empty(), "No Markdown tables in this article");
-        let text =
-            if self.table_rows.len() == tables.len() && !self.reader_stale() {
-                crate::reader::table_view::from_lines(
-                    self.table_rows
-                        .iter()
-                        .flat_map(|range| {
-                            self.reader_lines
-                                .get(range.clone())
-                                .into_iter()
-                                .flatten()
-                        })
-                        .map(String::as_str),
-                )
-            } else {
-                let source = tables
+        let text = if self.reader.view().table_rows.len() == tables.len()
+            && !self.reader_stale()
+        {
+            crate::reader::table_view::from_lines(
+                self.reader
+                    .view()
+                    .table_rows
                     .iter()
-                    .filter_map(|range| self.body.get(range.clone()))
-                    .collect::<Vec<_>>()
-                    .join("\n\n");
-                crate::reader::table_view::render_with_options(
-                    &source,
-                    self.formula_options(),
-                )
-            };
+                    .flat_map(|range| {
+                        self.reader
+                            .view()
+                            .reader_lines
+                            .get(range.clone())
+                            .into_iter()
+                            .flatten()
+                    })
+                    .map(String::as_str),
+            )
+        } else {
+            let source = tables
+                .iter()
+                .filter_map(|range| self.reader.view().body.get(range.clone()))
+                .collect::<Vec<_>>()
+                .join("\n\n");
+            crate::reader::table_view::render_with_options(
+                &source,
+                self.formula_options(),
+            )
+        };
         self.show_document(
             "Tables · j/k vertical · h/l horizontal · Esc close",
             &text,
@@ -437,7 +350,25 @@ impl App {
     pub(super) fn begin_reader_search(&mut self) {
         self.begin_input(
             InputKind::ReaderSearch,
-            self.reader_tools.needle.clone(),
+            self.reader.view().reader_tools.needle.clone(),
         );
+    }
+
+    pub(super) fn reader_location(&self) -> Result<ReaderLocation> {
+        self.guard_stale_command(crate::command::Command::JumpBack)?;
+        self.reader.reader_location()
+    }
+
+    pub(super) fn remember_reader_jump(&mut self) {
+        if !self.reader_stale() {
+            self.reader.remember_reader_jump();
+        }
+    }
+
+    fn resolve_reader_location(
+        &self,
+        target: &ReaderLocation,
+    ) -> Result<usize> {
+        self.reader.resolve_reader_location(target)
     }
 }

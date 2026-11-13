@@ -91,7 +91,7 @@ fn global_search_targets_one_note_and_source_jump_keeps_its_identity()
     assert!(app.notebook.is_none());
     assert_eq!(app.focus, Focus::Reader);
     assert_eq!(app.current().context("Article missing")?.id, article);
-    assert_eq!(app.comments[app.comment_selected].id, id);
+    assert_eq!(app.reader().comments[app.reader().comment_selected].id, id);
     assert_eq!(store.comments(article)?.len(), 2);
     app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
     common::settle_notes(&mut app)?;
@@ -220,7 +220,7 @@ fn interrupted_drafts_are_recoverable_and_stale_writes_are_rejected()
 -> Result<()> {
     let (directory, mut app, store, article, first) = annotated()?;
     app.focus = Focus::Reader;
-    app.comment_selected = 0;
+    common::reader::comment(&mut app, 0)?;
     command(&mut app, "edit-note")?;
     app.paste(" with local edits")?;
     app.checkpoint_draft()?;
@@ -536,9 +536,10 @@ fn zen_reader_can_open_the_full_notebook_and_keep_shared_named_profiles()
 fn anchor_repair_shows_old_and_new_ranges_before_committing() -> Result<()> {
     let (_directory, mut app, store, article, first) = annotated()?;
     app.focus = Focus::Reader;
-    app.comment_selected = 0;
-    app.reader_cursor = 0;
-    app.reader_column = 0;
+    common::reader::comment(&mut app, 0)?;
+    let row = 0;
+    let byte = 0;
+    common::reader::cursor(&mut app, row, byte)?;
     key(&mut app, KeyCode::Char('v'))?;
     key(&mut app, KeyCode::Char('$'))?;
     command(&mut app, "note-reanchor")?;

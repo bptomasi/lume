@@ -188,7 +188,11 @@ impl App {
         let id = self
             .cursor_note()
             .or_else(|| {
-                self.comments.get(self.comment_selected).map(|note| note.id)
+                self.reader
+                    .view()
+                    .comments
+                    .get(self.reader.view().comment_selected)
+                    .map(|note| note.id)
             })
             .context("Select a note first")?;
         self.store.annotation(article, id)

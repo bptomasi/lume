@@ -78,7 +78,7 @@ impl App {
                 self.focus == Focus::Reader && self.notebook.is_none(),
                 "Focus Reader before opening an image"
             );
-            self.reader_cursor
+            self.reader.cursor_row()
         };
         let slot =
             super::viewport::visible(self.image_viewport().slots, row, 1)

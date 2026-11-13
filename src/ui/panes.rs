@@ -123,6 +123,7 @@ fn empty_articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
 }
 
 pub(super) fn reader(frame: &mut Frame<'_>, app: &App, area: Rect) {
+    let reading = app.reader();
     let title = if app.workspace.fullscreen {
         " Article · FULLSCREEN · Esc / F11 exit "
     } else {
@@ -131,11 +132,11 @@ pub(super) fn reader(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let block = panel(title.into(), app.focus == Focus::Reader);
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    if app.navigation_loading && app.displayed_article().is_none() {
+    if app.navigation_loading && reading.displayed_article.is_none() {
         frame.render_widget(Paragraph::new("Loading article…"), inner);
         return;
     }
-    let Some(article) = app.displayed_article() else {
+    let Some(article) = reading.displayed_article else {
         frame.render_widget(
             Paragraph::new(
                 if app.view == crate::model::View::Trash
@@ -201,18 +202,21 @@ fn reader_metadata(
     column: Rect,
     inner: Rect,
 ) {
-    let Some(article) = app.displayed_article() else {
+    let reading = app.reader();
+    let Some(article) = reading.displayed_article else {
         return;
     };
-    let availability = match app.body_kind {
-        content::BodyKind::Text => format!("{} min", app.reading_minutes),
+    let availability = match reading.body_kind {
+        content::BodyKind::Text => {
+            format!("{} min", reading.reading_minutes)
+        }
         content::BodyKind::ReferencesOnly => "links / media only".into(),
         content::BodyKind::Missing => "no feed text".into(),
     };
     let meta = format!(
         "{} · {} · {} · {} notes{}{}",
-        match app.content_source {
-            crate::model::ContentSource::Feed => match app.feed_origin {
+        match reading.content_source {
+            crate::model::ContentSource::Feed => match reading.feed_origin {
                 crate::model::FeedOrigin::Summary => "Summary from feed",
                 _ => "Feed",
             },
@@ -220,7 +224,7 @@ fn reader_metadata(
         },
         availability,
         article.feed,
-        app.comments.len(),
+        reading.comments.len(),
         if article.queued { " · read next" } else { "" },
         if app.view == crate::model::View::Trash {
             " · Trash · :restore"
@@ -241,23 +245,24 @@ fn article_fetch_status(
     column: Rect,
     inner: Rect,
 ) {
-    let Some(article) = app.displayed_article() else {
+    let reading = app.reader();
+    let Some(article) = reading.displayed_article else {
         return;
     };
-    let message = if app.reader_stale() {
+    let message: std::borrow::Cow<'_, str> = if app.reader_stale() {
         "Previous article · loading selection… · article actions paused".into()
     } else if app.article_fetching.as_ref().is_some_and(|target| {
         target.article == article.id && target.url == article.url
     }) {
         "Fetching article… · reading remains available".into()
-    } else if let Some(cache) = &app.document
+    } else if let Some(cache) = &reading.document
         && cache.attempt_url == article.url
         && !cache.error.is_empty()
     {
-        format!("Fetch failed: {} · :fetch retries", cache.error)
-    } else if !app.article_warning.is_empty() {
-        app.article_warning.clone()
-    } else if app.reader_tools.index.limited {
+        format!("Fetch failed: {} · :fetch retries", cache.error).into()
+    } else if !reading.article_warning.is_empty() {
+        reading.article_warning.into()
+    } else if reading.reader_tools.index.limited {
         "Structure index limited · article text remains available".into()
     } else {
         ":content switches Feed / Full · :fetch retrieves the original".into()
@@ -269,6 +274,7 @@ fn article_fetch_status(
 }
 
 fn reader_body(frame: &mut Frame<'_>, app: &App, column: Rect, inner: Rect) {
+    let reading = app.reader();
     if app.article_preparing() && !app.reader_stale() {
         frame.render_widget(
             Paragraph::new("Preparing article…").style(Style::new().fg(MUTED)),
@@ -277,12 +283,12 @@ fn reader_body(frame: &mut Frame<'_>, app: &App, column: Rect, inner: Rect) {
         return;
     }
     super::reader_text::backgrounds(frame, app, column);
-    let selected = app.selected_range();
-    let lines = app
+    let selected = reading.selected_range();
+    let lines = reading
         .reader_styled
         .iter()
         .enumerate()
-        .skip(app.scroll)
+        .skip(reading.scroll)
         .take(column.height as usize)
         .map(|(index, line)| {
             super::reader_text::row(
@@ -304,7 +310,9 @@ fn reader_body(frame: &mut Frame<'_>, app: &App, column: Rect, inner: Rect) {
 }
 
 fn reader_progress(frame: &mut Frame<'_>, app: &App, inner: Rect) {
-    let percent = cursor_percent(app.reader_cursor, app.reader_lines.len());
+    let reading = app.reader();
+    let percent =
+        cursor_percent(reading.reader_cursor, reading.reader_lines.len());
     let text = if app.workspace.fullscreen {
         format!(
             " {percent}% · Esc / F11 exit · {}",

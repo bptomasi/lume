@@ -1,4 +1,6 @@
 //! Cached hover frames and reversible note operators on real SQLite libraries.
+//! Reader setup now dispatches normal motions/selections. Timed closures
+//! include that input cost; old direct-state timings are not comparable.
 
 use anyhow::{Context, Result, ensure};
 use crossterm::event::{
@@ -20,8 +22,8 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     let mut terminal = Terminal::new(TestBackend::new(140, 36))?;
     println!(
         "note input: {} source bytes, {} annotations",
-        app.body.len(),
-        app.comments.len(),
+        app.reader().body.len(),
+        app.reader().comments.len(),
     );
     hover(&mut app, &mut terminal, iterations)?;
     writes(&mut app, &mut terminal, iterations)?;
@@ -31,7 +33,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
 
 fn card_writes(app: &mut App, store: &Store, iterations: usize) -> Result<()> {
     let article = app.current().context("Missing article")?.id;
-    let comment = app.comments[0].id;
+    let comment = app.reader().comments[0].id;
     let mut answer = "The transaction owner".to_owned();
     command(app, "card")?;
     app.paste(&format!("Who writes? | {answer}"))?;
@@ -74,9 +76,9 @@ fn writes(
     terminal: &mut Terminal<TestBackend>,
     iterations: usize,
 ) -> Result<()> {
-    let id = app.comments[0].id;
-    let count = app.comments.len();
-    let mut expected = app.comments[0].body.clone();
+    let id = app.reader().comments[0].id;
+    let count = app.reader().comments.len();
+    let mut expected = app.reader().comments[0].body.clone();
     command(app, "edit-note")?;
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     super::measure(
@@ -90,11 +92,12 @@ fn writes(
             command(app, "w")?;
             terminal.draw(|frame| ui::draw(frame, app))?;
             ensure!(
-                app.comments.len() == count,
+                app.reader().comments.len() == count,
                 "Repeated :w duplicated a note"
             );
             ensure!(
-                app.comments[0].id == id && app.comments[0].body == expected,
+                app.reader().comments[0].id == id
+                    && app.reader().comments[0].body == expected,
                 "Repeated :w changed its captured identity or text"
             );
             ensure!(
@@ -140,7 +143,7 @@ fn hover(
         row: column.y,
         modifiers: KeyModifiers::NONE,
     };
-    let id = app.comments[0].id;
+    let id = app.reader().comments[0].id;
     super::measure(
         "note hover + popup + dismissal frames",
         iterations * 10,
@@ -167,27 +170,34 @@ fn hover(
 }
 
 fn deletion(app: &mut App, iterations: usize) -> Result<()> {
-    let count = app.comments.len();
-    let id = app.comments[0].id;
+    let count = app.reader().comments.len();
+    let id = app.reader().comments[0].id;
     super::measure(
         "contextual note dd + undo + restored marker",
         iterations,
         || {
-            app.reader_cursor = 0;
-            app.reader_column = 2;
+            let row = 0;
+            let byte = 2;
+            crate::reader_input::cursor(app, row, byte)?;
             for character in "dd".chars() {
                 app.key(KeyEvent::new(
                     KeyCode::Char(character),
                     KeyModifiers::NONE,
                 ))?;
             }
-            ensure!(app.comments.len() == count - 1, "Wrong deletion count");
             ensure!(
-                !app.comments.iter().any(|note| note.id == id),
+                app.reader().comments.len() == count - 1,
+                "Wrong deletion count"
+            );
+            ensure!(
+                !app.reader().comments.iter().any(|note| note.id == id),
                 "Wrong note was deleted"
             );
             app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE))?;
-            ensure!(app.comments.len() == count, "Undo lost an annotation");
+            ensure!(
+                app.reader().comments.len() == count,
+                "Undo lost an annotation"
+            );
             ensure!(
                 app.reader_note_markers(0).contains(&id),
                 "Restored annotation lost its marker"

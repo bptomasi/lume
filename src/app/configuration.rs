@@ -117,7 +117,7 @@ impl App {
     /// Whether external definitions can be installed without interrupting edits.
     pub fn configuration_idle(&self) -> bool {
         matches!(self.mode, Mode::Normal)
-            && self.selection.is_none()
+            && !self.reader.selecting()
             && self.notebook.is_none()
             && self.panel_drag().is_none()
             && !self.pane_motion_active()
@@ -200,7 +200,7 @@ impl App {
                 self.apply_image_preferences();
                 self.apply_formula_preferences();
                 if self.workspace.justify != justify {
-                    self.cache_reader_rows();
+                    self.apply_reader_justification();
                 }
             }
             if profiles {

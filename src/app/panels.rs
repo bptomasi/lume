@@ -20,7 +20,7 @@ impl App {
         if self.screen != area {
             let height_changed = self.screen.height != area.height;
             self.cancel_pointer();
-            self.note_marks.delete = None;
+            self.reader.arm_note_delete(None);
             self.screen = area;
             if height_changed {
                 self.resize_web_height();

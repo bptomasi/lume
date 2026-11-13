@@ -130,6 +130,6 @@ fn offline_reader_draws_the_cached_list_and_keeps_the_saved_document()
             .any(|row| row.starts_with("• priority and priority class"))
     );
     assert!(!rows.iter().any(|row| row.trim() == "•"));
-    assert_eq!(app.body, LEGACY);
+    assert_eq!(app.reader().body, LEGACY);
     Ok(())
 }

@@ -8,64 +8,13 @@ use crate::app::commands::routing;
 use anyhow::{Context, Result, bail, ensure};
 
 use crate::{
-    content::{self, BodyKind},
+    content,
     model::{ArticleTarget, ContentSource, FetchPolicy},
 };
 
 use super::{Action, App, Focus, Mode, View};
 
 impl App {
-    pub(super) fn merge_article_links(
-        &self,
-        mut links: Vec<(String, String)>,
-    ) -> Vec<(String, String)> {
-        if self.content_source != ContentSource::Full {
-            return links;
-        }
-        // Preserve encounter order while avoiding quadratic URL comparisons
-        // when a community feed contains many references.
-        let mut seen = links
-            .iter()
-            .map(|(_, url)| url.clone())
-            .collect::<std::collections::BTreeSet<_>>();
-        for link in &self.feed_links {
-            if seen.insert(link.1.clone()) {
-                links.push(link.clone());
-            }
-        }
-        links
-    }
-
-    pub(super) fn apply_article_content(
-        &mut self,
-        data: &mut super::reading_data::ReadingData,
-    ) {
-        self.body = std::mem::take(&mut data.body);
-        self.feed_origin = data.origin;
-        self.feed_body_kind = content::body_kind(&self.body);
-        self.feed_links.clear();
-        self.document = data.document.take();
-        self.content_source = ContentSource::Feed;
-        self.content_revision = 0;
-        self.fetch_policy = data.policy;
-        if self.workspace.content_source == ContentSource::Full
-            && let Some(document) = &self.document
-            && self
-                .current()
-                .is_some_and(|article| article.url == document.url)
-            && !document.body.is_empty()
-            && crate::content::extraction::rejection(&document.body).is_none()
-        {
-            if self.feed_body_kind == BodyKind::ReferencesOnly {
-                self.feed_links =
-                    crate::reader::render_with_plain_links(&self.body);
-            }
-            self.body.clone_from(&document.body);
-            self.content_source = ContentSource::Full;
-            self.content_revision = document.revision;
-        }
-    }
-
     pub(super) fn selected_article_target(&self) -> Result<ArticleTarget> {
         ensure!(
             self.view != View::Trash,
@@ -90,7 +39,7 @@ impl App {
             || self.view == View::Annotated
             || self.article_fetching.is_some()
             || !matches!(self.mode, Mode::Normal)
-            || self.selection.is_some()
+            || self.reader.selecting()
         {
             return None;
         }
@@ -104,7 +53,7 @@ impl App {
         {
             return None;
         }
-        if let Some(cache) = &self.document {
+        if let Some(cache) = &self.reader.view().document {
             if cache.url == target.url && !cache.body.is_empty() {
                 return None;
             }
@@ -114,11 +63,9 @@ impl App {
                 return None;
             }
         }
-        match self.fetch_policy {
+        match self.reader.view().fetch_policy {
             FetchPolicy::Manual => None,
-            FetchPolicy::Missing if self.feed_body_kind == BodyKind::Text => {
-                None
-            }
+            FetchPolicy::Missing if self.reader.feed_has_text() => None,
             _ => Some(target),
         }
     }
@@ -161,7 +108,7 @@ impl App {
         let Some(target) = &self.pending_document else {
             return Ok(false);
         };
-        if !matches!(self.mode, Mode::Normal) || self.selection.is_some() {
+        if !matches!(self.mode, Mode::Normal) || self.reader.selecting() {
             return Ok(false);
         }
         let selected = self.current().is_some_and(|article| {
@@ -170,14 +117,14 @@ impl App {
         self.pending_document = None;
         if selected {
             let cursor = self.cursor_offset();
-            let previous_body = self.body.clone();
-            let previous_source = self.content_source;
+            let previous_body = self.reader.view().body.to_owned();
+            let previous_source = self.reader.source();
             self.save_reading_position()?;
             self.load_current()?;
-            if self.body == previous_body
-                && self.content_source == previous_source
+            if self.reader.view().body == previous_body
+                && self.reader.source() == previous_source
             {
-                self.pending_anchor = None;
+                self.reader.cancel_restore();
                 self.place_cursor(cursor);
                 self.ensure_cursor_visible();
             }
@@ -213,7 +160,7 @@ impl App {
 
     fn select_content(&mut self, argument: &str) -> Result<Action> {
         let source = match argument {
-            "" if self.content_source == ContentSource::Feed => {
+            "" if self.reader.source() == ContentSource::Feed => {
                 ContentSource::Full
             }
             "" | "feed" => ContentSource::Feed,
@@ -223,7 +170,7 @@ impl App {
         self.save_reading_position()?;
         self.workspace.content_source = source;
         self.load_current()?;
-        self.status = match self.content_source {
+        self.status = match self.reader.source() {
             ContentSource::Full => {
                 "Full article cached · :content feed returns to the feed".into()
             }
@@ -231,7 +178,7 @@ impl App {
                 "Feed content · :fetch retrieves the original article".into()
             }
         };
-        if source == ContentSource::Full && self.content_source != source {
+        if source == ContentSource::Full && self.reader.source() != source {
             return self.document_command(routing::DocumentCommand::Fetch, "");
         }
         Ok(Action::None)
@@ -252,7 +199,7 @@ impl App {
             _ => bail!("Use :fetch-policy missing, always or manual"),
         };
         self.store.set_fetch_policy(feed, policy)?;
-        self.fetch_policy = policy;
+        self.reader.set_fetch_policy(policy);
         self.status = format!("Source fetch policy: {}", policy.as_str());
         Ok(())
     }

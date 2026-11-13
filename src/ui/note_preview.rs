@@ -35,24 +35,27 @@ pub fn note_preview_area(screen: Rect, anchor: Position) -> Rect {
 }
 
 pub(super) fn area(app: &App, screen: Rect) -> Option<Rect> {
+    let reading = app.reader();
     if !matches!(app.mode, Mode::Normal) || app.layout_prefix_pending() {
         return None;
     }
-    let (id, anchor) = app.hovered_note()?;
-    app.comments
+    let (id, anchor) = reading.hovered_note()?;
+    reading
+        .comments
         .iter()
         .any(|note| note.id == id)
         .then(|| note_preview_area(screen, anchor))
 }
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
+    let reading = app.reader();
     if !matches!(app.mode, Mode::Normal) || app.layout_prefix_pending() {
         return;
     }
-    let Some((id, anchor)) = app.hovered_note() else {
+    let Some((id, anchor)) = reading.hovered_note() else {
         return;
     };
-    let Some((index, note)) = app
+    let Some((index, note)) = reading
         .comments
         .iter()
         .enumerate()
@@ -115,8 +118,9 @@ fn preview_lines(
 }
 
 pub(super) fn markers(frame: &mut Frame<'_>, app: &App, column: Rect) {
-    for index in app.scroll..app.scroll + usize::from(column.height) {
-        let ids = app.reader_note_markers(index);
+    let reading = app.reader();
+    for index in reading.scroll..reading.scroll + usize::from(column.height) {
+        let ids = reading.note_markers(index);
         if ids.is_empty() {
             continue;
         }
@@ -126,7 +130,7 @@ pub(super) fn markers(frame: &mut Frame<'_>, app: &App, column: Rect) {
                 .style(Style::new().fg(AMBER).add_modifier(Modifier::BOLD)),
             Rect::new(
                 column.x.saturating_sub(1),
-                column.y + (index - app.scroll) as u16,
+                column.y + (index - reading.scroll) as u16,
                 1,
                 1,
             ),

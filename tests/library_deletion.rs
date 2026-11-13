@@ -223,7 +223,7 @@ fn removing_definitions_keeps_unrelated_search_counts_and_reader() -> Result<()>
         };
         let path = directory.path().join("library.sqlite3");
         let mut app = App::new(store, false)?;
-        let reader = app.reader_text.clone();
+        let reader = app.reader().reader_text.to_owned();
         app.enable_background_navigation(&path)?;
         settle_catalog(&mut app)?;
         rusqlite::Connection::open(&path)?.execute_batch(include_str!(
@@ -234,7 +234,7 @@ fn removing_definitions_keeps_unrelated_search_counts_and_reader() -> Result<()>
         key(&mut app, KeyCode::Char('d'))?;
         settle_catalog(&mut app)?;
         assert!(!app.navigation.iter().any(|item| item.view == target));
-        assert_eq!(app.reader_text, reader);
+        assert_eq!(app.reader().reader_text, reader);
         assert_eq!(app.page_total, 1);
         app.end_session()?;
     }

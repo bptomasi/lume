@@ -18,7 +18,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     app.set_view(View::All)?;
     super::workspaces::settle(&mut app)?;
     let selected = select_passage(&mut app)?;
-    let source = app.body.clone();
+    let source = app.reader().body.to_owned();
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     let mut admission = Vec::new();
     let mut completion = Vec::new();
@@ -32,11 +32,14 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
             super::workspaces::settle(&mut app)?;
             terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
             completion.push(start.elapsed().as_secs_f64() * 1000.0);
-            ensure!(app.body == source, "Reflow changed publisher content");
+            ensure!(
+                app.reader().body == source,
+                "Reflow changed publisher content"
+            );
             let range =
                 app.selected_range().context("Reflow lost selection")?;
             ensure!(
-                app.reader_text[range] == selected,
+                app.reader().reader_text[range] == selected,
                 "Reflow changed selected bytes"
             );
         }
@@ -56,7 +59,7 @@ fn select_passage(app: &mut App) -> Result<String> {
         app.key(KeyEvent::new(KeyCode::Char(character), KeyModifiers::NONE))?;
     }
     let range = app.selected_range().context("Missing selection")?;
-    Ok(app.reader_text[range].to_owned())
+    Ok(app.reader().reader_text[range].to_owned())
 }
 
 fn application(stress: bool) -> Result<(tempfile::TempDir, App)> {

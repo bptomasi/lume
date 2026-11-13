@@ -39,9 +39,7 @@ fn main() -> Result<()> {
     media::cache::write(&cache, ADDRESS, DIAGRAM)?;
     app.enable_images(cache, true)?;
     if std::env::args().any(|argument| argument == "--inspect") {
-        app.reader_cursor = app.images.slots[0].caption;
-        app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
-        app.key(KeyEvent::new(KeyCode::Char('+'), KeyModifiers::NONE))?;
+        inspect_image(&mut app)?;
     }
     settle(&mut app)?;
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
@@ -79,7 +77,7 @@ fn settle(app: &mut App) -> Result<()> {
         if !app.images_pending() {
             let key = app
                 .image_inspector_key()
-                .or_else(|| app.image_key(&app.images.slots[0]))
+                .or_else(|| app.image_key(&app.reader().image_slots[0]))
                 .context("Image key")?;
             ensure!(
                 app.images.thumbnail(&key).is_some(),
@@ -91,4 +89,14 @@ fn settle(app: &mut App) -> Result<()> {
         ensure!(Instant::now() < deadline, "Image preview timed out");
         std::thread::sleep(Duration::from_millis(1));
     }
+}
+
+fn inspect_image(app: &mut App) -> Result<()> {
+    let caption = app.reader().image_slots[0].caption;
+    for character in format!("{}G", caption + 1).chars() {
+        app.key(KeyCode::Char(character).into())?;
+    }
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    app.key(KeyEvent::new(KeyCode::Char('+'), KeyModifiers::NONE))?;
+    Ok(())
 }

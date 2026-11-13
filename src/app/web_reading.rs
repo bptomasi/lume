@@ -294,7 +294,7 @@ impl App {
                 page.selection = None;
             }
         } else {
-            self.selection = None;
+            self.reader.cancel_selection();
         }
     }
 

@@ -235,7 +235,7 @@ fn interactions(
     app.resize_reader(82, 29);
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     latency("reader motion to frame", samples, |index| {
-        let before = app.reader_cursor;
+        let before = app.reader().reader_cursor;
         press(
             &mut app,
             if index % 2 == 0 {
@@ -245,7 +245,10 @@ fn interactions(
             },
         )?;
         terminal.draw(|frame| ui::draw(frame, &app))?;
-        ensure!(app.reader_cursor != before, "Reader motion was lost");
+        ensure!(
+            app.reader().reader_cursor != before,
+            "Reader motion was lost"
+        );
         Ok(())
     })?;
     app.focus = Focus::Articles;
@@ -293,7 +296,7 @@ fn reflow_latency(
             app.resize_reader(content.width.into(), content.height.into());
             terminal.draw(|frame| ui::draw(frame, app))?;
             ensure!(
-                app.reader_text.contains("Systems"),
+                app.reader().reader_text.contains("Systems"),
                 "Resize discarded article text"
             );
             Ok(())

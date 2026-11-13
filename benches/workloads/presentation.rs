@@ -20,10 +20,10 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     let mut terminal =
         Terminal::new(TestBackend::new(screen.width, screen.height))?;
     let content = ui::workspace_reader_content(screen, &app.workspace);
-    let original = app.reader_text.clone();
+    let original = app.reader().reader_text.to_owned();
     println!(
         "presentation input · paragraphs={paragraphs} · bytes={}",
-        app.body.len()
+        app.reader().body.len()
     );
     super::measure(
         "justified selection + exact yank + cached frame",
@@ -47,7 +47,8 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
                 line == "Alpha  bravo  charlie delta echo foxtrot",
                 "Justified frame drifted"
             );
-            ensure!(app.reader_text == original, "Readable text changed");
+            let reading = app.reader();
+            ensure!(reading.reader_text == original, "Readable text changed");
             Ok(())
         },
     )?;

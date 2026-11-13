@@ -1,4 +1,6 @@
 //! Table preparation and cached frames keep Unicode, source and styles intact.
+//! Reader setup now dispatches normal motions/selections. Timed closures
+//! include that input cost; old direct-state timings are not comparable.
 
 use anyhow::{Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -101,7 +103,8 @@ fn frames(
 ) -> Result<()> {
     let (_directory, mut app) = application(body)?;
     app.resize_workspace(Rect::new(0, 0, 144, 44));
-    app.reader_cursor = app.table_rows[0].end - 2;
+    let row = app.reader().table_rows[0].end - 2;
+    crate::reader_input::cursor(&mut app, row, 0)?;
     key(&mut app, '$')?;
     let expected = format!("value-{}-{}", rows - 1, columns - 1);
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
@@ -111,7 +114,8 @@ fn frames(
         || {
             key(&mut app, 'h')?;
             key(&mut app, 'l')?;
-            app.selection = Some(app.cursor_offset().saturating_sub(5));
+            let anchor = app.cursor_offset().saturating_sub(5);
+            crate::reader_input::select(&mut app, anchor)?;
             terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
             let text = terminal
                 .backend()
@@ -124,8 +128,11 @@ fn frames(
                 text.contains(&expected),
                 "Last column was clipped incorrectly"
             );
-            ensure!(app.body == body, "Navigation changed publisher source");
-            app.selection = None;
+            ensure!(
+                app.reader().body == body,
+                "Navigation changed publisher source"
+            );
+            app.clear_copied_selection();
             Ok(())
         },
     )?;

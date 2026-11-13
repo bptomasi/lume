@@ -159,11 +159,11 @@ fn cached_refresh_preserves_selected_identity_and_reader_layout_across_sizes()
     settle(&mut app)?;
     let selected = app.current().context("Missing recommendation")?.id;
     app.focus = Focus::Reader;
-    let body = app.body.clone();
+    let body = app.reader().body.to_owned();
     command(&mut app, "recommend-feedback useful")?;
     settle(&mut app)?;
     assert_eq!(app.current().context("Selection lost")?.id, selected);
-    assert_eq!(app.body, body);
+    assert_eq!(app.reader().body, body);
     for (width, height) in [(1, 1), (40, 18), (80, 28), (144, 44)] {
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
         app.resize_workspace(ratatui::layout::Rect::new(0, 0, width, height));

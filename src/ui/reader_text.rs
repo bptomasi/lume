@@ -17,8 +17,9 @@ pub(super) fn backgrounds(
     app: &App,
     area: ratatui::layout::Rect,
 ) {
+    let reading = app.reader();
     for row in 0..usize::from(area.height) {
-        if code_background(app, app.scroll + row) {
+        if code_background(app, reading.scroll + row) {
             frame.buffer_mut().set_style(
                 ratatui::layout::Rect::new(
                     area.x,
@@ -39,8 +40,9 @@ pub(super) fn row(
     selected: Option<&std::ops::Range<usize>>,
     width: usize,
 ) -> Line<'static> {
+    let reading = app.reader();
     if let Some(columns) =
-        app.reader_columns.get(index).and_then(Option::as_ref)
+        reading.reader_columns.get(index).and_then(Option::as_ref)
     {
         return indexed_row(app, index, cached, selected, width, columns);
     }
@@ -51,7 +53,7 @@ pub(super) fn row(
         line = line.style(Style::new().bg(RAISED));
     }
     if let Some(selected) = selected
-        && let Some(range) = app.reader_ranges.get(index)
+        && let Some(range) = reading.reader_ranges.get(index)
     {
         let start = range.start.max(selected.start);
         let end = range.end.min(selected.end);
@@ -68,10 +70,11 @@ pub(super) fn row(
 }
 
 fn paint_search(app: &App, index: usize, line: &mut Line<'static>) {
-    let Some(range) = app.reader_ranges.get(index) else {
+    let reading = app.reader();
+    let Some(range) = reading.reader_ranges.get(index) else {
         return;
     };
-    let hits = &app.reader_tools.hits;
+    let hits = &reading.reader_tools.hits;
     let first = hits.partition_point(|hit| hit.end <= range.start);
     for hit in hits[first..].iter().take_while(|hit| hit.start < range.end) {
         let start = range.start.max(hit.start);
@@ -92,19 +95,20 @@ fn indexed_row(
     width: usize,
     columns: &crate::reader::viewport::RowIndex,
 ) -> Line<'static> {
-    let unwrapped = app.code_lines.get(row) == Some(&true);
+    let reading = app.reader();
+    let unwrapped = reading.code_lines.get(row) == Some(&true);
     let code = code_background(app, row);
-    let text = app.reader_lines.get(row).map_or("", String::as_str);
-    let base = app.reader_ranges.get(row).map_or(0, |range| range.start);
-    let cursor = (app.focus == Focus::Reader
-        && matches!(app.mode, Mode::Normal)
-        && row == app.reader_cursor)
-        .then_some(base + app.reader_column);
+    let text = reading.reader_lines.get(row).map_or("", String::as_str);
+    let base = reading
+        .reader_ranges
+        .get(row)
+        .map_or(0, |range| range.start);
+    let cursor = cursor_column(app, row).map(|column| base + column);
     let mut line = columns.project(
         cached,
         text,
         if unwrapped {
-            app.horizontal_for_row(row)
+            reading.horizontal_for_row(row)
         } else {
             0
         },
@@ -124,7 +128,7 @@ fn indexed_row(
     }
     if text.is_empty()
         && cursor.is_some()
-        && (!unwrapped || app.horizontal_for_row(row) == 0)
+        && (!unwrapped || reading.horizontal_for_row(row) == 0)
     {
         line.spans.push(Span::styled(" ", cursor_style()));
     }
@@ -138,7 +142,8 @@ fn overlays(
     cursor: Option<usize>,
     mut style: Style,
 ) -> Style {
-    let hits = &app.reader_tools.hits;
+    let reading = app.reader();
+    let hits = &reading.reader_tools.hits;
     let first = hits.partition_point(|hit| hit.end <= bytes.start);
     if hits.get(first).is_some_and(|hit| hit.start < bytes.end) {
         style = style.fg(AMBER).add_modifier(Modifier::UNDERLINED);
@@ -155,9 +160,10 @@ fn overlays(
 }
 
 pub(super) fn code_background(app: &App, row: usize) -> bool {
-    let table = app.table_rows.partition_point(|range| range.end <= row);
-    app.code_lines.get(row) == Some(&true)
-        && !app
+    let reading = app.reader();
+    let table = reading.table_rows.partition_point(|range| range.end <= row);
+    reading.code_lines.get(row) == Some(&true)
+        && !reading
             .table_rows
             .get(table)
             .is_some_and(|range| range.contains(&row))
@@ -172,24 +178,26 @@ fn cursor_style() -> Style {
 }
 
 fn paint_cursor(app: &App, index: usize, line: &mut Line<'static>) {
-    if app.focus == Focus::Reader
-        && matches!(app.mode, Mode::Normal)
-        && index == app.reader_cursor
-    {
+    let reading = app.reader();
+    if let Some(column) = cursor_column(app, index) {
         // Paint the only reader cursor. A hardware block on this same cell
         // can invert it again, cancelling the intended contrast.
         let style = cursor_style();
-        let text = app.reader_lines.get(index).map_or("", String::as_str);
+        let text = reading.reader_lines.get(index).map_or("", String::as_str);
         if text.is_empty() {
             line.spans.push(Span::styled(" ", style));
         } else {
-            style_range(
-                line,
-                app.reader_column..cursor::next(text, app.reader_column),
-                style,
-            );
+            style_range(line, column..cursor::next(text, column), style);
         }
     }
+}
+
+fn cursor_column(app: &App, row: usize) -> Option<usize> {
+    let reading = app.reader();
+    (app.focus == Focus::Reader
+        && matches!(app.mode, Mode::Normal)
+        && row == reading.reader_cursor)
+        .then_some(reading.reader_column)
 }
 
 #[cfg(test)]

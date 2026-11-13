@@ -52,14 +52,14 @@ fn individual_wheel_steps_scroll_exactly_one_visual_line_and_stop_at_edges()
     let (_directory, mut app, content) = reader()?;
     for expected in 1..=10 {
         app.mouse(event(MouseEventKind::ScrollDown, content.x, content.y))?;
-        assert_eq!(app.scroll, expected);
+        assert_eq!(app.reader().scroll, expected);
     }
     for expected in (0..10).rev() {
         app.mouse(event(MouseEventKind::ScrollUp, content.x, content.y))?;
-        assert_eq!(app.scroll, expected);
+        assert_eq!(app.reader().scroll, expected);
     }
     app.mouse(event(MouseEventKind::ScrollUp, content.x, content.y))?;
-    assert_eq!(app.scroll, 0);
+    assert_eq!(app.reader().scroll, 0);
     let events = vec![
         Event::Mouse(event(
             MouseEventKind::ScrollDown,
@@ -70,7 +70,10 @@ fn individual_wheel_steps_scroll_exactly_one_visual_line_and_stop_at_edges()
     ];
     let mut batch = InputBatch::new(events);
     batch.dispatch_next(&mut app)?;
-    assert_eq!(app.scroll, app.reader_lines.len() - app.reader_height);
+    assert_eq!(
+        app.reader().scroll,
+        app.reader().reader_lines.len() - app.reader().reader_height
+    );
     Ok(())
 }
 
@@ -93,16 +96,16 @@ fn wheel_bursts_preserve_distance_and_direction_without_panning_prose()
     )));
     let mut batch = InputBatch::new(events);
     batch.dispatch_next(&mut app)?;
-    assert_eq!(app.scroll, 8);
+    assert_eq!(app.reader().scroll, 8);
     batch.dispatch_next(&mut app)?;
-    assert_eq!(app.scroll, 7);
+    assert_eq!(app.reader().scroll, 7);
     assert!(batch.is_empty());
 
     app.mouse(event(MouseEventKind::ScrollRight, content.x, content.y))?;
-    assert_eq!(app.horizontal, 0);
+    assert_eq!(app.reader().horizontal, 0);
     app.mouse(event(MouseEventKind::ScrollLeft, content.x, content.y))?;
-    assert_eq!(app.horizontal, 0);
-    assert_eq!(app.scroll, 7);
+    assert_eq!(app.reader().horizontal, 0);
+    assert_eq!(app.reader().scroll, 7);
     Ok(())
 }
 
@@ -146,11 +149,11 @@ fn modal_scroll_is_one_step_and_reaches_the_fullscreen_width_preview()
     app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE))?;
     assert_eq!(app.workspace.fullscreen_width, 81);
     app.resize_workspace(SCREEN);
-    assert_eq!(app.reader_width, 81);
+    assert_eq!(app.reader().reader_width, 81);
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     assert_eq!(app.workspace.fullscreen_width, 80);
     app.resize_workspace(SCREEN);
-    assert_eq!(app.reader_width, 80);
+    assert_eq!(app.reader().reader_width, 80);
     assert!(app.current().context("Reader lost its article")?.unread);
     Ok(())
 }

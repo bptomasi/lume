@@ -149,7 +149,7 @@ fn continuation_padding_keeps_mouse_cursor_selection_and_reflow_exact()
             modifiers: KeyModifiers::NONE,
         })?;
     }
-    assert_eq!(app.reader_column, 0);
+    assert_eq!(app.reader().reader_column, 0);
     for character in "v6l".chars() {
         app.key(KeyEvent::new(KeyCode::Char(character), KeyModifiers::NONE))?;
     }
@@ -160,7 +160,7 @@ fn continuation_padding_keeps_mouse_cursor_selection_and_reflow_exact()
     let copy =
         app.key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE))?;
     assert_eq!(copy, lume::app::Action::Copy("charlie".into()));
-    assert_eq!(app.body, source);
+    assert_eq!(app.reader().body, source);
     Ok(())
 }
 

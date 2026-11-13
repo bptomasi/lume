@@ -30,8 +30,11 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     let (_directory, mut app) = application(stress)?;
     let mut terminal =
         Terminal::new(TestBackend::new(SCREEN.width, SCREEN.height))?;
-    let count = app.annotations.len();
-    println!("pane input: {} source bytes, {count} notes", app.body.len());
+    let count = app.reader().annotations.len();
+    println!(
+        "pane input: {} source bytes, {count} notes",
+        app.reader().body.len()
+    );
     wait_for_colors(&mut app)?;
     resize_workload(&mut app, &mut terminal, iterations)?;
     moves::run(&mut app, &mut terminal, iterations)?;
@@ -53,16 +56,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         frame(&mut app, &mut terminal)?;
         samples.push(start.elapsed().as_secs_f64() * 1000.0);
         let expected = if index % 2 == 0 { count - 1 } else { 0 };
-        ensure!(
-            app.comments[app.comment_selected].body
-                == format!("Insight {expected}"),
-            "Annotation navigation lost source order"
-        );
-        ensure!(
-            app.reader_lines[app.reader_cursor]
-                .contains(&format!("Review concept {expected}.")),
-            "Annotation jump did not reach its source paragraph"
-        );
+        verify_annotation_jump(app.reader(), expected)?;
     }
     report("annotation navigation/jump + runtime frame", samples);
     article_cards::run(iterations, stress)
@@ -74,7 +68,7 @@ fn resize_workload(
     iterations: usize,
 ) -> Result<()> {
     let widths = (app.workspace.article_width, app.workspace.library_width);
-    let text = app.reader_text.clone();
+    let text = app.reader().reader_text.to_owned();
     let column = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
         .reader
         .context("Reader hidden")?
@@ -96,7 +90,10 @@ fn resize_workload(
                 == widths,
             "Divider roundtrip lost saved dimensions"
         );
-        ensure!(app.reader_text == text, "Reflow changed readable text");
+        ensure!(
+            app.reader().reader_text == text,
+            "Reflow changed readable text"
+        );
     }
     report(
         "two divider drags (128 motion events) + reflow/frames",
@@ -133,6 +130,7 @@ fn selection_workload(
         .context("Reader hidden")?;
     let content = ui::workspace_reader_content(reader, &app.workspace);
     let row = app
+        .reader()
         .reader_lines
         .iter()
         .position(|line| line.contains("café"))
@@ -280,4 +278,21 @@ fn report(label: &str, mut samples: Vec<f64>) {
         at(99),
         at(100)
     );
+}
+
+fn verify_annotation_jump(
+    reading: lume::app::ReaderView<'_>,
+    expected: usize,
+) -> Result<()> {
+    ensure!(
+        reading.comments[reading.comment_selected].body
+            == format!("Insight {expected}"),
+        "Annotation navigation lost source order"
+    );
+    ensure!(
+        reading.reader_lines[reading.reader_cursor]
+            .contains(&format!("Review concept {expected}.")),
+        "Annotation jump did not reach its source paragraph"
+    );
+    Ok(())
 }

@@ -73,7 +73,7 @@ fn replacements(
             }
             ensure!(app.page_total == count, "Newest page drifted");
             ensure!(
-                app.reader_text.contains("A cached source"),
+                app.reader().reader_text.contains("A cached source"),
                 "Newest source disappeared"
             );
             Ok(())

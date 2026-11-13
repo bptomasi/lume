@@ -129,7 +129,7 @@ impl App {
         let clear = self.navigation_loading
             || self.projecting_navigation
             || !self.library.articles.is_empty()
-            || !self.reader_text.is_empty();
+            || !self.reader.view().reader_text.is_empty();
         self.page_total = 0;
         self.library.articles.clear();
         self.visible.clear();
@@ -286,7 +286,7 @@ impl App {
         self.workspace.zen = false;
         self.workspace.fullscreen = false;
         self.fullscreen_focus = None;
-        self.selection = None;
+        self.reader.cancel_selection();
         self.vim.clear_input();
     }
 

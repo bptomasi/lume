@@ -105,10 +105,11 @@ fn cached_full_article_reopens_offline_and_keeps_the_feed_discussion_link()
 
     let mut reopened = App::new(store, false)?;
 
-    assert_eq!(reopened.content_source, ContentSource::Full);
-    assert!(reopened.body.contains("full cached article"));
+    assert_eq!(reopened.reader().content_source, ContentSource::Full);
+    assert!(reopened.reader().body.contains("full cached article"));
     assert!(
         reopened
+            .reader()
             .links
             .iter()
             .any(|(_, url)| url == "https://community.example/discussion")
@@ -119,11 +120,11 @@ fn cached_full_article_reopens_offline_and_keeps_the_feed_discussion_link()
             .is_none()
     );
     command(&mut reopened, "content feed")?;
-    assert_eq!(reopened.content_source, ContentSource::Feed);
-    assert_eq!(reopened.body, DISCUSSION);
+    assert_eq!(reopened.reader().content_source, ContentSource::Feed);
+    assert_eq!(reopened.reader().body, DISCUSSION);
     command(&mut reopened, "content")?;
-    assert_eq!(reopened.content_source, ContentSource::Full);
-    assert!(reopened.body.contains("full cached article"));
+    assert_eq!(reopened.reader().content_source, ContentSource::Full);
+    assert!(reopened.reader().body.contains("full cached article"));
     assert_eq!(writer.body(target.article)?, DISCUSSION);
     Ok(())
 }
@@ -139,15 +140,15 @@ fn completion_waits_for_visual_selection_and_preserves_its_yank() -> Result<()>
     app.article_fetch_finished(target, None);
 
     assert!(!app.apply_document_completion()?);
-    assert_eq!(app.body, DISCUSSION);
+    assert_eq!(app.reader().body, DISCUSSION);
     assert_eq!(
         press(&mut app, KeyCode::Char('y'))?,
         Action::Copy("C".into())
     );
     press(&mut app, KeyCode::Esc)?;
     assert!(app.apply_document_completion()?);
-    assert_eq!(app.content_source, ContentSource::Full);
-    assert!(app.body.contains("while selecting"));
+    assert_eq!(app.reader().content_source, ContentSource::Full);
+    assert!(app.reader().body.contains("while selecting"));
     Ok(())
 }
 
@@ -208,7 +209,7 @@ fn completion_for_a_previous_article_never_changes_the_new_selection()
 
     assert!(!app.apply_document_completion()?);
     assert_eq!(app.current().context("Selection disappeared")?.id, selected);
-    assert_eq!(app.body, "Second article text.");
+    assert_eq!(app.reader().body, "Second article text.");
     Ok(())
 }
 
@@ -223,14 +224,14 @@ fn choosing_feed_during_a_download_prevents_an_automatic_source_switch()
     app.article_fetch_finished(target, None);
 
     app.apply_document_completion()?;
-    assert_eq!(app.content_source, ContentSource::Feed);
-    assert_eq!(app.body, DISCUSSION);
+    assert_eq!(app.reader().content_source, ContentSource::Feed);
+    assert_eq!(app.reader().body, DISCUSSION);
     assert!(
         app.automatic_article_request(chrono::Utc::now().timestamp())
             .is_none()
     );
     command(&mut app, "content full")?;
-    assert_eq!(app.content_source, ContentSource::Full);
+    assert_eq!(app.reader().content_source, ContentSource::Full);
     Ok(())
 }
 
@@ -249,7 +250,7 @@ fn failed_cache_write_has_a_session_cooldown_even_without_a_failure_record()
         Some(target.clone())
     );
     assert_eq!(command(&mut app, "fetch")?, Action::FetchArticle(target));
-    assert_eq!(app.body, DISCUSSION);
+    assert_eq!(app.reader().body, DISCUSSION);
     Ok(())
 }
 
@@ -261,10 +262,11 @@ fn highlights_from_other_sources_and_ambiguous_old_revisions_are_not_repainted()
     writer.save_highlight(target.article, "unique", 6, "Feed annotation")?;
     cache(&writer, &target, "Alpha unique passage.")?;
     app.reload()?;
-    assert!(app.reader_text.contains("Quote from feed content"));
+    assert!(app.reader().reader_text.contains("Quote from feed content"));
     let marked = ratatui::style::Color::Rgb(65, 53, 32);
     assert!(
-        !app.reader_styled
+        !app.reader()
+            .reader_styled
             .iter()
             .flat_map(|line| &line.spans)
             .any(|span| span.style.bg == Some(marked))
@@ -282,14 +284,16 @@ fn highlights_from_other_sources_and_ambiguous_old_revisions_are_not_repainted()
     cache(&writer, &target, "unique appears twice: unique.")?;
     app.reload()?;
     assert!(
-        !app.reader_styled
+        !app.reader()
+            .reader_styled
             .iter()
             .take(2)
             .flat_map(|line| &line.spans)
             .any(|span| span.style.bg == Some(marked))
     );
     assert!(
-        app.reader_text
+        app.reader()
+            .reader_text
             .contains("Quote from Full revision 1; current revision 2")
     );
     Ok(())
@@ -307,7 +311,11 @@ fn failed_refetch_keeps_the_exact_full_reader_cursor_and_visible_page()
         press(&mut app, KeyCode::Char('j'))?;
     }
     press(&mut app, KeyCode::Char('l'))?;
-    let position = (app.scroll, app.reader_cursor, app.reader_column);
+    let position = (
+        app.reader().scroll,
+        app.reader().reader_cursor,
+        app.reader().reader_column,
+    );
     app.article_fetch_started(target.clone());
     writer.document_failure(&target, "HTTP 503")?;
 
@@ -315,11 +323,18 @@ fn failed_refetch_keeps_the_exact_full_reader_cursor_and_visible_page()
     app.apply_document_completion()?;
     app.resize_reader(30, 3);
 
-    assert_eq!((app.scroll, app.reader_cursor, app.reader_column), position);
-    assert_eq!(app.content_source, ContentSource::Full);
-    assert_eq!(app.body, full);
     assert_eq!(
-        app.document.as_ref().context("Cache lost")?.error,
+        (
+            app.reader().scroll,
+            app.reader().reader_cursor,
+            app.reader().reader_column
+        ),
+        position
+    );
+    assert_eq!(app.reader().content_source, ContentSource::Full);
+    assert_eq!(app.reader().body, full);
+    assert_eq!(
+        app.reader().document.as_ref().context("Cache lost")?.error,
         "HTTP 503"
     );
     Ok(())
@@ -378,7 +393,7 @@ fn feed_and_full_keep_independent_reading_positions_when_switching_sources()
     assert_eq!(writer.progress(target.article)?, 0);
     command(&mut app, "content feed")?;
     app.resize_reader(40, 3);
-    assert_eq!(app.scroll, 0);
+    assert_eq!(app.reader().scroll, 0);
     for _ in 0..6 {
         press(&mut app, KeyCode::Char('j'))?;
     }
@@ -389,7 +404,10 @@ fn feed_and_full_keep_independent_reading_positions_when_switching_sources()
     command(&mut app, "content full")?;
     app.resize_reader(40, 3);
 
-    assert_eq!(app.line_ranges[app.scroll].start, full_position);
+    assert_eq!(
+        app.reader().line_ranges[app.reader().scroll].start,
+        full_position
+    );
     assert_eq!(writer.progress(target.article)?, feed_position);
     Ok(())
 }
@@ -411,10 +429,10 @@ fn an_old_footer_only_cache_falls_back_without_erasing_either_source()
 
     let reopened = App::new(store, false)?;
 
-    assert_eq!(reopened.content_source, ContentSource::Feed);
-    assert_eq!(reopened.body, "Useful feed summary.");
-    assert!(reopened.article_warning.contains("showing feed"));
-    assert!(reopened.article_warning.contains("footer"));
+    assert_eq!(reopened.reader().content_source, ContentSource::Feed);
+    assert_eq!(reopened.reader().body, "Useful feed summary.");
+    assert!(reopened.reader().article_warning.contains("showing feed"));
+    assert!(reopened.reader().article_warning.contains("footer"));
     assert_eq!(writer.body(target.article)?, "Useful feed summary.");
     assert!(
         writer

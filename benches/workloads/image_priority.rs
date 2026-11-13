@@ -29,19 +29,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
         app.focus = Focus::Reader;
         settle(&mut app)?;
         elapsed += start.elapsed();
-        let key = app.image_key(&app.images.slots[0]).context("Visible key")?;
-        let image = app
-            .images
-            .thumbnail(&key)
-            .context("Visible pixels missing")?;
-        ensure!(
-            image
-                .cells
-                .content
-                .iter()
-                .any(|cell| cell.bg == Color::Rgb(0, 0, 255)),
-            "Visible source color changed"
-        );
+        verify_visible_source(&app)?;
     }
     println!(
         "visible image after replacing two sources: {count} iterations, {:.3} ms total, {:.3} ms/iteration",
@@ -56,7 +44,7 @@ fn settle(app: &mut App) -> Result<()> {
     loop {
         app.poll_images();
         let key = app
-            .image_key(&app.images.slots[0])
+            .image_key(&app.reader().image_slots[0])
             .context("Target image")?;
         if app.images.thumbnail(&key).is_some() {
             return Ok(());
@@ -152,5 +140,25 @@ fn cache_sources(
         );
         media::cache::write(cache, url, bytes.as_bytes())?;
     }
+    Ok(())
+}
+
+fn verify_visible_source(app: &App) -> Result<()> {
+    let reading = app.reader();
+    let key = app
+        .image_key(&reading.image_slots[0])
+        .context("Visible key")?;
+    let image = app
+        .images
+        .thumbnail(&key)
+        .context("Visible pixels missing")?;
+    ensure!(
+        image
+            .cells
+            .content
+            .iter()
+            .any(|cell| cell.bg == Color::Rgb(0, 0, 255)),
+        "Visible source color changed"
+    );
     Ok(())
 }

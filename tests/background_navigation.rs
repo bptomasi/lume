@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use lume::{
     app::App,
-    model::{Pane, View},
+    model::{ContentSource, Pane, View},
     store::Store,
 };
 use ratatui::layout::Rect;
@@ -61,8 +61,8 @@ fn newest_destination_wins_and_readable_content_matches_its_identity()
     settle(&mut app)?;
     let id = app.current().context("Article missing")?.id;
     let expected = Store::open(&path)?.body(id)?;
-    assert_eq!(app.body, expected);
-    assert!(!app.reader_text.is_empty());
+    assert_eq!(app.reader().body, expected);
+    assert!(!app.reader().reader_text.is_empty());
     assert_eq!(app.view, View::All);
     app.end_session()?;
     assert!(!app.session_pending());
@@ -109,14 +109,16 @@ fn completed_layout_preserves_a_live_selection() -> Result<()> {
     app.focus = Pane::Reader;
     app.key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))?;
     app.key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))?;
-    let selected =
-        app.reader_text[app.selected_range().context("No passage")?].to_owned();
-    let anchor = app.selection;
+    let selected = app.reader().reader_text
+        [app.selected_range().context("No passage")?]
+    .to_owned();
+    let anchor = app.reader().selection;
     app.resize_reader(50, 22);
     settle(&mut app)?;
-    assert_eq!(app.selection, anchor);
+    assert_eq!(app.reader().selection, anchor);
     assert_eq!(
-        &app.reader_text[app.selected_range().context("Selection lost")?],
+        &app.reader().reader_text
+            [app.selected_range().context("Selection lost")?],
         selected
     );
     app.end_session()?;
@@ -148,22 +150,17 @@ fn explicit_source_jumps_cancel_stale_reads_and_keep_source_bound_tools()
     app.jump_article(article.id)?;
     settle(&mut app)?;
     command(&mut app, "content feed")?;
-    assert_eq!(app.content_source, lume::model::ContentSource::Feed);
+    assert_eq!(app.reader().content_source, ContentSource::Feed);
     command(&mut app, "content full")?;
-    assert_eq!(app.body, full);
-    assert_eq!(app.content_source, lume::model::ContentSource::Full);
+    assert_eq!(app.reader().body, full);
+    assert_eq!(app.reader().content_source, ContentSource::Full);
     app.focus = Pane::Reader;
     app.key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))?;
     app.key(KeyEvent::new(KeyCode::Char('$'), KeyModifiers::NONE))?;
-    let selected = app.reader_text
-        [app.selected_range().context("Missing selection")?]
-    .to_owned();
+    let selected = common::reader::selected_text(&app)?;
     settle(&mut app)?;
-    assert_eq!(app.body, full);
-    assert_eq!(
-        &app.reader_text[app.selected_range().context("Lost selection")?],
-        selected
-    );
+    assert_eq!(app.reader().body, full);
+    assert_eq!(common::reader::selected_text(&app)?, selected);
     app.end_session()?;
     Ok(())
 }
@@ -219,8 +216,8 @@ fn deferred_layout_retains_saved_source_anchor_when_private_notes_are_visible()
     store.save_comment(id, None, "A private note below the article.")?;
     let mut app = App::new(store, false)?;
     app.resize_workspace(Rect::new(0, 0, 144, 44));
-    assert!(app.scroll > 0);
-    let anchor = app.line_ranges[app.scroll].start;
+    assert!(app.reader().scroll > 0);
+    let anchor = app.reader().line_ranges[app.reader().scroll].start;
     app.enable_background_navigation(
         &directory.path().join("library.sqlite3"),
     )?;
@@ -230,12 +227,13 @@ fn deferred_layout_retains_saved_source_anchor_when_private_notes_are_visible()
 
     assert_eq!(app.current().context("Selection lost")?.id, id);
     assert!(
-        app.scroll > 0,
+        app.reader().scroll > 0,
         "Background layout lost the saved source position"
     );
-    assert_eq!(app.line_ranges[app.scroll].start, anchor);
+    assert_eq!(app.reader().line_ranges[app.reader().scroll].start, anchor);
     assert!(
-        app.reader_text
+        app.reader()
+            .reader_text
             .contains("A private note below the article.")
     );
     app.end_session()?;
@@ -273,7 +271,7 @@ fn additional_article_steps_replace_the_selection_of_a_page_still_loading()
     settle(&mut app)?;
 
     assert_eq!(app.current().context("Selection missing")?.title, "Row 2");
-    assert_eq!(app.body, "Content for row 2.");
+    assert_eq!(app.reader().body, "Content for row 2.");
     assert_eq!(app.page_offset, 2);
     assert_eq!(app.selected, 1);
     app.end_session()?;
@@ -371,23 +369,26 @@ fn catalog_refresh_preserves_selection_and_a_live_publisher_quotation()
     app.focus = Pane::Reader;
     app.key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))?;
     app.key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))?;
-    let anchor = app.selection;
-    let cursor = (app.reader_cursor, app.reader_column);
-    let text = app.reader_text.clone();
+    let anchor = app.reader().selection;
+    let cursor = (app.reader().reader_cursor, app.reader().reader_column);
+    let text = app.reader().reader_text.to_owned();
     publisher.ingest(&feed, "Refreshed source", &[new_article()])?;
 
     app.reload()?;
     assert!(app.catalog_pending());
-    assert_eq!(app.reader_text, text);
+    assert_eq!(app.reader().reader_text, text);
     assert_eq!(app.current().context("Selection")?.id, id);
     app.poll_navigation()?;
-    assert_eq!(app.selection, anchor);
-    app.selection = None;
+    assert_eq!(app.reader().selection, anchor);
+    app.clear_copied_selection();
     settle(&mut app)?;
 
     assert_eq!(app.current().context("Selection lost")?.id, id);
-    assert_eq!(app.reader_text, text);
-    assert_eq!((app.reader_cursor, app.reader_column), cursor);
+    assert_eq!(app.reader().reader_text, text);
+    assert_eq!(
+        (app.reader().reader_cursor, app.reader().reader_column),
+        cursor
+    );
     assert_eq!(app.page_total, 2);
     app.end_session()?;
     Ok(())
@@ -416,27 +417,33 @@ fn retained_preview_keeps_its_title_and_rejects_source_bound_actions()
     app.set_view(View::All)?;
     settle(&mut app)?;
     let title = app.current().context("Article")?.title.clone();
-    let body = app.reader_text.clone();
+    let body = app.reader().reader_text.to_owned();
     app.focus = Pane::Articles;
 
     app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
     assert!(app.reader_stale());
-    assert_eq!(app.reader_text, body);
+    assert_eq!(app.reader().reader_text, body);
     assert_eq!(
-        app.displayed_article().context("Retained title")?.title,
+        app.reader()
+            .displayed_article
+            .context("Retained title")?
+            .title,
         title
     );
     app.focus = Pane::Reader;
     app.key(KeyEvent::new(KeyCode::Char('G'), KeyModifiers::NONE))?;
-    assert_eq!(app.reader_cursor, app.reader_lines.len() - 1);
+    assert_eq!(
+        app.reader().reader_cursor,
+        app.reader().reader_lines.len() - 1
+    );
     app.key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))?;
-    assert!(app.selection.is_none());
+    assert!(app.reader().selection.is_none());
     assert!(command(&mut app, "note").is_err());
     app.mode = lume::app::Mode::Normal;
     settle(&mut app)?;
 
     assert!(!app.reader_stale());
-    assert_ne!(app.reader_text, body);
+    assert_ne!(app.reader().reader_text, body);
     app.end_session()?;
     Ok(())
 }
@@ -456,7 +463,7 @@ fn newer_destination_replaces_a_pending_catalog_refresh() -> Result<()> {
     assert_eq!(app.view, View::All);
     assert_eq!(app.page_total, 1);
     assert!(app.current().is_some());
-    assert!(!app.reader_text.is_empty());
+    assert!(!app.reader().reader_text.is_empty());
     app.end_session()?;
     Ok(())
 }
@@ -508,13 +515,17 @@ fn page_navigation_publishes_full_content_only_after_its_projection_is_ready()
     )?;
     app.set_view(View::All)?;
     settle(&mut app)?;
-    let previous = app.reader_text.clone();
+    let previous = app.reader().reader_text.to_owned();
     app.focus = Pane::Articles;
 
     app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
     let deadline = Instant::now() + Duration::from_secs(5);
     while app.navigation_loading {
-        assert_eq!(app.reader_text, previous, "Retained preview was cleared");
+        assert_eq!(
+            app.reader().reader_text,
+            previous,
+            "Retained preview was cleared"
+        );
         app.poll_reader();
         app.poll_navigation()?;
         anyhow::ensure!(
@@ -524,10 +535,10 @@ fn page_navigation_publishes_full_content_only_after_its_projection_is_ready()
         std::thread::yield_now();
     }
 
-    assert_eq!(app.body, full);
-    assert_eq!(app.content_source, lume::model::ContentSource::Full);
+    assert_eq!(app.reader().body, full);
+    assert_eq!(app.reader().content_source, ContentSource::Full);
     assert!(!app.article_preparing());
-    assert!(app.reader_text.contains("Full source content."));
+    assert!(app.reader().reader_text.contains("Full source content."));
     app.end_session()?;
     Ok(())
 }
@@ -571,7 +582,7 @@ fn automatic_read_keeps_an_opened_unread_smart_list_article() -> Result<()> {
         settle(&mut app)?;
 
         assert_eq!(app.current().context("Retained article")?.id, id);
-        assert_eq!(app.body, expected);
+        assert_eq!(app.reader().body, expected);
         assert!(!observer.article(id)?.unread);
         let count = app
             .navigation

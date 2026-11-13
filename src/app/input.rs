@@ -53,7 +53,7 @@ impl App {
                 .modifiers
                 .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
         {
-            self.note_marks.delete = None;
+            self.reader.arm_note_delete(None);
             self.pending_destination_delete = None;
             self.pending_article_delete = None;
         }
@@ -116,7 +116,7 @@ impl App {
             return Ok(Action::None);
         }
         if key.modifiers.contains(KeyModifiers::CONTROL) {
-            self.note_marks.delete = None;
+            self.reader.arm_note_delete(None);
             return self.control_key(key.code);
         }
         if let Some(action) = self.reader_link_key(key)? {
@@ -248,11 +248,11 @@ impl App {
             KeyCode::Char('a') => {
                 self.perform(WorkspaceCommand::Lists)?;
             }
-            KeyCode::Char('d') if self.selection.is_none() => {
+            KeyCode::Char('d') if !self.reader.selecting() => {
                 self.remove_from_list()?
             }
             KeyCode::Char('D') | KeyCode::Delete
-                if self.focus != Focus::Library && self.selection.is_none() =>
+                if self.focus != Focus::Library && !self.reader.selecting() =>
             {
                 self.set_selected_deleted(true)?;
             }
@@ -293,10 +293,10 @@ impl App {
             KeyCode::Char('g') => self.pending_g = true,
             KeyCode::Esc => self.escape_reader()?,
             KeyCode::PageDown => {
-                self.move_selection(true, self.reader_height)?
+                self.move_selection(true, self.reader.height())?
             }
             KeyCode::PageUp => {
-                self.move_selection(false, self.reader_height)?
+                self.move_selection(false, self.reader.height())?
             }
             _ => return Ok(false),
         }
@@ -304,14 +304,13 @@ impl App {
     }
 
     fn escape_reader(&mut self) -> Result<()> {
-        let reader_search =
-            self.focus == Focus::Reader && !self.reader_tools.needle.is_empty();
+        let reader_search = self.focus == Focus::Reader
+            && !self.reader.view().reader_tools.needle.is_empty();
         if reader_search {
-            self.reader_tools.needle.clear();
-            self.reader_tools.hits.clear();
+            self.reader.search_reader("");
             self.status = "Reader search cleared".into();
         }
-        if self.selection.take().is_some() {
+        if self.reader.cancel_selection() {
             return Ok(());
         }
         if reader_search {
@@ -353,16 +352,16 @@ impl App {
         match code {
             KeyCode::Char('p') => self.open_picker(PickerKind::Commands)?,
             KeyCode::Char('d') => {
-                self.move_selection(true, self.reader_height / 2)?
+                self.move_selection(true, self.reader.height() / 2)?
             }
             KeyCode::Char('u') => {
-                self.move_selection(false, self.reader_height / 2)?
+                self.move_selection(false, self.reader.height() / 2)?
             }
             KeyCode::Char('f') => {
-                self.move_selection(true, self.reader_height)?
+                self.move_selection(true, self.reader.height())?
             }
             KeyCode::Char('b') => {
-                self.move_selection(false, self.reader_height)?
+                self.move_selection(false, self.reader.height())?
             }
             _ => {}
         }

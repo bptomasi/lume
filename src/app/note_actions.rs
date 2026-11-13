@@ -7,8 +7,8 @@ use super::{App, Focus};
 
 impl App {
     pub(super) fn note_key(&mut self, key: KeyEvent) -> Result<bool> {
-        let pending = self.note_marks.delete.take();
-        if self.selection.is_some()
+        let pending = self.reader.take_note_delete();
+        if self.reader.selecting()
             || self.vim.prefix_pending()
             || !key.modifiers.difference(KeyModifiers::SHIFT).is_empty()
         {
@@ -45,7 +45,9 @@ impl App {
         }
         match code {
             KeyCode::Enter => true,
-            KeyCode::Char('e') => self.cursor_offset() >= self.article_text_end,
+            KeyCode::Char('e') => {
+                self.cursor_offset() >= self.reader.publisher_end()
+            }
             _ => false,
         }
     }
@@ -57,7 +59,7 @@ impl App {
         pending: Option<(i64, i64)>,
     ) -> Result<()> {
         if key.kind == KeyEventKind::Repeat {
-            self.note_marks.delete = pending;
+            self.reader.arm_note_delete(pending);
             return Ok(());
         }
         self.vim.clear_input();
@@ -68,17 +70,17 @@ impl App {
         if pending == Some((article, id)) {
             return self.delete_note(id);
         }
-        self.note_marks.delete = Some((article, id));
+        self.reader.arm_note_delete(Some((article, id)));
         self.status = "Note · d again deletes · Esc cancels · u undo".into();
         Ok(())
     }
 
     pub(super) fn edit_note(&mut self, id: i64) -> Result<()> {
-        self.comment_selected = self
-            .comments
-            .iter()
-            .position(|note| note.id == id)
-            .context("Note no longer belongs to this article")?;
+        anyhow::ensure!(
+            self.reader.view().comments.iter().any(|note| note.id == id),
+            "Note no longer belongs to this article",
+        );
+        self.reader.select_comment_id(id);
         self.edit_comment(true)
     }
 
@@ -119,11 +121,11 @@ impl App {
                 "Deleting note… · navigation remains available".into();
             return Ok(());
         }
-        let row = self.reader_cursor;
+        let row = self.reader.cursor_row();
         self.store.delete_comment(article, id)?;
         self.refresh_notes(article)?;
         if self.current().is_some_and(|item| item.id == article) {
-            self.reader_cursor = row;
+            self.reader.point_cursor(row, self.reader.cursor_byte());
             self.clamp_cursor();
             self.ensure_cursor_visible();
         }

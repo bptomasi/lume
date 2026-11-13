@@ -120,6 +120,9 @@ mod workspace_reflow;
 #[path = "workloads/workspaces.rs"]
 mod workspaces;
 
+#[path = "../tests/common/reader.rs"]
+mod reader_input;
+
 fn main() -> Result<()> {
     let verify = std::env::args().any(|argument| argument == "--test");
     let stress = std::env::args().any(|argument| argument == "--stress");

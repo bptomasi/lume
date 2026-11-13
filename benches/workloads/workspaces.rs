@@ -94,11 +94,11 @@ fn navigation(
             complete.push(start.elapsed().as_secs_f64() * 1000.0);
             ensure!(app.page_total == count / 2, "Incomplete smart-list page");
             ensure!(
-                app.body == include_str!("../../src/demo/systems.txt"),
+                app.reader().body == include_str!("../../src/demo/systems.txt"),
                 "Wrong article body"
             );
             ensure!(
-                app.reader_text.contains("quiet elegance"),
+                app.reader().reader_text.contains("quiet elegance"),
                 "Readable text missing"
             );
         }
@@ -131,7 +131,7 @@ fn bursts(
             "Burst restored a stale view"
         );
         ensure!(
-            app.reader_text.contains("quiet elegance"),
+            app.reader().reader_text.contains("quiet elegance"),
             "Burst lost readable content"
         );
     }

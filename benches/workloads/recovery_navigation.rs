@@ -59,7 +59,10 @@ fn startup(
         || {
             let started = Instant::now();
             let mut app = App::open_interactive(Store::open(database)?, false)?;
-            ensure!(app.body.is_empty(), "Startup eagerly loaded a body");
+            ensure!(
+                app.reader().body.is_empty(),
+                "Startup eagerly loaded a body"
+            );
             app.enable_background_navigation(database)?;
             app.load_workspace();
             deliveries.push(settle(&mut app, started)?.as_secs_f64() * 1000.0);

@@ -68,20 +68,29 @@ fn scrolling(store: Store, iterations: usize) -> Result<()> {
     app.resize_workspace(Rect::new(0, 0, 160, 44));
     let mut terminal = Terminal::new(TestBackend::new(160, 44))?;
     terminal.draw(|frame| ui::draw(frame, &app))?;
-    let source = app.body.clone();
+    let source = app.reader().body.to_owned();
     let article = app.current().context("Selected article")?.id;
     super::measure(
         "reader motion pair + two full pane frames",
         iterations * 30,
         || {
-            let cursor = app.reader_cursor;
+            let cursor = app.reader().reader_cursor;
             app.key(KeyCode::Char('j').into())?;
-            ensure!(app.reader_cursor == cursor + 1, "Down motion failed");
+            ensure!(
+                app.reader().reader_cursor == cursor + 1,
+                "Down motion failed"
+            );
             terminal.draw(|frame| ui::draw(frame, &app))?;
             app.key(KeyCode::Char('k').into())?;
             terminal.draw(|frame| ui::draw(frame, &app))?;
-            ensure!(app.reader_cursor == cursor, "Reverse motion failed");
-            ensure!(app.body == source, "Scroll changed publisher content");
+            ensure!(
+                app.reader().reader_cursor == cursor,
+                "Reverse motion failed"
+            );
+            ensure!(
+                app.reader().body == source,
+                "Scroll changed publisher content"
+            );
             ensure!(
                 app.current().map(|item| item.id) == Some(article),
                 "Changed article"

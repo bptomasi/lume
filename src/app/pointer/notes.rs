@@ -17,13 +17,13 @@ impl App {
             return;
         }
         let id = self.reader_note_at_pointer(event, false);
-        if self.note_marks.hover.map(|(old, _)| old) != id {
-            self.note_marks.hover = id.map(|id| (id, position));
+        if self.reader.hovered_note().map(|(old, _)| old) != id {
+            self.reader.hover_note(id.map(|id| (id, position)));
         }
     }
 
     pub(super) fn note_popup_at(&self, position: Position) -> Option<i64> {
-        let (id, anchor) = self.note_marks.hover?;
+        let (id, anchor) = self.reader.hovered_note()?;
         ui::note_preview_area(self.screen, anchor)
             .contains(position)
             .then_some(id)
@@ -47,7 +47,7 @@ impl App {
         if event.row < content.y || event.row >= content.bottom() {
             return None;
         }
-        let row = self.scroll + usize::from(event.row - content.y);
+        let row = self.reader.first_row() + usize::from(event.row - content.y);
         if event.column == content.x.saturating_sub(1) {
             return self.reader_note_markers(row).first().copied();
         }
@@ -64,7 +64,7 @@ impl App {
         &mut self,
         event: MouseEvent,
     ) -> anyhow::Result<bool> {
-        self.note_marks.delete = None;
+        self.reader.arm_note_delete(None);
         let position = Position::new(event.column, event.row);
         let Some(id) = self
             .note_popup_at(position)

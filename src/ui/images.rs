@@ -143,6 +143,7 @@ fn native_area(
 }
 
 fn paint_cursor(frame: &mut Frame<'_>, app: &App, column: Rect) {
+    let reading = app.reader();
     let viewport = app.image_viewport();
     let row = if app.web_active() {
         let Some(page) = app.web_page() else {
@@ -158,7 +159,7 @@ fn paint_cursor(frame: &mut Frame<'_>, app: &App, column: Rect) {
         {
             return;
         }
-        app.reader_cursor
+        reading.reader_cursor
     };
     if row < viewport.scroll
         || row >= viewport.scroll + usize::from(column.height)

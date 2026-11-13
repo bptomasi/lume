@@ -975,7 +975,7 @@ fn browser_resource_case(headers: &str) -> Result<()> {
     let mut app = lume::app::App::new(store, false)?;
     let article = app.current().context("Original")?.id;
     let cursor = app.cursor_offset();
-    let notes = app.comments.len();
+    let notes = app.reader().comments.len();
     app.set_network_enabled(true);
 
     open_linked(&mut app, &address)?;
@@ -988,7 +988,7 @@ fn browser_resource_case(headers: &str) -> Result<()> {
     assert!(!app.web_active());
     assert_eq!(app.current().context("Original")?.id, article);
     assert_eq!(app.cursor_offset(), cursor);
-    assert_eq!(app.comments.len(), notes);
+    assert_eq!(app.reader().comments.len(), notes);
     assert_eq!(app.library.articles.len(), 1);
     Ok(())
 }

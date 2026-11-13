@@ -204,10 +204,14 @@ impl App {
             crate::model::DraftTarget::Card { note, .. } => Some(*note),
             _ => None,
         };
-        if let Some(index) =
-            self.comments.iter().position(|item| Some(item.id) == note)
+        if let Some(index) = self
+            .reader
+            .view()
+            .comments
+            .iter()
+            .position(|item| Some(item.id) == note)
         {
-            self.comment_selected = index;
+            self.reader.select_comment(index);
         }
     }
 

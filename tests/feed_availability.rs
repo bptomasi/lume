@@ -73,12 +73,20 @@ fn cached_discussion_only_article_explains_the_feed_and_opens_the_author()
     let url = "https://author.example/article";
     let (directory, mut app) = reading(DISCUSSION, url)?;
     let id = app.current().context("Missing article")?.id;
-    assert_eq!(app.body, DISCUSSION);
-    assert_eq!(app.body_kind, BodyKind::ReferencesOnly);
-    assert_eq!(app.reading_minutes, 0);
-    assert!(app.reader_text.starts_with("Comments\n"));
-    assert!(app.reader_text.contains("without separate article text"));
-    assert!(app.reader_text.contains("Open the original article"));
+    assert_eq!(app.reader().body, DISCUSSION);
+    assert_eq!(app.reader().body_kind, BodyKind::ReferencesOnly);
+    assert_eq!(app.reader().reading_minutes, 0);
+    assert!(app.reader().reader_text.starts_with("Comments\n"));
+    assert!(
+        app.reader()
+            .reader_text
+            .contains("without separate article text")
+    );
+    assert!(
+        app.reader()
+            .reader_text
+            .contains("Open the original article")
+    );
     assert_eq!(
         press(&mut app, KeyCode::Char('o'))?,
         Action::Open(url.into())
@@ -93,12 +101,20 @@ fn cached_discussion_only_article_explains_the_feed_and_opens_the_author()
 fn legacy_missing_body_has_no_fake_reading_time_or_duplicated_placeholder()
 -> Result<()> {
     let (_directory, mut app) = reading(content::MISSING_BODY, "")?;
-    assert_eq!(app.body_kind, BodyKind::Missing);
-    assert_eq!(app.reading_minutes, 0);
-    assert!(app.reader_text.contains("no readable article text"));
-    assert!(app.reader_text.contains("No original article URL"));
-    assert!(!app.reader_text.contains(content::MISSING_BODY));
-    assert!(!app.reader_text.contains("Open the original article"));
+    assert_eq!(app.reader().body_kind, BodyKind::Missing);
+    assert_eq!(app.reader().reading_minutes, 0);
+    assert!(
+        app.reader()
+            .reader_text
+            .contains("no readable article text")
+    );
+    assert!(app.reader().reader_text.contains("No original article URL"));
+    assert!(!app.reader().reader_text.contains(content::MISSING_BODY));
+    assert!(
+        !app.reader()
+            .reader_text
+            .contains("Open the original article")
+    );
     assert_eq!(press(&mut app, KeyCode::Char('o'))?, Action::None);
     Ok(())
 }
@@ -108,12 +124,14 @@ fn generated_feed_notice_cannot_be_saved_as_a_publisher_highlight() -> Result<()
 {
     let (directory, mut app) = reading(DISCUSSION, "https://example.org")?;
     let id = app.current().context("Missing article")?.id;
-    app.reader_cursor = app
+    let row = app
+        .reader()
         .reader_lines
         .iter()
         .position(|line| line.contains("This feed supplied"))
         .context("Missing availability notice")?;
-    app.reader_column = 0;
+    let byte = 0;
+    common::reader::cursor(&mut app, row, byte)?;
     press(&mut app, KeyCode::Char('v'))?;
     let error = press(&mut app, KeyCode::Char('s'))
         .err()
@@ -161,9 +179,9 @@ fn notice_reflows_in_panels_and_fullscreen_without_affecting_normal_articles()
     }
     app.focus = Focus::Articles;
     press(&mut app, KeyCode::Char('j'))?;
-    assert_eq!(app.body_kind, BodyKind::Text);
-    assert!(app.reading_minutes > 0);
-    assert!(!app.reader_text.contains("This feed supplied"));
+    assert_eq!(app.reader().body_kind, BodyKind::Text);
+    assert!(app.reader().reading_minutes > 0);
+    assert!(!app.reader().reader_text.contains("This feed supplied"));
     Ok(())
 }
 
@@ -179,7 +197,11 @@ fn notebook_keeps_private_notes_without_showing_feed_availability() -> Result<()
     workspace.view = View::Annotated;
     store.save_workspace(&workspace)?;
     let app = App::new(store, false)?;
-    assert!(app.reader_text.contains("Investigate the original source."));
-    assert!(!app.reader_text.contains("This feed supplied"));
+    assert!(
+        app.reader()
+            .reader_text
+            .contains("Investigate the original source.")
+    );
+    assert!(!app.reader().reader_text.contains("This feed supplied"));
     Ok(())
 }

@@ -1,4 +1,6 @@
 //! Deep code-row motion and selected full frames, with source checks.
+//! Reader setup now dispatches normal motions/selections. Timed closures
+//! include that input cost; old direct-state timings are not comparable.
 
 use anyhow::{Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -15,8 +17,13 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     app.focus = Focus::Reader;
     app.workspace.fullscreen = true;
     app.resize_workspace(Rect::new(0, 0, 144, 44));
-    app.reader_cursor =
-        app.code_lines.iter().position(|code| *code).unwrap_or(0);
+    let row = app
+        .reader()
+        .code_lines
+        .iter()
+        .position(|code| *code)
+        .unwrap_or(0);
+    crate::reader_input::cursor(&mut app, row, 0)?;
     app.key(KeyEvent::new(KeyCode::Char('$'), KeyModifiers::NONE))?;
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     super::measure(
@@ -25,9 +32,10 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         || {
             app.key(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE))?;
             app.key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))?;
-            app.selection = Some(0);
+            let anchor = 0;
+            crate::reader_input::select(&mut app, anchor)?;
             terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
-            app.selection = None;
+            app.clear_copied_selection();
             let buffer = terminal.backend().buffer();
             let screen = buffer
                 .content
@@ -36,7 +44,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
                 .collect::<String>();
             ensure!(screen.contains("TAIL"), "Deep code viewport lost tail");
             ensure!(
-                app.reader_lines[app.reader_cursor] == line,
+                app.reader().reader_lines[app.reader().reader_cursor] == line,
                 "Code source changed"
             );
             Ok(())

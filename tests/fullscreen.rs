@@ -36,16 +36,16 @@ fn fullscreen_width_reflows_immediately_and_survives_restart_and_profiles()
     let mut app = App::new(store, false)?;
     app.resize_workspace(Rect::new(0, 0, 200, 44));
     command(&mut app, "fullscreen")?;
-    assert_eq!(app.reader_width, 80);
+    assert_eq!(app.reader().reader_width, 80);
 
     command(&mut app, "fullscreen-width 100")?;
-    assert_eq!(app.reader_width, 100);
+    assert_eq!(app.reader().reader_width, 100);
     assert_eq!(app.workspace.reading_width, 82);
     command(&mut app, "workspace save Wide")?;
     command(&mut app, "fullscreen-width 60")?;
-    assert_eq!(app.reader_width, 60);
+    assert_eq!(app.reader().reader_width, 60);
     command(&mut app, "workspace load Wide")?;
-    assert_eq!(app.reader_width, 100);
+    assert_eq!(app.reader().reader_width, 100);
     app.end_session()?;
     drop(app);
 
@@ -53,7 +53,7 @@ fn fullscreen_width_reflows_immediately_and_survives_restart_and_profiles()
     let mut app = App::new(restored, false)?;
     app.resize_workspace(Rect::new(0, 0, 200, 44));
     assert!(app.workspace.fullscreen);
-    assert_eq!(app.reader_width, 100);
+    assert_eq!(app.reader().reader_width, 100);
     Ok(())
 }
 
@@ -211,7 +211,7 @@ fn closing_overlays_or_visual_selection_does_not_exit_fullscreen() -> Result<()>
     assert!(app.workspace.fullscreen);
     text(&mut app, "v")?;
     press(&mut app, KeyCode::Esc)?;
-    assert!(app.selection.is_none());
+    assert!(app.reader().selection.is_none());
     assert!(app.workspace.fullscreen);
     press(&mut app, KeyCode::Esc)?;
     assert!(!app.workspace.fullscreen);
@@ -279,7 +279,7 @@ fn reflow_keeps_current_passage_visible_and_preserves_zen_layout() -> Result<()>
     text(&mut app, "z")?;
     app.resize_reader(50, 5);
     text(&mut app, "jjjjjjjjjj")?;
-    let anchor = app.line_ranges[app.scroll].start;
+    let anchor = app.reader().line_ranges[app.reader().scroll].start;
     assert!(anchor > 0);
 
     text(&mut app, "Z")?;
@@ -287,7 +287,7 @@ fn reflow_keeps_current_passage_visible_and_preserves_zen_layout() -> Result<()>
         ui::workspace_reader_content(Rect::new(0, 0, 144, 44), &app.workspace);
     app.resize_reader(column.width.into(), column.height.into());
 
-    assert!(app.line_ranges[app.scroll].contains(&anchor));
+    assert!(app.reader().line_ranges[app.reader().scroll].contains(&anchor));
     text(&mut app, " z")?;
     assert!(!app.workspace.fullscreen);
     assert!(app.workspace.zen);

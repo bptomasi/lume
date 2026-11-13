@@ -200,6 +200,8 @@ impl App {
                 })
                 .collect(),
             PickerKind::Links => self
+                .reader
+                .view()
                 .links
                 .iter()
                 .map(|(title, url)| Choice {

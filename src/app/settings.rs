@@ -94,7 +94,7 @@ impl App {
             _ => anyhow::bail!("Use :justify on|off|toggle"),
         };
         self.workspace.justify = enabled;
-        self.cache_reader_rows();
+        self.apply_reader_justification();
         self.persist_preferences()?;
         self.status = format!(
             "Prose justification {}",
@@ -143,7 +143,7 @@ impl App {
         }
         self.apply_formula_preferences();
         if self.workspace.justify != justify {
-            self.cache_reader_rows();
+            self.apply_reader_justification();
         }
         Ok(Action::None)
     }

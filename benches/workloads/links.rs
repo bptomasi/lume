@@ -88,7 +88,8 @@ fn navigation(body: &str, iterations: usize) -> Result<()> {
                 app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
             ensure!(action == Action::None, "Local jump launched a browser");
             ensure!(
-                app.reader_lines[app.reader_cursor] == "Section 0",
+                app.reader().reader_lines[app.reader().reader_cursor]
+                    == "Section 0",
                 "Jump missed section"
             );
             app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;

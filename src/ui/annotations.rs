@@ -16,13 +16,14 @@ use crate::{
 use super::{hit::annotation_window, theme::*};
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App, area: Rect) {
+    let reading = app.reader();
     let block = panel(
-        format!(" Annotations · {} ", app.annotations.len()),
+        format!(" Annotations · {} ", reading.annotations.len()),
         app.focus == Focus::Annotations,
     );
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    if app.annotations.is_empty() {
+    if reading.annotations.is_empty() {
         frame.render_widget(
             Paragraph::new(concat!(
                 "\n  Your reading, annotated.\n\n  v selects a passage\n",
@@ -36,7 +37,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, area: Rect) {
         return;
     }
     let (first, capacity) = annotation_window(app, inner.height);
-    for (row, entry) in app
+    for (row, entry) in reading
         .annotations
         .iter()
         .skip(first)
@@ -59,10 +60,11 @@ fn card(
     entry: &crate::app::AnnotationEntry,
     area: Rect,
 ) {
-    let Some(note) = app.comments.get(entry.comment_index) else {
+    let reading = app.reader();
+    let Some(note) = reading.comments.get(entry.comment_index) else {
         return;
     };
-    let selected = entry.comment_index == app.comment_selected;
+    let selected = entry.comment_index == reading.comment_selected;
     if selected {
         frame.render_widget(Block::new().style(Style::new().bg(RAISED)), area);
     }

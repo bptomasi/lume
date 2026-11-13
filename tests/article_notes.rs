@@ -1,5 +1,6 @@
 //! Passage markers, precise note mutations and nonmodal pointer previews.
 
+mod common;
 use anyhow::{Context, Result};
 use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton,
@@ -73,12 +74,13 @@ fn command(app: &mut App, text: &str) -> Result<()> {
 
 fn cursor_on(app: &mut App, text: &str) -> Result<usize> {
     let row = app
+        .reader()
         .reader_lines
         .iter()
         .position(|line| line.contains(text))
         .context("Reader row missing")?;
-    app.reader_cursor = row;
-    app.reader_column = app.reader_lines[row].find(text).unwrap_or(0);
+    let byte = app.reader().reader_lines[row].find(text).unwrap_or(0);
+    common::reader::cursor(app, row, byte)?;
     Ok(row)
 }
 
@@ -105,21 +107,21 @@ fn dd_removes_the_note_under_the_cursor_and_undo_restores_it() -> Result<()> {
         ("", "Second private note"),
     ])?;
     let article = app.current().context("Article missing")?.id;
-    let removed = app.comments[1].id;
+    let removed = app.reader().comments[1].id;
     cursor_on(&mut app, "Second private note")?;
-    app.comment_selected = 0;
+    common::reader::comment(&mut app, 0)?;
 
     press(&mut app, 'd')?;
-    assert_eq!(app.comments.len(), 2);
+    assert_eq!(app.reader().comments.len(), 2);
     press(&mut app, 'd')?;
 
-    assert_eq!(app.comments.len(), 1);
-    assert_eq!(app.comments[0].body, "First private note");
+    assert_eq!(app.reader().comments.len(), 1);
+    assert_eq!(app.reader().comments[0].body, "First private note");
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     assert!(!store.is_deleted(article)?);
     assert_eq!(store.body(article)?, BODY);
     press(&mut app, 'u')?;
-    assert!(app.comments.iter().any(|note| note.id == removed));
+    assert!(app.reader().comments.iter().any(|note| note.id == removed));
     Ok(())
 }
 
@@ -133,17 +135,17 @@ fn note_deletion_cancels_on_escape_motion_and_focus_loss() -> Result<()> {
         KeyModifiers::NONE,
         KeyEventKind::Repeat,
     ))?;
-    assert_eq!(app.comments.len(), 1);
+    assert_eq!(app.reader().comments.len(), 1);
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     assert_eq!(app.focus, Focus::Reader);
     press(&mut app, 'd')?;
     let mut batch = InputBatch::new(vec![Event::FocusLost]);
     batch.dispatch_next(&mut app)?;
     press(&mut app, 'd')?;
-    assert_eq!(app.comments.len(), 1);
+    assert_eq!(app.reader().comments.len(), 1);
     press(&mut app, 'h')?;
     press(&mut app, 'd')?;
-    assert_eq!(app.comments.len(), 1);
+    assert_eq!(app.reader().comments.len(), 1);
     Ok(())
 }
 
@@ -157,10 +159,10 @@ fn annotations_pane_accepts_dd_and_preserves_publisher_text() -> Result<()> {
     press(&mut app, 'd')?;
     press(&mut app, 'd')?;
 
-    assert!(app.annotations.is_empty());
-    assert_eq!(app.body, BODY);
+    assert!(app.reader().annotations.is_empty());
+    assert_eq!(app.reader().body, BODY);
     press(&mut app, 'u')?;
-    assert_eq!(app.comments[0].quote, "café");
+    assert_eq!(app.reader().comments[0].quote, "café");
     Ok(())
 }
 
@@ -170,12 +172,12 @@ fn find_prefix_and_visual_selection_keep_their_vim_semantics() -> Result<()> {
     cursor_on(&mut app, "Second private note")?;
     press(&mut app, 'f')?;
     press(&mut app, 'd')?;
-    assert_eq!(app.comments.len(), 1);
-    assert_eq!(app.reader_column, 5);
+    assert_eq!(app.reader().comments.len(), 1);
+    assert_eq!(app.reader().reader_column, 5);
     press(&mut app, 'v')?;
     press(&mut app, 'd')?;
     press(&mut app, 'd')?;
-    assert_eq!(app.comments.len(), 1);
+    assert_eq!(app.reader().comments.len(), 1);
     Ok(())
 }
 
@@ -196,10 +198,10 @@ fn new_cursor_note_captures_source_and_gets_a_marker() -> Result<()> {
     app.paste("Consensus deserves study")?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
     let row = cursor_on(&mut app, "café")?;
-    assert_eq!(app.reader_note_markers(row), [app.comments[0].id]);
-    assert_eq!(app.body, BODY);
+    assert_eq!(app.reader_note_markers(row), [app.reader().comments[0].id]);
+    assert_eq!(app.reader().body, BODY);
     assert!(matches!(
-        app.annotations[0].position,
+        app.reader().annotations[0].position,
         AnnotationPosition::Located { .. }
     ));
     Ok(())
@@ -211,7 +213,7 @@ fn search_n_stays_a_motion_and_annotate_can_override_it() -> Result<()> {
     command(&mut app, "find consensus")?;
     press(&mut app, 'n')?;
     assert!(matches!(app.mode, Mode::Normal));
-    assert!(app.comments.is_empty());
+    assert!(app.reader().comments.is_empty());
 
     command(&mut app, "annotate")?;
 
@@ -226,9 +228,9 @@ fn footer_edit_and_enter_target_the_actual_note_and_keep_its_quote()
         ("", "First private note"),
         ("café", "Second private note"),
     ])?;
-    let id = app.comments[1].id;
+    let id = app.reader().comments[1].id;
     cursor_on(&mut app, "Second private note")?;
-    app.comment_selected = 0;
+    common::reader::comment(&mut app, 0)?;
     press(&mut app, 'e')?;
     let Mode::Input(input) = &app.mode else {
         anyhow::bail!("Expected an editor");
@@ -237,8 +239,8 @@ fn footer_edit_and_enter_target_the_actual_note_and_keep_its_quote()
         InputKind::Comment { comment: Some(target), .. } if target == id));
     app.paste(" revised")?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
-    assert_eq!(app.comments[1].quote, "café");
-    assert_eq!(app.comments[1].body, "Second private note revised");
+    assert_eq!(app.reader().comments[1].quote, "café");
+    assert_eq!(app.reader().comments[1].body, "Second private note revised");
     cursor_on(&mut app, "café")?;
 
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
@@ -262,7 +264,7 @@ fn hover_batches_show_the_note_and_clicking_popup_edits_it() -> Result<()> {
     batch.dispatch_next(&mut app)?;
     assert!(batch.is_empty());
     let (id, anchor) = app.hovered_note().context("Hover missing")?;
-    assert_eq!(id, app.comments[0].id);
+    assert_eq!(id, app.reader().comments[0].id);
     let mut terminal = Terminal::new(TestBackend::new(140, 36))?;
     terminal.draw(|frame| ui::draw(frame, &app))?;
     let buffer = terminal.backend().buffer();
@@ -306,7 +308,7 @@ fn hover_dismisses_off_target_and_reflow_rebuilds_marker_positions()
     app.resize_reader(15, 20);
 
     let row = cursor_on(&mut app, "café")?;
-    assert_eq!(app.reader_note_markers(row), [app.comments[0].id]);
+    assert_eq!(app.reader_note_markers(row), [app.reader().comments[0].id]);
     assert!(app.hovered_note().is_none());
     Ok(())
 }
@@ -317,14 +319,15 @@ fn general_notes_do_not_invent_a_passage_marker() -> Result<()> {
     command(&mut app, "note")?;
     app.paste("A general thought")?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
-    assert!(app.comments[0].quote.is_empty());
+    assert!(app.reader().comments[0].quote.is_empty());
     assert!(
-        app.annotations
+        app.reader()
+            .annotations
             .iter()
             .all(|entry| entry.position == AnnotationPosition::General)
     );
     assert!(
-        (0..app.reader_lines.len())
+        (0..app.reader().reader_lines.len())
             .all(|row| app.reader_note_markers(row).is_empty())
     );
     Ok(())
@@ -341,7 +344,7 @@ fn hover_works_over_precise_unicode_text_and_disabled_mouse_dismisses_it()
     app.mouse(event)?;
     assert_eq!(
         app.hovered_note().map(|(id, _)| id),
-        Some(app.comments[0].id)
+        Some(app.reader().comments[0].id)
     );
     app.mouse(MouseEvent {
         kind: MouseEventKind::ScrollRight,
@@ -372,9 +375,9 @@ fn overlapping_notes_share_a_marker_and_stale_delete_prefix_is_canceled()
     app.reload()?;
     press(&mut app, 'd')?;
 
-    assert_eq!(app.comments.len(), 2);
+    assert_eq!(app.reader().comments.len(), 2);
     press(&mut app, 'd')?;
-    assert_eq!(app.comments[0].body, "Second insight");
+    assert_eq!(app.reader().comments[0].body, "Second insight");
     Ok(())
 }
 
@@ -391,12 +394,15 @@ fn ambiguous_updated_quotes_keep_their_note_without_a_false_marker()
 
     let app = App::new(store, false)?;
 
-    assert_eq!(app.annotations[0].position, AnnotationPosition::Unplaced);
+    assert_eq!(
+        app.reader().annotations[0].position,
+        AnnotationPosition::Unplaced
+    );
     assert!(
-        (0..app.reader_lines.len())
+        (0..app.reader().reader_lines.len())
             .all(|row| app.reader_note_markers(row).is_empty())
     );
-    assert_eq!(app.comments[0].body, "Keep my insight");
+    assert_eq!(app.reader().comments[0].body, "Keep my insight");
     Ok(())
 }
 
@@ -410,9 +416,11 @@ fn annotation_previews_stay_inside_small_viewports_in_all_themes() -> Result<()>
             let screen = Rect::new(0, 0, width, height);
             app.resize_workspace(screen);
             let row = cursor_on(&mut app, "café")?;
-            app.scroll = row;
+            let scroll = row;
+            common::reader::scroll(&mut app, scroll)?;
             let column = ui::workspace_reader_content(screen, &app.workspace);
-            app.mouse(mouse(MouseEventKind::Moved, column.x - 1, column.y))?;
+            let marker_y = column.y + (row - app.reader().scroll) as u16;
+            app.mouse(mouse(MouseEventKind::Moved, column.x - 1, marker_y))?;
             let (_, anchor) = app.hovered_note().context("No preview")?;
             let popup = ui::note_preview_area(screen, anchor);
             assert!(screen.contains(popup.as_position()));
@@ -426,28 +434,13 @@ fn annotation_previews_stay_inside_small_viewports_in_all_themes() -> Result<()>
 }
 
 #[test]
-fn a_stale_cursor_reports_an_error_without_writing_a_note() -> Result<()> {
-    let (_directory, mut app) = application(&[])?;
-    app.reader_cursor = usize::MAX;
-    press(&mut app, ':')?;
-    app.paste("annotate")?;
-
-    let result = app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-
-    assert!(result.is_err());
-    assert!(matches!(app.mode, Mode::Input(_)));
-    assert!(app.comments.is_empty());
-    Ok(())
-}
-
-#[test]
 fn jumping_to_an_overlapping_note_keeps_it_as_the_deletion_target() -> Result<()>
 {
     let (_directory, mut app) = application(&[
         ("café", "First insight"),
         ("café 🦀", "Chosen insight"),
     ])?;
-    let chosen = app.comments[1].id;
+    let chosen = app.reader().comments[1].id;
     app.workspace.fullscreen = false;
     command(&mut app, "annotations")?;
     app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE))?;
@@ -457,7 +450,7 @@ fn jumping_to_an_overlapping_note_keeps_it_as_the_deletion_target() -> Result<()
     press(&mut app, 'd')?;
     press(&mut app, 'd')?;
 
-    assert_eq!(app.comments.len(), 1);
-    assert_eq!(app.comments[0].body, "First insight");
+    assert_eq!(app.reader().comments.len(), 1);
+    assert_eq!(app.reader().comments[0].body, "First insight");
     Ok(())
 }

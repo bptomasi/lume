@@ -170,3 +170,26 @@ pub fn style_range(
     }
     line.spans = spans;
 }
+
+/// Keep an exact saved anchor; otherwise relocate only an unambiguous quote.
+pub(crate) fn locate_quote(
+    body: &str,
+    quote: &str,
+    anchor: usize,
+) -> Option<Range<usize>> {
+    if quote.is_empty() {
+        return None;
+    }
+    if body
+        .get(anchor..)
+        .is_some_and(|tail| tail.starts_with(quote))
+    {
+        return Some(anchor..anchor + quote.len());
+    }
+    let mut matches = body.match_indices(quote);
+    let (start, _) = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+    Some(start..start + quote.len())
+}

@@ -31,10 +31,7 @@ impl App {
             return;
         }
         let snapshot = self.capture_reader();
-        self.comments = comments;
-        self.comment_selected =
-            self.comment_selected.min(count.saturating_sub(1));
-        self.rebuild_annotations();
+        self.reader.replace_comments(comments);
         if self.projecting_navigation {
             return;
         }

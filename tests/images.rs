@@ -316,24 +316,27 @@ fn cached_image_completion_does_not_change_text_selection_or_scroll()
 -> Result<()> {
     let (directory, mut app) =
         reading("Before.\n\n![Diagram](/diagram.svg)\n\nAfter.")?;
-    let slot = app.images.slots[0].clone();
+    let slot = app.reader().image_slots[0].clone();
     let key = app.image_key(&slot).context("Image key")?;
     assert_eq!(key.url, "https://journal.example/diagram.svg");
     let cache = directory.path().join("images");
     media::cache::write(&cache, &key.url, SVG)?;
-    app.selection = Some(app.cursor_offset());
-    let before = (app.reader_text.clone(), app.cursor_offset(), app.scroll);
+    let anchor = app.cursor_offset();
+    common::reader::select(&mut app, anchor)?;
+    let text = app.reader().reader_text.to_owned();
+    let cursor = app.cursor_offset();
+    let scroll = app.reader().scroll;
 
     app.enable_images(cache, true)?;
     settle(&mut app)?;
 
     assert!(app.images.thumbnail(&key).is_some());
-    assert_eq!(
-        (app.reader_text.clone(), app.cursor_offset(), app.scroll),
-        before
-    );
-    assert_eq!(app.selection, Some(before.1));
-    assert_eq!(app.images.slots[0].rows, slot.rows);
+    let reading = app.reader();
+    assert_eq!(reading.reader_text, text);
+    assert_eq!(reading.cursor_offset(), cursor);
+    assert_eq!(reading.scroll, scroll);
+    assert_eq!(reading.selection, Some(cursor));
+    assert_eq!(reading.image_slots[0].rows, slot.rows);
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
     terminal.draw(|frame| ui::draw(frame, &app))?;
     for color in [Color::Rgb(255, 0, 0), Color::Rgb(0, 0, 255)] {
@@ -353,7 +356,9 @@ fn cached_image_completion_does_not_change_text_selection_or_scroll()
 #[test]
 fn offline_miss_can_be_retried_and_loading_can_be_paused() -> Result<()> {
     let (directory, mut app) = reading("![Diagram](/diagram.svg)")?;
-    let key = app.image_key(&app.images.slots[0]).context("Image key")?;
+    let key = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Image key")?;
     let cache = directory.path().join("images");
     command(&mut app, "images off")?;
     app.enable_images(cache.clone(), true)?;
@@ -372,7 +377,8 @@ fn offline_miss_can_be_retried_and_loading_can_be_paused() -> Result<()> {
     settle(&mut app)?;
 
     assert!(app.images.thumbnail(&key).is_some());
-    app.reader_cursor = app.images.slots[0].caption;
+    let row = app.reader().image_slots[0].caption;
+    common::reader::cursor(&mut app, row, 0)?;
     assert_eq!(command(&mut app, "image-open")?, Action::Open(key.url));
     app.focus = Focus::Articles;
     assert!(command(&mut app, "image-open").is_err());
@@ -409,7 +415,9 @@ fn theme_changes_keep_literal_image_colors_and_image_rows_keep_a_visible_cursor(
     let (directory, mut app) = reading("![Dark diagram](/diagram.svg)")?;
     let cache = directory.path().join("images");
     let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><path fill="#17171a" d="M0 0h2v2H0z"/></svg>"##;
-    let key = app.image_key(&app.images.slots[0]).context("Image key")?;
+    let key = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Image key")?;
     media::cache::write(&cache, &key.url, svg)?;
     app.enable_images(cache, true)?;
     let column =
@@ -418,12 +426,13 @@ fn theme_changes_keep_literal_image_colors_and_image_rows_keep_a_visible_cursor(
     for theme in ["lume", "nord", "gruvbox"] {
         app.workspace.theme = theme.into();
         settle(&mut app)?;
-        let slot = &app.images.slots[0];
+        let slot = &app.reader().image_slots[0];
         let key = app.image_key(slot).context("Themed image key")?;
         let image = app.images.thumbnail(&key).context("Prepared image")?;
         let x = column.x + (column.width - image.cells.area.width) / 2;
         let y = column.y + slot.rows.start as u16;
-        app.reader_cursor = slot.rows.start;
+        let row = slot.rows.start;
+        common::reader::cursor(&mut app, row, 0)?;
         terminal.draw(|frame| ui::draw(frame, &app))?;
         assert_eq!(
             terminal.backend().buffer()[(x, y)].bg,
@@ -441,16 +450,18 @@ fn resizing_uses_a_new_thumbnail_key_without_mutating_text_or_resolving_an_inval
 -> Result<()> {
     let (directory, mut app) = reading("![Diagram](/diagram.svg)\n\nAfter.")?;
     let old = app
-        .image_key(&app.images.slots[0])
+        .image_key(&app.reader().image_slots[0])
         .context("Original key")?;
     let cache = directory.path().join("images");
     media::cache::write(&cache, &old.url, SVG)?;
     app.enable_images(cache, true)?;
     settle(&mut app)?;
-    let text = app.reader_text.clone();
+    let text = app.reader().reader_text.to_owned();
 
     app.resize_reader(8, 3);
-    let new = app.image_key(&app.images.slots[0]).context("Narrow key")?;
+    let new = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Narrow key")?;
     assert_ne!(new, old);
     assert!(app.images.thumbnail(&new).is_none());
     settle(&mut app)?;
@@ -464,9 +475,9 @@ fn resizing_uses_a_new_thumbnail_key_without_mutating_text_or_resolving_an_inval
             .width
             <= 8
     );
-    assert_eq!(app.reader_text, text);
+    assert_eq!(app.reader().reader_text, text);
     let (_directory, mut invalid) = reading("![Private](file:///etc/passwd)")?;
-    assert!(invalid.images.slots[0].url.is_empty());
+    assert!(invalid.reader().image_slots[0].url.is_empty());
     invalid.enable_images(directory.path().join("invalid"), true)?;
     assert!(!invalid.poll_images() && !invalid.images_pending());
     assert!(command(&mut invalid, "image-open").is_err());
@@ -528,7 +539,9 @@ fn disk_cache_obeys_its_byte_budget_and_ignores_non_cache_unicode_names()
 #[test]
 fn collapsed_reader_does_not_admit_images_until_it_is_visible() -> Result<()> {
     let (directory, mut app) = reading("![Diagram](/diagram.svg)")?;
-    let key = app.image_key(&app.images.slots[0]).context("Image key")?;
+    let key = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Image key")?;
     let cache = directory.path().join("images");
     media::cache::write(&cache, &key.url, SVG)?;
     app.enable_images(cache, true)?;

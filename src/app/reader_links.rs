@@ -15,7 +15,7 @@ impl App {
     ) -> Result<Option<Action>> {
         if key.code != KeyCode::Enter
             || self.focus != Focus::Reader
-            || self.selection.is_some()
+            || self.reader.selecting()
             || self.captured_image().is_ok()
         {
             return Ok(None);
@@ -35,13 +35,18 @@ impl App {
             return None;
         }
         let offset = self.cursor_offset();
-        if offset >= self.article_text_end {
+        if offset >= self.reader.publisher_end() {
             return None;
         }
-        let end = crate::reader::cursor::next(&self.reader_text, offset);
-        let source =
-            crate::reader::to_source(&self.reader_mappings, offset..end)?;
-        self.reader_tools
+        let end =
+            crate::reader::cursor::next(self.reader.view().reader_text, offset);
+        let source = crate::reader::to_source(
+            self.reader.view().reader_mappings,
+            offset..end,
+        )?;
+        self.reader
+            .view()
+            .reader_tools
             .index
             .navigation
             .link_at(source.start)
@@ -62,8 +67,7 @@ impl App {
             }
             url.fragment().unwrap_or_default().to_owned()
         };
-        let anchor = self
-            .reader_tools
+        let anchor = self.reader.view().reader_tools
             .index
             .navigation
             .anchor(&fragment)
@@ -80,11 +84,13 @@ impl App {
     fn resolve_reader_link(&self, destination: &str) -> Result<url::Url> {
         let article = self.current().context("Select an article first")?;
         let base = self
+            .reader
+            .view()
             .document
             .as_ref()
             .filter(|document| {
                 document.url == article.url
-                    && self.content_source == crate::model::ContentSource::Full
+                    && self.reader.source() == crate::model::ContentSource::Full
             })
             .map_or(article.url.as_str(), |document| {
                 document.final_url.as_str()
@@ -99,7 +105,9 @@ impl App {
             .map(|article| article.url.as_str())
             .into_iter()
             .chain(
-                self.document
+                self.reader
+                    .view()
+                    .document
                     .as_ref()
                     .filter(|document| {
                         self.current()

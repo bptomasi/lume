@@ -1,4 +1,6 @@
 //! Cell-height Sixel strips reuse source pixels through bidirectional scrolling.
+//! Reader setup now dispatches normal motions/selections. Timed closures
+//! include that input cost; old direct-state timings are not comparable.
 
 use anyhow::{Context, Result, ensure};
 use lume::{
@@ -43,7 +45,7 @@ fn cached_frames(bytes: &[u8], iterations: usize) -> Result<()> {
     let (directory, mut app) = super::image_app()?;
     app.configure_image_terminal(ImageProtocol::Sixel, (10, 20));
     let key = app
-        .image_key(&app.images.slots[0])
+        .image_key(&app.reader().image_slots[0])
         .context("Inline Sixel key")?;
     let cache_dir = directory.path().join("images");
     cache::write(&cache_dir, &key.url, bytes)?;
@@ -69,10 +71,11 @@ fn scroll_frames(
     width: u16,
     height: u16,
 ) -> Result<()> {
-    let first = app.images.slots[0].rows.start;
+    let first = app.reader().image_slots[0].rows.start;
     let cleared_strip = format!("\x1b[{width}X\x1bP");
     for offset in (0..height).chain((0..height).rev()) {
-        app.scroll = first + usize::from(offset);
+        let scroll = first + usize::from(offset);
+        crate::reader_input::scroll(app, scroll)?;
         app.poll_images();
         ensure!(!app.images_pending(), "Scroll admitted image preparation");
         terminal.draw(|frame| ui::draw(frame, app))?;
@@ -90,12 +93,11 @@ fn scroll_frames(
 }
 
 pub(super) fn visible_bounds(iterations: usize, stress: bool) -> Result<()> {
-    use lume::{app::ReaderImages, reader::images::ImageSlot};
+    use lume::reader::images::{ImageSlot, visible_slots};
     use std::hint::black_box;
 
     let count = if stress { 50_000 } else { 10_000 };
-    let mut images = ReaderImages::default();
-    images.slots = (0..count)
+    let slots = (0..count)
         .map(|index| ImageSlot {
             formula: None,
             url: format!("https://benchmark.example/{index}.svg"),
@@ -104,7 +106,7 @@ pub(super) fn visible_bounds(iterations: usize, stress: bool) -> Result<()> {
             rows: index * 20 + 1..index * 20 + 13,
             source: index..index + 1,
         })
-        .collect();
+        .collect::<Vec<_>>();
     super::super::measure(
         "visible image bounds across 128 long-article positions",
         iterations * 50,
@@ -112,7 +114,7 @@ pub(super) fn visible_bounds(iterations: usize, stress: bool) -> Result<()> {
             for step in 0..128 {
                 let index = count / 2 + step;
                 let visible =
-                    black_box(&images).visible_slots(index * 20 + 2, 30);
+                    visible_slots(black_box(&slots), index * 20 + 2, 30);
                 ensure!(visible.len() == 2, "Visible image count changed");
                 ensure!(
                     visible[0].source.start == index,

@@ -23,29 +23,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         || {
             let mut app = App::new(Store::open(&database)?, false)?;
             app.resize_reader(80, 32);
-            let located = app
-                .annotations
-                .iter()
-                .filter(|entry| {
-                    matches!(entry.position, AnnotationPosition::Located { .. })
-                })
-                .count();
-            let unplaced = app
-                .annotations
-                .iter()
-                .filter(|entry| {
-                    matches!(entry.position, AnnotationPosition::Unplaced)
-                })
-                .count();
-            ensure!(
-                located == notes / 3 && unplaced == notes * 2 / 3,
-                "Ambiguous or missing quotation was incorrectly relocated"
-            );
-            ensure!(app.content_revision == 2, "Wrong cached article revision");
-            ensure!(
-                app.comments.len() == expected,
-                "Rendering lost annotations"
-            );
+            verify_annotations(app.reader(), notes, expected)?;
             Ok(())
         },
     )
@@ -90,4 +68,36 @@ fn fixture(path: &Path, notes: usize, stress: bool) -> Result<Store> {
         (article.id, notes),
     )?;
     Ok(store)
+}
+
+fn verify_annotations(
+    reading: lume::app::ReaderView<'_>,
+    notes: usize,
+    expected: usize,
+) -> Result<()> {
+    let located = reading
+        .annotations
+        .iter()
+        .filter(|entry| {
+            matches!(entry.position, AnnotationPosition::Located { .. })
+        })
+        .count();
+    let unplaced = reading
+        .annotations
+        .iter()
+        .filter(|entry| matches!(entry.position, AnnotationPosition::Unplaced))
+        .count();
+    ensure!(
+        located == notes / 3 && unplaced == notes * 2 / 3,
+        "Ambiguous or missing quotation was incorrectly relocated"
+    );
+    ensure!(
+        reading.content_revision == 2,
+        "Wrong cached article revision"
+    );
+    ensure!(
+        reading.comments.len() == expected,
+        "Rendering lost annotations"
+    );
+    Ok(())
 }

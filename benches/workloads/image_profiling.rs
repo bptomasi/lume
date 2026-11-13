@@ -63,14 +63,17 @@ pub fn run(iterations: usize, _stress: bool) -> Result<()> {
 fn inspect(fixture: &Fixture) -> Result<()> {
     let (directory, mut app) = super::image_app()?;
     app.configure_image_terminal(ImageProtocol::Sixel, (10, 20));
-    let key = app.image_key(&app.images.slots[0]).context("Inline key")?;
+    let key = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Inline key")?;
     let images = directory.path().join("images");
     cache::write(&images, &key.url, fixture.bytes.as_ref())?;
     command(&mut app, "performance on")?;
     press(&mut app, KeyCode::Esc)?;
     app.enable_images(images, true)?;
     super::settle(&mut app)?;
-    app.reader_cursor = app.images.slots[0].caption;
+    let row = app.reader().image_slots[0].caption;
+    crate::reader_input::cursor(&mut app, row, 0)?;
     let started = Instant::now();
     press(&mut app, KeyCode::Enter)?;
     super::settle(&mut app)?;

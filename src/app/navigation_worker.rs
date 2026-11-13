@@ -193,7 +193,7 @@ impl App {
     pub fn enable_background_navigation(&mut self, path: &Path) -> Result<()> {
         let navigation = NavigationWorker::start(path)?;
         let session = super::session_writer::SessionWriter::start(path)?;
-        self.renderer.enable_background_layout()?;
+        self.reader.enable_background_layout()?;
         self.wrap_reader();
         self.navigation_worker = Some(navigation);
         self.catalog_worker =
@@ -221,8 +221,8 @@ impl App {
     pub(super) fn defer_navigation(&mut self, request: Request) {
         self.performance.begin(super::Operation::Article);
         self.cancel_reader_pointer();
-        self.note_marks.hover = None;
-        self.selection = None;
+        self.reader.hover_note(None);
+        self.reader.cancel_selection();
         self.projecting_navigation = false;
         if let Some(worker) = &mut self.navigation_worker {
             worker.submit(request, self.library_revision);
@@ -237,7 +237,7 @@ impl App {
             return;
         }
         self.projecting_navigation = true;
-        self.note_marks.hover = None;
+        self.reader.hover_note(None);
         let request = Request::Refresh {
             query: self.article_query(),
             selected: self.selected,
@@ -375,7 +375,7 @@ impl App {
     }
 
     fn navigation_delivery_allowed(&self) -> bool {
-        if self.selection.is_some() {
+        if self.reader.selecting() {
             return false;
         }
         if matches!(self.mode, Mode::Normal) {
@@ -411,7 +411,7 @@ impl App {
             let full = self.workspace.content_source
                 == crate::model::ContentSource::Full;
             let body = reading.source_body(full, url);
-            if !self.renderer.prepare_source(body, self.reader_width) {
+            if !self.reader.prepare_source(body) {
                 self.projecting_navigation = true;
                 if let Some(worker) = &mut self.navigation_worker {
                     worker.ready = Some(result);

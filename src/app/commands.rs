@@ -307,7 +307,12 @@ impl App {
         };
         let article = article.id;
         let selected = existing
-            .then(|| self.comments.get(self.comment_selected))
+            .then(|| {
+                self.reader
+                    .view()
+                    .comments
+                    .get(self.reader.view().comment_selected)
+            })
             .flatten();
         if existing && selected.is_none() {
             self.status = "Select an existing note to edit".into();
@@ -325,30 +330,35 @@ impl App {
     }
 
     pub(super) fn select_comment(&mut self, forward: bool) {
-        if self.comments.is_empty() {
+        if self.reader.view().comments.is_empty() {
             return;
         }
         self.focus = super::Focus::Reader;
-        self.comment_selected = if forward {
-            (self.comment_selected + 1) % self.comments.len()
+        let selected = if forward {
+            (self.reader.view().comment_selected + 1)
+                % self.reader.view().comments.len()
         } else {
-            (self.comment_selected + self.comments.len() - 1)
-                % self.comments.len()
+            (self.reader.view().comment_selected
+                + self.reader.view().comments.len()
+                - 1)
+                % self.reader.view().comments.len()
         };
+        self.reader.select_comment(selected);
         self.status = format!(
             "Comment {}/{} · :edit-note · :delete-comment remove",
-            self.comment_selected + 1,
-            self.comments.len(),
+            self.reader.view().comment_selected + 1,
+            self.reader.view().comments.len(),
         );
-        let marker = format!("[{}] ", self.comment_selected + 1);
+        let marker = format!("[{}] ", self.reader.view().comment_selected + 1);
         let row = self
+            .reader
+            .view()
             .reader_lines
             .iter()
             .position(|line| line.starts_with(&marker))
-            .unwrap_or(self.scroll);
-        self.reader_cursor = row;
-        self.reader_column = 0;
-        self.scroll = row;
+            .unwrap_or(self.reader.first_row());
+        self.reader.point_cursor(row, 0);
+        self.reader.reveal_row(row);
         self.clamp_scroll();
     }
 

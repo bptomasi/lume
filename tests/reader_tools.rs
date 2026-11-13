@@ -79,12 +79,12 @@ fn reader_search_does_not_filter_library_and_matches_survive_reflow()
     let (_directory, mut app) = reading()?;
     let total = app.page_total;
     command(&mut app, "find Alpha")?;
-    assert_eq!(app.reader_tools.hits.len(), 2);
+    assert_eq!(app.reader().reader_tools.hits.len(), 2);
     let first = app.cursor_offset();
     command(&mut app, "find-next")?;
     assert_ne!(app.cursor_offset(), first);
     app.resize_reader(15, 5);
-    assert_eq!(app.reader_tools.hits.len(), 2);
+    assert_eq!(app.reader().reader_tools.hits.len(), 2);
     command(&mut app, "find-prev")?;
     assert_eq!(app.cursor_offset(), first);
     assert_eq!(app.page_total, total);
@@ -102,13 +102,25 @@ fn outline_history_and_code_yank_retain_source_bytes() -> Result<()> {
     assert_eq!(picker.choices.len(), 2);
     key(&mut app, KeyCode::Down)?;
     key(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.reader_lines[app.reader_cursor], "Recovery");
+    assert_eq!(
+        app.reader().reader_lines[app.reader().reader_cursor],
+        "Recovery"
+    );
     app.resize_reader(15, 5);
-    assert_eq!(app.reader_lines[app.reader_cursor], "Recovery");
+    assert_eq!(
+        app.reader().reader_lines[app.reader().reader_cursor],
+        "Recovery"
+    );
     command(&mut app, "jump-back")?;
-    assert_eq!(app.reader_lines[app.reader_cursor], "Overview");
+    assert_eq!(
+        app.reader().reader_lines[app.reader().reader_cursor],
+        "Overview"
+    );
     command(&mut app, "jump-forward")?;
-    assert_eq!(app.reader_lines[app.reader_cursor], "Recovery");
+    assert_eq!(
+        app.reader().reader_lines[app.reader().reader_cursor],
+        "Recovery"
+    );
     assert_eq!(
         command(&mut app, "copy-code")?,
         Action::Copy("SELECT id\nFROM journal;\n".into())
@@ -148,7 +160,7 @@ fn wide_table_view_scrolls_without_mutating_article_or_search() -> Result<()> {
     assert_eq!((document.column, document.row), (8, 1));
     assert!(document.lines.iter().any(|line| line.contains("epoch")));
     key(&mut app, KeyCode::Esc)?;
-    assert_eq!(app.body, BODY);
+    assert_eq!(app.reader().body, BODY);
     assert_eq!(
         command(&mut app, "copy-code")?,
         Action::Copy("SELECT id\nFROM journal;\n".into())
@@ -162,8 +174,8 @@ fn inspector_keeps_tables_that_exceed_grid_limits_alongside_cached_grids()
     let body =
         format!("{BODY}\n| Wide |\n| --- |\n| {} END |\n", "x".repeat(4100));
     let (_directory, mut app) = reading_body(&body)?;
-    assert_eq!(app.table_rows.len(), 1);
-    assert_eq!(app.reader_tools.index.tables.len(), 2);
+    assert_eq!(app.reader().table_rows.len(), 1);
+    assert_eq!(app.reader().reader_tools.index.tables.len(), 2);
 
     command(&mut app, "tables")?;
 
@@ -172,7 +184,7 @@ fn inspector_keeps_tables_that_exceed_grid_limits_alongside_cached_grids()
     };
     assert!(document.lines.iter().any(|line| line.contains("epoch")));
     assert!(document.lines.iter().any(|line| line.contains("END")));
-    assert_eq!(app.body, body);
+    assert_eq!(app.reader().body, body);
     Ok(())
 }
 
@@ -201,15 +213,22 @@ fn table_selection_yank_highlight_and_reflow_keep_the_exact_cell() -> Result<()>
     app.resize_reader(8, 10);
 
     assert_eq!(
-        app.comments.last().context("Missing highlight")?.quote,
+        app.reader()
+            .comments
+            .last()
+            .context("Missing highlight")?
+            .quote,
         "epoch"
     );
-    assert_eq!(app.reader_tools.hits[0].start, start);
-    assert!(!app.table_rows.is_empty());
+    assert_eq!(app.reader().reader_tools.hits[0].start, start);
+    assert!(!app.reader().table_rows.is_empty());
     command(&mut app, "find epoch")?;
     key(&mut app, KeyCode::Char('$'))?;
-    assert!(app.horizontal > 0, "Wide rows must pan with the cursor");
-    assert_eq!(app.body, BODY);
+    assert!(
+        app.reader().horizontal > 0,
+        "Wide rows must pan with the cursor"
+    );
+    assert_eq!(app.reader().body, BODY);
     Ok(())
 }
 
@@ -222,14 +241,14 @@ fn personal_edits_and_refresh_keep_the_exact_cursor_in_unchanged_text()
     for _ in 0..3 {
         key(&mut app, KeyCode::Char('l'))?;
     }
-    let before = (app.cursor_offset(), app.scroll);
+    let before = (app.cursor_offset(), app.reader().scroll);
 
     command(&mut app, "tags recovery")?;
-    assert_eq!((app.cursor_offset(), app.scroll), before);
+    assert_eq!((app.cursor_offset(), app.reader().scroll), before);
     app.reload()?;
-    assert_eq!((app.cursor_offset(), app.scroll), before);
+    assert_eq!((app.cursor_offset(), app.reader().scroll), before);
     app.resize_reader(70, 12);
-    assert_eq!((app.cursor_offset(), app.scroll), before);
+    assert_eq!((app.cursor_offset(), app.reader().scroll), before);
     app.resize_reader(35, 6);
     assert_eq!(app.cursor_offset(), before.0);
     Ok(())
@@ -269,8 +288,8 @@ fn refresh_retains_article_and_note_identity_beyond_the_loaded_page()
     writer.save_comment(original.id, None, "First private note")?;
     writer.save_comment(original.id, None, "Selected private note")?;
     app.reload()?;
-    app.comment_selected = 1;
-    let selected_note = app.comments[1].id;
+    common::reader::comment(&mut app, 1)?;
+    let selected_note = app.reader().comments[1].id;
     app.page_size = 1;
     let feed = writer.feeds()?.remove(0);
     let mut incoming =
@@ -285,8 +304,11 @@ fn refresh_retains_article_and_note_identity_beyond_the_loaded_page()
 
     assert_eq!(app.current().map(|item| item.id), Some(original.id));
     assert_eq!((app.page_offset, app.library.articles.len()), (3, 1));
-    assert_eq!(app.comments[app.comment_selected].id, selected_note);
-    assert_eq!(app.body, BODY);
+    assert_eq!(
+        app.reader().comments[app.reader().comment_selected].id,
+        selected_note
+    );
+    assert_eq!(app.reader().body, BODY);
     Ok(())
 }
 
@@ -299,13 +321,19 @@ fn enter_follows_local_links_and_history_survives_reflow() -> Result<()> {
 
     assert_eq!(key(&mut app, KeyCode::Enter)?, Action::None);
 
-    assert_eq!(app.reader_lines[app.reader_cursor], "Recovery");
+    assert_eq!(
+        app.reader().reader_lines[app.reader().reader_cursor],
+        "Recovery"
+    );
     app.resize_reader(12, 5);
     app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
     assert_eq!(app.cursor_offset(), before);
     assert_eq!(app.cursor_link(), Some("#recovery"));
     app.key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::CONTROL))?;
-    assert_eq!(app.reader_lines[app.reader_cursor], "Recovery");
+    assert_eq!(
+        app.reader().reader_lines[app.reader().reader_cursor],
+        "Recovery"
+    );
     Ok(())
 }
 
@@ -339,7 +367,10 @@ fn same_page_urls_jump_and_missing_sections_do_not_open_an_unrelated_page()
     let (_directory, mut app) = reading_body(body)?;
 
     assert_eq!(key(&mut app, KeyCode::Enter)?, Action::None);
-    assert_eq!(app.reader_lines[app.reader_cursor], "Target");
+    assert_eq!(
+        app.reader().reader_lines[app.reader().reader_cursor],
+        "Target"
+    );
 
     let (_directory, mut app) = reading_body("[go](#absent)\n\nText.")?;
     let before = app.cursor_offset();
@@ -363,8 +394,11 @@ fn html_anchor_links_jump_to_the_publishers_exact_id() -> Result<()> {
 
     key(&mut app, KeyCode::Enter)?;
 
-    assert_eq!(app.reader_lines[app.reader_cursor], "Different title");
-    assert!(!app.reader_text.contains("<a"));
+    assert_eq!(
+        app.reader().reader_lines[app.reader().reader_cursor],
+        "Different title"
+    );
+    assert!(!app.reader().reader_text.contains("<a"));
     Ok(())
 }
 
@@ -373,11 +407,17 @@ fn open_link_and_enter_share_the_readers_local_navigation() -> Result<()> {
     let (_directory, mut app) =
         reading_body("[Jump](#target)\n\n## Target\n\nText.")?;
     command(&mut app, "open-link")?;
-    assert_eq!(app.reader_lines[app.reader_cursor], "Target");
+    assert_eq!(
+        app.reader().reader_lines[app.reader().reader_cursor],
+        "Target"
+    );
     app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
     assert_eq!(app.cursor_offset(), 0);
     key(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.reader_lines[app.reader_cursor], "Target");
+    assert_eq!(
+        app.reader().reader_lines[app.reader().reader_cursor],
+        "Target"
+    );
     Ok(())
 }
 
@@ -402,7 +442,10 @@ fn relative_markdown_destinations_are_resolved_against_the_opened_article()
         );
         command(&mut app, "open-link")?;
         if target == "cache#target" {
-            assert_eq!(app.reader_lines[app.reader_cursor], "Target");
+            assert_eq!(
+                app.reader().reader_lines[app.reader().reader_cursor],
+                "Target"
+            );
             assert!(!app.web_active());
         } else {
             assert!(app.web_active());

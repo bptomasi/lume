@@ -22,7 +22,7 @@ pub(super) fn run(
 ) -> Result<()> {
     let scenario = DragScenario::new(app)?;
     let original = app.workspace.panel_order;
-    let text = app.reader_text.clone();
+    let text = app.reader().reader_text.to_owned();
     let mut captures = Vec::new();
     let mut held = Vec::new();
     let mut settling = Vec::new();
@@ -44,7 +44,10 @@ pub(super) fn run(
         }
         settling.extend(release_frames(app, terminal, scenario.release)?);
         ensure!(app.workspace.panel_order == original, "Settling lost order");
-        ensure!(app.reader_text == text, "Motion changed readable text");
+        ensure!(
+            app.reader().reader_text == text,
+            "Motion changed readable text"
+        );
     }
     report("pane capture + initial runtime frame", captures);
     report("held-pane motion + frozen-cell runtime frame", held);

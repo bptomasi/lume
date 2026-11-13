@@ -39,14 +39,15 @@ fn horizontal_wrapping(app: &mut App, iterations: usize) -> Result<()> {
         || {
             keys(app, "gg$l")?;
             ensure!(
-                (app.reader_cursor, app.reader_column) == (1, 0),
+                (app.reader().reader_cursor, app.reader().reader_column)
+                    == (1, 0),
                 "Forward motion stopped at the display row boundary"
             );
             keys(app, "h")?;
             ensure!(
-                app.reader_cursor == 0
-                    && app.reader_lines[0]
-                        .get(app.reader_column..)
+                app.reader().reader_cursor == 0
+                    && app.reader().reader_lines[0]
+                        .get(app.reader().reader_column..)
                         .is_some_and(|tail| tail == "."),
                 "Backward motion failed to return to the previous row"
             );
@@ -92,19 +93,28 @@ fn selection_frames(
 }
 
 fn selection_history(app: &mut App, iterations: usize) -> Result<()> {
-    let notes = app.comments.len();
+    let notes = app.reader().comments.len();
     super::measure(
         "durable precise highlight + reflow + undo",
         iterations,
         || {
             keys(app, "gg0wvlls")?;
-            ensure!(app.comments.len() == notes + 1, "Highlight not saved");
             ensure!(
-                app.comments.last().is_some_and(|note| note.quote == "caf"),
+                app.reader().comments.len() == notes + 1,
+                "Highlight not saved"
+            );
+            ensure!(
+                app.reader()
+                    .comments
+                    .last()
+                    .is_some_and(|note| note.quote == "caf"),
                 "Wrong captured quotation"
             );
             keys(app, "u")?;
-            ensure!(app.comments.len() == notes, "Undo lost prior highlights");
+            ensure!(
+                app.reader().comments.len() == notes,
+                "Undo lost prior highlights"
+            );
             Ok(())
         },
     )

@@ -74,7 +74,7 @@ impl InputBatch {
             Event::FocusLost => {
                 app.auto_read_window_focus(false);
                 app.cancel_pointer();
-                app.note_marks.delete = None;
+                app.reader.arm_note_delete(None);
                 app.pending_destination_delete = None;
                 app.pending_article_delete = None;
                 Action::None
@@ -212,8 +212,8 @@ fn motion(app: &App, key: KeyEvent) -> Option<(bool, usize)> {
     match key.code {
         KeyCode::Down | KeyCode::Char('j') => Some((true, 1)),
         KeyCode::Up | KeyCode::Char('k') => Some((false, 1)),
-        KeyCode::PageDown => Some((true, app.reader_height)),
-        KeyCode::PageUp => Some((false, app.reader_height)),
+        KeyCode::PageDown => Some((true, app.reader().reader_height)),
+        KeyCode::PageUp => Some((false, app.reader().reader_height)),
         _ => None,
     }
 }

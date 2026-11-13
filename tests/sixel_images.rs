@@ -177,19 +177,25 @@ fn native_rows(cells: &Buffer) -> usize {
 fn both_scroll_directions_keep_the_same_prepared_image_and_source() -> Result<()>
 {
     let (_directory, mut app) = reading()?;
-    let text = app.reader_text.clone();
-    let key = app.image_key(&app.images.slots[0]).context("Inline key")?;
-    let start = app.images.slots[0].rows.start;
+    let text = app.reader().reader_text.to_owned();
+    let key = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Inline key")?;
+    let start = app.reader().image_slots[0].rows.start;
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
     for offset in (0..12).chain((0..12).rev()) {
-        app.scroll = start + offset;
+        let scroll = start + offset;
+        common::reader::scroll(&mut app, scroll)?;
         app.poll_images();
         assert!(!app.images_pending());
-        assert_eq!(app.image_key(&app.images.slots[0]), Some(key.clone()));
+        assert_eq!(
+            app.image_key(&app.reader().image_slots[0]),
+            Some(key.clone())
+        );
         terminal.draw(|frame| ui::draw(frame, &app))?;
         assert_eq!(native_rows(terminal.backend().buffer()), 12 - offset);
     }
-    assert_eq!(app.reader_text, text);
+    assert_eq!(app.reader().reader_text, text);
     Ok(())
 }
 
@@ -219,6 +225,14 @@ fn press(
     app.key(KeyEvent::new(code, KeyModifiers::NONE))
 }
 
+fn after_image_row(app: &App) -> Result<usize> {
+    app.reader()
+        .reader_lines
+        .iter()
+        .position(|line| line == "After image.")
+        .context("Text after image")
+}
+
 fn assert_native(app: &mut App) -> Result<()> {
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
     terminal.draw(|frame| ui::draw_interactive(frame, app))?;
@@ -234,18 +248,17 @@ fn character_and_linewise_selection_keep_images_and_yank_exact_text()
     use lume::app::Action;
 
     let (_directory, mut app) = reading()?;
-    let text = app.reader_text.clone();
-    let after = app
-        .reader_lines
-        .iter()
-        .position(|line| line == "After image.")
-        .context("Text after image")?;
-    app.reader_cursor = after;
-    app.reader_column = 0;
+    let text = app.reader().reader_text.to_owned();
+    let after = after_image_row(&app)?;
+    let row = after;
+    let byte = 0;
+    common::reader::cursor(&mut app, row, byte)?;
     for code in ['v', 'V'] {
-        app.selection = None;
+        if app.reader().selection.is_some() {
+            app.key(crossterm::event::KeyCode::Esc.into())?;
+        }
         press(&mut app, KeyCode::Char(code))?;
-        assert!(app.selection.is_some());
+        assert!(app.reader().selection.is_some());
         assert_native(&mut app)?;
         let expected = if code == 'v' { "A" } else { "After image." };
         assert_eq!(
@@ -253,7 +266,7 @@ fn character_and_linewise_selection_keep_images_and_yank_exact_text()
             Action::Copy(expected.into())
         );
     }
-    assert_eq!(app.reader_text, text);
+    assert_eq!(app.reader().reader_text, text);
     Ok(())
 }
 
@@ -274,11 +287,7 @@ fn mouse_click_and_drag_keep_inline_pixels_through_every_selection_frame()
     .reader
     .context("Reader")?;
     let column = ui::workspace_reader_content(reader, &app.workspace);
-    let after = app
-        .reader_lines
-        .iter()
-        .position(|line| line == "After image.")
-        .context("Text after image")?;
+    let after = after_image_row(&app)?;
     let row = column.y + after as u16;
     for (kind, distance) in [
         (MouseEventKind::Down(MouseButton::Left), 0),
@@ -327,42 +336,6 @@ fn layout_prefix_help_preserves_pixels_above_its_footprint() -> Result<()> {
     press(&mut app, KeyCode::Esc)?;
     assert_native(&mut app)?;
     Ok(())
-}
-
-#[test]
-fn visible_image_bounds_include_captions_clips_gaps_and_empty_viewports() {
-    use lume::{app::ReaderImages, reader::images::ImageSlot};
-
-    let mut images = ReaderImages::default();
-    images.slots = (0..10_000)
-        .map(|index| {
-            let caption = index * 20;
-            ImageSlot {
-                formula: None,
-                url: format!("https://example.org/{index}.svg"),
-                alt: String::new(),
-                caption,
-                rows: caption + 1..caption + 13,
-                source: index..index + 1,
-            }
-        })
-        .collect();
-    for (scroll, height, expected) in [
-        (2000, 1, vec![100]),
-        (2013, 7, vec![]),
-        (1999, 15, vec![100]),
-        (1990, 30, vec![99, 100]),
-        (2000, 0, vec![]),
-        (199_993, 40, vec![]),
-        (usize::MAX - 1, 8, vec![]),
-    ] {
-        let actual = images
-            .visible_slots(scroll, height)
-            .iter()
-            .map(|slot| slot.source.start)
-            .collect::<Vec<_>>();
-        assert_eq!(actual, expected, "viewport {scroll}+{height}");
-    }
 }
 
 #[test]

@@ -208,7 +208,7 @@ impl App {
         let mut notebook = Notebook::start(self, query, article)?;
         notebook.refresh()?;
         self.notebook = Some(Box::new(notebook));
-        self.selection = None;
+        self.reader.cancel_selection();
         self.vim.clear_input();
         self.workspace.fullscreen = false;
         self.workspace.zen = false;

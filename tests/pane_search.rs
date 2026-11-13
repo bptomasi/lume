@@ -191,15 +191,15 @@ fn escape_removes_reader_search_without_leaving_fullscreen_or_reloading()
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("copy")?;
     key(&mut app, KeyCode::Enter)?;
-    assert!(!app.reader_tools.hits.is_empty());
-    let text = app.reader_text.clone();
+    assert!(!app.reader().reader_tools.hits.is_empty());
+    let text = app.reader().reader_text.to_owned();
     let selected = app.current().context("Article missing")?.id;
     key(&mut app, KeyCode::Esc)?;
-    assert!(app.reader_tools.hits.is_empty());
-    assert!(app.reader_tools.needle.is_empty());
+    assert!(app.reader().reader_tools.hits.is_empty());
+    assert!(app.reader().reader_tools.needle.is_empty());
     assert!(app.workspace.fullscreen);
     assert_eq!(app.focus, Focus::Reader);
-    assert_eq!(app.reader_text, text);
+    assert_eq!(app.reader().reader_text, text);
     assert_eq!(app.current().context("Selection lost")?.id, selected);
     key(&mut app, KeyCode::Esc)?;
     assert!(!app.workspace.fullscreen);
@@ -223,11 +223,11 @@ fn reader_escape_clears_local_search_before_leaving_and_clearing_filter()
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("copy")?;
     key(&mut app, KeyCode::Enter)?;
-    assert!(!app.reader_tools.hits.is_empty());
+    assert!(!app.reader().reader_tools.hits.is_empty());
 
     key(&mut app, KeyCode::Esc)?;
-    assert!(app.reader_tools.needle.is_empty());
-    assert!(app.reader_tools.hits.is_empty());
+    assert!(app.reader().reader_tools.needle.is_empty());
+    assert!(app.reader().reader_tools.hits.is_empty());
     assert_eq!(app.search, "cache");
     assert_eq!(app.focus, Focus::Reader);
     key(&mut app, KeyCode::Esc)?;
@@ -241,12 +241,12 @@ fn reader_escape_without_a_search_preserves_the_loaded_article() -> Result<()> {
     let (_directory, mut app) = application()?;
     app.focus = Focus::Reader;
     let selected = app.current().context("Article missing")?.id;
-    let text = app.reader_text.clone();
+    let text = app.reader().reader_text.to_owned();
 
     key(&mut app, KeyCode::Esc)?;
     assert_eq!(app.focus, Focus::Articles);
     assert_eq!(app.current().context("Selection lost")?.id, selected);
-    assert_eq!(app.reader_text, text);
+    assert_eq!(app.reader().reader_text, text);
     Ok(())
 }
 
@@ -339,7 +339,7 @@ fn catalog_refresh_preserves_an_uncommitted_library_match() -> Result<()> {
 fn async_search_publishes_titles_without_loading_the_selected_body()
 -> Result<()> {
     let (directory, mut app) = two_article_application()?;
-    let body = app.body.clone();
+    let body = app.reader().body.to_owned();
     app.enable_background_navigation(
         &directory.path().join("library.sqlite3"),
     )?;
@@ -351,7 +351,7 @@ fn async_search_publishes_titles_without_loading_the_selected_body()
     common::settle_notes(&mut app)?;
     key(&mut app, KeyCode::Down)?;
     assert!(!app.navigation_loading, "Preview started a reader load");
-    assert_eq!(app.body, body);
+    assert_eq!(app.reader().body, body);
     let selected = app.current().context("Preview selection")?.id;
     key(&mut app, KeyCode::Enter)?;
     common::settle_notes(&mut app)?;
@@ -383,8 +383,9 @@ fn beginning_article_search_saves_the_displayed_reading_position() -> Result<()>
 {
     let (directory, mut app) = application()?;
     app.resize_reader(12, 2);
-    app.scroll = 2;
-    let expected = app.line_ranges[app.scroll].start;
+    let scroll = 2;
+    common::reader::scroll(&mut app, scroll)?;
+    let expected = app.reader().line_ranges[app.reader().scroll].start;
     let id = app.current().context("Article")?.id;
     app.focus = Focus::Articles;
     key(&mut app, KeyCode::Char('/'))?;

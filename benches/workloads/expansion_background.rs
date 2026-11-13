@@ -98,7 +98,7 @@ fn measure_reader(
         "reader input/frame during publisher writes",
         samples,
         |index| {
-            let before = app.reader_cursor;
+            let before = app.reader().reader_cursor;
             super::press(
                 app,
                 if index % 2 == 0 {
@@ -108,7 +108,10 @@ fn measure_reader(
                 },
             )?;
             terminal.draw(|frame| ui::draw(frame, app))?;
-            ensure!(app.reader_cursor != before, "Publisher writes lost input");
+            ensure!(
+                app.reader().reader_cursor != before,
+                "Publisher writes lost input"
+            );
             ensure!(
                 app.current().is_some_and(
                     |article| article.title == "Measured reader document"

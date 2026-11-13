@@ -97,3 +97,22 @@ impl Builder<'_> {
         });
     }
 }
+
+/// Borrow image slots intersecting a viewport, including visible captions.
+///
+/// Slots must be ordered and non-overlapping in display-row order, as produced
+/// by the renderer. Binary bounds avoid scanning images outside the viewport.
+pub fn visible_slots(
+    slots: &[ImageSlot],
+    scroll: usize,
+    height: usize,
+) -> &[ImageSlot] {
+    if height == 0 {
+        return &[];
+    }
+    let first = slots.partition_point(|slot| slot.rows.end <= scroll);
+    let remaining = &slots[first..];
+    let bottom = scroll.saturating_add(height);
+    let count = remaining.partition_point(|slot| slot.caption < bottom);
+    &remaining[..count]
+}

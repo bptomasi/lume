@@ -37,7 +37,7 @@ fn cursor_edits_and_undo_preserve_unicode() -> Result<()> {
     key(&mut app, KeyCode::Char('z'), KeyModifiers::CONTROL)?;
     key(&mut app, KeyCode::Char('r'), KeyModifiers::CONTROL)?;
     save(&mut app)?;
-    assert_eq!(app.comments[0].body, "🦀 ação");
+    assert_eq!(app.reader().comments[0].body, "🦀 ação");
     Ok(())
 }
 
@@ -52,8 +52,8 @@ fn visual_selection_saves_quote_and_notebook_retains_context() -> Result<()> {
         "Highlight should open a note editor"
     );
     save(&mut app)?;
-    assert!(!app.comments[0].quote.is_empty());
-    assert_eq!(app.comments[0].body, "A useful passage");
+    assert!(!app.reader().comments[0].quote.is_empty());
+    assert_eq!(app.reader().comments[0].body, "A useful passage");
 
     text(&mut app, " n")?;
 
@@ -211,7 +211,7 @@ fn reading_anchor_survives_restart_at_a_different_width() -> Result<()> {
     app.resize_reader(12, 2);
     key(&mut app, KeyCode::Enter, KeyModifiers::NONE)?;
     text(&mut app, "jjj")?;
-    let anchor = app.line_ranges[app.scroll].start;
+    let anchor = app.reader().line_ranges[app.reader().scroll].start;
     ensure!(anchor > 0, "Scenario must move past the first source byte");
     app.save_session()?;
     drop(app);
@@ -220,8 +220,11 @@ fn reading_anchor_survives_restart_at_a_different_width() -> Result<()> {
     let mut app = App::new(store, false)?;
     app.resize_reader(18, 2);
 
-    assert!(app.line_ranges[app.scroll].contains(&anchor));
-    assert_eq!(app.reader_lines[app.scroll], "Keep one copy &");
+    assert!(app.reader().line_ranges[app.reader().scroll].contains(&anchor));
+    assert_eq!(
+        app.reader().reader_lines[app.reader().scroll],
+        "Keep one copy &"
+    );
     assert!(app.current().is_some());
     Ok(())
 }

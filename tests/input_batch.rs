@@ -144,7 +144,7 @@ fn opening_an_editor_in_a_burst_preserves_repeated_text_and_paste() -> Result<()
     app.focus = Focus::Reader;
     dispatch(&mut app, events)?;
 
-    assert_eq!(app.comments[0].body, "jjjj ação");
+    assert_eq!(app.reader().comments[0].body, "jjjj ação");
     Ok(())
 }
 
@@ -239,7 +239,7 @@ fn consecutive_resizes_keep_the_final_geometry_and_preserve_input_order()
     let (_directory, mut app) = articles()?;
     app.focus = Focus::Reader;
     app.workspace.fullscreen = true;
-    let text = app.reader_text.clone();
+    let text = app.reader().reader_text.to_owned();
     let mut batch = InputBatch::new(vec![
         Event::Resize(40, 18),
         Event::Resize(100, 36),
@@ -250,16 +250,16 @@ fn consecutive_resizes_keep_the_final_geometry_and_preserve_input_order()
     batch.dispatch_next(&mut app)?;
     let area = ratatui::layout::Rect::new(0, 0, 100, 36);
     let column = lume::ui::workspace_reader_content(area, &app.workspace);
-    assert_eq!(app.reader_width, usize::from(column.width));
-    assert_eq!(app.reader_height, usize::from(column.height));
-    assert_eq!(app.reader_column, 0);
+    assert_eq!(app.reader().reader_width, usize::from(column.width));
+    assert_eq!(app.reader().reader_height, usize::from(column.height));
+    assert_eq!(app.reader().reader_column, 0);
     batch.dispatch_next(&mut app)?;
-    assert_eq!(app.reader_column, 1);
+    assert_eq!(app.reader().reader_column, 1);
     batch.dispatch_next(&mut app)?;
     let area = ratatui::layout::Rect::new(0, 0, 120, 40);
     let column = lume::ui::workspace_reader_content(area, &app.workspace);
-    assert_eq!(app.reader_height, usize::from(column.height));
+    assert_eq!(app.reader().reader_height, usize::from(column.height));
     assert!(batch.is_empty());
-    assert_eq!(app.reader_text, text);
+    assert_eq!(app.reader().reader_text, text);
     Ok(())
 }

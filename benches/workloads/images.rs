@@ -1,4 +1,6 @@
 //! Correctness-checked raster/vector preparation and cached scrolling frames.
+//! Cached scrolling frames include normal motion input after reader ownership.
+//! Their former direct-scroll timings are not comparable.
 
 #[path = "image_inspection.rs"]
 mod inspection;
@@ -132,7 +134,9 @@ pub(super) fn vector(stress: bool) -> String {
 
 fn cached_frames(bytes: &[u8], iterations: usize) -> Result<()> {
     let (directory, mut app) = image_app()?;
-    let key = app.image_key(&app.images.slots[0]).context("Image key")?;
+    let key = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Image key")?;
     let cache_dir = directory.path().join("images");
     cache::write(&cache_dir, &key.url, bytes)?;
     app.enable_images(cache_dir, true)?;
@@ -178,8 +182,9 @@ fn image_frames(
     app: &mut App,
     terminal: &mut Terminal<TestBackend>,
 ) -> Result<()> {
-    let text = app.reader_text.len();
-    app.scroll = app.images.slots[0].rows.start + 2;
+    let text = app.reader().reader_text.len();
+    let scroll = app.reader().image_slots[0].rows.start + 2;
+    crate::reader_input::scroll(app, scroll)?;
     terminal.draw(|frame| ui::draw(frame, app))?;
     ensure!(
         terminal
@@ -190,9 +195,13 @@ fn image_frames(
             .any(|cell| cell.bg == Color::Rgb(255, 0, 0)),
         "Partially scrolled image disappeared"
     );
-    app.scroll = 0;
+    let scroll = 0;
+    crate::reader_input::scroll(app, scroll)?;
     terminal.draw(|frame| ui::draw(frame, app))?;
-    ensure!(app.reader_text.len() == text, "Drawing modified text");
+    ensure!(
+        app.reader().reader_text.len() == text,
+        "Drawing modified text"
+    );
     Ok(())
 }
 

@@ -38,8 +38,8 @@ fn application() -> Result<(tempfile::TempDir, App)> {
 fn note_completions_preserve_retained_rows_until_matching_reading_data_arrives()
 -> Result<()> {
     let (_directory, mut app) = application()?;
-    let before = app.reader_text.clone();
-    let previous_note = app.comments[0].id;
+    let before = app.reader().reader_text.to_owned();
+    let previous_note = app.reader().comments[0].id;
     app.selected = 1;
     app.navigation_loading = true;
     let article = app.current().context("Selected article")?.id;
@@ -48,12 +48,17 @@ fn note_completions_preserve_retained_rows_until_matching_reading_data_arrives()
 
     app.install_note_changes(article, comments);
 
-    assert_eq!(app.reader_text, before);
-    assert_eq!(app.comments[0].id, previous_note);
+    assert_eq!(app.reader().reader_text, before);
+    assert_eq!(app.reader().comments[0].id, previous_note);
     assert_eq!(app.current().context("Selection")?.comments, 2);
     app.load_current()?;
     assert!(!app.reader_stale());
-    assert!(app.reader_text.contains("New target note"));
-    assert!(!app.comments.iter().any(|note| note.id == previous_note));
+    assert!(app.reader().reader_text.contains("New target note"));
+    assert!(
+        !app.reader()
+            .comments
+            .iter()
+            .any(|note| note.id == previous_note)
+    );
     Ok(())
 }

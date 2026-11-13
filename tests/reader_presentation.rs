@@ -40,7 +40,7 @@ fn justified_prose_keeps_copy_quotes_and_saved_preference_exact() -> Result<()>
 {
     let body = "Alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima.";
     let (directory, mut app, screen) = reading(body)?;
-    let original = app.reader_text.clone();
+    let original = app.reader().reader_text.to_owned();
     command(&mut app, "justify on")?;
     let mut terminal =
         Terminal::new(TestBackend::new(screen.width, screen.height))?;
@@ -50,7 +50,7 @@ fn justified_prose_keeps_copy_quotes_and_saved_preference_exact() -> Result<()>
         .map(|x| terminal.backend().buffer()[(x, content.y)].symbol())
         .collect::<String>();
     assert_eq!(visible, "Alpha  bravo  charlie delta echo foxtrot");
-    assert_eq!(app.reader_text, original);
+    assert_eq!(app.reader().reader_text, original);
     for code in ['w', 'v', '4', 'l'] {
         key(&mut app, KeyCode::Char(code))?;
     }
@@ -60,10 +60,14 @@ fn justified_prose_keeps_copy_quotes_and_saved_preference_exact() -> Result<()>
     );
     key(&mut app, KeyCode::Char('s'))?;
     assert_eq!(
-        app.comments.last().context("Highlight missing")?.quote,
+        app.reader()
+            .comments
+            .last()
+            .context("Highlight missing")?
+            .quote,
         "bravo"
     );
-    assert_eq!(app.body, body);
+    assert_eq!(app.reader().body, body);
     let store =
         lume::store::Store::open(&directory.path().join("library.sqlite3"))?;
     assert!(store.workspace()?.justify);
@@ -79,8 +83,8 @@ fn scrolling_one_code_block_does_not_shift_other_blocks() -> Result<()> {
     );
     let (_directory, mut app, screen) = reading(&body)?;
     key(&mut app, KeyCode::Char('$'))?;
-    assert!(app.horizontal > 0);
-    let first_offset = app.horizontal;
+    assert!(app.reader().horizontal > 0);
+    let first_offset = app.reader().horizontal;
     let mut terminal =
         Terminal::new(TestBackend::new(screen.width, screen.height))?;
     terminal.draw(|frame| ui::draw(frame, &app))?;
@@ -93,9 +97,9 @@ fn scrolling_one_code_block_does_not_shift_other_blocks() -> Result<()> {
         .collect::<String>();
     assert!(visible.contains("SECOND_BLOCK_"));
     command(&mut app, "find SECOND_BLOCK_")?;
-    assert_eq!(app.horizontal, 0);
+    assert_eq!(app.reader().horizontal, 0);
     app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
-    assert_eq!(app.horizontal, first_offset);
+    assert_eq!(app.reader().horizontal, first_offset);
     Ok(())
 }
 
@@ -111,6 +115,7 @@ fn horizontal_mouse_wheel_changes_only_the_block_under_the_pointer()
     let (_directory, mut app, screen) = reading(&body)?;
     let content = ui::workspace_reader_content(screen, &app.workspace);
     let row = app
+        .reader()
         .reader_lines
         .iter()
         .position(|line| line.contains("SECOND_BLOCK_"))
@@ -123,11 +128,11 @@ fn horizontal_mouse_wheel_changes_only_the_block_under_the_pointer()
             modifiers: KeyModifiers::NONE,
         })?;
     }
-    assert_eq!(app.horizontal, 0);
+    assert_eq!(app.reader().horizontal, 0);
     command(&mut app, "find SECOND_BLOCK_")?;
-    assert_eq!(app.horizontal, 4);
+    assert_eq!(app.reader().horizontal, 4);
     command(&mut app, "find FIRST_BLOCK_")?;
-    assert_eq!(app.horizontal, 0);
+    assert_eq!(app.reader().horizontal, 0);
     Ok(())
 }
 
@@ -151,7 +156,9 @@ fn mouse_clicks_use_original_bytes_inside_justified_prose() -> Result<()> {
         })?;
     }
     assert_eq!(app.cursor_offset(), 6);
-    assert!(app.reader_text[app.cursor_offset()..].starts_with("bravo"));
+    assert!(
+        app.reader().reader_text[app.cursor_offset()..].starts_with("bravo")
+    );
     Ok(())
 }
 

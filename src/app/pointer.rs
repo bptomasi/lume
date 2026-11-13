@@ -112,7 +112,7 @@ pub(super) struct Pointer {
 
 impl App {
     pub(super) fn cancel_pointer(&mut self) {
-        self.note_marks.hover = None;
+        self.reader.hover_note(None);
         self.pane_flight = None;
         self.pane_neighbors = None;
         match self.pointer.gesture.take() {
@@ -240,8 +240,8 @@ impl App {
     }
 
     fn pointer_horizontal(&mut self, event: MouseEvent) {
-        self.note_marks.hover = None;
-        self.note_marks.delete = None;
+        self.reader.hover_note(None);
+        self.reader.arm_note_delete(None);
         if self.panel_drag().is_some() {
             return;
         }
@@ -257,7 +257,7 @@ impl App {
         }
         self.pane_flight = None;
         self.pane_neighbors = None;
-        let row = self.scroll + usize::from(event.row - content.y);
+        let row = self.reader.first_row() + usize::from(event.row - content.y);
         self.scroll_horizontal_row(
             row,
             event.kind == MouseEventKind::ScrollRight,
@@ -295,7 +295,7 @@ impl App {
                 return Ok(());
             }
             self.focus = pane;
-            self.selection = None;
+            self.reader.cancel_selection();
             self.vim.clear_input();
             if ui::pane_close_rect(area)
                 .is_some_and(|rect| rect.contains(position))
@@ -344,8 +344,9 @@ impl App {
             }
             Pane::Annotations => {
                 if let Some(index) = ui::annotation_at(self, area, event.row) {
-                    self.comment_selected =
-                        self.annotations[index].comment_index;
+                    self.reader.select_comment(
+                        self.reader.view().annotations[index].comment_index,
+                    );
                     self.jump_annotation(index)?;
                 }
             }
@@ -373,7 +374,7 @@ impl App {
         amount: usize,
     ) -> Result<()> {
         self.pointer.seen = true;
-        self.note_marks.delete = None;
+        self.reader.arm_note_delete(None);
         self.pending_destination_delete = None;
         self.pending_article_delete = None;
         if !self.workspace.mouse
@@ -391,7 +392,7 @@ impl App {
         }
         self.pane_flight = None;
         self.pane_neighbors = None;
-        self.note_marks.hover = None;
+        self.reader.hover_note(None);
         let areas =
             ui::workspace_areas(self.screen, self.focus, &self.workspace);
         let target = areas.ordered().into_iter().find(|(_, area)| {

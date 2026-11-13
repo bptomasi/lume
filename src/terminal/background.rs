@@ -186,7 +186,8 @@ impl Background {
         if self.pending_feed.is_none() {
             self.pending_feed = self.feeds.as_ref().and_then(Worker::poll);
         }
-        if !matches!(app.mode, Mode::Normal) || app.selection.is_some() {
+        if !matches!(app.mode, Mode::Normal) || app.reader().selection.is_some()
+        {
             return Ok(false);
         }
         let Some(progress) = self.pending_feed.take() else {

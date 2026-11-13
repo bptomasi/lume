@@ -173,7 +173,7 @@ fn folding_uses_cached_counts_even_when_a_catalog_read_would_fail() -> Result<()
 fn clicking_a_header_clears_the_old_article_without_loading_a_page()
 -> Result<()> {
     let (_directory, mut app) = application()?;
-    assert!(!app.reader_text.is_empty());
+    assert!(!app.reader().reader_text.is_empty());
     app.nav_selected = app
         .navigation
         .iter()
@@ -182,7 +182,7 @@ fn clicking_a_header_clears_the_old_article_without_loading_a_page()
     click_selected(&mut app)?;
     assert_eq!(app.view, View::Group("FEEDS".into()));
     assert!(app.current().is_none());
-    assert!(app.reader_text.is_empty());
+    assert!(app.reader().reader_text.is_empty());
     assert_eq!(app.page_total, 0);
     assert!(!app.navigation_loading);
     Ok(())
@@ -231,7 +231,7 @@ fn section_selection_cancels_an_older_background_article_request() -> Result<()>
         app.poll_navigation()?;
         assert!(!app.catalog_pending());
         assert!(app.current().is_none());
-        assert!(app.reader_text.is_empty());
+        assert!(app.reader().reader_text.is_empty());
     }
     app.end_session()
 }

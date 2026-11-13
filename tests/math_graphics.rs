@@ -216,8 +216,12 @@ fn settle_graphics(app: &mut lume::app::App) -> Result<()> {
         app.poll_images();
         if !app.article_preparing()
             && !app.images_pending()
-            && app.images.slots.iter().any(|slot| slot.formula.is_some())
-            && app.images.slots.iter().all(|slot| {
+            && app
+                .reader()
+                .image_slots
+                .iter()
+                .any(|slot| slot.formula.is_some())
+            && app.reader().image_slots.iter().all(|slot| {
                 app.image_key(slot)
                     .is_some_and(|key| app.images.thumbnail(&key).is_some())
             })
@@ -236,11 +240,11 @@ fn settle_graphics(app: &mut lume::app::App) -> Result<()> {
 fn graphics_are_local_even_when_remote_images_are_paused_and_preferences_persist()
 -> Result<()> {
     let (directory, mut app, session) = graphics_app()?;
-    let source = app.body.clone();
+    let source = app.reader().body.to_owned();
     command(&mut app, "images off")?;
     command(&mut app, "latex-formulas graphics")?;
     settle_graphics(&mut app)?;
-    assert_eq!(app.body, source);
+    assert_eq!(app.reader().body, source);
     assert!(!directory.path().join("images").exists());
     app.end_session()?;
     session.flush()?;
@@ -258,9 +262,10 @@ fn graphic_inspection_copies_original_latex_and_restores_the_reader()
     let (_directory, mut app, _) = graphics_app()?;
     command(&mut app, "latex-formulas graphics")?;
     settle_graphics(&mut app)?;
-    app.reader_cursor = app.images.slots[0].caption;
-    app.reader_column = 0;
-    let source = app.body.clone();
+    let row = app.reader().image_slots[0].caption;
+    let byte = 0;
+    common::reader::cursor(&mut app, row, byte)?;
+    let source = app.reader().body.to_owned();
     command(&mut app, "image")?;
     let copy =
         app.key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE))?;
@@ -270,7 +275,7 @@ fn graphic_inspection_copies_original_latex_and_restores_the_reader()
     );
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     assert!(matches!(app.mode, lume::app::Mode::Normal));
-    assert_eq!(app.body, source);
+    assert_eq!(app.reader().body, source);
     app.end_session()?;
     Ok(())
 }
@@ -335,8 +340,8 @@ fn dense_formula_pages_remain_native_past_four_slots_without_cache_churn()
     app.resize_workspace(ratatui::layout::Rect::new(0, 0, 100, 160));
     command(&mut app, "latex-formulas graphics")?;
     settle_graphics(&mut app)?;
-    assert_eq!(app.images.slots.len(), 32);
-    for slot in &app.images.slots {
+    assert_eq!(app.reader().image_slots.len(), 32);
+    for slot in app.reader().image_slots {
         let key = app.image_key(slot).context("Missing formula key")?;
         assert_eq!(
             key.detail.as_ref().map(|d| d.protocol),
@@ -370,15 +375,15 @@ fn navigation_after_a_formula_policy_change_replaces_the_pending_source_anchor()
     );
     let (_directory, mut app, _) = graphics_body(&source)?;
     app.key(KeyEvent::new(KeyCode::Char('G'), KeyModifiers::NONE))?;
-    assert!(app.scroll > 30);
+    assert!(app.reader().scroll > 30);
     command(&mut app, "latex-formulas graphics")?;
     for code in [KeyCode::Char('g'), KeyCode::Char('g')] {
         app.key(KeyEvent::new(code, KeyModifiers::NONE))?;
     }
     settle_graphics(&mut app)?;
-    assert_eq!(app.reader_cursor, 0);
-    assert_eq!(app.scroll, 0);
-    assert_eq!(app.body, source);
+    assert_eq!(app.reader().reader_cursor, 0);
+    assert_eq!(app.reader().scroll, 0);
+    assert_eq!(app.reader().body, source);
     app.end_session()?;
     Ok(())
 }
