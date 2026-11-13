@@ -32,6 +32,25 @@ local files, a shell command or executable configuration.
 
 ## Qualified integrations
 
+### Optional capabilities
+
+Cargo features independently select `math`, `graphic-math`, `sixel`, `svg`,
+`syntax` and `miniflux`, with all six enabled by default. No dependency version,
+license exception or publisher-input authority changes. `graphic-math` enables
+`math` and `svg`; the remaining rendering features are independent. Both build
+and runtime Syntect edges are optional, so builds without `syntax` neither
+compile grammar sources nor read an absent generated payload. See
+[build features](build-features.md) for fallback and cache lifecycle contracts.
+
+The reduced graph omits selected Lume consumers rather than asserting that
+every similarly named transitive disappears: ratatui-image still retains
+upstream Sixel support without Lume's `sixel` feature. Miniflux has no exclusive
+dependency package, so its feature removes transport code while leaving shared
+HTTP/feed libraries available. Config schemas, neutral DTOs and Store server
+history/tombstones are never compiled away. Locked optional packages and their
+reviewed versions remain in Cargo.lock. Distribution notices cover the union
+of all supported features; inactive locked entries are listed separately.
+
 | Capability | Selection | Responsibility and limits |
 | --- | --- | --- |
 | Terminal | Ratatui 0.29.0, Crossterm 0.28.1, tui-textarea 0.7.0 | Qualified compatible pair/editor. Library-owned event parsing, cached buffer rendering and bounded drafts; no custom terminal parser. |

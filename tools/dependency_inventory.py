@@ -46,7 +46,7 @@ def generate(cargo_about):
     version = subprocess.check_output([cargo_about, "--version"], text=True)
     if version.strip() != f"cargo-about {ABOUT_VERSION}":
         raise ValueError(f"Use cargo-about {ABOUT_VERSION}; found {version.strip()}")
-    command = [cargo_about, "generate", "--locked"]
+    command = [cargo_about, "generate", "--locked", "--all-features"]
     result = subprocess.check_output(command + ["--format", "json"], cwd=ROOT)
     gathered = json.loads(result)
     text = subprocess.check_output(command + ["tools/licenses.hbs"], cwd=ROOT)
@@ -59,6 +59,7 @@ def generate(cargo_about):
     covered = {(item["name"], item["version"]) for item in packages}
     inactive = [{"name": name, "version": version}
                 for name, version in sorted(set(locked_packages()) - covered)]
+    # Cover the supported feature union, even if defaults become narrower.
     # cargo-about resolves feature-active normal/build edges. The lock can also
     # retain optional, inactive packages; list those explicitly, never as licensed.
     notice = DESTINATION / "THIRD_PARTY_LICENSES.txt"

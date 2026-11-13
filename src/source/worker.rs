@@ -29,7 +29,7 @@ pub enum Progress {
         /// Number of feeds that failed.
         failures: usize,
     },
-    /// The worker could not access storage.
+    /// The worker could not complete the requested operation.
     Failed(String),
     /// Advertised feed choices from a website.
     Discovered(Vec<super::discovery::Candidate>),

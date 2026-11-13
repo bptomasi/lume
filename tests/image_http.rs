@@ -20,6 +20,20 @@ use lume::{
 
 const SVG: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40"><rect width="100" height="40" fill="red"/></svg>"#;
 
+fn image_server() -> Result<Server> {
+    if cfg!(feature = "svg") {
+        return server(200, "Content-Type: image/svg+xml\r\n", SVG);
+    }
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+        100,
+        40,
+        image::Rgb([255, 0, 0]),
+    ))
+    .write_to(&mut bytes, image::ImageFormat::Png)?;
+    server(200, "Content-Type: image/png\r\n", bytes.get_ref())
+}
+
 struct Server {
     url: String,
     request: Receiver<String>,
@@ -90,14 +104,14 @@ fn settle(app: &mut App) -> Result<()> {
 #[ignore = "requires real loopback HTTP; required by make check-release"]
 fn http_image_download_is_cached_and_reopens_in_an_offline_session()
 -> Result<()> {
-    let server = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
+    let server = image_server()?;
     let (directory, mut app) = reading(&server.url)?;
     let key = app
         .image_key(&app.reader().image_slots[0])
         .context("Image key")?;
     app.poll_images();
     let request = server.request.recv_timeout(Duration::from_secs(5))?;
-    assert!(request.contains("image/svg+xml"));
+    assert_eq!(request.contains("image/svg+xml"), cfg!(feature = "svg"));
     assert!(!request.to_lowercase().contains("cookie:"));
     server.release.send(())?;
     settle(&mut app)?;
@@ -128,7 +142,7 @@ fn http_image_download_is_cached_and_reopens_in_an_offline_session()
 #[ignore = "requires real loopback HTTP; required by make check-release"]
 fn delayed_http_images_leave_cursor_input_available_and_do_not_bleed_after_navigation()
 -> Result<()> {
-    let server = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
+    let server = image_server()?;
     let (directory, mut app) = reading(&server.url)?;
     let mut store = Store::open(&directory.path().join("library.sqlite3"))?;
     let feed = store.feeds()?.remove(0);
@@ -173,7 +187,7 @@ fn delayed_http_images_leave_cursor_input_available_and_do_not_bleed_after_navig
 #[ignore = "requires real loopback HTTP; required by make check-release"]
 fn delayed_inspection_discards_old_crops_without_blocking_zoom_or_close()
 -> Result<()> {
-    let server = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
+    let server = image_server()?;
     let (_directory, mut app) = reading(&server.url)?;
     app.resize_workspace(ratatui::layout::Rect::new(0, 0, 144, 44));
     let row = app.reader().image_slots[0].caption;
@@ -283,8 +297,8 @@ fn decoded_image_limit_applies_after_gzip_and_rejects_invalid_streams()
 #[test]
 #[ignore = "requires real loopback HTTP; required by make check-release"]
 fn slow_first_download_does_not_block_a_second_visible_image() -> Result<()> {
-    let first = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
-    let second = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
+    let first = image_server()?;
+    let second = image_server()?;
     let (directory, mut app) = reading(&first.url)?;
     let mut store = Store::open(&directory.path().join("library.sqlite3"))?;
     let feed = store.feeds()?.remove(0);
@@ -328,9 +342,9 @@ fn slow_first_download_does_not_block_a_second_visible_image() -> Result<()> {
 #[ignore = "requires real loopback HTTP; required by make check-release"]
 fn obsolete_header_waits_free_both_lanes_before_the_server_responds()
 -> Result<()> {
-    let first = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
-    let second = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
-    let latest = server(200, "Content-Type: image/svg+xml\r\n", SVG)?;
+    let first = image_server()?;
+    let second = image_server()?;
+    let latest = image_server()?;
     let (directory, mut app) = reading(&first.url)?;
     let mut store = Store::open(&directory.path().join("library.sqlite3"))?;
     replace_body(

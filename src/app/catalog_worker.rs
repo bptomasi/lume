@@ -331,9 +331,9 @@ mod invalidation_tests {
     -> Result<()> {
         let (_directory, _path, store) = library()?;
         let mut app = App::new(store, false)?;
+        let id = app.current().context("Article before collapsing")?.id;
         app.toggle_navigation_group("smart")?;
         app.project_navigation();
-        let id = app.current().context("Article")?.id;
         app.store.set_unread(id, false)?;
         app.refresh_read_counts()?;
         let group = app

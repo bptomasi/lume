@@ -265,6 +265,7 @@ fn pinning_a_server_keeps_collapsed_child_counts_visible() -> Result<()> {
 
 #[cfg(unix)]
 #[test]
+#[cfg(feature = "miniflux")]
 fn invalid_unicode_credentials_are_never_persisted_in_errors() -> Result<()> {
     use std::os::unix::ffi::OsStringExt;
     let directory = tempfile::tempdir()?;

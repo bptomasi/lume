@@ -1,5 +1,6 @@
 //! MathML structure selects spatial graphics; source spelling never forces prose out.
 use ratatui::style::Modifier;
+#[cfg(feature = "math")]
 use roxmltree::Node;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -9,6 +10,7 @@ pub(in crate::reader) struct Text {
     pub(in crate::reader) modifier: Modifier,
 }
 
+#[cfg(feature = "math")]
 impl Text {
     pub(super) fn new(root: Node<'_, '_>, value: String) -> Self {
         let spatial =
@@ -30,6 +32,7 @@ impl Text {
     }
 }
 
+#[cfg(feature = "math")]
 fn uniform_modifier(mut node: Node<'_, '_>) -> Modifier {
     let mut modifier = Modifier::empty();
     loop {

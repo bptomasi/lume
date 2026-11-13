@@ -3,21 +3,31 @@
 //! math-core owns TeX semantics; MathML is projected to Unicode rather than
 //! claiming pixel typesetting. Unsupported or excessive input stays verbatim.
 
+#[cfg(feature = "math")]
 use math_core::{LatexToMathML, MathCoreConfig, MathDisplay, MaxExpansions};
+#[cfg(feature = "math")]
 mod embellishments;
+#[cfg(feature = "math")]
 mod fractions;
 pub(super) mod graphics;
 mod presentation;
+#[cfg(feature = "math")]
 mod projection;
 pub(super) use presentation::Text as FormulaText;
+#[cfg(feature = "math")]
 mod scripts;
 
 #[derive(Default)]
 pub(super) struct Math {
+    #[cfg(feature = "math")]
     converter: Option<LatexToMathML>,
+    #[cfg(feature = "math")]
     count: usize,
+    #[cfg(feature = "math")]
     bytes: usize,
+    #[cfg(feature = "math")]
     cache: std::collections::VecDeque<(String, bool, Option<FormulaText>)>,
+    #[cfg(feature = "graphic-math")]
     graphic_cache: std::collections::VecDeque<(
         String,
         bool,
@@ -26,6 +36,7 @@ pub(super) struct Math {
 }
 
 impl Math {
+    #[cfg(feature = "math")]
     pub(super) fn render(
         &mut self,
         latex: &str,
@@ -51,6 +62,7 @@ impl Math {
         text
     }
 
+    #[cfg(feature = "math")]
     fn convert(&mut self, latex: &str, block: bool) -> Option<FormulaText> {
         if self.converter.is_none() {
             let config = MathCoreConfig {
@@ -95,6 +107,7 @@ impl Math {
         })
     }
 
+    #[cfg(feature = "graphic-math")]
     pub(super) fn graphic(
         &mut self,
         latex: &str,
@@ -118,8 +131,27 @@ impl Math {
             .push_back((latex.into(), block, image.clone()));
         image
     }
+
+    #[cfg(not(feature = "math"))]
+    pub(super) fn render(
+        &mut self,
+        _latex: &str,
+        _block: bool,
+    ) -> Option<FormulaText> {
+        None
+    }
+
+    #[cfg(not(feature = "graphic-math"))]
+    pub(super) fn graphic(
+        &mut self,
+        _latex: &str,
+        _block: bool,
+    ) -> Option<graphics::FormulaImage> {
+        None
+    }
 }
 
+#[cfg(feature = "math")]
 fn admissible(latex: &str) -> bool {
     if latex.len() > 4096 || latex.chars().filter(|c| *c == '\\').count() > 256
     {
@@ -147,7 +179,7 @@ fn admissible(latex: &str) -> bool {
     true
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "math"))]
 mod tests {
     use super::Math;
 

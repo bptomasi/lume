@@ -2,7 +2,10 @@
 
 use std::path::PathBuf;
 
-use anyhow::{Context, Result, ensure};
+#[cfg(feature = "syntax")]
+use anyhow::ensure;
+use anyhow::{Context, Result};
+#[cfg(feature = "syntax")]
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
 
 #[path = "src/build_revision.rs"]
@@ -10,6 +13,13 @@ mod revision;
 
 fn main() -> Result<()> {
     record_revision()?;
+    #[cfg(feature = "syntax")]
+    compile_syntaxes()?;
+    Ok(())
+}
+
+#[cfg(feature = "syntax")]
+fn compile_syntaxes() -> Result<()> {
     println!("cargo:rerun-if-changed=assets/syntax");
     let directory =
         std::env::var_os("OUT_DIR").context("Cargo must provide OUT_DIR")?;
@@ -43,6 +53,7 @@ fn record_revision() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "syntax")]
 const GRAMMARS: &[&str] = &[
     include_str!("assets/syntax/C.sublime-syntax"),
     include_str!("assets/syntax/C++.sublime-syntax"),

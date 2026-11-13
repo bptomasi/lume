@@ -3,12 +3,16 @@
 //! The build compiles grammars; loading is shared for the process lifetime.
 //! Unknown languages, large blocks and failures retain readable plain code.
 
+#[cfg(feature = "syntax")]
 use std::sync::OnceLock;
 
+use ratatui::text::Line;
+#[cfg(feature = "syntax")]
 use ratatui::{
     style::{Color, Style},
-    text::{Line, Span},
+    text::Span,
 };
+#[cfg(feature = "syntax")]
 use syntect::{
     easy::HighlightLines,
     highlighting::{Color as SyntaxColor, Style as SyntaxStyle, Theme},
@@ -16,9 +20,12 @@ use syntect::{
     util::LinesWithEndings,
 };
 
+#[cfg(feature = "syntax")]
 static SYNTAXES: OnceLock<Result<SyntaxSet, String>> = OnceLock::new();
+#[cfg(feature = "syntax")]
 static THEME: OnceLock<Theme> = OnceLock::new();
 
+#[cfg(feature = "syntax")]
 fn syntaxes() -> &'static Result<SyntaxSet, String> {
     SYNTAXES.get_or_init(|| {
         let bytes =
@@ -28,6 +35,7 @@ fn syntaxes() -> &'static Result<SyntaxSet, String> {
     })
 }
 
+#[cfg(feature = "syntax")]
 pub(super) fn highlight(text: &str, language: &str) -> Vec<Line<'static>> {
     let Ok(syntaxes) = syntaxes() else {
         return plain(text);
@@ -69,6 +77,7 @@ fn plain(text: &str) -> Vec<Line<'static>> {
         .collect()
 }
 
+#[cfg(feature = "syntax")]
 fn terminal_style(style: SyntaxStyle) -> Style {
     Style::new().fg(Color::Rgb(
         style.foreground.r,
@@ -77,6 +86,7 @@ fn terminal_style(style: SyntaxStyle) -> Style {
     ))
 }
 
+#[cfg(feature = "syntax")]
 fn theme() -> Theme {
     let mut theme = Theme::default();
     theme.settings.foreground = Some(SyntaxColor {
@@ -109,7 +119,7 @@ fn theme() -> Theme {
     theme
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "syntax"))]
 mod tests {
     #[test]
     fn embedded_grammars_compile_and_color_rust() {
@@ -118,4 +128,9 @@ mod tests {
         assert_eq!(lines.len(), 1);
         assert!(lines[0].spans.len() > 3);
     }
+}
+
+#[cfg(not(feature = "syntax"))]
+pub(super) fn highlight(text: &str, _language: &str) -> Vec<Line<'static>> {
+    plain(text)
 }

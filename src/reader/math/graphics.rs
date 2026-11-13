@@ -1,15 +1,21 @@
 //! Optional worker-side typesetting; source text remains the annotation authority.
+#[cfg(feature = "graphic-math")]
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use std::sync::Arc;
 
+#[cfg(feature = "graphic-math")]
 use ratex_layout::{LayoutOptions, layout, to_display_list, validate_layout};
+#[cfg(feature = "graphic-math")]
 use ratex_parser::parser::parse;
+#[cfg(feature = "graphic-math")]
 use ratex_svg::{SvgColorSyntax, SvgOptions, render_to_svg_with_color_syntax};
+#[cfg(feature = "graphic-math")]
 use ratex_types::{
     color::Color,
     display_item::{DisplayItem, DisplayList},
     math_style::MathStyle,
 };
+#[cfg(feature = "graphic-math")]
 use sha2::{Digest, Sha256};
 
 /// A local, self-contained formula image; it never requests a publisher URL.
@@ -25,6 +31,7 @@ pub struct FormulaImage {
     pub rows: usize,
 }
 
+#[cfg(feature = "graphic-math")]
 pub(super) fn render(latex: &str, block: bool) -> Option<FormulaImage> {
     if !super::admissible(latex) {
         return None;
@@ -62,6 +69,7 @@ pub(super) fn render(latex: &str, block: bool) -> Option<FormulaImage> {
     FormulaImage::from_svg(latex, svg, rows)
 }
 
+#[cfg(feature = "graphic-math")]
 fn compact_canvas(list: &mut DisplayList) -> Option<usize> {
     // One em occupies 80% of a terminal row. Pad the canvas to complete rows
     // instead of stretching every short expression to fill its reserved slot.
@@ -73,6 +81,7 @@ fn compact_canvas(list: &mut DisplayList) -> Option<usize> {
     Some(rows)
 }
 
+#[cfg(feature = "graphic-math")]
 impl FormulaImage {
     fn from_svg(latex: &str, svg: String, rows: usize) -> Option<Self> {
         (svg.len() <= 512 * 1024).then(|| Self {
@@ -87,6 +96,7 @@ impl FormulaImage {
     }
 }
 
+#[cfg(feature = "graphic-math")]
 fn admitted_fonts(items: &[DisplayItem]) -> bool {
     // Reject system fallback fonts before the exporter can discover them.
     // The bundled, unmodified KaTeX family covers admitted mathematical glyphs.

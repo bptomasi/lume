@@ -4,8 +4,10 @@
 //! bind. Ordinary local checks do not start a server.
 
 mod common;
+#[cfg(feature = "miniflux")]
 #[path = "http/discovery_isolation.rs"]
 mod discovery_isolation;
+#[cfg(feature = "miniflux")]
 #[path = "http/server_history.rs"]
 mod server_history;
 
@@ -432,6 +434,7 @@ fn read_request(stream: &mut std::net::TcpStream) -> Result<String> {
 
 #[test]
 #[ignore = "requires real loopback HTTP; required by make check-release"]
+#[cfg(feature = "miniflux")]
 fn miniflux_mirror_discovers_entries_and_preserves_local_flags() -> Result<()> {
     let (_directory, config, data, requests) = mirror_setup()?;
     let library = data.join("library.sqlite3");
@@ -455,6 +458,7 @@ fn miniflux_mirror_discovers_entries_and_preserves_local_flags() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "miniflux")]
 fn mirror_setup() -> Result<(
     tempfile::TempDir,
     std::path::PathBuf,
@@ -475,6 +479,7 @@ fn mirror_setup() -> Result<(
     Ok((directory, config, data, requests))
 }
 
+#[cfg(feature = "miniflux")]
 fn run_mirror_cli(
     config: &std::path::Path,
     data: &std::path::Path,
@@ -491,6 +496,7 @@ fn run_mirror_cli(
     Ok(command.output()?)
 }
 
+#[cfg(feature = "miniflux")]
 fn first_mirror_sync(
     config: &std::path::Path,
     data: &std::path::Path,
@@ -504,6 +510,7 @@ fn first_mirror_sync(
     Ok(())
 }
 
+#[cfg(feature = "miniflux")]
 fn second_mirror_sync(
     config: &std::path::Path,
     data: &std::path::Path,
@@ -523,6 +530,7 @@ fn second_mirror_sync(
     Ok(())
 }
 
+#[cfg(feature = "miniflux")]
 fn assert_exported_config(
     config: &std::path::Path,
     data: &std::path::Path,
@@ -535,6 +543,7 @@ fn assert_exported_config(
     Ok(())
 }
 
+#[cfg(feature = "miniflux")]
 fn drain_mirror_requests(requests: mpsc::Receiver<String>) -> Result<()> {
     for index in 0..4 {
         let request = requests.recv_timeout(Duration::from_secs(5))?;
@@ -552,6 +561,7 @@ fn drain_mirror_requests(requests: mpsc::Receiver<String>) -> Result<()> {
 
 #[test]
 #[ignore = "requires real loopback HTTP; required by make check-release"]
+#[cfg(feature = "miniflux")]
 fn miniflux_retry_after_defers_discovery_and_entries_across_restart()
 -> Result<()> {
     for entry_failure in [false, true] {
@@ -590,6 +600,7 @@ fn miniflux_retry_after_defers_discovery_and_entries_across_restart()
 
 #[test]
 #[ignore = "requires real loopback HTTP; required by make check-release"]
+#[cfg(feature = "miniflux")]
 fn inline_miniflux_credentials_authenticate_but_stay_hidden_in_diagnostics()
 -> Result<()> {
     let (_directory, config, data, requests) = mirror_setup()?;
@@ -630,6 +641,7 @@ fn inline_miniflux_credentials_authenticate_but_stay_hidden_in_diagnostics()
     Ok(())
 }
 
+#[cfg(feature = "miniflux")]
 fn miniflux_rate_limited_server(
     entry_failure: bool,
 ) -> Result<(String, mpsc::Receiver<String>)> {
@@ -665,6 +677,7 @@ fn miniflux_rate_limited_server(
     Ok((address, receiver))
 }
 
+#[cfg(feature = "miniflux")]
 fn miniflux_server() -> Result<(String, mpsc::Receiver<String>)> {
     let listener = TcpListener::bind("127.0.0.1:0").context(
         "Real HTTP qualification requires loopback socket permission",
@@ -1094,6 +1107,7 @@ fn a_cancelled_resource_navigation_cannot_request_a_browser_launch()
 
 #[test]
 #[ignore = "requires real loopback HTTP; required by make check-release"]
+#[cfg(feature = "miniflux")]
 fn miniflux_tokens_never_follow_redirects() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let destination = TcpListener::bind("127.0.0.1:0")?;

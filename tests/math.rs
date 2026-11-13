@@ -1,8 +1,10 @@
 //! Formula readability and source fidelity across terminal layouts.
+#[cfg(feature = "math")]
 use anyhow::{Context, Result};
 use lume::reader;
 
 #[test]
+#[cfg(feature = "math")]
 fn latex_composition_is_readable_and_keeps_original_annotation_source()
 -> Result<()> {
     let formula = r"$R{\mathcal{I}}=\text{Combine}\circ\text{Disintegrate}$";
@@ -28,6 +30,7 @@ fn latex_composition_is_readable_and_keeps_original_annotation_source()
 }
 
 #[test]
+#[cfg(feature = "math")]
 fn fractions_scripts_roots_and_display_formulas_survive_wrapping() {
     let body = r"Inline $x^2+y_1=\frac{a}{b}$.
 
@@ -61,6 +64,7 @@ fn unsupported_and_excessive_math_remains_visible_and_code_is_literal() {
 }
 
 #[test]
+#[cfg(feature = "math")]
 fn excessive_formula_counts_fall_back_without_losing_content() {
     let body = "$x^2$ ".repeat(300);
     let rendered = reader::render(&body, 80);
@@ -76,6 +80,7 @@ fn paired_currency_and_unsupported_layout_commands_keep_their_source() {
 }
 
 #[test]
+#[cfg(feature = "math")]
 fn sums_products_integrals_and_limits_have_readable_bounds() {
     for (latex, expected) in [
         (r"\sum_{i=1}^{n} x_i^2", "∑ᵢ₌₁ⁿ xᵢ²"),
@@ -98,6 +103,7 @@ fn sums_products_integrals_and_limits_have_readable_bounds() {
 }
 
 #[test]
+#[cfg(feature = "math")]
 fn extended_scripts_accents_matrices_and_binomials_keep_their_meaning() {
     for (latex, expected) in [
         (r"x^{abc}+y_{max}+A_{ij}^{-1}", "xᵃᵇᶜ + yₘₐₓ + Aᵢⱼ⁻¹"),
@@ -148,6 +154,7 @@ fn disabled_formulas_keep_the_exact_raw_source_even_in_tables_and_headings() {
 }
 
 #[test]
+#[cfg(feature = "math")]
 fn fractional_powers_and_grouped_bases_preserve_arithmetic_meaning() {
     for (source, expected) in [
         (r"$O(\log^{3/2} n)$", "O(log³⁄² n)"),
@@ -168,6 +175,7 @@ fn fractional_powers_and_grouped_bases_preserve_arithmetic_meaning() {
 }
 
 #[test]
+#[cfg(feature = "math")]
 fn nested_grouped_bases_and_vulgar_fraction_scripts_remain_unambiguous() {
     for (source, expected) in [
         (r"${(a)+(b)}^2$", "((a) + (b))²"),
@@ -184,6 +192,7 @@ fn nested_grouped_bases_and_vulgar_fraction_scripts_remain_unambiguous() {
 }
 
 #[test]
+#[cfg(feature = "math")]
 fn powers_of_powers_and_fraction_bases_keep_their_grouping() {
     for (source, expected) in [
         (r"${x^2}^3$", "(x²)³"),
@@ -200,6 +209,7 @@ fn powers_of_powers_and_fraction_bases_keep_their_grouping() {
 }
 
 #[test]
+#[cfg(feature = "math")]
 fn boxed_cancelled_braced_and_prescript_expressions_keep_selectable_source()
 -> Result<()> {
     for (latex, expected) in [

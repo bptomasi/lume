@@ -67,12 +67,13 @@ fn eventual_real_syntax_colors_preserve_selection_cursor_text_and_source()
         ),
         source
     );
-    assert!(
+    assert_eq!(
         app.reader()
             .reader_styled
             .iter()
             .flat_map(|line| &line.spans)
-            .any(|span| span.style.fg == Some(Color::Rgb(216, 164, 116)))
+            .any(|span| span.style.fg == Some(Color::Rgb(216, 164, 116))),
+        cfg!(feature = "syntax")
     );
     Ok(())
 }
@@ -135,12 +136,13 @@ fn background_markdown_and_syntax_keep_the_same_selected_code() -> Result<()> {
         thread::yield_now();
     }
     assert_eq!(common::reader::selected_text(&app)?, selected);
-    assert!(
+    assert_eq!(
         app.reader()
             .reader_styled
             .iter()
             .flat_map(|line| &line.spans)
-            .any(|span| span.style.fg == Some(Color::Rgb(216, 164, 116)))
+            .any(|span| span.style.fg == Some(Color::Rgb(216, 164, 116))),
+        cfg!(feature = "syntax")
     );
     app.end_session()?;
     Ok(())
@@ -203,11 +205,11 @@ fn formula_switch_reprojects_cached_text_and_preserves_source_cursor()
             );
             assert_eq!(
                 app.reader().reader_text.contains("x²"),
-                app.workspace().latex_formulas
+                app.workspace().latex_formulas && cfg!(feature = "math")
             );
             assert_eq!(
                 app.reader().reader_text.contains("$x^2$"),
-                !app.workspace().latex_formulas
+                !app.workspace().latex_formulas || !cfg!(feature = "math")
             );
         }
         app.end_session()?;
@@ -265,6 +267,9 @@ fn formula_setting_has_a_reversible_live_preview() -> Result<()> {
     assert!(app.reader().reader_text.contains("$x^2$"));
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     assert!(app.workspace().latex_formulas);
-    assert!(app.reader().reader_text.contains("x²"));
+    assert_eq!(
+        app.reader().reader_text.contains("x²"),
+        cfg!(feature = "math")
+    );
     Ok(())
 }

@@ -6,11 +6,13 @@
 
 pub mod cache;
 mod decode;
+#[cfg(feature = "svg")]
 mod fonts;
 mod geometry;
 pub mod profiling;
 mod raster;
 mod sixel;
+#[cfg(feature = "svg")]
 mod svg;
 mod worker;
 
@@ -37,6 +39,15 @@ pub enum ImageProtocol {
 }
 
 impl ImageProtocol {
+    /// Use a portable rendering when this build omits the requested protocol.
+    pub fn available(self) -> Self {
+        if self == Self::Sixel && !cfg!(feature = "sixel") {
+            Self::Blocks
+        } else {
+            self
+        }
+    }
+
     /// Human-readable presentation name for status and inspector chrome.
     pub fn label(self) -> &'static str {
         match self {
@@ -133,3 +144,16 @@ impl Thumbnail {
             + self.cache_warning.as_ref().map_or(0, String::capacity)
     }
 }
+
+/// A permanent build limitation, distinct from a malformed image or cache miss.
+#[derive(Debug)]
+pub(crate) struct UnavailableSvg;
+
+impl std::fmt::Display for UnavailableSvg {
+    fn fmt(&self, output: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        output
+            .write_str("SVG unavailable in this build; enable the svg feature")
+    }
+}
+
+impl std::error::Error for UnavailableSvg {}

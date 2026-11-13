@@ -77,7 +77,11 @@ fn jobs(store: &Store, health: &BTreeMap<i64, i64>) -> Result<Vec<Vec<Job>>> {
             .or_default()
             .push(Job::Publisher(feed));
     }
-    for server in store.servers()?.into_iter().filter(|server| server.enabled) {
+    for server in store
+        .servers()?
+        .into_iter()
+        .filter(|server| cfg!(feature = "miniflux") && server.enabled)
+    {
         let host = domain(&server.url);
         if !retries.contains_key(&host) {
             domains.entry(host).or_default().push(Job::Server(server));
@@ -150,7 +154,7 @@ fn publish(
         }
         Ok(_) => Ok((Vec::new(), false)),
         Err(error) => {
-            let retry_at = super::super::miniflux::retry_deadline(&error);
+            let retry_at = super::super::http_failure::retry_deadline(&error);
             store.record_domain_retry(&domain(&server.url), retry_at, now)?;
             let failed = store.record_collected_server_failure(
                 server,

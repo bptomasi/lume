@@ -7,6 +7,22 @@ description = "A quiet place for curious minds. An independent RSS/Atom reader."
 license = "MIT"
 publish = false
 
+[features]
+default = ["math", "graphic-math", "sixel", "svg", "syntax", "miniflux"]
+math = ["dep:math-core", "dep:roxmltree"]
+graphic-math = [
+    "math",
+    "svg",
+    "dep:ratex-layout",
+    "dep:ratex-parser",
+    "dep:ratex-svg",
+    "dep:ratex-types",
+]
+sixel = ["dep:icy_sixel", "dep:quantette"]
+svg = ["dep:resvg", "dep:roxmltree"]
+syntax = ["dep:syntect"]
+miniflux = []
+
 [dependencies]
 anyhow = "=1.0.104"
 base64 = { version = "=0.23.1", default-features = false, features = ["std"] }
@@ -17,30 +33,30 @@ dom_smoothie = { version = "=0.18.2", default-features = false }
 dom_query = { version = "=0.28.0", default-features = false }
 feed-rs = "=3.0.0"
 html5gum = { version = "=0.8.3", default-features = false }
-icy_sixel = "=0.1.3"
+icy_sixel = { version = "=0.1.3", optional = true }
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
-math-core = { version = "=0.9.0", default-features = false, features = ["std"] }
+math-core = { optional = true, version = "=0.9.0", default-features = false, features = ["std"] }
 nom = "=8.0.0"
-quantette = { version = "=0.6.0", default-features = false, features = ["std"] }
-ratex-layout = "=0.1.15"
-ratex-parser = "=0.1.15"
-ratex-svg = { version = "=0.1.15", features = ["embed-fonts"] }
-ratex-types = "=0.1.15"
+quantette = { optional = true, version = "=0.6.0", default-features = false, features = ["std"] }
+ratex-layout = { version = "=0.1.15", optional = true }
+ratex-parser = { version = "=0.1.15", optional = true }
+ratex-svg = { optional = true, version = "=0.1.15", features = ["embed-fonts"] }
+ratex-types = { version = "=0.1.15", optional = true }
 pulldown-cmark = { version = "=0.13.6", default-features = false }
 quick-xml = { version = "=0.42.0", features = ["escape-html", "serialize"] }
 ratatui = { version = "=0.29.0", default-features = false, features = ["crossterm"] }
 ratatui-image = { version = "=8.1.1", default-features = false }
-resvg = { version = "=0.48.1", default-features = false, features = ["text"] }
+resvg = { optional = true, version = "=0.48.1", default-features = false, features = ["text"] }
 refinery = { version = "=0.8.16", default-features = false, features = ["rusqlite"] }
 rusqlite = { version = "=0.32.1", features = ["bundled", "backup", "hooks"] }
-roxmltree = "=0.21.1"
+roxmltree = { version = "=0.21.1", optional = true }
 rustls = { version = "=0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
 rustls-native-certs = "=0.8.4"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.151"
 sha2 = { version = "=0.11.1", default-features = false }
 shlex = "=2.0.1"
-syntect = { version = "=5.3.0", default-features = false, features = ["parsing", "regex-fancy", "yaml-load"] }
+syntect = { optional = true, version = "=5.3.0", default-features = false, features = ["parsing", "regex-fancy", "yaml-load"] }
 tempfile = "=3.27.0"
 textwrap = { version = "=0.16.4", default-features = false, features = ["unicode-width"] }
 toml_edit = { version = "=0.25.15", default-features = false, features = ["parse", "display", "serde"] }
@@ -52,10 +68,27 @@ url = "=2.5.8"
 
 [build-dependencies]
 anyhow = "=1.0.104"
-syntect = { version = "=5.3.0", default-features = false, features = ["parsing", "regex-fancy", "yaml-load"] }
+syntect = { optional = true, version = "=5.3.0", default-features = false, features = ["parsing", "regex-fancy", "yaml-load"] }
+
+[[test]]
+name = "sixel_images"
+required-features = ["sixel", "svg"]
+
+[[test]]
+name = "math_graphics"
+required-features = ["graphic-math", "sixel"]
+
+[[example]]
+name = "sixel_profile"
+required-features = ["sixel", "svg"]
 
 [[bench]]
 name = "reader"
+harness = false
+required-features = ["math", "graphic-math", "sixel", "svg", "syntax", "miniflux"]
+
+[[bench]]
+name = "capabilities"
 harness = false
 
 [lints.rust]

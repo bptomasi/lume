@@ -4,6 +4,8 @@ Lume is an independent, local terminal reader. The library is the product's
 persistence boundary; sources, terminal protocols and filesystem publication
 are adapters with explicit limits. No component requires a hosted service,
 container, external database or model runtime.
+Optional [build capabilities](build-features.md) retain portable configuration
+and cached data while selecting rendering and transport adapters.
 
 ## Ownership and flow
 

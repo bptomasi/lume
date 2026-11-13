@@ -9,6 +9,11 @@ pub mod article;
 mod body;
 pub mod discovery;
 mod download;
+mod http_failure;
+#[cfg(feature = "miniflux")]
+mod miniflux;
+#[cfg(not(feature = "miniflux"))]
+#[path = "miniflux_unavailable.rs"]
 mod miniflux;
 mod scheduler;
 mod worker;
@@ -35,7 +40,8 @@ pub const MAX_FEED_BYTES: usize = 16 * 1024 * 1024;
 /// Collect subscriptions for a non-interactive CLI or real-service test.
 ///
 /// # Errors
-/// Returns database errors. Individual feed failures are saved and counted.
+/// Returns database errors or an unavailable enabled server capability.
+/// Individual feed failures are saved and counted.
 pub fn collect_once(path: &std::path::Path) -> Result<(usize, usize)> {
     worker::collect_once(path)
 }

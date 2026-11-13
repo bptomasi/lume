@@ -13,6 +13,8 @@ independent and configurable, with no account or server required.
 Building from source requires the pinned Rust toolchain, C build tools and
 Python 3 for installation.
 The installed application needs neither Python nor the source checkout.
+Source builds can omit heavy renderers and server transport through
+[Cargo features](docs/build-features.md); standard builds keep all capabilities.
 
 ```sh
 make install

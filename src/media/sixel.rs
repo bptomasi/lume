@@ -7,21 +7,29 @@
 //! Each strip erases its full cell width before painting pixels: skipped cells
 //! can still hold text from an earlier frame, including partially covered edges.
 
+#[cfg(feature = "sixel")]
 use super::profiling::{self, Step};
+#[cfg(feature = "sixel")]
 use anyhow::{Result, ensure};
+#[cfg(feature = "sixel")]
 use image::DynamicImage;
+#[cfg(feature = "sixel")]
+use ratatui::widgets::Widget;
 use ratatui::{
     buffer::{Buffer, Cell},
     layout::Rect,
-    widgets::Widget,
 };
+#[cfg(feature = "sixel")]
 use ratatui_image::{
     Image,
     protocol::{Protocol, sixel::Sixel},
 };
 
+#[cfg(feature = "sixel")]
 const MAX_ENCODED_BYTES: usize = 8 * 1024 * 1024;
+#[cfg(feature = "sixel")]
 mod encoding;
+#[cfg(feature = "sixel")]
 mod palette;
 
 /// Immutable cell-height Sixel strips, prepared outside the input/draw path.
@@ -35,6 +43,7 @@ pub struct SixelRows {
 }
 
 impl SixelRows {
+    #[cfg(feature = "sixel")]
     pub(super) fn new_cancellable(
         image: DynamicImage,
         area: Rect,
@@ -133,6 +142,7 @@ impl SixelRows {
 }
 
 /// The inspector uses the same color preparation as clipped reader images.
+#[cfg(feature = "sixel")]
 pub(super) fn native(
     image: DynamicImage,
     area: Rect,
@@ -166,6 +176,7 @@ pub(super) fn native(
 
 // RGB input can transfer its storage and release it after indexing. Other
 // formats keep the qualified conversion path and its established lifetimes.
+#[cfg(feature = "sixel")]
 #[inline(never)]
 fn native_rgb(
     rgb: image::RgbImage,
@@ -183,6 +194,7 @@ fn native_rgb(
     )?))
 }
 
+#[cfg(feature = "sixel")]
 fn encode(
     pixels: &[u8],
     width: u32,

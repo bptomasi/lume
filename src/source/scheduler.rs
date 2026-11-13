@@ -32,13 +32,29 @@ pub(super) fn refresh(
     progress: impl Fn(usize, usize),
 ) -> Result<Progress> {
     let mut store = Store::open(path)?;
-    discovery::collect(
+    let result = discovery::collect(
         &mut store,
         stopped,
         progress,
         &|server| super::miniflux::discover(client, server, stopped),
         &|feed| download::fetch(client, feed, stopped),
-    )
+    )?;
+    finish(&store, result)
+}
+
+// Preserve ordinary feed results while explaining omitted server work once.
+fn finish(store: &Store, result: Progress) -> Result<Progress> {
+    if !cfg!(feature = "miniflux")
+        && store.servers()?.iter().any(|server| server.enabled)
+        && let Progress::Finished { feeds, failures } = result
+    {
+        anyhow::bail!(
+            "Collected {feeds} publisher feeds · {failures} failures. \
+             Miniflux unavailable in this build; enable the miniflux feature. \
+             Cached server articles remain readable"
+        );
+    }
+    Ok(result)
 }
 
 #[cfg(test)]

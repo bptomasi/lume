@@ -1,8 +1,10 @@
 //! Controlled discovery delays verify progress without timing-based speed claims.
 use super::*;
+#[cfg(feature = "miniflux")]
 use std::sync::Mutex;
 
 #[test]
+#[cfg(feature = "miniflux")]
 fn slow_discovery_does_not_hold_fast_servers_or_publishers() -> Result<()> {
     let (_directory, mut store) = discovery_library()?;
     let (release, wait) = mpsc::sync_channel(1);
@@ -78,6 +80,7 @@ fn late_discovery_preserves_a_changed_connection_and_its_feed_set() -> Result<()
     Ok(())
 }
 
+#[cfg(feature = "miniflux")]
 fn unchanged(feed: &Feed) -> Download {
     Download {
         feed: feed.clone(),
@@ -86,6 +89,7 @@ fn unchanged(feed: &Feed) -> Download {
     }
 }
 
+#[cfg(feature = "miniflux")]
 fn discovery_library() -> Result<(tempfile::TempDir, Store)> {
     let directory = tempfile::tempdir()?;
     let store = Store::open(&directory.path().join("sources.sqlite3"))?;

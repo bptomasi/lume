@@ -30,7 +30,14 @@ fn reflow_reuses_the_index_until_formula_semantics_change() -> Result<()> {
     app.open_web_page(&document.url)?;
     settle(&mut app)?;
     let index = app.web_page().context("Page")?.index.clone();
-    assert_eq!(index.headings[0].title, "x²");
+    assert_eq!(
+        index.headings[0].title,
+        if cfg!(feature = "math") {
+            "x²"
+        } else {
+            "$x^2$"
+        }
+    );
     app.resize_workspace(ratatui::layout::Rect::new(0, 0, 60, 40));
     app.poll_web()?;
     settle(&mut app)?;

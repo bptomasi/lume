@@ -659,6 +659,7 @@ fn holding_enter_on_a_link_does_not_start_repeated_resource_opens() -> Result<()
 }
 
 #[test]
+#[cfg(feature = "math")]
 fn formula_preference_applies_to_linked_pages_and_back_history() -> Result<()> {
     let (_directory, store, _) = common::seeded_store()?;
     for name in ["first", "second"] {

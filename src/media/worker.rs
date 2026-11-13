@@ -18,7 +18,14 @@ mod http;
 mod request;
 use request::Request;
 
+const ACCEPT: &str = if cfg!(feature = "svg") {
+    "image/png, image/jpeg, image/webp, image/gif, image/svg+xml"
+} else {
+    "image/png, image/jpeg, image/webp, image/gif"
+};
+
 pub(crate) struct Completion {
+    pub(crate) unavailable: bool,
     pub(crate) profile: Option<super::profiling::Sample>,
     pub(crate) key: ImageKey,
     pub(crate) result: Result<Thumbnail, String>,
@@ -125,12 +132,14 @@ fn run(
             load_measured(&directory, offline, &mut client, &decoder, &request);
         let completion = match result {
             Ok(Some((key, image))) => Some(Completion {
+                unavailable: false,
                 profile,
                 key,
                 result: Ok(image),
             }),
             Ok(None) => None,
             Err(error) => request.key().ok().flatten().map(|key| Completion {
+                unavailable: error.is::<super::UnavailableSvg>(),
                 profile,
                 key,
                 result: Err(format!("{error:#}")),
@@ -230,6 +239,7 @@ fn load(
     });
     match cached {
         Ok(Some(image)) => return Ok(image),
+        Err(error) if error.is::<super::UnavailableSvg>() => return Err(error),
         Err(error) if offline => {
             return Err(error.context("Offline image cache"));
         }
@@ -253,10 +263,7 @@ fn load(
 pub(crate) fn download(client: &ureq::Agent, address: &str) -> Result<Vec<u8>> {
     let mut response = client
         .get(address)
-        .header(
-            "Accept",
-            "image/png, image/jpeg, image/webp, image/gif, image/svg+xml",
-        )
+        .header("Accept", ACCEPT)
         .config()
         .timeout_global(Some(Duration::from_secs(6)))
         .build()

@@ -106,7 +106,9 @@ impl DocumentIndex {
                     let text = super::math::Math::default()
                         .render(&text, false)
                         .map(|text| text.value)
-                        .unwrap_or_else(|| text.into_string());
+                        .unwrap_or_else(|| {
+                            body.get(range).unwrap_or(&text).to_owned()
+                        });
                     append_text(&mut heading, &mut code, &text);
                 }
                 Event::InlineMath(_) | Event::DisplayMath(_) => {

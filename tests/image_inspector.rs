@@ -24,6 +24,14 @@ use ratatui_image::Image;
 
 const SVG: &[u8] = br##"<svg xmlns="http://www.w3.org/2000/svg" width="128" height="64"><path fill="white" d="M0 0h128v64H0z"/><path fill="black" d="M64 0h1v64h-1z"/></svg>"##;
 
+fn sample() -> Result<Vec<u8>> {
+    if cfg!(feature = "svg") {
+        Ok(SVG.to_vec())
+    } else {
+        raster()
+    }
+}
+
 fn key(protocol: ImageProtocol, zoom: u8, pan: [u16; 2]) -> ImageKey {
     ImageKey {
         url: "https://journal.example/diagram".into(),
@@ -80,7 +88,7 @@ fn reading() -> Result<(tempfile::TempDir, App)> {
         .image_key(&app.reader().image_slots[0])
         .context("Inline key")?;
     let cache = directory.path().join("images");
-    media::cache::write(&cache, &key.url, SVG)?;
+    media::cache::write(&cache, &key.url, &sample()?)?;
     app.enable_images(cache, true)?;
     Ok((directory, app))
 }
@@ -144,7 +152,11 @@ fn zoom_recovers_a_one_pixel_line_from_raster_and_vector_sources() -> Result<()>
 {
     let mut decoder = Decoder::default();
     let key = key(ImageProtocol::Blocks, 8, [500, 500]);
-    for bytes in [raster()?, SVG.to_vec()] {
+    let mut sources = vec![raster()?];
+    if cfg!(feature = "svg") {
+        sources.push(SVG.to_vec());
+    }
+    for bytes in sources {
         let image = decoder.render(&bytes, &key)?;
         assert_eq!(image.cells.area, Rect::new(0, 0, 16, 8));
         assert_eq!(image.dimensions, (128, 64));
@@ -161,23 +173,27 @@ fn pan_reaches_source_edges_without_resizing_an_enlarged_canvas() -> Result<()>
 {
     let mut decoder = Decoder::default();
     for pan in [[0, 0], [1000, 1000]] {
-        let image = decoder.render(SVG, &key(ImageProtocol::Blocks, 8, pan))?;
+        let image =
+            decoder.render(&sample()?, &key(ImageProtocol::Blocks, 8, pan))?;
         assert!(image.cells.content.iter().all(|cell| {
             cell.fg == Color::Rgb(255, 255, 255)
                 && cell.bg == Color::Rgb(255, 255, 255)
         }));
     }
-    let fractional = br#"<svg xmlns="http://www.w3.org/2000/svg" width="0.5" height="0.25"><path fill="red" d="M0 0h1v1H0z"/></svg>"#;
-    let image =
-        decoder.render(fractional, &key(ImageProtocol::Blocks, 1, [0, 0]))?;
-    assert_eq!(image.dimensions, (1, 1));
-    assert!(
-        image
-            .cells
-            .content
-            .iter()
-            .any(|cell| cell.fg == Color::Rgb(255, 0, 0))
-    );
+    #[cfg(feature = "svg")]
+    {
+        let fractional = br#"<svg xmlns="http://www.w3.org/2000/svg" width="0.5" height="0.25"><path fill="red" d="M0 0h1v1H0z"/></svg>"#;
+        let image = decoder
+            .render(fractional, &key(ImageProtocol::Blocks, 1, [0, 0]))?;
+        assert_eq!(image.dimensions, (1, 1));
+        assert!(
+            image
+                .cells
+                .content
+                .iter()
+                .any(|cell| cell.fg == Color::Rgb(255, 0, 0))
+        );
+    }
     Ok(())
 }
 
@@ -186,8 +202,11 @@ fn native_encoders_receive_pixel_sized_images_and_remain_within_their_cells()
 -> Result<()> {
     use ratatui::widgets::Widget;
     let mut decoder = Decoder::default();
-    for protocol in [ImageProtocol::Sixel, ImageProtocol::Iterm2] {
-        let image = decoder.render(SVG, &key(protocol, 1, [0, 0]))?;
+    for protocol in [ImageProtocol::Sixel, ImageProtocol::Iterm2]
+        .into_iter()
+        .filter(|protocol| *protocol == protocol.available())
+    {
+        let image = decoder.render(&sample()?, &key(protocol, 1, [0, 0]))?;
         let native = image.native.context("Native protocol was lost")?;
         assert_eq!(native.area(), Rect::new(0, 0, 16, 4));
         let mut buffer = Buffer::empty(Rect::new(0, 0, 20, 10));
@@ -223,8 +242,9 @@ fn hostile_preparation_keys_are_rejected_before_allocating_viewports()
         .context("Detailed key")?
         .cell_pixels = (64, 128);
     keys.push(oversized);
+    let bytes = raster()?;
     for key in keys {
-        assert!(Decoder::default().render(SVG, &key).is_err());
+        assert!(Decoder::default().render(&bytes, &key).is_err());
     }
     Ok(())
 }
@@ -351,7 +371,7 @@ fn corrupt_offline_cache_keeps_the_decoder_reason_and_can_be_replaced()
         error.contains("Offline image cache")
             && error.contains("Supported images")
     );
-    media::cache::write(&cache, &key.url, SVG)?;
+    media::cache::write(&cache, &key.url, &sample()?)?;
     command(&mut app, "images retry")?;
     settle(&mut app)?;
     assert!(app.images().thumbnail(&key).is_some());
@@ -377,6 +397,7 @@ fn inspector_geometry_is_bounded_even_on_tiny_and_large_terminals() -> Result<()
 }
 
 #[test]
+#[cfg(feature = "sixel")]
 fn transparent_source_rgb_cannot_bleed_into_scaled_edges() -> Result<()> {
     use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
     use std::io::Cursor;

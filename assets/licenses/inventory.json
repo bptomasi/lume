@@ -1,7 +1,7 @@
 {
   "generator": "cargo-about 0.9.2",
   "lock_sha256": "d460bdad2cad87daa7212da882f2cb374611797d0a9585f93eb6ac44e617e187",
-  "manifest_sha256": "434a367b3261612ebd4caef6678f0ba546d8536c7ecac2621fca0512d4ead4ec",
+  "manifest_sha256": "ad61009228aa47ca38ddce2c552124dddd97d7295205d3fcaf9174367704b17d",
   "policy_sha256": "b00f99a4f88922e6aa93c2449d6e0bef161fb589a9c0f3080f5662fe2674bcd9",
   "packages": [
     {

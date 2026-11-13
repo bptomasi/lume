@@ -62,7 +62,16 @@ pub(super) fn validate(key: &ImageKey) -> Result<()> {
             "Invalid terminal pixel cell size"
         );
     }
-    let (width, height) = cell_pixels(key);
+    validate_pixel_budget(key)
+}
+
+fn validate_pixel_budget(key: &ImageKey) -> Result<()> {
+    // Validate requested native bounds even when presentation falls back.
+    let (width, height) = key
+        .detail
+        .as_ref()
+        .filter(|detail| detail.protocol != ImageProtocol::Blocks)
+        .map_or((1, 2), |detail| detail.cell_pixels);
     let pixels = u64::from(key.width)
         * u64::from(key.height)
         * u64::from(width)
@@ -77,6 +86,6 @@ pub(super) fn validate(key: &ImageKey) -> Result<()> {
 pub(super) fn cell_pixels(key: &ImageKey) -> (u16, u16) {
     key.detail
         .as_ref()
-        .filter(|detail| detail.protocol != ImageProtocol::Blocks)
+        .filter(|detail| detail.protocol.available() != ImageProtocol::Blocks)
         .map_or((1, 2), |detail| detail.cell_pixels)
 }

@@ -52,7 +52,8 @@ impl App {
             ImagePreference::Blocks => ImageProtocol::Blocks,
             ImagePreference::Sixel => ImageProtocol::Sixel,
             ImagePreference::Iterm2 => ImageProtocol::Iterm2,
-        };
+        }
+        .available();
         self.apply_formula_preferences();
     }
 
@@ -128,8 +129,15 @@ impl App {
             self.persist_preferences()?;
         }
         self.apply_image_preferences();
+        let fallback = if preference == ImagePreference::Sixel
+            && !cfg!(feature = "sixel")
+        {
+            " · Sixel unavailable in this build; enable sixel"
+        } else {
+            ""
+        };
         self.interaction.report(format!(
-            "Images: {} · :image opens · :image-open shows original",
+            "Images: {}{fallback} · :image opens · :image-open shows original",
             self.images.protocol.label(),
         ));
         Ok(())

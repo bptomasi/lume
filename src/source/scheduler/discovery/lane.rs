@@ -61,7 +61,7 @@ impl Timing {
         if let Err(error) = &result {
             self.remember(
                 &server.url,
-                super::super::super::miniflux::retry_deadline(error),
+                super::super::super::http_failure::retry_deadline(error),
             );
         }
         let (reply, receiver) = mpsc::sync_channel(1);

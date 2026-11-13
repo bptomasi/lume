@@ -11,6 +11,7 @@ pub(crate) use view::ImageView;
 use std::{collections::VecDeque, path::PathBuf};
 
 use anyhow::Result;
+use sha2::{Digest, Sha256};
 
 use crate::{
     media::{ImageKey, ImageProtocol, Thumbnail, Worker},
@@ -28,6 +29,11 @@ pub struct ReaderImages {
     visible: Vec<ImageKey>,
     deferred: Vec<ImageKey>,
     waiting: bool,
+    // Build limitations apply to a source across viewport keys. Explicit retry
+    // clears them so a resource changed to a supported format can be admitted.
+    // Digests avoid retaining arbitrary URL capacities; reasons and aggregate
+    // storage are bounded separately from the shared 32 MiB preparation budget.
+    unavailable: VecDeque<([u8; 32], String)>,
     cache: VecDeque<(ImageKey, Result<Thumbnail, String>)>,
     configuration: Option<(PathBuf, bool)>,
     protocol: ImageProtocol,
@@ -44,6 +50,7 @@ impl Default for ReaderImages {
             visible: Vec::new(),
             deferred: Vec::new(),
             waiting: false,
+            unavailable: VecDeque::new(),
             cache: VecDeque::new(),
             configuration: None,
             protocol: ImageProtocol::Blocks,
@@ -59,8 +66,18 @@ impl ReaderImages {
         self.cached(key)?.as_ref().ok()
     }
 
-    /// Recoverable loading failure for this exact thumbnail, if observed.
+    /// Thumbnail failure or source-wide build limitation, if observed.
     pub fn error(&self, key: &ImageKey) -> Option<&str> {
+        if !self.unavailable.is_empty() {
+            let identity: [u8; 32] = Sha256::digest(key.url.as_bytes()).into();
+            if let Some((_, message)) = self
+                .unavailable
+                .iter()
+                .find(|(source, _)| *source == identity)
+            {
+                return Some(message);
+            }
+        }
         self.cached(key)?.as_ref().err().map(String::as_str)
     }
 
@@ -93,6 +110,28 @@ impl ReaderImages {
             .map(|(_, value)| value)
     }
 
+    fn remember_unavailable(&mut self, key: &ImageKey, message: &str) {
+        let identity: [u8; 32] = Sha256::digest(key.url.as_bytes()).into();
+        self.unavailable.retain(|(source, _)| *source != identity);
+        self.unavailable
+            .push_front((identity, message.chars().take(256).collect()));
+        while self.unavailable.len() > 64 || self.unavailable_bytes() > 65_536 {
+            if self.unavailable.pop_back().is_none() {
+                break;
+            }
+        }
+        self.enforce_budget();
+    }
+
+    fn unavailable_bytes(&self) -> usize {
+        self.unavailable.capacity() * std::mem::size_of::<([u8; 32], String)>()
+            + self
+                .unavailable
+                .iter()
+                .map(|(_, message)| message.capacity())
+                .sum::<usize>()
+    }
+
     fn remember(&mut self, key: ImageKey, result: Result<Thumbnail, String>) {
         self.cache.retain(|(old, _)| *old != key);
         self.cache.push_front((key, result));
@@ -110,6 +149,10 @@ impl ReaderImages {
             }
             !inspector || details <= 2
         });
+        self.enforce_budget();
+    }
+
+    fn enforce_budget(&mut self) {
         let mut bytes = self.retained_bytes();
         while bytes > 32 * 1024 * 1024 {
             let victim = self
@@ -132,6 +175,7 @@ impl ReaderImages {
         let slots = self.cache.capacity()
             * std::mem::size_of::<(ImageKey, Result<Thumbnail, String>)>();
         slots
+            + self.unavailable_bytes()
             + self
                 .cache
                 .iter()
@@ -147,7 +191,9 @@ impl ReaderImages {
         self.visible
             .iter()
             .filter(|key| {
-                self.cached(key).is_none() && !self.deferred.contains(key)
+                self.cached(key).is_none()
+                    && self.error(key).is_none()
+                    && !self.deferred.contains(key)
             })
             .cloned()
             .collect()
@@ -281,6 +327,13 @@ impl App {
         self.images
             .pending
             .retain(|key| key.url != completed.key.url);
+        if completed.unavailable
+            && wanted.iter().any(|key| key.url == completed.key.url)
+            && let Err(message) = &completed.result
+        {
+            self.images.remember_unavailable(&completed.key, message);
+            return true;
+        }
         if !wanted.contains(&completed.key) {
             return false;
         }
@@ -304,6 +357,7 @@ impl App {
             .iter()
             .find(|key| {
                 self.images.cached(key).is_none()
+                    && self.images.error(key).is_none()
                     && !self.images.pending.iter().any(|old| old.url == key.url)
             })
             .cloned();
@@ -372,6 +426,7 @@ impl App {
             "on" => self.layout.enable_images(true),
             "off" => self.layout.enable_images(false),
             "retry" => {
+                self.images.unavailable.clear();
                 self.images.deferred.clear();
                 self.images.cache.retain(|(_, value)| value.is_ok());
                 if self.images.worker.is_none()

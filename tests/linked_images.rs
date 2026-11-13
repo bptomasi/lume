@@ -20,6 +20,19 @@ use ratatui::{Terminal, backend::TestBackend, layout::Rect, style::Color};
 const URL: &str = "https://example.org/pages/linked";
 const SVG: &[u8] = br##"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><path fill="#ff0000" d="M0 0h20v10H0z"/><path fill="#0000ff" d="M0 10h20v10H0z"/></svg>"##;
 
+fn sample() -> Result<Vec<u8>> {
+    if cfg!(feature = "svg") {
+        return Ok(SVG.to_vec());
+    }
+    let pixels = image::RgbImage::from_fn(20, 20, |_, row| {
+        image::Rgb(if row < 10 { [255, 0, 0] } else { [0, 0, 255] })
+    });
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(pixels)
+        .write_to(&mut bytes, image::ImageFormat::Png)?;
+    Ok(bytes.into_inner())
+}
+
 fn key(app: &mut App, code: KeyCode) -> Result<Action> {
     app.key(KeyEvent::new(code, KeyModifiers::NONE))
 }
@@ -51,7 +64,7 @@ fn fixture(
     app.configure_image_terminal(protocol, (10, 20));
     app.resize_workspace(Rect::new(0, 0, 100, 36));
     let cache = directory.path().join("images");
-    media::cache::write(&cache, "https://example.org/diagram.svg", SVG)?;
+    media::cache::write(&cache, "https://example.org/diagram.svg", &sample()?)?;
     app.enable_images(cache, true)?;
     Ok((directory, app))
 }
@@ -165,6 +178,7 @@ fn image_enter_and_mouse_inspection_return_to_the_linked_reading() -> Result<()>
 }
 
 #[test]
+#[cfg(feature = "sixel")]
 fn sixel_linked_rows_are_clipped_and_hidden_beneath_overlays() -> Result<()> {
     let (_directory, mut app) = fixture(
         &format!(
@@ -206,6 +220,7 @@ fn sixel_linked_rows_are_clipped_and_hidden_beneath_overlays() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "sixel")]
 fn native_rows(terminal: &Terminal<TestBackend>) -> usize {
     terminal
         .backend()
@@ -273,6 +288,7 @@ fn links_after_images_keep_exact_anchors() -> Result<()> {
 }
 
 #[test]
+#[cfg(feature = "sixel")]
 fn back_history_restores_cached_pixels_without_loading_them_again() -> Result<()>
 {
     let (directory, mut app) = fixture(
@@ -307,6 +323,7 @@ fn back_history_restores_cached_pixels_without_loading_them_again() -> Result<()
 }
 
 #[test]
+#[cfg(all(feature = "graphic-math", feature = "sixel"))]
 fn linked_formula_pixels_and_image_caption_survive_resize() -> Result<()> {
     let (_directory, mut app) = fixture(
         "![Network lab](/diagram.svg)\n\n$$\\frac{1}{2}$$",

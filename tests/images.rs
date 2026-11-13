@@ -19,6 +19,14 @@ use ratatui::{Terminal, backend::TestBackend, layout::Rect, style::Color};
 
 const SVG: &[u8] = br##"<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><path fill="#ff0000" d="M0 0h2v1H0z"/><path fill="#0000ff" d="M0 1h2v1H0z"/></svg>"##;
 
+fn sample() -> Result<Vec<u8>> {
+    if cfg!(feature = "svg") {
+        Ok(SVG.to_vec())
+    } else {
+        raster(ImageFormat::Png)
+    }
+}
+
 fn key(width: u16, height: u16) -> ImageKey {
     ImageKey {
         url: "https://journal.example/diagram.svg".into(),
@@ -187,9 +195,12 @@ fn raster_and_svg_preserve_known_colors_without_terminal_escape_sequences()
         assert_eq!(cell.fg, Color::Rgb(255, 0, 0), "{format:?}");
         assert_eq!(cell.bg, Color::Rgb(0, 0, 255), "{format:?}");
     }
-    let image = decoder.render(SVG, &key(2, 1))?;
-    assert_eq!(image.cells[(0, 0)].fg, Color::Rgb(255, 0, 0));
-    assert_eq!(image.cells[(0, 0)].bg, Color::Rgb(0, 0, 255));
+    #[cfg(feature = "svg")]
+    {
+        let image = decoder.render(SVG, &key(2, 1))?;
+        assert_eq!(image.cells[(0, 0)].fg, Color::Rgb(255, 0, 0));
+        assert_eq!(image.cells[(0, 0)].bg, Color::Rgb(0, 0, 255));
+    }
     let jpeg = decoder.render(&raster(ImageFormat::Jpeg)?, &key(2, 1))?;
     assert_eq!(jpeg.dimensions, (2, 2));
     assert_ne!(jpeg.cells[(0, 0)].fg, jpeg.cells[(0, 0)].bg);
@@ -239,6 +250,7 @@ fn malformed_unsupported_and_oversized_images_fail_without_ready_cells()
 }
 
 #[test]
+#[cfg(feature = "svg")]
 fn svg_rejects_entities_and_node_bombs_and_never_loads_referenced_files()
 -> Result<()> {
     let directory = tempfile::tempdir()?;
@@ -320,7 +332,7 @@ fn cached_image_completion_does_not_change_text_selection_or_scroll()
     let key = app.image_key(&slot).context("Image key")?;
     assert_eq!(key.url, "https://journal.example/diagram.svg");
     let cache = directory.path().join("images");
-    media::cache::write(&cache, &key.url, SVG)?;
+    media::cache::write(&cache, &key.url, &sample()?)?;
     let anchor = app.cursor_offset();
     common::reader::select(&mut app, anchor)?;
     let text = app.reader().reader_text.to_owned();
@@ -371,7 +383,7 @@ fn offline_miss_can_be_retried_and_loading_can_be_paused() -> Result<()> {
             .context("Offline error")?
             .contains("offline")
     );
-    media::cache::write(&cache, &key.url, SVG)?;
+    media::cache::write(&cache, &key.url, &sample()?)?;
 
     command(&mut app, "images retry")?;
     settle(&mut app)?;
@@ -414,11 +426,10 @@ fn theme_changes_keep_literal_image_colors_and_image_rows_keep_a_visible_cursor(
 -> Result<()> {
     let (directory, mut app) = reading("![Dark diagram](/diagram.svg)")?;
     let cache = directory.path().join("images");
-    let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><path fill="#17171a" d="M0 0h2v2H0z"/></svg>"##;
     let key = app
         .image_key(&app.reader().image_slots[0])
         .context("Image key")?;
-    media::cache::write(&cache, &key.url, svg)?;
+    media::cache::write(&cache, &key.url, &dark_image()?)?;
     app.enable_images(cache, true)?;
     let column =
         ui::workspace_reader_content(Rect::new(0, 0, 100, 36), app.workspace());
@@ -453,7 +464,7 @@ fn resizing_uses_a_new_thumbnail_key_without_mutating_text_or_resolving_an_inval
         .image_key(&app.reader().image_slots[0])
         .context("Original key")?;
     let cache = directory.path().join("images");
-    media::cache::write(&cache, &old.url, SVG)?;
+    media::cache::write(&cache, &old.url, &sample()?)?;
     app.enable_images(cache, true)?;
     settle(&mut app)?;
     let text = app.reader().reader_text.to_owned();
@@ -545,7 +556,7 @@ fn collapsed_reader_does_not_admit_images_until_it_is_visible() -> Result<()> {
         .image_key(&app.reader().image_slots[0])
         .context("Image key")?;
     let cache = directory.path().join("images");
-    media::cache::write(&cache, &key.url, SVG)?;
+    media::cache::write(&cache, &key.url, &sample()?)?;
     app.enable_images(cache, true)?;
     common::fixture_pane(&mut app, lume::model::Pane::Reader, false)?;
 
@@ -585,6 +596,7 @@ fn uhd_sources_fit_the_pixel_budget_and_keep_original_definition() -> Result<()>
 }
 
 #[test]
+#[cfg(feature = "svg")]
 fn svg_transparency_composites_against_each_theme_without_color_halos()
 -> Result<()> {
     let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect width="1" height="2" fill="red" opacity="0.5"/></svg>"#;
@@ -667,6 +679,45 @@ fn transparent_sixteen_bit_sources_keep_their_colors_across_theme_changes()
     Ok(())
 }
 
+#[test]
+#[cfg(not(feature = "svg"))]
+fn omitted_svg_does_not_retry_on_resize_and_explicit_retry_admits_new_bytes()
+-> Result<()> {
+    let (directory, mut app) = reading("![Diagram](/diagram.svg)")?;
+    let key = app.image_key(&app.reader().image_slots[0]).context("Key")?;
+    let cache = directory.path().join("images");
+    media::cache::write(&cache, &key.url, SVG)?;
+    app.enable_images(cache.clone(), true)?;
+    settle(&mut app)?;
+    assert!(
+        app.images()
+            .error(&key)
+            .context("SVG error")?
+            .contains("enable the svg feature")
+    );
+    app.resize_reader(18, 8);
+    let resized = app
+        .image_key(&app.reader().image_slots[0])
+        .context("Resized key")?;
+    assert_ne!(resized, key);
+    assert!(!app.poll_images() && !app.images_pending());
+    assert!(
+        app.images()
+            .error(&resized)
+            .context("Retained error")?
+            .contains("SVG unavailable")
+    );
+    command(&mut app, "images retry")?;
+    settle(&mut app)?;
+    assert!(app.images().error(&resized).is_some());
+    media::cache::write(&cache, &key.url, &raster(ImageFormat::Png)?)?;
+    command(&mut app, "images retry")?;
+    settle(&mut app)?;
+    assert!(app.images().error(&resized).is_none());
+    assert!(app.images().thumbnail(&resized).is_some());
+    Ok(())
+}
+
 fn oriented_jpeg_payload(encoded: &[u8], orientation: u8) -> Vec<u8> {
     let exif = [
         b'E',
@@ -706,4 +757,19 @@ fn oriented_jpeg_payload(encoded: &[u8], orientation: u8) -> Vec<u8> {
     bytes.extend_from_slice(&exif);
     bytes.extend_from_slice(&encoded[2..]);
     bytes
+}
+
+fn dark_image() -> Result<Vec<u8>> {
+    let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><path fill="#17171a" d="M0 0h2v2H0z"/></svg>"##;
+    if cfg!(feature = "svg") {
+        return Ok(svg.to_vec());
+    }
+    let mut png = Cursor::new(Vec::new());
+    DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+        2,
+        2,
+        image::Rgb([23, 23, 26]),
+    ))
+    .write_to(&mut png, ImageFormat::Png)?;
+    Ok(png.into_inner())
 }

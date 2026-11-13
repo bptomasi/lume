@@ -1,10 +1,13 @@
 //! Language and publisher contracts are checked through rendered reader output.
 
+#[cfg(feature = "syntax")]
 #[path = "fixtures/code_samples.rs"]
 mod samples;
 
+#[cfg(feature = "syntax")]
 use anyhow::{Result, anyhow, ensure};
 use lume::{content, reader};
+#[cfg(feature = "syntax")]
 use ratatui::{style::Color, text::Line};
 
 fn code_text(rendered: &reader::Rendered) -> Vec<String> {
@@ -22,6 +25,7 @@ fn code_text(rendered: &reader::Rendered) -> Vec<String> {
         .collect()
 }
 
+#[cfg(feature = "syntax")]
 fn token_color(lines: &[Line<'_>], token: &str) -> Result<Color> {
     for line in lines {
         let text = line
@@ -48,6 +52,7 @@ fn token_color(lines: &[Line<'_>], token: &str) -> Result<Color> {
 }
 
 #[test]
+#[cfg(feature = "syntax")]
 fn every_supported_language_preserves_source_and_colors_its_tokens()
 -> Result<()> {
     for sample in samples::SAMPLES {
@@ -74,6 +79,7 @@ fn every_supported_language_preserves_source_and_colors_its_tokens()
 }
 
 #[test]
+#[cfg(feature = "syntax")]
 fn familiar_aliases_resolve_to_the_same_grammar() {
     for (canonical, aliases) in [
         ("rust", &["rs", "Rust", "rust,ignore", "{.rust}"][..]),
@@ -100,6 +106,7 @@ fn familiar_aliases_resolve_to_the_same_grammar() {
 }
 
 #[test]
+#[cfg(feature = "syntax")]
 fn html_code_and_pre_metadata_survive_normalization() -> Result<()> {
     for fragment in [
         "<pre><code class='language-typescript'>const x = &quot;hello&quot;;</code></pre>",
@@ -121,6 +128,7 @@ fn html_code_and_pre_metadata_survive_normalization() -> Result<()> {
 }
 
 #[test]
+#[cfg(feature = "syntax")]
 fn multiline_comments_keep_their_lexical_state() -> Result<()> {
     let source =
         "```c\n/* explanation\n   continued comment */\nint value = 42;\n```";
@@ -175,6 +183,7 @@ fn unknown_missing_and_oversized_languages_keep_readable_code() {
 }
 
 #[test]
+#[cfg(feature = "syntax")]
 fn publisher_wrapper_languages_are_inherited_without_leaking_to_later_blocks()
 -> Result<()> {
     let html = "<div class='language-sql highlighter-rouge'>\
@@ -196,6 +205,7 @@ fn publisher_wrapper_languages_are_inherited_without_leaking_to_later_blocks()
 }
 
 #[test]
+#[cfg(feature = "syntax")]
 fn strong_unlabelled_sql_and_shell_evidence_selects_reviewed_grammars()
 -> Result<()> {
     let sql = "CALL serve(token = 'hello');\nCREATE TABLE events (name VARCHAR);\nINSERT INTO events VALUES ('hello');";

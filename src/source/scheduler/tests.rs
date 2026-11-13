@@ -343,6 +343,7 @@ fn a_server_discovery_failure_does_not_retry_each_remote_feed() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "miniflux")]
 fn remote_library(count: usize) -> Result<(tempfile::TempDir, Store)> {
     let (directory, mut store) = library(&[])?;
     let server = store.add_server("https://reader.example", "TOKEN")?;
@@ -359,6 +360,7 @@ fn remote_library(count: usize) -> Result<(tempfile::TempDir, Store)> {
 }
 
 #[test]
+#[cfg(feature = "miniflux")]
 fn private_server_requests_are_serial_without_publisher_spacing() -> Result<()>
 {
     let (_directory, mut store) = remote_library(8)?;
@@ -393,6 +395,7 @@ fn private_server_requests_are_serial_without_publisher_spacing() -> Result<()>
 }
 
 #[test]
+#[cfg(feature = "miniflux")]
 fn remote_retry_after_skips_remaining_network_calls_and_pacing() -> Result<()> {
     let (_directory, mut store) = remote_library(8)?;
     let calls = AtomicUsize::new(0);
@@ -414,4 +417,57 @@ fn remote_retry_after_skips_remaining_network_calls_and_pacing() -> Result<()> {
             .all(|source| source.retry_at >= deadline)
     );
     Ok(())
+}
+
+#[test]
+#[cfg(not(feature = "miniflux"))]
+fn disabled_servers_leave_publisher_collection_and_cached_data_usable()
+-> Result<()> {
+    let (_directory, mut store) = library(&["https://publisher.example/feed"])?;
+    let id = store.add_server("https://reader.example", "TOKEN")?;
+    let server = store.servers()?.remove(0);
+    let calls = AtomicUsize::new(0);
+    let result = discovery::collect(
+        &mut store,
+        &AtomicBool::new(false),
+        |_, _| {},
+        &|_| Err(anyhow::anyhow!("Disabled discovery must never be called")),
+        &|feed| {
+            calls.fetch_add(1, Ordering::SeqCst);
+            Download {
+                feed: feed.clone(),
+                result: publisher_fixture(feed),
+                retry_at: 0,
+            }
+        },
+    )?;
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    let error = finish(&store, result)
+        .err()
+        .ok_or_else(|| anyhow::anyhow!("Missing capability explanation"))?;
+    assert!(error.to_string().contains("Collected 1 publisher feeds"));
+    assert_eq!(store.library()?.articles.len(), 1);
+    assert_eq!(store.servers()?[0].sync, server.sync);
+    assert!(store.servers()?[0].error.is_empty());
+    store.set_server_enabled(id, false)?;
+    assert!(
+        finish(
+            &store,
+            Progress::Finished {
+                feeds: 0,
+                failures: 0
+            }
+        )
+        .is_ok()
+    );
+    Ok(())
+}
+
+#[cfg(not(feature = "miniflux"))]
+fn publisher_fixture(feed: &Feed) -> Result<Option<super::super::ParsedFeed>> {
+    super::super::parse(
+        include_bytes!("../../../tests/fixtures/rss.xml"),
+        &feed.url,
+    )
+    .map(Some)
 }

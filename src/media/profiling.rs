@@ -147,6 +147,7 @@ pub fn capture_encoder<T>(
     (value, sample)
 }
 
+#[cfg(feature = "sixel")]
 pub(super) fn encoder() -> Encoder {
     ACTIVE.with_borrow(|active| {
         active
@@ -155,6 +156,7 @@ pub(super) fn encoder() -> Encoder {
     })
 }
 
+#[cfg(feature = "sixel")]
 pub(super) fn encoder_scratch(bytes: usize) {
     ACTIVE.with_borrow_mut(|active| {
         if let Some(sample) = active {
@@ -164,6 +166,7 @@ pub(super) fn encoder_scratch(bytes: usize) {
     });
 }
 
+#[cfg(feature = "sixel")]
 pub(super) fn record_encoder(sparse: bool) {
     ACTIVE.with_borrow_mut(|active| {
         if let Some(sample) = active {
@@ -172,6 +175,7 @@ pub(super) fn record_encoder(sparse: bool) {
     });
 }
 
+#[cfg(any(feature = "sixel", test))]
 pub(super) fn quantizer() -> Quantizer {
     ACTIVE.with_borrow(|active| {
         active

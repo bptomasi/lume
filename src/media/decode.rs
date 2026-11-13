@@ -14,6 +14,7 @@ use super::{ImageKey, ImageProtocol, MAX_BYTES, Thumbnail, geometry};
 /// Reuses fonts and bounded raster/vector sources outside UI drawing.
 #[derive(Default)]
 pub struct Decoder {
+    #[cfg(feature = "svg")]
     svg: super::svg::SvgDecoder,
     raster: super::raster::RasterDecoder,
 }
@@ -42,7 +43,14 @@ impl Decoder {
         let (image, dimensions) = if image::guess_format(bytes).is_ok() {
             self.raster.render(bytes, key)?
         } else {
-            self.svg.render(bytes, key)?
+            #[cfg(feature = "svg")]
+            {
+                self.svg.render(bytes, key)?
+            }
+            #[cfg(not(feature = "svg"))]
+            {
+                return Err(unsupported(bytes));
+            }
         };
         Ok((image, dimensions))
     }
@@ -71,6 +79,7 @@ pub(crate) fn prepare_cancellable(
     let height = image.height().div_ceil(u32::from(cell_height)) as u16;
     let image = composite(image, key);
     let area = Rect::new(0, 0, width, height);
+    #[cfg(feature = "sixel")]
     if key.detail.as_ref().is_some_and(|detail| {
         detail.protocol == ImageProtocol::Sixel && detail.slice.is_some()
     }) {
@@ -111,6 +120,7 @@ fn portable_cells(protocol: &Protocol, area: Rect) -> Buffer {
     cells
 }
 
+#[cfg(feature = "sixel")]
 fn inline_thumbnail(
     image: DynamicImage,
     area: Rect,
@@ -136,15 +146,16 @@ fn encode(
     image: DynamicImage,
     area: Rect,
     key: &ImageKey,
-    cancel: Option<&crate::cancellation::Cancellation>,
+    _cancel: Option<&crate::cancellation::Cancellation>,
 ) -> Result<Protocol> {
     let Some(detail) = &key.detail else {
         return Ok(Protocol::Halfblocks(Halfblocks::new(image, area)?));
     };
+    #[cfg(feature = "sixel")]
     if detail.protocol == ImageProtocol::Sixel {
-        return super::sixel::native(image, area, cancel);
+        return super::sixel::native(image, area, _cancel);
     }
-    let protocol = match detail.protocol {
+    let protocol = match detail.protocol.available() {
         ImageProtocol::Blocks => {
             return Ok(Protocol::Halfblocks(Halfblocks::new(image, area)?));
         }
@@ -181,11 +192,9 @@ fn slice(image: DynamicImage, key: &ImageKey) -> DynamicImage {
 
 fn composite(image: DynamicImage, key: &ImageKey) -> DynamicImage {
     let [red, green, blue] = key.background;
-    let height = if key
-        .detail
-        .as_ref()
-        .is_none_or(|detail| detail.protocol == ImageProtocol::Blocks)
-    {
+    let height = if key.detail.as_ref().is_none_or(|detail| {
+        detail.protocol.available() == ImageProtocol::Blocks
+    }) {
         image.height().next_multiple_of(2)
     } else {
         // Native pixels must fit the exact cell budget. Padding an odd final
@@ -206,12 +215,79 @@ fn composite(image: DynamicImage, key: &ImageKey) -> DynamicImage {
     DynamicImage::ImageRgba8(canvas)
 }
 
+#[cfg(not(feature = "svg"))]
+fn unsupported(bytes: &[u8]) -> anyhow::Error {
+    if vector_root(bytes) {
+        super::UnavailableSvg.into()
+    } else {
+        anyhow::anyhow!(
+            "Supported images: PNG, JPEG, WebP and GIF; \
+             SVG unavailable in this build (enable the svg feature)"
+        )
+    }
+}
+
+#[cfg(not(feature = "svg"))]
+fn vector_root(bytes: &[u8]) -> bool {
+    use quick_xml::events::Event;
+
+    // Inspect only the root, without building a tree or resolving entities.
+    // HTML error pages containing SVG icons must remain retryable failures.
+    let mut reader = quick_xml::Reader::from_reader(bytes);
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(root) | Event::Empty(root)) => {
+                return root.local_name().as_ref() == "svg";
+            }
+            Ok(Event::Decl(_) | Event::Comment(_) | Event::PI(_)) => {}
+            Ok(Event::Text(text))
+                if text
+                    .as_ref()
+                    .bytes()
+                    .all(|byte| byte.is_ascii_whitespace()) => {}
+            _ => return false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "sixel")]
     use super::*;
+    #[cfg(feature = "sixel")]
     use crate::media::{ImageDetail, ImageSlice};
 
     #[test]
+    #[cfg(not(feature = "svg"))]
+    fn only_vector_roots_have_a_permanent_build_limitation() {
+        for source in [
+            "<html><body><svg/></body></html>",
+            "The server could not load <svg/>",
+            "<svg-not-an-image/>",
+            "<!-- <svg/> -->not an image",
+            "<!DOCTYPE svg SYSTEM 'file:///unavailable'><svg/>",
+        ] {
+            assert!(
+                !super::unsupported(source.as_bytes())
+                    .is::<crate::media::UnavailableSvg>(),
+                "{source}"
+            );
+        }
+        for source in [
+            "<svg xmlns='http://www.w3.org/2000/svg'/>",
+            "<?xml version='1.0'?><!-- diagram --><svg/>",
+            "<vector:svg xmlns:vector='http://www.w3.org/2000/svg'/>",
+        ] {
+            assert!(
+                super::unsupported(source.as_bytes())
+                    .is::<crate::media::UnavailableSvg>(),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "sixel")]
     fn complete_slices_keep_owned_pixels_and_partial_slices_keep_exact_rows() {
         let image =
             DynamicImage::ImageRgba8(RgbaImage::from_fn(2, 4, |_, y| {

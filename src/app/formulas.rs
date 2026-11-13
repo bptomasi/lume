@@ -27,6 +27,12 @@ impl App {
             "LaTeX formulas {}",
             if !enabled {
                 "disabled"
+            } else if !cfg!(feature = "math") {
+                "unavailable in this build; enable math · source retained"
+            } else if self.layout.workspace().latex_graphics
+                && !cfg!(feature = "graphic-math")
+            {
+                "text fallback; enable graphic-math for graphics"
             } else if self.layout.workspace().latex_graphics
                 && self.uses_sixel_images()
             {

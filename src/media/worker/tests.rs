@@ -3,6 +3,7 @@ use super::*;
 use anyhow::Result;
 
 #[test]
+#[cfg(all(feature = "svg", feature = "sixel"))]
 fn production_image_measurements_are_opt_in_and_separate_real_stages()
 -> Result<()> {
     use crate::media::{ImageDetail, ImageProtocol, profiling::Step};
@@ -121,13 +122,7 @@ fn the_latest_crop_is_captured_after_waiting_for_the_shared_decoder()
         .map_err(|_| anyhow::anyhow!("Decoder lock"))?;
     let request = Arc::new(Request::new(key("https://a.test/image", 40), None));
     let (source, pending) = (decoder.clone(), request.clone());
-    let thread = thread::spawn(move || {
-        render(
-            &source,
-            include_bytes!("../../../tests/fixtures/images/request-path.svg"),
-            &pending,
-        )
-    });
+    let thread = thread::spawn(move || render(&source, &raster()?, &pending));
     let latest = key("https://a.test/image", 80);
     request.retarget(Some(latest.clone()))?;
     drop(guard);
@@ -147,7 +142,7 @@ fn an_encoding_replacement_reuses_source_bytes_and_delivers_only_the_latest_crop
     let mut attempts = 0;
     let result = render_with(
         &Mutex::new(Decoder::default()),
-        include_bytes!("../../../tests/fixtures/images/request-path.svg"),
+        &raster()?,
         &request,
         |image, dimensions, key, cancel| {
             attempts += 1;
@@ -168,5 +163,42 @@ fn an_encoding_replacement_reuses_source_bytes_and_delivers_only_the_latest_crop
     assert!(!cancel.is_cancelled(), "Identical retarget restarted work");
     request.retarget(None)?;
     assert!(cancel.is_cancelled());
+    Ok(())
+}
+
+fn raster() -> Result<Vec<u8>> {
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+        2,
+        2,
+        image::Rgb([255, 0, 0]),
+    ))
+    .write_to(&mut bytes, image::ImageFormat::Png)?;
+    Ok(bytes.into_inner())
+}
+
+#[test]
+#[cfg(not(feature = "svg"))]
+fn unsupported_cached_svg_never_constructs_a_network_client() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let key = key("https://example.org/image.svg", 40);
+    cache::write(
+        directory.path(),
+        &key.url,
+        include_bytes!("../../../tests/fixtures/images/request-path.svg"),
+    )?;
+    let request = Request::new(key, None);
+    let mut client = None;
+    let error = load(
+        directory.path(),
+        false,
+        &mut client,
+        &Mutex::new(Decoder::default()),
+        &request,
+    )
+    .err()
+    .context("SVG capability error")?;
+    assert!(error.is::<super::super::UnavailableSvg>());
+    assert!(client.is_none());
     Ok(())
 }
