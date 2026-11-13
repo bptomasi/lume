@@ -94,14 +94,30 @@ fn load(
         background: [22, 22, 24],
         detail: None,
     };
-    if let Ok(Some(bytes)) = crate::media::cache::read(root, address)
-        && decoder.render(&bytes, &key).is_ok()
-    {
+    if let Some(bytes) = supported_cache(root, address, decoder, &key)? {
         return Ok(bytes);
     }
     let bytes = crate::media::download(client, address)?;
     decoder.render(&bytes, &key)?;
     Ok(bytes)
+}
+
+fn supported_cache(
+    root: &Path,
+    address: &str,
+    decoder: &mut crate::media::Decoder,
+    key: &crate::media::ImageKey,
+) -> Result<Option<Vec<u8>>> {
+    let Ok(Some(bytes)) = crate::media::cache::read(root, address) else {
+        return Ok(None);
+    };
+    match decoder.render(&bytes, key) {
+        Ok(_) => Ok(Some(bytes)),
+        // Changing build capabilities cannot repair this cached source by
+        // downloading it again. Preserve it for a compatible build.
+        Err(error) if error.is::<crate::media::UnavailableSvg>() => Err(error),
+        Err(_) => Ok(None),
+    }
 }
 
 #[derive(Default)]

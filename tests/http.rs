@@ -757,35 +757,21 @@ fn decoded_article_boundaries_cover_gzip_and_preserve_a_good_cache()
     Ok(())
 }
 
+const OFFLINE_SVG: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="orange"/></svg>"#;
+
 #[test]
 #[ignore = "requires real loopback HTTP; required by make check-release"]
-fn offline_package_downloads_full_text_and_pins_validated_svg() -> Result<()> {
+fn offline_package_downloads_full_text_and_pins_validated_images() -> Result<()>
+{
     let (directory, mut store, feed) = common::seeded_store()?;
-    let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="orange"/></svg>"#;
-    let (image, image_request) =
-        server(200, svg, "Content-Type: image/svg+xml\r\n")?;
-    let html = format!(
-        "<html><body><article><h1>Offline qualification</h1><p>Readable independent article content with durable offline availability and a useful diagram.</p><img src='{image}' alt='Diagram'/></article></body></html>"
-    );
-    let (address, article_request) =
-        server(200, html.as_bytes(), "Content-Type: text/html\r\n")?;
+    let (bytes, headers) = offline_image_fixture()?;
+    let (image, image_request) = server(200, &bytes, headers)?;
+    let (address, article_request) = offline_page(&image)?;
     let target = set_article_url(&mut store, &feed, &address)?;
     store.set_queued(target.article, true)?;
-    let plan = lume::offline_service::capture(
-        &store,
-        lume::model::View::Queue,
-        lume::model::OfflineLimits::default(),
-    )?;
     let images = directory.path().join("images");
     corrupt_image_caches(&images, &image)?;
-
-    let result = lume::offline_service::prepare(
-        &store,
-        &images,
-        plan,
-        &std::sync::atomic::AtomicBool::new(false),
-        |_| {},
-    )?;
+    let result = prepare_queued_offline(&store, &images)?;
 
     article_request.recv_timeout(Duration::from_secs(5))?;
     image_request.recv_timeout(Duration::from_secs(5))?;
@@ -797,10 +783,96 @@ fn offline_package_downloads_full_text_and_pins_validated_svg() -> Result<()> {
     assert_eq!(result.items[0].images, 1);
     assert_eq!(
         lume::media::cache::read(&images, &image)?.context("Pinned image")?,
-        svg
+        bytes
     );
     assert!(lume::media::cache::path(&images.join("offline"), &image).exists());
     Ok(())
+}
+
+#[test]
+#[cfg(not(feature = "svg"))]
+#[ignore = "requires real loopback HTTP; required by make check-release"]
+fn offline_cached_svg_keeps_text_without_contacting_its_server() -> Result<()> {
+    let (directory, mut store, feed) = common::seeded_store()?;
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let image = format!("http://{}/diagram.svg", listener.local_addr()?);
+    let (address, article_request) = offline_page(&image)?;
+    let target = set_article_url(&mut store, &feed, &address)?;
+    store.set_queued(target.article, true)?;
+    let images = directory.path().join("images");
+    lume::media::cache::write(&images, &image, OFFLINE_SVG)?;
+    let result = prepare_queued_offline(&store, &images)?;
+
+    article_request.recv_timeout(Duration::from_secs(5))?;
+    assert_no_request(&listener)?;
+    let item = &result.items[0];
+    assert_eq!(item.status, lume::model::OfflineStatus::Partial);
+    assert_eq!(item.images, 0);
+    assert!(item.error.contains("SVG unavailable in this build"));
+    assert!(
+        store
+            .cached_document(target.article)?
+            .context("Full cache")?
+            .body
+            .contains("Readable independent article content")
+    );
+    assert_eq!(
+        lume::media::cache::read(&images, &image)?.as_deref(),
+        Some(OFFLINE_SVG)
+    );
+    assert!(
+        !lume::media::cache::path(&images.join("offline"), &image).exists()
+    );
+    Ok(())
+}
+
+#[cfg(not(feature = "svg"))]
+fn assert_no_request(listener: &TcpListener) -> Result<()> {
+    listener.set_nonblocking(true)?;
+    match listener.accept() {
+        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => Ok(()),
+        Err(error) => Err(error.into()),
+        Ok(_) => anyhow::bail!("Cached unsupported image triggered HTTP"),
+    }
+}
+
+fn offline_image_fixture() -> Result<(Vec<u8>, &'static str)> {
+    if cfg!(feature = "svg") {
+        return Ok((OFFLINE_SVG.to_vec(), "Content-Type: image/svg+xml\r\n"));
+    }
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+        80,
+        40,
+        image::Rgb([255, 165, 0]),
+    ))
+    .write_to(&mut bytes, image::ImageFormat::Png)?;
+    Ok((bytes.into_inner(), "Content-Type: image/png\r\n"))
+}
+
+fn offline_page(image: &str) -> Result<(String, mpsc::Receiver<String>)> {
+    let html = format!(
+        "<html><body><article><h1>Offline qualification</h1><p>Readable independent article content with durable offline availability and a useful diagram.</p><img src='{image}' alt='Diagram'/></article></body></html>"
+    );
+    server(200, html.as_bytes(), "Content-Type: text/html\r\n")
+}
+
+fn prepare_queued_offline(
+    store: &Store,
+    images: &std::path::Path,
+) -> Result<lume::model::OfflineState> {
+    let plan = lume::offline_service::capture(
+        store,
+        lume::model::View::Queue,
+        lume::model::OfflineLimits::default(),
+    )?;
+    lume::offline_service::prepare(
+        store,
+        images,
+        plan,
+        &std::sync::atomic::AtomicBool::new(false),
+        |_| {},
+    )
 }
 
 #[test]
