@@ -4,12 +4,12 @@
 
 use anyhow::{Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::{App, Focus},
     model::IncomingArticle,
     reader,
     store::Store,
-    ui,
 };
 use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
@@ -116,7 +116,7 @@ fn frames(
             key(&mut app, 'l')?;
             let anchor = app.cursor_offset().saturating_sub(5);
             crate::reader_input::select(&mut app, anchor)?;
-            terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+            terminal.draw(|frame| draw_interactive(frame, &mut app))?;
             let text = terminal
                 .backend()
                 .buffer()

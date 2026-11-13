@@ -38,6 +38,10 @@ pub struct NotebookView<'a> {
 }
 
 impl<'a> NotebookView<'a> {
+    // Array sizes in the renderer enforce these shared scroll-row counts.
+    pub(crate) const NOTE_HEADING_ROWS: usize = 4;
+    pub(crate) const SOURCE_HEADING_ROWS: usize = 3;
+
     /// Selected preview only when it belongs to the current query and page.
     pub fn current(&self) -> Option<&'a NoteSummary> {
         self.current
@@ -56,6 +60,18 @@ impl<'a> NotebookView<'a> {
             .saturating_sub(capacity / 2)
             .min(self.page.notes.len().saturating_sub(capacity));
         (first, capacity)
+    }
+
+    /// Prepared context rows, including four note and three source headings.
+    pub fn context_scroll_limit(&self, height: u16) -> usize {
+        let Some(context) = self.current_context() else {
+            return 0;
+        };
+        let rows = Self::NOTE_HEADING_ROWS
+            + context.lines.len()
+            + Self::SOURCE_HEADING_ROWS
+            + context.source_lines.len();
+        rows.saturating_sub(usize::from(height.saturating_sub(2).max(1)))
     }
 
     /// First visible collection row.

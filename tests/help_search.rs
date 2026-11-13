@@ -15,7 +15,7 @@ fn key(app: &mut App, code: KeyCode) -> Result<()> {
 
 fn screen(app: &App, width: u16, height: u16) -> Result<String> {
     let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-    terminal.draw(|frame| ui::draw(frame, app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     Ok(terminal
         .backend()
         .buffer()

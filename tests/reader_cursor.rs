@@ -37,7 +37,7 @@ fn cursor_is_an_ivory_block_distinct_from_amber_visual_selection() -> Result<()>
 {
     let (_directory, mut app, content) = reader_app("abc")?;
     let mut terminal = Terminal::new(TestBackend::new(100, 30))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let first = &terminal.backend().buffer()[(content.x, content.y)];
     assert_eq!(first.symbol(), "a");
     assert_eq!(first.bg, Color::Rgb(224, 219, 208));
@@ -47,7 +47,7 @@ fn cursor_is_an_ivory_block_distinct_from_amber_visual_selection() -> Result<()>
         app.key(KeyEvent::new(KeyCode::Char(key), KeyModifiers::NONE))?;
     }
 
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
 
     let buffer = terminal.backend().buffer();
     assert_eq!(buffer[(content.x, content.y)].bg, Color::Rgb(225, 179, 109));
@@ -63,7 +63,7 @@ fn cursor_handles_wide_graphemes_and_empty_rows_without_coloring_unfocused_text(
 -> Result<()> {
     let (_directory, mut app, content) = reader_app("界 text\n\nnext")?;
     let mut terminal = Terminal::new(TestBackend::new(100, 30))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     assert_eq!(
         terminal.backend().buffer()[(content.x, content.y)].symbol(),
         "界"
@@ -73,14 +73,14 @@ fn cursor_handles_wide_graphemes_and_empty_rows_without_coloring_unfocused_text(
         Color::Rgb(224, 219, 208)
     );
     app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     assert_eq!(
         terminal.backend().buffer()[(content.x, content.y + 1)].bg,
         Color::Rgb(224, 219, 208)
     );
     app.activate_pane(Focus::Articles);
 
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
 
     assert_ne!(
         terminal.backend().buffer()[(content.x, content.y + 1)].bg,
@@ -116,7 +116,7 @@ fn crossterm_hides_the_hardware_cursor_while_drawing_and_restores_it_on_drop()
         },
     )?;
 
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
 
     let during = String::from_utf8(capture.0.borrow().clone())?;
     assert!(

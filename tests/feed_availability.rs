@@ -164,7 +164,7 @@ fn notice_reflows_in_panels_and_fullscreen_without_affecting_normal_articles()
             .context("Missing reader")?;
             let body = ui::workspace_reader_content(reader, app.workspace());
             app.resize_reader(body.width.into(), body.height.into());
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             let screen = terminal
                 .backend()
                 .buffer()

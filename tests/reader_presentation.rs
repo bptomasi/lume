@@ -44,7 +44,7 @@ fn justified_prose_keeps_copy_quotes_and_saved_preference_exact() -> Result<()>
     command(&mut app, "justify on")?;
     let mut terminal =
         Terminal::new(TestBackend::new(screen.width, screen.height))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let content = ui::workspace_reader_content(screen, app.workspace());
     let visible = (content.x..content.right())
         .map(|x| terminal.backend().buffer()[(x, content.y)].symbol())
@@ -87,7 +87,7 @@ fn scrolling_one_code_block_does_not_shift_other_blocks() -> Result<()> {
     let first_offset = app.reader().horizontal;
     let mut terminal =
         Terminal::new(TestBackend::new(screen.width, screen.height))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let visible = terminal
         .backend()
         .buffer()

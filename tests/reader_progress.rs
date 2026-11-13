@@ -35,7 +35,7 @@ fn key(app: &mut App, code: KeyCode) -> Result<()> {
 fn percent(app: &App) -> Result<usize> {
     let mut terminal =
         Terminal::new(TestBackend::new(SCREEN.width, SCREEN.height))?;
-    terminal.draw(|frame| ui::draw(frame, app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let text = (1..10)
         .map(|x| terminal.backend().buffer()[(x, SCREEN.height - 2)].symbol())
         .collect::<String>();

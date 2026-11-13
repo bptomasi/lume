@@ -134,14 +134,14 @@ impl App {
             .as_mut()
             .context("Open Notebook first")?;
         let limit = if self.layout.focus() == Focus::Reader {
-            let height = crate::ui::workspace_areas(
+            let height = crate::presentation::geometry::workspace_areas(
                 self.layout.screen(),
                 self.layout.focus(),
                 self.layout.workspace(),
             )
             .reader
             .map_or(1, |area| area.height);
-            crate::ui::notebook_scroll_limit(&notebook.view(), height)
+            notebook.view().context_scroll_limit(height)
         } else {
             0
         };

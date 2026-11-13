@@ -19,8 +19,10 @@ container, external database or model runtime.
   Miniflux subscriptions and entries with bounded pages. Publisher refreshes
   preserve personal flags, memberships, notes and article deletion.
 - `app` owns focus, modes, selection and workflows, composing typed storage and
-  background contracts. `ui` reads cached presentation state and never runs SQL,
-  HTTP, Markdown parsing, syntax compilation or image encoding while drawing.
+  background contracts. `App::presentation` borrows cached pane, chrome and
+  overlay views; UI components receive only their relevant view. `ui` never
+  borrows App and never runs SQL, HTTP, Markdown parsing, syntax compilation
+  or image encoding while drawing.
 - `reader` owns source offsets, wrapping, code styling and source-based motion.
   `media` owns bounded image retrieval, decoding, SVG rasterization and caches.
 - `recommendation` owns explicit matching policy, transparent scores and bounded
@@ -262,8 +264,8 @@ are serialized once after recursive pruning. Recoverable note history and
 indirect undo targets also protect articles from automatic retention, preventing
 foreign-key failures or lost versions.
 
-`ui::layout` computes fixed columns and binary splits with bounded rectangle
-arithmetic. Rendering, focus and pointer hit testing share that geometry.
+`presentation::geometry` computes fixed columns and binary splits with bounded
+rectangle arithmetic. Rendering, focus and pointer hit testing share that geometry.
 Each split reserves the combined minimum dimensions of its expanded children;
 resizing cannot suppress Articles while the terminal can fit the whole tree.
 Focus cycling retains the saved pane order independently of spatial focus.
@@ -271,6 +273,17 @@ Standard reset restores canonical pane order, visibility and widths as one undoa
 change, retaining source selection and prose preferences. Notebook layout
 remains independent. Built-in profiles start from canonical dimensions rather
 than inheriting a rearranged active workspace; saved profiles are preserved.
+
+The neutral `presentation` modules own shared rectangles, navigation rows,
+article/annotation hit windows, headline labels and bounded pane pictures.
+Application input depends on these contracts without depending on UI. View
+factories borrow cached slices and metadata without allocating, parsing or
+admitting work; note-hit lookup remains lazy behind visible footer hints.
+`frame_composition` coordinates the mutable interactive frame: paint themed
+panes and overlays, capture the bounded gesture source, then paint motion and
+native images. Image inspection returns after its own base paint; linked pages
+paint native images without capturing article panes. Immutable `ui::draw` stays
+available for previews and cached frame tests.
 
 Library search caches normalized destination names when the catalog changes.
 Typing filters those names without SQLite work; article search reuses the
@@ -313,7 +326,7 @@ alignment use grapheme widths in terminal cells.
 | Library, Articles, Reader, Annotations and Notebook panes | `ui::theme::panel` |
 | Help, commands, note/card editors, forms, pickers and documents | `ui::popup::draw_frame` |
 | Settings, Space actions, Ctrl-w guide and hovered notes | `ui::popup::draw_frame` |
-| Floating and compact dragged panes | Captured panel or `ui::drag_picture` |
+| Floating and compact dragged panes | Captured panel or `presentation::pane_picture` |
 | Reader tables and their text inspections | `reader::tables` |
 
 Frames retain the Unicode arcs `╭ ╮ ╰ ╯`. Popup titles leave connected border

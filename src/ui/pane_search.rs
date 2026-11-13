@@ -3,14 +3,14 @@
 use ratatui::{Frame, layout::Rect, style::Style, widgets::Paragraph};
 
 use crate::{
-    app::{App, Input, InputKind, Mode},
+    app::{Input, InputKind, Mode, SearchView},
     model::Pane,
 };
 
 use super::theme::{AMBER, MUTED};
 
-fn editor(app: &App, pane: Pane) -> Option<&Input> {
-    let Mode::Input(input) = app.mode() else {
+fn editor<'a>(view: &SearchView<'a>, pane: Pane) -> Option<&'a Input> {
+    let Mode::Input(input) = view.mode else {
         return None;
     };
     matches!(
@@ -21,35 +21,33 @@ fn editor(app: &App, pane: Pane) -> Option<&Input> {
     .then_some(input)
 }
 
-fn query(app: &App, pane: Pane) -> &str {
+fn query<'a>(view: &SearchView<'a>, pane: Pane) -> &'a str {
     match pane {
-        Pane::Library => app.navigation().library_query,
-        Pane::Articles => app.navigation().search,
+        Pane::Library => view.navigation.library_query,
+        Pane::Articles => view.navigation.search,
         _ => "",
     }
 }
 
-pub(super) fn content(app: &App, pane: Pane, inner: Rect) -> Rect {
-    let rows = if editor(app, pane).is_some() || !query(app, pane).is_empty() {
-        inner.height.min(2)
-    } else {
-        0
-    };
-    Rect::new(inner.x, inner.y + rows, inner.width, inner.height - rows)
+pub(super) fn content(view: &SearchView<'_>, pane: Pane, inner: Rect) -> Rect {
+    crate::presentation::hit::search_content(
+        inner,
+        editor(view, pane).is_some() || !query(view, pane).is_empty(),
+    )
 }
 
 pub(super) fn draw(
     frame: &mut Frame<'_>,
-    app: &App,
+    view: &SearchView<'_>,
     pane: Pane,
     inner: Rect,
 ) -> Rect {
-    let content = content(app, pane, inner);
+    let content = content(view, pane, inner);
     if content == inner {
         return content;
     }
     let field = Rect::new(inner.x, inner.y, inner.width, 1.min(inner.height));
-    if let Some(input) = editor(app, pane) {
+    if let Some(input) = editor(view, pane) {
         frame.render_widget(
             Paragraph::new("/ ").style(Style::new().fg(AMBER)),
             field,
@@ -65,13 +63,13 @@ pub(super) fn draw(
         );
     } else {
         frame.render_widget(
-            Paragraph::new(format!("/ {}", query(app, pane)))
+            Paragraph::new(format!("/ {}", query(view, pane)))
                 .style(Style::new().fg(AMBER)),
             field,
         );
     }
     if inner.height > 1 {
-        let hint = if editor(app, pane).is_some() {
+        let hint = if editor(view, pane).is_some() {
             "↑↓ matches · Enter apply · Esc cancel"
         } else {
             "/ edit · Esc clear"

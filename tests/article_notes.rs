@@ -266,7 +266,7 @@ fn hover_batches_show_the_note_and_clicking_popup_edits_it() -> Result<()> {
     let (id, anchor) = app.hovered_note().context("Hover missing")?;
     assert_eq!(id, app.reader().comments[0].id);
     let mut terminal = Terminal::new(TestBackend::new(140, 36))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let buffer = terminal.backend().buffer();
     let visible = buffer
         .content
@@ -427,7 +427,7 @@ fn annotation_previews_stay_inside_small_viewports_in_all_themes() -> Result<()>
             assert!(popup.right() <= width);
             assert!(popup.bottom() <= height);
             let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         }
     }
     Ok(())

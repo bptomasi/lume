@@ -16,14 +16,6 @@ pub(super) const ACCENT: Color = Color::Rgb(225, 179, 109);
 pub(super) const AMBER: Color = Color::Rgb(225, 179, 109);
 pub(super) const BLUE: Color = Color::Rgb(145, 180, 218);
 
-pub(crate) fn image_background(name: &str) -> [u8; 3] {
-    match name {
-        "nord" => [52, 60, 75],
-        "gruvbox" => [40, 40, 40],
-        _ => [23, 23, 26],
-    }
-}
-
 pub(super) fn panel(title: String, focused: bool) -> Block<'static> {
     let color = if focused { ACCENT } else { BORDER };
     Block::bordered()

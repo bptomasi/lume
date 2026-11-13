@@ -9,37 +9,39 @@ use ratatui::{
 };
 
 use crate::{
-    app::{App, Focus, NotebookView},
+    app::{Focus, NotebookView},
     content,
 };
 
 use super::{Areas, theme::*};
 
-pub(super) fn draw(frame: &mut Frame<'_>, app: &App, areas: &Areas) {
-    let Some(notebook) = &app.notebook() else {
-        return;
-    };
+pub(super) fn draw(
+    frame: &mut Frame<'_>,
+    focus: Focus,
+    notebook: &NotebookView<'_>,
+    areas: &Areas,
+) {
     if let Some(area) = areas.library {
-        collections(frame, app, notebook, area);
+        collections(frame, focus, notebook, area);
     }
     if let Some(area) = areas.articles {
-        notes(frame, app, notebook, area);
+        notes(frame, focus, notebook, area);
     }
     if let Some(area) = areas.reader {
-        context(frame, app, notebook, area);
+        context(frame, focus, notebook, area);
     }
     if let Some(area) = areas.annotations {
-        backlinks(frame, app, notebook, area);
+        backlinks(frame, focus, notebook, area);
     }
 }
 
 fn collections(
     frame: &mut Frame<'_>,
-    app: &App,
+    focus: Focus,
     notebook: &NotebookView<'_>,
     area: Rect,
 ) {
-    let block = panel(" Collections ".into(), app.focus() == Focus::Library);
+    let block = panel(" Collections ".into(), focus == Focus::Library);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let items = ["All notes", "Pinned", "Open questions", "Follow-up actions"]
@@ -63,7 +65,7 @@ fn collections(
 
 fn notes(
     frame: &mut Frame<'_>,
-    app: &App,
+    focus: Focus,
     notebook: &NotebookView<'_>,
     area: Rect,
 ) {
@@ -76,7 +78,7 @@ fn notes(
             ""
         }
     );
-    let block = panel(title, app.focus() == Focus::Articles);
+    let block = panel(title, focus == Focus::Articles);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     if notebook.page.notes.is_empty() {
@@ -181,11 +183,11 @@ fn note_heading(
 
 fn context(
     frame: &mut Frame<'_>,
-    app: &App,
+    focus: Focus,
     notebook: &NotebookView<'_>,
     area: Rect,
 ) {
-    let block = panel(" Context ".into(), app.focus() == Focus::Reader);
+    let block = panel(" Context ".into(), focus == Focus::Reader);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let Some(context) = notebook.current_context() else {
@@ -215,7 +217,7 @@ fn context(
     );
 }
 
-fn source_heading() -> [Line<'static>; 3] {
+fn source_heading() -> [Line<'static>; NotebookView::SOURCE_HEADING_ROWS] {
     [
         Line::raw(""),
         Line::styled("SOURCE CONTEXT", Style::new().fg(BLUE)),
@@ -223,22 +225,10 @@ fn source_heading() -> [Line<'static>; 3] {
     ]
 }
 
-pub(crate) fn context_scroll_limit(
-    notebook: &NotebookView<'_>,
-    height: u16,
-) -> usize {
-    let Some(context) = notebook.current_context() else {
-        return 0;
-    };
-    let rows = context_headings(context).len()
-        + context.lines.len()
-        + source_heading().len()
-        + context.source_lines.len();
-    rows.saturating_sub(usize::from(height.saturating_sub(2).max(1)))
-}
-
-fn context_headings(context: &crate::app::NoteContext) -> Vec<Line<'static>> {
-    vec![
+fn context_headings(
+    context: &crate::app::NoteContext,
+) -> [Line<'static>; NotebookView::NOTE_HEADING_ROWS] {
+    [
         Line::styled(
             content::label(&context.title, 160),
             Style::new().fg(TEXT).add_modifier(Modifier::BOLD),
@@ -259,11 +249,11 @@ fn context_headings(context: &crate::app::NoteContext) -> Vec<Line<'static>> {
 
 fn backlinks(
     frame: &mut Frame<'_>,
-    app: &App,
+    focus: Focus,
     notebook: &NotebookView<'_>,
     area: Rect,
 ) {
-    let block = panel(" Backlinks ".into(), app.focus() == Focus::Annotations);
+    let block = panel(" Backlinks ".into(), focus == Focus::Annotations);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let Some(context) = notebook.current_context() else {

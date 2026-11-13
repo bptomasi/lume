@@ -27,7 +27,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
             for character in "systems article".chars() {
                 key(&mut app, KeyCode::Char(character))?;
                 settle(&mut app)?;
-                terminal.draw(|frame| ui::draw(frame, &app))?;
+                terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
                 ensure!(
                     !app.navigation().visible.is_empty(),
                     "Live matches disappeared"
@@ -65,7 +65,7 @@ fn help(
             ensure!(app.help_scroll() != first, "Help match did not move");
             key(app, KeyCode::Char('N'))?;
             ensure!(app.help_scroll() == first, "Help reverse lost its place");
-            terminal.draw(|frame| ui::draw(frame, app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             key(app, KeyCode::Esc)?;
             key(app, KeyCode::Esc)
         },

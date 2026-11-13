@@ -16,7 +16,7 @@ fn three_panes_have_dark_background_and_selected_article_content() -> Result<()>
     let (_directory, mut app) = demo_app()?;
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     app.resize_reader(78, 29);
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let buffer = terminal.backend().buffer();
     let text = buffer
         .content
@@ -44,15 +44,15 @@ fn compact_and_tiny_terminals_render_every_mode_without_overflow() -> Result<()>
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
         for focus in [Focus::Library, Focus::Articles, Focus::Reader] {
             app.activate_pane(focus);
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             app.key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE))?;
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
             app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
             app.activate_pane(Focus::Reader);
             app.paste("note")?;
             app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
             app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
             app.paste("q!")?;
@@ -82,11 +82,12 @@ fn selectors_zen_and_smart_forms_remain_usable_at_small_sizes() -> Result<()> {
                     KeyModifiers::NONE,
                 ))?;
             }
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             if matches!(app.mode(), lume::app::Mode::Smart(_)) {
                 for _ in 0..6 {
                     app.key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE))?;
-                    terminal.draw(|frame| ui::draw(frame, &app))?;
+                    terminal
+                        .draw(|frame| ui::draw(frame, &app.presentation()))?;
                 }
             }
             app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
@@ -100,7 +101,7 @@ fn command_menu_exposes_syntax_and_filters_visible_choices() -> Result<()> {
     let (_directory, mut app) = demo_app()?;
     let mut terminal = Terminal::new(TestBackend::new(120, 32))?;
     app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let text = terminal
         .backend()
         .buffer()
@@ -113,7 +114,7 @@ fn command_menu_exposes_syntax_and_filters_visible_choices() -> Result<()> {
     for character in "fold".chars() {
         app.key(KeyEvent::new(KeyCode::Char(character), KeyModifiers::NONE))?;
     }
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let text = terminal
         .backend()
         .buffer()

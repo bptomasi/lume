@@ -117,7 +117,7 @@ fn pixel(x: u16, y: u16, name: &str) -> Color {
         Some(b'm') => [114, 113, 110],
         Some(b'l') => [170, 167, 159],
         Some(b'o') => [38, 38, 41],
-        _ => theme::image_background(name),
+        _ => crate::presentation::palette::image_background(name),
     };
     Color::Rgb(red, green, blue)
 }

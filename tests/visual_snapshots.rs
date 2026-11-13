@@ -12,6 +12,7 @@ use anyhow::{Context, Result};
 use crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
+use lume::frame_composition::draw_interactive;
 use lume::{app::App, model::Pane, ui};
 use ratatui::{Terminal, backend::TestBackend, buffer::Buffer, layout::Rect};
 
@@ -89,7 +90,7 @@ fn scenario(
     app.resize_workspace(area);
     configure(&mut app, area, scene)?;
     let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
     Ok(terminal.backend().buffer().clone())
 }
 

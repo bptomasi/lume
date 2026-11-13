@@ -192,7 +192,7 @@ fn advance_context(
         KeyModifiers::NONE,
     ))?;
     settle(app)?;
-    terminal.draw(|frame| ui::draw(frame, app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let note = app
         .notebook()
         .and_then(|book| book.current_context())

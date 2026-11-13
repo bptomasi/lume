@@ -132,7 +132,7 @@ fn continuation_padding_keeps_mouse_cursor_selection_and_reflow_exact()
     let screen = Rect::new(0, 0, 24, 30);
     let content = lume::ui::workspace_reader_content(screen, app.workspace());
     let mut terminal = Terminal::new(TestBackend::new(24, 30))?;
-    terminal.draw(|frame| lume::ui::draw(frame, &app))?;
+    terminal.draw(|frame| lume::ui::draw(frame, &app.presentation()))?;
     let row = (content.x..content.right())
         .map(|x| terminal.backend().buffer()[(x, content.y + 1)].symbol())
         .collect::<String>();

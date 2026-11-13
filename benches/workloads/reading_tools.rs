@@ -75,7 +75,7 @@ fn selection_frames(
             let mut bytes = Vec::new();
             clipboard::copy(&mut bytes, "caf")?;
             ensure!(bytes == b"\x1b]52;c;Y2Fm\x1b\\", "Clipboard wire changed");
-            terminal.draw(|frame| ui::draw(frame, app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             ensure!(
                 terminal.backend().buffer()[(content.x + 2, content.y)].bg
                     == ratatui::style::Color::Rgb(225, 179, 109),

@@ -43,7 +43,7 @@ fn main() -> Result<()> {
     }
     settle(&mut app)?;
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     support::export(terminal.backend().buffer(), &output)?;
     println!("{}", output.display());
     Ok(())

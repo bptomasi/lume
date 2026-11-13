@@ -2,6 +2,7 @@
 
 use crate::{app::App, reader::images::ImageSlot};
 
+#[derive(Clone, Copy)]
 pub(crate) struct Viewport<'a> {
     pub(crate) slots: &'a [ImageSlot],
     pub(crate) scroll: usize,

@@ -5,7 +5,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::{app::NavItem, model::View, store::Store};
 
-use super::{App, NavigationView, Row, window, window_start};
+use super::{NavigationView, Row, window};
+use crate::app::App;
+use crate::presentation::navigation::window_start;
 
 #[test]
 fn stable_windows_match_full_projection_across_repeated_groups() -> Result<()> {

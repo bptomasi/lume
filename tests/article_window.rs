@@ -45,7 +45,7 @@ fn area(app: &App) -> Result<Rect> {
 
 fn targets(app: &App, area: Rect) -> Vec<Option<usize>> {
     (area.y + 1..area.bottom() - 1)
-        .map(|row| ui::article_at(app, area, row))
+        .map(|row| ui::article_at(app.navigation_hits(), area, row))
         .collect()
 }
 
@@ -88,7 +88,7 @@ fn repeated_visible_clicks_keep_card_positions_and_pointer_targets()
             assert_eq!(targets(&app, area), before, "Click moved the cards");
             let mut terminal =
                 Terminal::new(TestBackend::new(SCREEN.width, SCREEN.height))?;
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             let id = app.navigation().visible[expected];
             let text = (area.x + 1..area.right() - 1)
                 .map(|x| {

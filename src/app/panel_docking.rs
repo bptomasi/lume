@@ -5,7 +5,7 @@ use ratatui::layout::Rect;
 
 use crate::{
     model::{Dock, Pane},
-    ui,
+    presentation::geometry,
 };
 
 use super::App;
@@ -41,7 +41,7 @@ impl App {
     }
 
     pub(super) fn resize_visible_split(&mut self, delta: i32) -> Result<()> {
-        let areas = ui::workspace_areas(
+        let areas = geometry::workspace_areas(
             self.layout.screen(),
             self.layout.focus(),
             self.layout.workspace(),
@@ -77,7 +77,7 @@ impl App {
     }
 
     fn spatial_neighbor(&self, edge: Dock) -> Option<Pane> {
-        let areas = ui::workspace_areas(
+        let areas = geometry::workspace_areas(
             self.layout.screen(),
             self.layout.focus(),
             self.layout.workspace(),
@@ -94,7 +94,7 @@ impl App {
         // Resolve responsive suppression against the same topology at a size
         // that fits all four leaves, even at the minimum 15% split ratios.
         // Explicitly collapsed panes remain excluded by workspace_areas.
-        let expanded = ui::workspace_areas(
+        let expanded = geometry::workspace_areas(
             Rect::new(0, 0, 2048, 1024),
             self.layout.focus(),
             self.layout.workspace(),
@@ -104,7 +104,7 @@ impl App {
     }
 }
 
-fn neighbor(areas: &ui::Areas, focus: Pane, edge: Dock) -> Option<Pane> {
+fn neighbor(areas: &geometry::Areas, focus: Pane, edge: Dock) -> Option<Pane> {
     let current = areas.get(focus)?;
     Pane::ALL
         .into_iter()

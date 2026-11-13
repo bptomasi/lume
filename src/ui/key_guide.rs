@@ -2,16 +2,16 @@
 
 use ratatui::{Frame, layout::Rect, style::Style, widgets::Paragraph};
 
-use crate::app::{App, Mode};
+use crate::app::{GuideView, Mode};
 
 use super::theme::TEXT;
 
-pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
-    let Some(area) = area(app, frame.area()) else {
+pub(super) fn draw(frame: &mut Frame<'_>, view: &GuideView<'_>) {
+    let Some(area) = area(view, frame.area()) else {
         return;
     };
     let width = area.width;
-    let title = format!("Layout · Ctrl-w · {}", app.focus().title());
+    let title = format!("Layout · Ctrl-w · {}", view.focus.title());
     let inner = super::popup::draw_frame(frame, &title, area);
     let help = if width < 62 {
         concat!(
@@ -40,8 +40,8 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     );
 }
 
-pub(super) fn area(app: &App, screen: Rect) -> Option<Rect> {
-    if !app.layout_prefix_pending() || !matches!(app.mode(), Mode::Normal) {
+pub(super) fn area(view: &GuideView<'_>, screen: Rect) -> Option<Rect> {
+    if !view.layout_prefix_pending || !matches!(view.mode, Mode::Normal) {
         return None;
     }
     let width = screen.width.saturating_sub(4).min(70);

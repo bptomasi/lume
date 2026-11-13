@@ -18,7 +18,7 @@ use ratatui::layout::{Position, Rect};
 
 use crate::{
     model::{ContentSource, Pane, Workspace},
-    ui,
+    presentation::geometry::{self, workspace_areas},
 };
 
 use super::{Action, App, Mode};
@@ -41,7 +41,7 @@ impl Widths {
 
     fn visible(
         workspace: &Workspace,
-        areas: &ui::Areas,
+        areas: &geometry::Areas,
         pair: [Pane; 2],
     ) -> Self {
         let mut widths = Self::capture(workspace);
@@ -62,7 +62,7 @@ impl Widths {
 
 enum Gesture {
     SplitResize {
-        boundary: ui::SplitBoundary,
+        boundary: geometry::SplitBoundary,
         grab: Position,
         before: crate::model::PaneLayout,
     },
@@ -241,7 +241,7 @@ impl App {
         if self.panel_drag().is_some() {
             return;
         }
-        let Some(reader) = ui::workspace_areas(
+        let Some(reader) = workspace_areas(
             self.layout.screen(),
             self.layout.focus(),
             self.layout.workspace(),
@@ -251,7 +251,7 @@ impl App {
             return;
         };
         let content =
-            ui::workspace_reader_content(reader, self.layout.workspace());
+            geometry::workspace_reader_content(reader, self.layout.workspace());
         if !content.contains(Position::new(event.column, event.row)) {
             return;
         }
@@ -272,7 +272,7 @@ impl App {
         let layout = self.layout.view();
         if !layout.workspace.fullscreen {
             for (pane, button) in
-                ui::pane_buttons(layout.screen, layout.workspace)
+                geometry::pane_buttons(layout.screen, layout.workspace)
             {
                 if button.contains(position) {
                     return self.toggle_pane(pane);
@@ -280,7 +280,7 @@ impl App {
             }
         }
         let areas =
-            ui::workspace_areas(layout.screen, layout.focus, layout.workspace);
+            workspace_areas(layout.screen, layout.focus, layout.workspace);
         if self.begin_resize(&areas, event) {
             return Ok(());
         }
@@ -288,7 +288,7 @@ impl App {
             if !area.contains(position) {
                 continue;
             }
-            let closing = ui::pane_close_rect(area)
+            let closing = geometry::pane_close_rect(area)
                 .is_some_and(|rect| rect.contains(position));
             if event.row == area.y && !closing {
                 self.begin_reorder(pane, &areas, event);
@@ -321,7 +321,9 @@ impl App {
         }
         match pane {
             Pane::Library => {
-                if let Some(index) = ui::navigation_at(self, area, event.row) {
+                if let Some(index) =
+                    self.navigation_hits().navigation_at(area, event.row)
+                {
                     let view = self.nav.navigation()[index].view.clone();
                     if view == super::View::Annotated {
                         return self.open_notebook("", None);
@@ -340,22 +342,27 @@ impl App {
                     self.begin_selection(area, event);
                 }
             }
-            Pane::Annotations => {
-                if let Some(index) = ui::annotation_at(self, area, event.row) {
-                    self.reader.select_comment(
-                        self.reader.view().annotations[index].comment_index,
-                    );
-                    self.jump_annotation(index)?;
-                }
-            }
+            Pane::Annotations => self.click_annotation(area, event.row)?,
         }
         self.resize_workspace(self.layout.screen());
         Ok(())
     }
 
+    fn click_annotation(&mut self, area: Rect, row: u16) -> Result<()> {
+        if let Some(index) = self.annotation_hit(area, row) {
+            self.reader.select_comment(
+                self.reader.view().annotations[index].comment_index,
+            );
+            self.jump_annotation(index)?;
+        }
+        Ok(())
+    }
+
     fn click_article(&mut self, area: Rect, event: MouseEvent) -> Result<()> {
-        if let Some(index) = ui::article_at(self, area, event.row) {
-            self.nav.pin_articles(ui::article_origin(self, area));
+        if let Some(index) = self.navigation_hits().article_at(area, event.row)
+        {
+            self.nav
+                .pin_articles(self.navigation_hits().article_origin(area));
             if index == self.nav.selected() && !self.reader_stale() {
                 return Ok(());
             }
@@ -389,7 +396,7 @@ impl App {
         }
         self.pane_motion.cancel();
         self.reader.hover_note(None);
-        let areas = ui::workspace_areas(
+        let areas = workspace_areas(
             self.layout.screen(),
             self.layout.focus(),
             self.layout.workspace(),

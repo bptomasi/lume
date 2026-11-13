@@ -25,7 +25,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         || {
             app.reload()?;
             app.set_view(View::Server(server))?;
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             let navigation = app.navigation();
             ensure!(
                 navigation.library.servers.len() == 1,
@@ -62,7 +62,7 @@ fn verify_section_fold(
     app.activate_pane(lume::app::Focus::Library);
     app.set_view(View::Group("SERVERS".into()))?;
     app.key(crossterm::event::KeyCode::Enter.into())?;
-    terminal.draw(|frame| ui::draw(frame, app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     ensure!(
         app.navigation()
             .navigation
@@ -73,7 +73,7 @@ fn verify_section_fold(
         "Folded section retained children"
     );
     app.key(crossterm::event::KeyCode::Enter.into())?;
-    terminal.draw(|frame| ui::draw(frame, app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     ensure!(
         app.navigation()
             .navigation

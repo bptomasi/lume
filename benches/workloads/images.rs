@@ -185,7 +185,7 @@ fn image_frames(
     let text = app.reader().reader_text.len();
     let scroll = app.reader().image_slots[0].rows.start + 2;
     crate::reader_input::scroll(app, scroll)?;
-    terminal.draw(|frame| ui::draw(frame, app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     ensure!(
         terminal
             .backend()
@@ -197,7 +197,7 @@ fn image_frames(
     );
     let scroll = 0;
     crate::reader_input::scroll(app, scroll)?;
-    terminal.draw(|frame| ui::draw(frame, app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     ensure!(
         app.reader().reader_text.len() == text,
         "Drawing modified text"

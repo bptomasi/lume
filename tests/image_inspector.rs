@@ -293,7 +293,7 @@ fn iterm2_inspector_resize_keeps_native_pixels_out_of_reader() -> Result<()> {
     assert_ne!(old, new);
     settle(&mut app)?;
     let mut terminal = Terminal::new(TestBackend::new(80, 26))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     assert!(
         terminal
             .backend()
@@ -303,7 +303,7 @@ fn iterm2_inspector_resize_keeps_native_pixels_out_of_reader() -> Result<()> {
             .any(|cell| cell.symbol().contains("1337;File="))
     );
     press(&mut app, KeyCode::Esc)?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     assert!(
         !terminal
             .backend()
@@ -371,7 +371,7 @@ fn inspector_geometry_is_bounded_even_on_tiny_and_large_terminals() -> Result<()
         let content = ui::image_inspector_area(area);
         assert!(content.right() <= width && content.bottom() <= height);
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     }
     Ok(())
 }

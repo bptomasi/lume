@@ -5,6 +5,7 @@ mod common;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, ensure};
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::{App, Focus, Mode},
     media::{self, Decoder, ImageDetail, ImageKey, ImageProtocol, ImageSlice},
@@ -192,7 +193,7 @@ fn both_scroll_directions_keep_the_same_prepared_image_and_source() -> Result<()
             app.image_key(&app.reader().image_slots[0]),
             Some(key.clone())
         );
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         assert_eq!(native_rows(terminal.backend().buffer()), 12 - offset);
     }
     assert_eq!(app.reader().reader_text, text);
@@ -205,13 +206,13 @@ fn help_and_theme_changes_restore_native_rows_without_covering_controls()
     let (_directory, mut app) = reading()?;
     app.key(crossterm::event::KeyCode::Char('?').into())?;
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     assert_eq!(native_rows(terminal.backend().buffer()), 0);
 
     app.key(crossterm::event::KeyCode::Esc.into())?;
     common::fixture_command(&mut app, "theme nord")?;
     settle(&mut app)?;
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
     assert_eq!(native_rows(terminal.backend().buffer()), 12);
     Ok(())
 }
@@ -235,7 +236,7 @@ fn after_image_row(app: &App) -> Result<usize> {
 
 fn assert_native(app: &mut App) -> Result<()> {
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
-    terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+    terminal.draw(|frame| draw_interactive(frame, app))?;
     assert_eq!(native_rows(terminal.backend().buffer()), 12);
     assert!(!app.images_pending());
     Ok(())
@@ -320,7 +321,7 @@ fn layout_prefix_help_preserves_pixels_above_its_footprint() -> Result<()> {
     app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
     assert!(app.layout_prefix_pending());
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
     assert_eq!(native_rows(terminal.backend().buffer()), 12);
     assert!(
         terminal
@@ -368,7 +369,7 @@ fn layout_guide_below_an_image_leaves_that_image_visible() -> Result<()> {
     app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
     let mut terminal = Terminal::new(TestBackend::new(100, 60))?;
 
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
 
     assert_eq!(native_rows(terminal.backend().buffer()), 12);
     Ok(())

@@ -1,8 +1,14 @@
 //! One geometry owner for rendering, pane controls and pointer hit testing.
 
+mod overlays;
 mod tree;
 
-use ratatui::layout::{Constraint, Layout, Rect};
+pub use overlays::{
+    centered, image_inspector_area, note_preview_area, picker_area,
+    picker_regions, web_content,
+};
+
+use ratatui::layout::Rect;
 
 use crate::model::{Pane, Workspace};
 
@@ -216,32 +222,6 @@ pub fn pane_move_rect(area: Rect) -> Option<Rect> {
 pub fn pane_close_rect(area: Rect) -> Option<Rect> {
     (area.width >= 8 && area.height > 0)
         .then(|| Rect::new(area.right() - 4, area.y, 3, 1))
-}
-
-/// Choice and preview rectangles shared by selector drawing and mouse input.
-pub fn picker_regions(screen: Rect) -> (Rect, Rect) {
-    let outer = super::popup::Popup::Picker.area(screen);
-    let inner = outer.inner(ratatui::layout::Margin::new(1, 1));
-    let body = Rect::new(
-        inner.x,
-        inner.y + 2,
-        inner.width,
-        inner.height.saturating_sub(4),
-    );
-    let panes = if body.width >= 80 {
-        Layout::horizontal([
-            Constraint::Percentage(52),
-            Constraint::Percentage(48),
-        ])
-        .split(body)
-    } else {
-        Layout::vertical([
-            Constraint::Percentage(65),
-            Constraint::Percentage(35),
-        ])
-        .split(body)
-    };
-    (panes[0], panes[1])
 }
 
 /// A rendered split's two rectangles and bounded path in the saved topology.

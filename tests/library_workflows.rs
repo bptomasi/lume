@@ -151,7 +151,7 @@ fn visual_preview_cancels_or_commits_with_actual_themed_cells() -> Result<()> {
     key(&mut app, KeyCode::Right)?;
     assert_eq!(app.workspace().theme, "nord");
     let mut terminal = Terminal::new(TestBackend::new(120, 32))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     assert_eq!(
         terminal.backend().buffer()[(0, 0)].bg,
         Color::Rgb(52, 60, 75)

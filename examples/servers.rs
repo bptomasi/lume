@@ -30,7 +30,7 @@ fn main() -> Result<()> {
     app.resize_workspace(Rect::new(0, 0, 144, 48));
     app.set_view(View::Server(first))?;
     let mut terminal = Terminal::new(TestBackend::new(144, 48))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     support::export(terminal.backend().buffer(), &output)?;
     println!("{}", output.display());
     Ok(())

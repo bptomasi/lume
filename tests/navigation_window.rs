@@ -33,7 +33,7 @@ fn clicking_visible_destinations_does_not_recenter_or_change_pointer_targets()
         .context("Library pane")?;
     let targets = |app: &App| {
         (area.y + 1..area.bottom() - 1)
-            .map(|row| ui::navigation_at(app, area, row))
+            .map(|row| ui::navigation_at(app.navigation_hits(), area, row))
             .collect::<Vec<_>>()
     };
     let before = targets(&app);

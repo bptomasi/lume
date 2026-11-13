@@ -23,7 +23,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
             for code in [KeyCode::Left, KeyCode::Right] {
                 app.key(KeyEvent::new(code, KeyModifiers::NONE))?;
             }
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             ensure!(
                 app.navigation().search == "systems",
                 "Caret motion changed the query"

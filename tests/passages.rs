@@ -312,7 +312,7 @@ fn cursor_and_selected_cells_render_inside_small_and_large_reader_viewports()
         app.resize_reader(content.width.into(), content.height.into());
         keys(&mut app, "llvlll")?;
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         let buffer = terminal.backend().buffer();
         assert_eq!(buffer[(content.x + 2, content.y)].symbol(), "c");
         assert_eq!(

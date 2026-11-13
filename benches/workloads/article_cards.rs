@@ -1,7 +1,13 @@
 //! Visible-card clicks keep every pointer target stable through runtime frames.
 
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
+
 use anyhow::{Context, Result, ensure};
 use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::App,
     model::{Pane, View},
@@ -26,6 +32,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     let mut terminal =
         Terminal::new(TestBackend::new(SCREEN.width, SCREEN.height))?;
     for compact in [false, true] {
+        settle_current(&mut app)?;
         crate::fixture_toggle(&mut app, "compact", compact)?;
         app.resize_workspace(SCREEN);
         clicks(&mut app, &mut terminal, iterations)?;
@@ -63,7 +70,7 @@ fn clicks(
                 app.resize_workspace(SCREEN);
                 app.poll_reader();
                 app.poll_navigation()?;
-                terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+                terminal.draw(|frame| draw_interactive(frame, app))?;
                 ensure!(
                     app.navigation().selected
                         == before[local].context("Missing card")?,
@@ -79,8 +86,24 @@ fn clicks(
     )
 }
 
+// Timed clicks admit background reads. Finish that selection before issuing
+// the next preference command; setup must not act on a stale article.
+fn settle_current(app: &mut App) -> Result<()> {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while app.reader_stale()
+        || app.reader_pending()
+        || app.navigation().navigation_loading
+    {
+        ensure!(Instant::now() < deadline, "Card selection did not settle");
+        app.poll_reader();
+        app.poll_navigation()?;
+        thread::sleep(Duration::from_millis(1));
+    }
+    Ok(())
+}
+
 fn targets(app: &App, area: Rect) -> Vec<Option<usize>> {
     (area.y + 1..area.bottom() - 1)
-        .map(|row| ui::article_at(app, area, row))
+        .map(|row| ui::article_at(app.navigation_hits(), area, row))
         .collect()
 }

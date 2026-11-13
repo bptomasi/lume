@@ -54,7 +54,8 @@ fn resizing_and_themes_keep_the_entry_hint_visible() -> Result<()> {
                 .collect::<String>();
             assert!(text.contains("Press any key"));
             assert!(text.contains("l u m e"));
-            let [red, green, blue] = theme::image_background(name);
+            let [red, green, blue] =
+                crate::presentation::palette::image_background(name);
             let background = Color::Rgb(red, green, blue);
             assert_eq!(buffer[(0, 0)].bg, background);
             let art = art_area(buffer.area);

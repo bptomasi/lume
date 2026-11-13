@@ -54,16 +54,12 @@ impl ReaderState {
             .comments
             .get(self.notes.selected)
             .map(|note| note.id);
-        self.notes
-            .marks
-            .passages
-            .iter()
-            .chain(&self.notes.marks.comments)
-            .filter(|(range, _)| range.contains(&offset))
-            // A jump from an annotation card retains that note when quotes
-            // overlap. An unrelated selection cannot override the cursor hit.
-            .min_by_key(|(_, id)| Some(*id) != preferred)
-            .map(|(_, id)| *id)
+        note_at_offset(
+            &self.notes.marks.passages,
+            &self.notes.marks.comments,
+            preferred,
+            offset,
+        )
     }
 }
 
@@ -89,4 +85,21 @@ impl ReaderState {
     ) {
         self.notes.marks.hover = target;
     }
+}
+
+/// Resolve the selected annotation consistently when quoted passages overlap.
+pub(super) fn note_at_offset(
+    passages: &[(Range<usize>, i64)],
+    comments: &[(Range<usize>, i64)],
+    preferred: Option<i64>,
+    offset: usize,
+) -> Option<i64> {
+    passages
+        .iter()
+        .chain(comments)
+        .filter(|(range, _)| range.contains(&offset))
+        // A jump from an annotation card retains that note when quotes
+        // overlap. An unrelated selection cannot override the cursor hit.
+        .min_by_key(|(_, id)| Some(*id) != preferred)
+        .map(|(_, id)| *id)
 }

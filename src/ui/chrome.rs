@@ -9,13 +9,13 @@ use ratatui::{
 };
 
 use crate::{
-    app::{App, EditMode, Focus, InputKind, Mode},
+    app::{ChromeView, ControlsView, EditMode, Focus, InputKind, Mode},
     content,
 };
 
 use super::theme::*;
 
-pub(super) fn header(frame: &mut Frame<'_>, app: &App) {
+pub(super) fn header(frame: &mut Frame<'_>, view: &ChromeView<'_>) {
     let area = frame.area();
     let title = Line::from(vec![
         Span::styled("  ◉ ", Style::new().fg(AMBER)),
@@ -29,7 +29,7 @@ pub(super) fn header(frame: &mut Frame<'_>, app: &App) {
         ),
     ]);
     frame.render_widget(Paragraph::new(title), Rect::new(0, 0, area.width, 1));
-    let state = if app.demo() {
+    let state = if view.demo {
         "DEMO · LOCAL"
     } else {
         "LOCAL LIBRARY"
@@ -45,24 +45,24 @@ pub(super) fn header(frame: &mut Frame<'_>, app: &App) {
     }
 }
 
-pub(super) fn footer(frame: &mut Frame<'_>, app: &App) {
+pub(super) fn footer(frame: &mut Frame<'_>, view: &ChromeView<'_>) {
     let area = frame.area();
     if area.height < 2 {
         return;
     }
-    let status = status_line(app);
+    let status = status_line(view);
     frame.render_widget(
         Paragraph::new(status),
         Rect::new(0, area.height - 2, area.width, 1),
     );
     frame.render_widget(
-        Paragraph::new(hints(app)).style(Style::new().fg(FAINT)),
+        Paragraph::new(hints(view)).style(Style::new().fg(FAINT)),
         Rect::new(0, area.height - 1, area.width, 1),
     );
 }
 
-fn hints(app: &App) -> &'static str {
-    if let Mode::Input(input) = app.mode()
+fn hints(view: &ChromeView<'_>) -> &'static str {
+    if let Mode::Input(input) = view.mode
         && matches!(
             input.kind,
             InputKind::Comment { .. }
@@ -72,20 +72,20 @@ fn hints(app: &App) -> &'static str {
     {
         return super::overlays::editor_hint(input, true);
     }
-    if app.layout_prefix_pending() {
+    if view.layout_prefix_pending {
         return "  Ctrl-w · h/j/k/l focus · H/J/K/L move · s/v split · u/r history · Esc cancel";
     }
-    if app.notebook().is_some() {
+    if view.notebook {
         return "  / notes · e edit · Enter source · t tags · T type · p pin · r resolve · v mark · s synthesize · dd / u · Esc return";
     }
-    if app.focus() == Focus::Annotations {
+    if view.focus == Focus::Annotations {
         return concat!(
             "  j/k notes · Enter jump · e edit · dd delete · ",
             "Ctrl-w c collapse · Reader n creates"
         );
     }
-    if app.focus() == Focus::Reader {
-        return reader_hints(app);
+    if view.focus == Focus::Reader {
+        return reader_hints(view);
     }
     concat!(
         "  space actions  ·  / search  ·  f star  ·  s queue  ·  ",
@@ -93,15 +93,19 @@ fn hints(app: &App) -> &'static str {
     )
 }
 
-fn reader_hints(app: &App) -> &'static str {
-    let reading = app.reader();
-    if reading.selection.is_some() {
+fn reader_hints(view: &ChromeView<'_>) -> &'static str {
+    if view.selection {
         return "  y copy  ·  s highlight  ·  n note  ·  Esc cancel";
     }
-    if app.cursor_note().is_some() {
+    if !view.preparing
+        && view
+            .reader
+            .note_at_offset(view.reader.cursor_offset())
+            .is_some()
+    {
         return "  Enter edit · dd delete · u undo · :annotations · Tab panels";
     }
-    if reading.reader_tools.needle.is_empty() {
+    if !view.reader_search {
         return "  w/W/e word · / find · n note · :annotate · Ctrl-w layout";
     }
     concat!(
@@ -112,11 +116,11 @@ fn reader_hints(app: &App) -> &'static str {
 
 pub(super) fn pane_controls(
     frame: &mut Frame<'_>,
-    app: &App,
+    view: &ControlsView<'_>,
     areas: &super::Areas,
 ) {
     for (pane, area) in areas.ordered() {
-        move_grip(frame, app, pane, area);
+        move_grip(frame, view, pane, area);
         if let Some(button) = super::pane_close_rect(area) {
             frame.render_widget(
                 Paragraph::new("[−]").style(Style::new().fg(AMBER).bg(PANEL)),
@@ -124,23 +128,28 @@ pub(super) fn pane_controls(
             );
         }
     }
-    if app.workspace().fullscreen {
+    if view.workspace.fullscreen {
         return;
     }
-    restore_buttons(frame, app);
+    restore_buttons(frame, view);
     if areas.is_empty() {
         collapsed_workspace(frame);
     }
 }
 
-fn move_grip(frame: &mut Frame<'_>, app: &App, pane: Focus, area: Rect) {
+fn move_grip(
+    frame: &mut Frame<'_>,
+    view: &ControlsView<'_>,
+    pane: Focus,
+    area: Rect,
+) {
     let Some(grip) = super::pane_move_rect(area) else {
         return;
     };
     // Reserve the controls' entire strip, including their one-cell separator.
     // A long title must not leave stray letters between the two buttons.
     let strip = Rect::new(grip.x, grip.y, 7, 1);
-    let border = if app.focus() == pane { ACCENT } else { BORDER };
+    let border = if view.focus == pane { ACCENT } else { BORDER };
     frame.render_widget(
         Block::new()
             .borders(Borders::TOP)
@@ -148,7 +157,7 @@ fn move_grip(frame: &mut Frame<'_>, app: &App, pane: Focus, area: Rect) {
             .border_style(Style::new().fg(border)),
         strip,
     );
-    let moving = app.panel_drag().is_some_and(|drag| drag.pane == pane);
+    let moving = view.panel_drag.is_some_and(|drag| drag.pane == pane);
     let style = if moving {
         Style::new().fg(BG).bg(AMBER)
     } else {
@@ -157,12 +166,12 @@ fn move_grip(frame: &mut Frame<'_>, app: &App, pane: Focus, area: Rect) {
     frame.render_widget(Paragraph::new("[≡]").style(style), grip);
 }
 
-pub(super) fn draw_panel_move(frame: &mut Frame<'_>, app: &App) {
-    let Some(drag) = app.panel_drag() else {
+pub(super) fn draw_panel_move(frame: &mut Frame<'_>, view: &ControlsView<'_>) {
+    let Some(drag) = view.panel_drag else {
         return;
     };
     let areas =
-        super::workspace_areas(frame.area(), app.focus(), app.workspace());
+        super::workspace_areas(frame.area(), view.focus, view.workspace);
     for (pane, area) in areas.ordered() {
         // Only decorate destinations. The source is captured intact, with
         // its original rounded corners, title and controls.
@@ -172,7 +181,7 @@ pub(super) fn draw_panel_move(frame: &mut Frame<'_>, app: &App) {
         let area = if drag.edge.is_some() {
             area
         } else {
-            app.pane_insertion_slot().unwrap_or(area)
+            view.pane_insertion_slot.unwrap_or(area)
         };
         let marker = match drag.edge {
             Some(crate::model::Dock::Above) => {
@@ -200,10 +209,10 @@ pub(super) fn draw_panel_move(frame: &mut Frame<'_>, app: &App) {
     }
 }
 
-fn restore_buttons(frame: &mut Frame<'_>, app: &App) {
-    for (pane, button) in super::pane_buttons(frame.area(), app.workspace()) {
-        let visible = app.workspace().pane_visible(pane);
-        let caption = if app.notebook().is_some() {
+fn restore_buttons(frame: &mut Frame<'_>, view: &ControlsView<'_>) {
+    for (pane, button) in super::pane_buttons(frame.area(), view.workspace) {
+        let visible = view.workspace.pane_visible(pane);
+        let caption = if view.notebook {
             match pane {
                 Focus::Library => "Lists",
                 Focus::Articles => "Notes",
@@ -223,8 +232,8 @@ fn restore_buttons(frame: &mut Frame<'_>, app: &App) {
             caption
         };
         let text = format!(" [{} {name}]", if visible { "−" } else { "+" });
-        let style = if app
-            .panel_drag()
+        let style = if view
+            .panel_drag
             .is_some_and(|drag| drag.target == Some(pane))
         {
             Style::new().fg(BG).bg(BLUE)
@@ -252,10 +261,9 @@ fn collapsed_workspace(frame: &mut Frame<'_>) {
     );
 }
 
-fn status_line(app: &App) -> Line<'static> {
-    let reading = app.reader();
-    let (mode, color) = match app.mode() {
-        Mode::Normal if reading.selection.is_some() => (" VISUAL ", AMBER),
+fn status_line(view: &ChromeView<'_>) -> Line<'static> {
+    let (mode, color) = match view.mode {
+        Mode::Normal if view.selection => (" VISUAL ", AMBER),
         Mode::Normal => (" NORMAL ", ACCENT),
         Mode::Web => (" WEB ", BLUE),
         Mode::Help => (" HELP ", BLUE),
@@ -268,11 +276,11 @@ fn status_line(app: &App) -> Line<'static> {
         Mode::Settings(_) => (" PREVIEW ", AMBER),
         Mode::Image(_) => (" IMAGE ", AMBER),
     };
-    let activity = if app.session_failed() {
+    let activity = if view.session_failed {
         "  SAVE ERROR · :save-status"
-    } else if app.session_pending() {
+    } else if view.session_pending {
         "  saving…"
-    } else if app.refreshing() {
+    } else if view.refreshing {
         "  ↻ collecting feeds"
     } else {
         ""
@@ -283,12 +291,12 @@ fn status_line(app: &App) -> Line<'static> {
             Style::new().fg(BG).bg(color).add_modifier(Modifier::BOLD),
         ),
         Span::styled(
-            format!(" {} ", focus_caption(app)),
+            format!(" {} ", focus_caption(view)),
             Style::new().fg(TEXT).bg(RAISED),
         ),
         Span::styled(activity, Style::new().fg(AMBER)),
         Span::styled(
-            format!("  {}", content::label(app.status(), 300)),
+            format!("  {}", content::label(view.status, 300)),
             Style::new().fg(MUTED),
         ),
     ])
@@ -306,14 +314,14 @@ fn editor_mode(input: &crate::app::Input) -> &'static str {
     }
 }
 
-fn focus_caption(app: &App) -> &'static str {
-    if app.notebook().is_some() {
-        return match app.focus() {
+fn focus_caption(view: &ChromeView<'_>) -> &'static str {
+    if view.notebook {
+        return match view.focus {
             Focus::Library => "Collections",
             Focus::Articles => "Notes",
             Focus::Reader => "Context",
             Focus::Annotations => "Backlinks",
         };
     }
-    app.focus().title()
+    view.focus.title()
 }

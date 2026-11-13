@@ -8,35 +8,25 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::app::{App, WebPage};
+use crate::app::{WebPage, WebView};
 
 use super::theme::{BG, MUTED, PANEL, RAISED, TEXT};
 
-/// Centered linked-reading column shared by rendering and pointer input.
-pub fn content(screen: Rect, width: usize) -> Rect {
-    let width = (width as u16).min(screen.width.saturating_sub(4));
-    Rect::new(
-        screen.x + screen.width.saturating_sub(width) / 2,
-        screen.y + screen.height.min(3),
-        width,
-        screen.height.saturating_sub(6),
-    )
-}
-
-pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
+pub(super) fn draw(frame: &mut Frame<'_>, view: &WebView<'_>) {
     let screen = frame.area();
-    let title = app
-        .web_page()
-        .map_or("Linked page", |page| &page.document.title);
+    let title = view.page.map_or("Linked page", |page| &page.document.title);
     super::popup::draw_frame(frame, title, screen);
-    let Some(page) = app.web_page() else {
+    let Some(page) = view.page else {
         frame.render_widget(
-            Paragraph::new(app.status()).style(Style::new().fg(TEXT)),
-            content(screen, app.workspace().reading_width.into()),
+            Paragraph::new(view.status).style(Style::new().fg(TEXT)),
+            crate::presentation::geometry::web_content(
+                screen,
+                view.width.into(),
+            ),
         );
         return;
     };
-    let area = content(screen, page.width);
+    let area = crate::presentation::geometry::web_content(screen, page.width);
     frame.render_widget(
         Paragraph::new(page.document.url.as_str())
             .style(Style::new().fg(MUTED)),
@@ -45,8 +35,8 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     let lines = visible_lines(page, area);
     draw_code_backgrounds(frame, page, area);
     frame.render_widget(Paragraph::new(lines), area);
-    super::images::draw(frame, app, area);
-    draw_controls(frame, screen, app.status());
+    super::images::draw(frame, &view.images, area);
+    draw_controls(frame, screen, view.status);
 }
 
 fn draw_code_backgrounds(frame: &mut Frame<'_>, page: &WebPage, area: Rect) {

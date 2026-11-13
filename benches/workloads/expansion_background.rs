@@ -107,7 +107,7 @@ fn measure_reader(
                     KeyCode::Up
                 },
             )?;
-            terminal.draw(|frame| ui::draw(frame, app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             ensure!(
                 app.reader().reader_cursor != before,
                 "Publisher writes lost input"

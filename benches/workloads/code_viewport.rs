@@ -4,11 +4,11 @@
 
 use anyhow::{Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::{App, Focus},
     model::{FeedOrigin, IncomingArticle},
     store::Store,
-    ui,
 };
 use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
@@ -34,7 +34,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
             app.key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))?;
             let anchor = 0;
             crate::reader_input::select(&mut app, anchor)?;
-            terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+            terminal.draw(|frame| draw_interactive(frame, &mut app))?;
             app.clear_copied_selection();
             let buffer = terminal.backend().buffer();
             let screen = buffer

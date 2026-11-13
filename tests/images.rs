@@ -338,7 +338,7 @@ fn cached_image_completion_does_not_change_text_selection_or_scroll()
     assert_eq!(reading.selection, Some(cursor));
     assert_eq!(reading.image_slots[0].rows, slot.rows);
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     for color in [Color::Rgb(255, 0, 0), Color::Rgb(0, 0, 255)] {
         assert!(
             terminal
@@ -433,7 +433,7 @@ fn theme_changes_keep_literal_image_colors_and_image_rows_keep_a_visible_cursor(
         let y = column.y + slot.rows.start as u16;
         let row = slot.rows.start;
         common::reader::cursor(&mut app, row, 0)?;
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         assert_eq!(
             terminal.backend().buffer()[(x, y)].bg,
             Color::Rgb(23, 23, 26)

@@ -2,11 +2,11 @@
 
 use anyhow::{Context, Result, ensure};
 use crossterm::event::KeyCode;
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::{App, Focus},
     model::{IncomingArticle, SmartFilter, View},
     store::Store,
-    ui,
 };
 use ratatui::{Terminal, backend::TestBackend};
 use std::time::{Duration, Instant};
@@ -165,7 +165,7 @@ fn synchronous(
     for _ in 0..iterations {
         let start = Instant::now();
         let article = remove(app)?;
-        terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+        terminal.draw(|frame| draw_interactive(frame, app))?;
         elapsed += start.elapsed();
         ensure!(observer.is_deleted(article)?, "Deletion was not committed");
         app.key(KeyCode::Char('u').into())?;
@@ -189,7 +189,7 @@ fn asynchronous(
         let start = Instant::now();
         let article = remove(app)?;
         wait_for_metadata_removal(app, article, start)?;
-        terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+        terminal.draw(|frame| draw_interactive(frame, app))?;
         visible += start.elapsed();
         ensure!(
             observer.is_deleted(article)?,
@@ -243,7 +243,7 @@ fn permanent(app: &mut App, observer: &Store, iterations: usize) -> Result<()> {
             ensure!(start.elapsed() < Duration::from_secs(10), "Purge stalled");
             std::thread::sleep(Duration::from_millis(1));
         }
-        terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+        terminal.draw(|frame| draw_interactive(frame, app))?;
         elapsed += start.elapsed();
         ensure!(
             observer.article(article).is_err(),

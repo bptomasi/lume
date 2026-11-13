@@ -8,32 +8,32 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
-use crate::app::{App, FloatingPane, Mode};
+use crate::app::{FloatingPane, Mode, MotionView};
 
-pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
-    if !matches!(app.mode(), Mode::Normal) {
+pub(super) fn draw(frame: &mut Frame<'_>, view: &MotionView<'_>) {
+    if !matches!(view.mode, Mode::Normal) {
         return;
     }
-    let Some(picture) = app.floating_pane() else {
-        super::chrome::draw_panel_move(frame, app);
+    let Some(picture) = view.floating_pane.as_ref() else {
+        super::chrome::draw_panel_move(frame, &view.controls);
         return;
     };
     let colors = &picture.cells[(picture.cells.area.x, picture.cells.area.y)];
     let surface = colors.bg;
-    let region = app.pane_motion_region().unwrap_or(picture.slot);
+    let region = view.region.unwrap_or(picture.slot);
     frame.render_widget(Clear, region);
     frame.render_widget(Block::new().style(Style::new().bg(colors.bg)), region);
-    super::chrome::draw_panel_move(frame, app);
-    for neighbor in app.neighboring_panes() {
+    super::chrome::draw_panel_move(frame, &view.controls);
+    for neighbor in view.neighboring_panes() {
         copy_picture(frame.buffer_mut(), &neighbor, None);
     }
-    let held_surface = if app.panel_drag().is_some() {
+    let held_surface = if view.controls.panel_drag.is_some() {
         dim_workspace(frame.buffer_mut());
         Some(dim_color(surface))
     } else {
         None
     };
-    copy_picture(frame.buffer_mut(), &picture, held_surface);
+    copy_picture(frame.buffer_mut(), picture, held_surface);
 }
 
 fn copy_picture(

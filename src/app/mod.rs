@@ -24,7 +24,6 @@ mod events;
 mod exchange;
 mod extraction;
 mod formulas;
-mod headlines;
 mod help;
 pub(crate) use headlines::Labels as HeadlineLabels;
 mod images;
@@ -62,6 +61,15 @@ mod picker;
 mod picker_reads;
 mod pointer;
 mod presentation;
+mod presentation_geometry;
+mod presentation_views;
+pub(crate) use images::ImageView;
+pub(crate) use presentation_views::{
+    ChromeView, ControlsView, GuideView, MotionView, NativeImagesView,
+    NavigationPaneView, OverlayView, PreviewView, ReaderPaneView, SearchView,
+    TextView, WebView,
+};
+pub use presentation_views::{ForegroundView, PresentationView};
 mod reader_links;
 mod reader_state;
 mod reader_state_api;
@@ -105,6 +113,7 @@ use crossterm::event::KeyEvent;
 
 use crate::{
     model::{Article, Comment},
+    presentation::headlines,
     store::Store,
 };
 
@@ -112,18 +121,7 @@ pub use crate::model::Pane as Focus;
 
 pub use crate::model::View;
 
-/// A selectable navigation row.
-#[derive(Clone)]
-pub struct NavItem {
-    /// Destination filter.
-    pub view: View,
-    /// Display name.
-    pub title: String,
-    /// Section label; repeated labels are grouped by the renderer.
-    pub group: &'static str,
-    /// Number of articles across the complete destination.
-    pub count: usize,
-}
+pub use crate::presentation::navigation::NavItem;
 
 /// An editing operation captures its target before background refresh occurs.
 #[derive(Clone, Debug)]

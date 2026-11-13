@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, ensure};
+use lume::frame_composition::draw_interactive;
 use lume::{app::App, demo, store::Store, ui};
 use ratatui::{Terminal, backend::TestBackend};
 
@@ -26,7 +27,7 @@ fn main() -> Result<()> {
         preview_note_editor(&mut app)?;
     }
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
     support::export(terminal.backend().buffer(), &output)?;
     println!("{}", output.display());
     Ok(())

@@ -78,7 +78,7 @@ fn scroll_frames(
         crate::reader_input::scroll(app, scroll)?;
         app.poll_images();
         ensure!(!app.images_pending(), "Scroll admitted image preparation");
-        terminal.draw(|frame| ui::draw(frame, app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         ensure!(
             terminal
                 .backend()

@@ -6,7 +6,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::{App, Focus, Mode},
+    app::{Focus, Mode, TextView},
     reader::{cursor, style_range},
 };
 
@@ -14,12 +14,12 @@ use super::theme::{AMBER, BG, RAISED, TEXT};
 
 pub(super) fn backgrounds(
     frame: &mut ratatui::Frame<'_>,
-    app: &App,
+    view: &TextView<'_>,
     area: ratatui::layout::Rect,
 ) {
-    let reading = app.reader();
+    let reading = view.reader;
     for row in 0..usize::from(area.height) {
-        if code_background(app, reading.scroll + row) {
+        if code_background(view, reading.scroll + row) {
             frame.buffer_mut().set_style(
                 ratatui::layout::Rect::new(
                     area.x,
@@ -34,21 +34,21 @@ pub(super) fn backgrounds(
 }
 
 pub(super) fn row(
-    app: &App,
+    view: &TextView<'_>,
     index: usize,
     cached: &Line<'static>,
     selected: Option<&std::ops::Range<usize>>,
     width: usize,
 ) -> Line<'static> {
-    let reading = app.reader();
+    let reading = view.reader;
     if let Some(columns) =
         reading.reader_columns.get(index).and_then(Option::as_ref)
     {
-        return indexed_row(app, index, cached, selected, width, columns);
+        return indexed_row(view, index, cached, selected, width, columns);
     }
     let mut line = cached.clone();
-    paint_search(app, index, &mut line);
-    let code = code_background(app, index);
+    paint_search(view, index, &mut line);
+    let code = code_background(view, index);
     if code {
         line = line.style(Style::new().bg(RAISED));
     }
@@ -65,12 +65,12 @@ pub(super) fn row(
             );
         }
     }
-    paint_cursor(app, index, &mut line);
+    paint_cursor(view, index, &mut line);
     line
 }
 
-fn paint_search(app: &App, index: usize, line: &mut Line<'static>) {
-    let reading = app.reader();
+fn paint_search(view: &TextView<'_>, index: usize, line: &mut Line<'static>) {
+    let reading = view.reader;
     let Some(range) = reading.reader_ranges.get(index) else {
         return;
     };
@@ -88,22 +88,22 @@ fn paint_search(app: &App, index: usize, line: &mut Line<'static>) {
 }
 
 fn indexed_row(
-    app: &App,
+    view: &TextView<'_>,
     row: usize,
     cached: &Line<'static>,
     selected: Option<&std::ops::Range<usize>>,
     width: usize,
     columns: &crate::reader::viewport::RowIndex,
 ) -> Line<'static> {
-    let reading = app.reader();
+    let reading = view.reader;
     let unwrapped = reading.code_lines.get(row) == Some(&true);
-    let code = code_background(app, row);
+    let code = code_background(view, row);
     let text = reading.reader_lines.get(row).map_or("", String::as_str);
     let base = reading
         .reader_ranges
         .get(row)
         .map_or(0, |range| range.start);
-    let cursor = cursor_column(app, row).map(|column| base + column);
+    let cursor = cursor_column(view, row).map(|column| base + column);
     let mut line = columns.project(
         cached,
         text,
@@ -115,7 +115,7 @@ fn indexed_row(
         width,
         |bytes, style| {
             overlays(
-                app,
+                view,
                 base + bytes.start..base + bytes.end,
                 selected,
                 cursor,
@@ -136,13 +136,13 @@ fn indexed_row(
 }
 
 fn overlays(
-    app: &App,
+    view: &TextView<'_>,
     bytes: std::ops::Range<usize>,
     selected: Option<&std::ops::Range<usize>>,
     cursor: Option<usize>,
     mut style: Style,
 ) -> Style {
-    let reading = app.reader();
+    let reading = view.reader;
     let hits = &reading.reader_tools.hits;
     let first = hits.partition_point(|hit| hit.end <= bytes.start);
     if hits.get(first).is_some_and(|hit| hit.start < bytes.end) {
@@ -159,8 +159,8 @@ fn overlays(
     style
 }
 
-pub(super) fn code_background(app: &App, row: usize) -> bool {
-    let reading = app.reader();
+pub(super) fn code_background(view: &TextView<'_>, row: usize) -> bool {
+    let reading = view.reader;
     let table = reading.table_rows.partition_point(|range| range.end <= row);
     reading.code_lines.get(row) == Some(&true)
         && !reading
@@ -177,9 +177,9 @@ fn cursor_style() -> Style {
         .remove_modifier(Modifier::DIM | Modifier::REVERSED)
 }
 
-fn paint_cursor(app: &App, index: usize, line: &mut Line<'static>) {
-    let reading = app.reader();
-    if let Some(column) = cursor_column(app, index) {
+fn paint_cursor(view: &TextView<'_>, index: usize, line: &mut Line<'static>) {
+    let reading = view.reader;
+    if let Some(column) = cursor_column(view, index) {
         // Paint the only reader cursor. A hardware block on this same cell
         // can invert it again, cancelling the intended contrast.
         let style = cursor_style();
@@ -192,10 +192,10 @@ fn paint_cursor(app: &App, index: usize, line: &mut Line<'static>) {
     }
 }
 
-fn cursor_column(app: &App, row: usize) -> Option<usize> {
-    let reading = app.reader();
-    (app.focus() == Focus::Reader
-        && matches!(app.mode(), Mode::Normal)
+fn cursor_column(view: &TextView<'_>, row: usize) -> Option<usize> {
+    let reading = view.reader;
+    (view.focus == Focus::Reader
+        && matches!(view.mode, Mode::Normal)
         && row == reading.reader_cursor)
         .then_some(reading.reader_column)
 }

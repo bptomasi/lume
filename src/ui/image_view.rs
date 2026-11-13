@@ -7,43 +7,32 @@ use ratatui::{
     widgets::{Block, Paragraph},
 };
 
-use crate::app::{App, Mode};
+use crate::app::{ImageView, Mode};
 
 use super::theme;
+use crate::presentation::geometry::image_inspector_area;
 
 const CONTROLS: &str = concat!(
     "+/- zoom · 0 fit · hjkl/arrows or wheel pan",
     " · o original · b blocks · Esc close"
 );
 
-/// Bounded inspector viewport; the surrounding rows own title and controls.
-pub fn image_inspector_area(screen: Rect) -> Rect {
-    let width = screen.width.saturating_sub(4).min(160);
-    let height = screen.height.saturating_sub(6).min(48);
-    Rect::new(
-        screen.x + screen.width.saturating_sub(width) / 2,
-        screen.y + screen.height.saturating_sub(height) / 2,
-        width,
-        height,
-    )
-}
-
-pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
+pub(super) fn draw(frame: &mut Frame<'_>, view: &ImageView<'_>) {
     frame.render_widget(
         Block::new().style(Style::new().bg(theme::PANEL).fg(theme::TEXT)),
         frame.area(),
     );
-    let Some(key) = app.image_inspector_key() else {
+    let Some(key) = view.image_inspector_key() else {
         return;
     };
-    chrome(frame, app, &key);
-    theme::apply(frame.buffer_mut(), &app.workspace().theme);
+    chrome(frame, view, &key);
+    theme::apply(frame.buffer_mut(), view.theme);
     let column = image_inspector_area(frame.area());
     if column.is_empty() {
         return;
     }
-    let Some(image) = app.images().thumbnail(&key) else {
-        let message = app.images().placeholder(&key);
+    let Some(image) = view.images.thumbnail(&key) else {
+        let message = view.images.placeholder(&key);
         frame.render_widget(
             Paragraph::new(crate::content::label(message, 300)),
             column,
@@ -63,12 +52,12 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     }
 }
 
-fn title(app: &App, key: &crate::media::ImageKey) -> Option<String> {
-    let Mode::Image(image) = app.mode() else {
+fn title(view: &ImageView<'_>, key: &crate::media::ImageKey) -> Option<String> {
+    let Mode::Image(image) = view.mode else {
         return None;
     };
     let dimensions =
-        app.images()
+        view.images
             .thumbnail(key)
             .map_or_else(String::new, |ready| {
                 format!(
@@ -92,8 +81,12 @@ fn title(app: &App, key: &crate::media::ImageKey) -> Option<String> {
     ))
 }
 
-fn chrome(frame: &mut Frame<'_>, app: &App, key: &crate::media::ImageKey) {
-    let Some(title) = title(app, key) else {
+fn chrome(
+    frame: &mut Frame<'_>,
+    view: &ImageView<'_>,
+    key: &crate::media::ImageKey,
+) {
+    let Some(title) = title(view, key) else {
         return;
     };
     let screen = frame.area();
@@ -109,7 +102,7 @@ fn chrome(frame: &mut Frame<'_>, app: &App, key: &crate::media::ImageKey) {
         screen.width,
         2.min(screen.height),
     );
-    let controls = if matches!(app.mode(), Mode::Image(image) if image.formula.is_some())
+    let controls = if matches!(view.mode, Mode::Image(image) if image.formula.is_some())
     {
         "+/- zoom · 0 fit · hjkl/arrows or wheel pan · y copy LaTeX · Esc close"
     } else {

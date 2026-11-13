@@ -167,7 +167,7 @@ fn cached_refresh_preserves_selected_identity_and_reader_layout_across_sizes()
     for (width, height) in [(1, 1), (40, 18), (80, 28), (144, 44)] {
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
         app.resize_workspace(ratatui::layout::Rect::new(0, 0, width, height));
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     }
     command(&mut app, "help recommendations")?;
     assert!(matches!(app.mode(), Mode::Help));

@@ -386,7 +386,7 @@ fn presentation(store: Store, count: usize, iterations: usize) -> Result<()> {
     app.resize_reader(78, 29);
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     measure("three-pane frame (144x44)", iterations * 5, || {
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         ensure!(
             terminal.backend().buffer()[(0, 2)].symbol() == "╭",
             "Pane border missing"
@@ -426,7 +426,7 @@ fn command_menu(app: &mut App, iterations: usize) -> Result<()> {
                     ],
                 "Export command choices changed"
             );
-            terminal.draw(|frame| ui::draw(frame, app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             app.key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE))?;
             ensure!(
                 matches!(app.mode(), lume::app::Mode::Input(input)
@@ -662,7 +662,7 @@ fn fullscreen(app: &mut App, iterations: usize) -> Result<()> {
             let screen = ratatui::layout::Rect::new(0, 0, 160, 50);
             let content = ui::workspace_reader_content(screen, app.workspace());
             app.resize_reader(content.width.into(), content.height.into());
-            terminal.draw(|frame| ui::draw(frame, app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             ensure!(app.workspace().fullscreen, "Fullscreen did not open");
             ensure!(
                 content.width == 80 && content.x == 40,

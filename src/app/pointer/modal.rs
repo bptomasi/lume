@@ -6,7 +6,7 @@ use crossterm::event::{
 };
 use ratatui::layout::Position;
 
-use crate::ui;
+use crate::presentation::geometry;
 
 use super::super::{Action, App, InputKind, Mode, PickerKind};
 
@@ -49,7 +49,7 @@ impl App {
         let Some(pane) = self.search_pane() else {
             return Ok(None);
         };
-        let Some(area) = ui::workspace_areas(
+        let Some(area) = geometry::workspace_areas(
             self.layout.screen(),
             self.layout.focus(),
             self.layout.workspace(),
@@ -61,14 +61,21 @@ impl App {
             return Ok(None);
         }
         if pane == crate::model::Pane::Library {
-            let Some(selected) = ui::navigation_at(self, area, event.row)
-            else {
+            let Some(selected) = crate::presentation::hit::navigation_hit(
+                self.navigation_hits(),
+                area,
+                event.row,
+            ) else {
                 return Ok(None);
             };
             let destination = self.nav.navigation()[selected].view.clone();
             self.select_library_destination(&destination)?;
         } else {
-            let Some(selected) = ui::article_at(self, area, event.row) else {
+            let Some(selected) = crate::presentation::hit::article_hit(
+                self.navigation_hits(),
+                area,
+                event.row,
+            ) else {
                 return Ok(None);
             };
             self.nav.select_article(selected);
@@ -85,7 +92,7 @@ impl App {
         let Some(pane) = self.search_pane() else {
             return Ok(());
         };
-        let area = ui::workspace_areas(
+        let area = geometry::workspace_areas(
             self.layout.screen(),
             self.layout.focus(),
             self.layout.workspace(),
@@ -113,7 +120,7 @@ impl App {
         let Some(picker) = self.interaction.picker_mut() else {
             return Ok(Action::None);
         };
-        let (area, _) = ui::picker_regions(self.layout.screen());
+        let (area, _) = geometry::picker_regions(self.layout.screen());
         if !area.contains(Position::new(event.column, event.row)) {
             return Ok(Action::None);
         }

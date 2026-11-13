@@ -4,7 +4,7 @@
 //! then settle with the held pane after release. Elapsed-time transitions skip
 //! late frames. New input or geometry cancels motion; commits never wait.
 
-mod neighbors;
+pub(super) mod neighbors;
 mod slide;
 
 use std::time::{Duration, Instant};
@@ -96,7 +96,7 @@ impl PaneMotion {
         self.flight.as_ref().map(PaneFlight::floating)
     }
 
-    fn neighbors(&self) -> Option<&Neighbors> {
+    pub(super) fn neighbors(&self) -> Option<&Neighbors> {
         self.neighbors.as_ref()
     }
 
@@ -153,7 +153,7 @@ impl App {
         self.drag_neighbors().map(|motion| motion.gap)
     }
 
-    fn neighbors(&self) -> Option<&Neighbors> {
+    pub(super) fn neighbors(&self) -> Option<&Neighbors> {
         self.pane_motion
             .neighbors()
             .or_else(|| self.drag_neighbors())

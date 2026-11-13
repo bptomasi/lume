@@ -101,7 +101,7 @@ fn narrow_settings_keep_the_selected_fullscreen_width_visible() -> Result<()> {
         press(&mut app, KeyCode::Down)?;
     }
     let mut terminal = Terminal::new(TestBackend::new(24, 10))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let rendered = terminal
         .backend()
         .buffer()
@@ -180,7 +180,7 @@ fn fullscreen_draws_article_and_exit_hint_without_application_chrome()
             app.workspace(),
         );
         app.resize_reader(column.width.into(), column.height.into());
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         let buffer = terminal.backend().buffer();
         assert_eq!(buffer[(0, 0)].symbol(), "╭");
         let rendered = buffer

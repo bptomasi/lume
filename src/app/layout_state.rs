@@ -16,6 +16,7 @@ use crate::model::{
 };
 
 /// Geometry inputs borrowed together from one workspace revision.
+#[derive(Clone, Copy)]
 pub struct LayoutView<'a> {
     /// Persisted preferences used by geometry and rendering.
     pub workspace: &'a Workspace,

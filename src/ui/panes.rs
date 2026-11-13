@@ -9,33 +9,43 @@ use ratatui::{
 };
 
 use crate::{
-    app::{App, Focus},
+    app::{Focus, NavigationPaneView, ReaderPaneView},
     content,
 };
 
 use super::theme::*;
 
-pub(super) fn library(frame: &mut Frame<'_>, app: &App, area: Rect) {
-    let block = panel(" 01  Library ".into(), app.focus() == Focus::Library);
+pub(super) fn library(
+    frame: &mut Frame<'_>,
+    view: &NavigationPaneView<'_>,
+    area: Rect,
+) {
+    let block = panel(" 01  Library ".into(), view.focus == Focus::Library);
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    let inner = super::pane_search::draw(frame, app, Focus::Library, inner);
-    super::navigation::draw(frame, app.navigation(), inner);
+    let inner =
+        super::pane_search::draw(frame, &view.search, Focus::Library, inner);
+    super::navigation::draw(frame, view.navigation, inner);
 }
 
-pub(super) fn articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
-    let title = format!(" 02  Articles · {} ", app.navigation().page_total);
-    let block = panel(title, app.focus() == Focus::Articles);
+pub(super) fn articles(
+    frame: &mut Frame<'_>,
+    view: &NavigationPaneView<'_>,
+    area: Rect,
+) {
+    let title = format!(" 02  Articles · {} ", view.navigation.page_total);
+    let block = panel(title, view.focus == Focus::Articles);
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    let inner = super::pane_search::draw(frame, app, Focus::Articles, inner);
-    if app.navigation().visible.is_empty() {
-        empty_articles(frame, app, inner);
+    let inner =
+        super::pane_search::draw(frame, &view.search, Focus::Articles, inner);
+    if view.navigation.visible.is_empty() {
+        empty_articles(frame, view, inner);
         return;
     }
     let (first, capacity, row_height) =
-        super::hit::article_window(app, inner.height);
-    for (row, position) in (first..app.navigation().visible.len())
+        super::hit::article_window(view, inner.height);
+    for (row, position) in (first..view.navigation.visible.len())
         .take(capacity)
         .enumerate()
     {
@@ -45,14 +55,19 @@ pub(super) fn articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
             inner.width,
             row_height.min(inner.height),
         );
-        headline(frame, app, position, rect);
+        headline(frame, view, position, rect);
     }
 }
 
-fn headline(frame: &mut Frame<'_>, app: &App, position: usize, area: Rect) {
+fn headline(
+    frame: &mut Frame<'_>,
+    view: &NavigationPaneView<'_>,
+    position: usize,
+    area: Rect,
+) {
     let article =
-        &app.navigation().library.articles[app.navigation().visible[position]];
-    let selected = position == app.navigation().selected;
+        &view.navigation.library.articles[view.navigation.visible[position]];
+    let selected = position == view.navigation.selected;
     let color = if selected {
         ACCENT
     } else if article.unread {
@@ -63,14 +78,14 @@ fn headline(frame: &mut Frame<'_>, app: &App, position: usize, area: Rect) {
     if selected {
         frame.render_widget(Block::new().style(Style::new().bg(RAISED)), area);
     }
-    let labels = app.headline_labels(article, area.width);
+    let labels = view.headlines.borrow_mut().labels(article, area.width);
     let mut lines = headline_lines(article, labels, color);
-    if app.navigation().marked.contains(&article.id) {
+    if view.navigation.marked.contains(&article.id) {
         lines[0]
             .spans
             .insert(0, Span::styled("✓", Style::new().fg(AMBER)));
     }
-    if app.workspace().compact {
+    if view.compact {
         lines.remove(1);
         lines.truncate(2);
     }
@@ -108,17 +123,16 @@ fn headline_lines(
     ]
 }
 
-fn empty_articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
-    let text = if *app.navigation().view == crate::model::View::Trash
-        && app.navigation().search.is_empty()
+fn empty_articles(
+    frame: &mut Frame<'_>,
+    view: &NavigationPaneView<'_>,
+    area: Rect,
+) {
+    let text = if *view.navigation.view == crate::model::View::Trash
+        && view.navigation.search.is_empty()
     {
         EMPTY_TRASH
-    } else if app
-        .navigation()
-        .navigation
-        .iter()
-        .any(|item| item.count > 0)
-    {
+    } else if view.navigation.navigation.iter().any(|item| item.count > 0) {
         EMPTY_VIEW
     } else {
         EMPTY_LIBRARY
@@ -131,15 +145,19 @@ fn empty_articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
     );
 }
 
-pub(super) fn reader(frame: &mut Frame<'_>, app: &App, area: Rect) {
-    let reading = app.reader();
-    let navigation = app.navigation();
-    let title = if app.workspace().fullscreen {
+pub(super) fn reader(
+    frame: &mut Frame<'_>,
+    view: &ReaderPaneView<'_>,
+    area: Rect,
+) {
+    let reading = view.reader;
+    let navigation = view.navigation;
+    let title = if view.workspace.fullscreen {
         " Article · FULLSCREEN · Esc / F11 exit "
     } else {
         " 03  Reader "
     };
-    let block = panel(title.into(), app.focus() == Focus::Reader);
+    let block = panel(title.into(), view.focus == Focus::Reader);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     if navigation.navigation_loading && reading.displayed_article.is_none() {
@@ -160,7 +178,7 @@ pub(super) fn reader(frame: &mut Frame<'_>, app: &App, area: Rect) {
         );
         return;
     };
-    let column = super::workspace_reader_content(area, app.workspace());
+    let column = super::workspace_reader_content(area, view.workspace);
     let header =
         Rect::new(column.x, inner.y, column.width, 3.min(inner.height));
     frame.render_widget(
@@ -169,8 +187,8 @@ pub(super) fn reader(frame: &mut Frame<'_>, app: &App, area: Rect) {
             .wrap(Wrap { trim: true }),
         header,
     );
-    reader_metadata(frame, app, column, inner);
-    reader_body(frame, app, column, inner);
+    reader_metadata(frame, view, column, inner);
+    reader_body(frame, view, column, inner);
 }
 
 const EMPTY_LIBRARY: &str = "
@@ -206,11 +224,11 @@ const EMPTY_READER: &str = "
 
 fn reader_metadata(
     frame: &mut Frame<'_>,
-    app: &App,
+    view: &ReaderPaneView<'_>,
     column: Rect,
     inner: Rect,
 ) {
-    let reading = app.reader();
+    let reading = view.reader;
     let Some(article) = reading.displayed_article else {
         return;
     };
@@ -234,7 +252,7 @@ fn reader_metadata(
         article.feed,
         reading.comments.len(),
         if article.queued { " · read next" } else { "" },
-        if *app.navigation().view == crate::model::View::Trash {
+        if *view.navigation.view == crate::model::View::Trash {
             " · Trash · :restore"
         } else {
             ""
@@ -244,22 +262,22 @@ fn reader_metadata(
         Paragraph::new(meta).style(Style::new().fg(AMBER)),
         Rect::new(column.x, inner.y + 3, column.width, 1),
     );
-    article_fetch_status(frame, app, column, inner);
+    article_fetch_status(frame, view, column, inner);
 }
 
 fn article_fetch_status(
     frame: &mut Frame<'_>,
-    app: &App,
+    view: &ReaderPaneView<'_>,
     column: Rect,
     inner: Rect,
 ) {
-    let reading = app.reader();
+    let reading = view.reader;
     let Some(article) = reading.displayed_article else {
         return;
     };
-    let message: std::borrow::Cow<'_, str> = if app.reader_stale() {
+    let message: std::borrow::Cow<'_, str> = if view.stale {
         "Previous article · loading selection… · article actions paused".into()
-    } else if app.article_fetching().as_ref().is_some_and(|target| {
+    } else if view.fetching.as_ref().is_some_and(|target| {
         target.article == article.id && target.url == article.url
     }) {
         "Fetching article… · reading remains available".into()
@@ -281,16 +299,21 @@ fn article_fetch_status(
     );
 }
 
-fn reader_body(frame: &mut Frame<'_>, app: &App, column: Rect, inner: Rect) {
-    let reading = app.reader();
-    if app.article_preparing() && !app.reader_stale() {
+fn reader_body(
+    frame: &mut Frame<'_>,
+    view: &ReaderPaneView<'_>,
+    column: Rect,
+    inner: Rect,
+) {
+    let reading = view.reader;
+    if view.preparing && !view.stale {
         frame.render_widget(
             Paragraph::new("Preparing article…").style(Style::new().fg(MUTED)),
             column,
         );
         return;
     }
-    super::reader_text::backgrounds(frame, app, column);
+    super::reader_text::backgrounds(frame, &view.text, column);
     let selected = reading.selected_range();
     let lines = reading
         .reader_styled
@@ -300,7 +323,7 @@ fn reader_body(frame: &mut Frame<'_>, app: &App, column: Rect, inner: Rect) {
         .take(column.height as usize)
         .map(|(index, line)| {
             super::reader_text::row(
-                app,
+                &view.text,
                 index,
                 line,
                 selected.as_ref(),
@@ -312,19 +335,23 @@ fn reader_body(frame: &mut Frame<'_>, app: &App, column: Rect, inner: Rect) {
         Paragraph::new(lines).style(Style::new().fg(TEXT)),
         column,
     );
-    super::images::draw(frame, app, column);
-    super::note_preview::markers(frame, app, column);
-    reader_progress(frame, app, inner);
+    super::images::draw(frame, &view.images, column);
+    super::note_preview::markers(frame, view.reader, column);
+    reader_progress(frame, view, inner);
 }
 
-fn reader_progress(frame: &mut Frame<'_>, app: &App, inner: Rect) {
-    let reading = app.reader();
+fn reader_progress(
+    frame: &mut Frame<'_>,
+    view: &ReaderPaneView<'_>,
+    inner: Rect,
+) {
+    let reading = view.reader;
     let percent =
         cursor_percent(reading.reader_cursor, reading.reader_lines.len());
-    let text = if app.workspace().fullscreen {
+    let text = if view.workspace.fullscreen {
         format!(
             " {percent}% · Esc / F11 exit · {}",
-            content::label(app.status(), 160),
+            content::label(view.status, 160),
         )
     } else {
         format!(

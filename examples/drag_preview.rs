@@ -12,6 +12,7 @@ use anyhow::{Context, Result};
 use crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
+use lume::frame_composition::draw_interactive;
 use lume::{app::App, demo, store::Store, ui};
 use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
@@ -104,7 +105,7 @@ fn export(
     frame: &mut usize,
 ) -> Result<()> {
     app.poll_reader();
-    terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+    terminal.draw(|frame| draw_interactive(frame, app))?;
     support::export(
         terminal.backend().buffer(),
         &output.join(format!("{frame:03}.json")),

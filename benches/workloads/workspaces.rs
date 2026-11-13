@@ -4,11 +4,11 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::App,
     model::{PanelLayout, SmartFilter, View},
     store::Store,
-    ui,
 };
 use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
@@ -87,10 +87,10 @@ fn navigation(
         for id in lists {
             let start = Instant::now();
             app.set_view(View::Smart(*id))?;
-            terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+            terminal.draw(|frame| draw_interactive(frame, app))?;
             admission.push(start.elapsed().as_secs_f64() * 1000.0);
             settle(app)?;
-            terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+            terminal.draw(|frame| draw_interactive(frame, app))?;
             complete.push(start.elapsed().as_secs_f64() * 1000.0);
             ensure!(
                 app.navigation().page_total == count / 2,
@@ -126,7 +126,7 @@ fn bursts(
         for index in 0..200 {
             app.set_view(View::Smart(lists[index % lists.len()]))?;
         }
-        terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+        terminal.draw(|frame| draw_interactive(frame, app))?;
         samples.push(start.elapsed().as_secs_f64() * 1000.0);
         settle(app)?;
         ensure!(
@@ -166,7 +166,7 @@ fn layouts(
             "Reset lost the previous study arrangement"
         );
         app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
-        terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+        terminal.draw(|frame| draw_interactive(frame, app))?;
         app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
         command(app, "layout-undo")?;
         ensure!(

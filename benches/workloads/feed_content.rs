@@ -128,7 +128,7 @@ fn notices(iterations: usize, stress: bool) -> Result<()> {
         iterations,
         || {
             for _ in 0..5 {
-                terminal.draw(|frame| ui::draw(frame, &app))?;
+                terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
                 let notice =
                     app.reader().reader_text.contains("This feed supplied");
                 ensure!(

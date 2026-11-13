@@ -3,7 +3,7 @@
 use crossterm::event::MouseEvent;
 use ratatui::layout::{Position, Rect};
 
-use crate::ui;
+use crate::presentation::geometry;
 
 use super::super::{App, ImageInspector, Mode};
 
@@ -14,7 +14,7 @@ impl App {
         event: MouseEvent,
     ) -> bool {
         let column =
-            ui::workspace_reader_content(reader, self.layout.workspace());
+            geometry::workspace_reader_content(reader, self.layout.workspace());
         self.open_pointer_image_column(column, event)
     }
 

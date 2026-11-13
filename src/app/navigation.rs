@@ -11,21 +11,20 @@ use super::{App, Focus, NavItem, View};
 
 impl App {
     pub(super) fn pin_navigation_viewport(&mut self) {
-        if let Some((first, skip)) =
-            crate::ui::navigation_origin(self, self.layout.screen())
-        {
+        if let Some((first, skip)) = self.navigation_origin() {
             self.nav.pin_navigation(first, skip);
         }
     }
 
     fn pin_article_viewport(&mut self) {
-        let areas = crate::ui::workspace_areas(
+        let areas = crate::presentation::geometry::workspace_areas(
             self.layout.screen(),
             self.layout.focus(),
             self.layout.workspace(),
         );
         if let Some(area) = areas.articles {
-            self.nav.pin_articles(crate::ui::article_origin(self, area));
+            self.nav
+                .pin_articles(self.navigation_hits().article_origin(area));
         }
     }
 

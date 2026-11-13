@@ -8,19 +8,19 @@ use ratatui::{
     widgets::{List, ListState, Paragraph},
 };
 
-use crate::app::{App, EditMode, HELP, Input, InputKind, Mode};
+use crate::app::{EditMode, HELP, Input, InputKind, Mode, OverlayView};
 
 use super::{popup::Popup, selectors, theme::*};
 
-pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
-    match app.mode() {
-        Mode::Help => help(frame, app),
-        Mode::Input(input) => editor(frame, app, input),
+pub(super) fn draw(frame: &mut Frame<'_>, view: &OverlayView<'_>) {
+    match view.mode {
+        Mode::Help => help(frame, view),
+        Mode::Input(input) => editor(frame, view, input),
         Mode::ServerToken(input) => server_token(frame, input),
         Mode::Picker(picker) => selectors::picker(frame, picker),
         Mode::Smart(form) => selectors::smart(frame, form),
         Mode::Document(document) => document_view(frame, document),
-        Mode::Settings(draft) => settings(frame, app, draft),
+        Mode::Settings(draft) => settings(frame, view, draft),
         Mode::Leader => leader(frame),
         Mode::Normal | Mode::Web => {}
         Mode::Image(_) => {}
@@ -29,7 +29,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
 
 fn settings(
     frame: &mut Frame<'_>,
-    app: &App,
+    view: &OverlayView<'_>,
     draft: &crate::app::SettingsDraft,
 ) {
     let mut inner = modal(
@@ -52,7 +52,7 @@ fn settings(
         }
         inner.height = inner.height.saturating_sub(height);
     }
-    let lines = visual_preferences(app)
+    let lines = visual_preferences(view)
         .into_iter()
         .enumerate()
         .map(|(index, value)| {
@@ -74,42 +74,39 @@ fn settings(
 }
 
 fn visual_preferences(
-    app: &App,
+    view: &OverlayView<'_>,
 ) -> [String; crate::app::SettingsDraft::FIELD_COUNT] {
     [
-        format!("Theme: {}", app.workspace().theme),
-        format!("Reading width: {}", app.workspace().reading_width),
-        format!("Sidebar width: {}", app.workspace().library_width),
-        format!("Headlines width: {}", app.workspace().article_width),
-        format!("Compact headlines: {}", app.workspace().compact),
-        format!("Show library: {}", app.workspace().show_library),
-        format!("Show headlines: {}", app.workspace().show_articles),
-        format!("Annotations width: {}", app.workspace().annotation_width),
-        format!("Show reader: {}", app.workspace().show_reader),
-        format!("Show annotations: {}", app.workspace().show_annotations),
-        format!("Mouse reporting: {}", app.workspace().mouse),
-        format!("Fullscreen: {} cols", app.workspace().fullscreen_width),
-        format!("Justify prose: {}", app.workspace().justify),
-        format!("LaTeX formulas: {}", app.workspace().latex_formulas),
+        format!("Theme: {}", view.workspace.theme),
+        format!("Reading width: {}", view.workspace.reading_width),
+        format!("Sidebar width: {}", view.workspace.library_width),
+        format!("Headlines width: {}", view.workspace.article_width),
+        format!("Compact headlines: {}", view.workspace.compact),
+        format!("Show library: {}", view.workspace.show_library),
+        format!("Show headlines: {}", view.workspace.show_articles),
+        format!("Annotations width: {}", view.workspace.annotation_width),
+        format!("Show reader: {}", view.workspace.show_reader),
+        format!("Show annotations: {}", view.workspace.show_annotations),
+        format!("Mouse reporting: {}", view.workspace.mouse),
+        format!("Fullscreen: {} cols", view.workspace.fullscreen_width),
+        format!("Justify prose: {}", view.workspace.justify),
+        format!("LaTeX formulas: {}", view.workspace.latex_formulas),
         format!(
             "Formula presentation: {}",
-            if app.workspace().latex_graphics {
+            if view.workspace.latex_graphics {
                 "Graphics"
             } else {
                 "Text"
             }
         ),
-        format!(
-            "Automatic read state: {}",
-            app.workspace().auto_read.enabled
-        ),
+        format!("Automatic read state: {}", view.workspace.auto_read.enabled),
         format!(
             "Active reading seconds: {}",
-            app.workspace().auto_read.min_active_seconds
+            view.workspace.auto_read.min_active_seconds
         ),
         format!(
             "Displayed article coverage: {}%",
-            app.workspace().auto_read.min_coverage_percent
+            view.workspace.auto_read.min_coverage_percent
         ),
     ]
 }
@@ -153,35 +150,33 @@ fn clip_columns(text: &str, skip: usize, width: usize) -> String {
     output
 }
 
-fn help(frame: &mut Frame<'_>, app: &App) {
+fn help(frame: &mut Frame<'_>, view: &OverlayView<'_>) {
     let mut inner = modal(
         frame,
         "Lume · field guide · / search · j/k scroll · Esc close",
         Popup::Help,
     );
-    if app.help().editor.is_some() || !app.help().query.is_empty() {
-        inner = help_search_field(frame, app, inner);
+    if view.help.editor.is_some() || !view.help.query.is_empty() {
+        inner = help_search_field(frame, view, inner);
     }
     let capacity = inner.height as usize;
-    let offset = app
-        .help_scroll()
-        .min(HELP.lines().count().saturating_sub(1));
+    let offset = view.help.scroll.min(HELP.lines().count().saturating_sub(1));
     let lines = HELP
         .lines()
         .skip(offset)
         .take(capacity)
         .enumerate()
         .map(|(row, line)| {
-            let style =
-                if app.help().hits.binary_search(&(offset + row)).is_ok() {
-                    Style::new()
-                        .fg(AMBER)
-                        .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
-                } else if line.starts_with("  ─") {
-                    Style::new().fg(AMBER).add_modifier(Modifier::BOLD)
-                } else {
-                    Style::new().fg(TEXT)
-                };
+            let style = if view.help.hits.binary_search(&(offset + row)).is_ok()
+            {
+                Style::new()
+                    .fg(AMBER)
+                    .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
+            } else if line.starts_with("  ─") {
+                Style::new().fg(AMBER).add_modifier(Modifier::BOLD)
+            } else {
+                Style::new().fg(TEXT)
+            };
             Line::styled(line, style)
         })
         .collect::<Vec<_>>();
@@ -191,7 +186,11 @@ fn help(frame: &mut Frame<'_>, app: &App) {
     );
 }
 
-fn help_search_field(frame: &mut Frame<'_>, app: &App, inner: Rect) -> Rect {
+fn help_search_field(
+    frame: &mut Frame<'_>,
+    view: &OverlayView<'_>,
+    inner: Rect,
+) -> Rect {
     let field = Rect::new(inner.x, inner.y, inner.width, inner.height.min(1));
     frame.render_widget(
         Paragraph::new("/ ").style(Style::new().fg(AMBER)),
@@ -203,17 +202,17 @@ fn help_search_field(frame: &mut Frame<'_>, app: &App, inner: Rect) -> Rect {
         field.width.saturating_sub(2),
         field.height,
     );
-    if let Some(input) = app.help().editor {
+    if let Some(input) = view.help.editor {
         frame.render_widget(input, editor);
     } else {
-        frame.render_widget(Paragraph::new(app.help().query), editor);
+        frame.render_widget(Paragraph::new(view.help.query), editor);
     }
     if inner.height > 1 {
-        let count = app.help().hits.len();
+        let count = view.help.hits.len();
         let current = if count == 0 {
             0
         } else {
-            app.help().selected + 1
+            view.help.selected + 1
         };
         frame.render_widget(
             Paragraph::new(format!(
@@ -227,12 +226,12 @@ fn help_search_field(frame: &mut Frame<'_>, app: &App, inner: Rect) -> Rect {
     Rect::new(inner.x, inner.y + used, inner.width, inner.height - used)
 }
 
-fn editor(frame: &mut Frame<'_>, app: &App, input: &Input) {
+fn editor(frame: &mut Frame<'_>, view: &OverlayView<'_>, input: &Input) {
     if matches!(input.kind, InputKind::Search | InputKind::LibrarySearch) {
         return;
     }
     if matches!(input.kind, InputKind::Command) {
-        super::command_line::draw(frame, app, input);
+        super::command_line::draw(frame, view.status, input);
         return;
     }
     let multiline = super::popup::multiline(&input.kind);
@@ -253,12 +252,12 @@ fn editor(frame: &mut Frame<'_>, app: &App, input: &Input) {
         inner.height.saturating_sub(5),
     );
     frame.render_widget(&input.editor, editor_area);
-    editor_footer(frame, app, input, inner, multiline);
+    editor_footer(frame, view, input, inner, multiline);
 }
 
 fn editor_footer(
     frame: &mut Frame<'_>,
-    app: &App,
+    view: &OverlayView<'_>,
     input: &Input,
     inner: Rect,
     multiline: bool,
@@ -278,7 +277,7 @@ fn editor_footer(
     frame.render_widget(
         Paragraph::new(vec![
             Line::styled(
-                crate::content::label(app.status(), 160),
+                crate::content::label(view.status, 160),
                 Style::new().fg(MUTED),
             ),
             Line::styled(command, Style::new().fg(TEXT)),
@@ -370,17 +369,6 @@ const LEADER: &str = "
 
 pub(super) fn modal(frame: &mut Frame<'_>, title: &str, popup: Popup) -> Rect {
     super::popup::draw_frame(frame, title, popup.area(frame.area()))
-}
-
-pub(super) fn centered(area: Rect, width: u16, height: u16) -> Rect {
-    let width = width.min(area.width.saturating_sub(2));
-    let height = height.min(area.height.saturating_sub(2));
-    Rect::new(
-        area.x + (area.width - width) / 2,
-        area.y + (area.height - height) / 2,
-        width,
-        height,
-    )
 }
 
 fn server_token(frame: &mut Frame<'_>, input: &crate::app::ServerToken) {

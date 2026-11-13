@@ -84,7 +84,7 @@ fn help_documents_layout_and_all_later_sections_are_reachable() -> Result<()> {
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     assert!(matches!(app.mode(), Mode::Help));
     let mut terminal = Terminal::new(TestBackend::new(120, 44))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let visible = terminal
         .backend()
         .buffer()

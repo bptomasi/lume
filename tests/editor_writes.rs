@@ -406,7 +406,7 @@ fn command_line_is_visible_separately_and_never_overflows_tiny_viewports()
     app.paste("wqa")?;
     let mut terminal = Terminal::new(TestBackend::new(100, 30))?;
 
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
 
     let text = terminal
         .backend()
@@ -423,7 +423,7 @@ fn command_line_is_visible_separately_and_never_overflows_tiny_viewports()
     assert_eq!(input(&app)?.text, "Private draft text");
     for (width, height) in [(1, 1), (24, 10), (40, 12)] {
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     }
     Ok(())
 }

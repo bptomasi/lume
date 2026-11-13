@@ -8,11 +8,11 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::app::{App, CommandSpec, Input, command_suggestions};
+use crate::app::{CommandSpec, Input, command_suggestions};
 
 use super::{overlays::modal, theme::*};
 
-pub(super) fn draw(frame: &mut Frame<'_>, app: &App, input: &Input) {
+pub(super) fn draw(frame: &mut Frame<'_>, status: &str, input: &Input) {
     let suggestions = command_suggestions(&input.text);
     let title = format!(": Commands · {} matches", suggestions.len());
     let inner = modal(frame, &title, super::popup::Popup::Command);
@@ -27,7 +27,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, input: &Input) {
     frame.render_widget(
         Paragraph::new(vec![
             Line::styled(
-                crate::content::label(app.status(), 160),
+                crate::content::label(status, 160),
                 Style::new().fg(MUTED),
             ),
             Line::styled(

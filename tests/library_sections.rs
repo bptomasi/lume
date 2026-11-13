@@ -113,13 +113,13 @@ fn click_selected(app: &mut App) -> Result<()> {
         .context("Library pane")?;
     let row = (area.y + 1..area.bottom() - 1)
         .find(|row| {
-            ui::navigation_at(app, area, *row)
+            ui::navigation_at(app.navigation_hits(), area, *row)
                 == Some(app.navigation().nav_selected)
         })
         .context("Visible section control")?;
     let mut terminal =
         Terminal::new(TestBackend::new(SCREEN.width, SCREEN.height))?;
-    terminal.draw(|frame| ui::draw(frame, app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     for kind in [
         MouseEventKind::Down(MouseButton::Left),
         MouseEventKind::Up(MouseButton::Left),

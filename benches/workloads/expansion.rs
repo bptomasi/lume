@@ -244,7 +244,7 @@ fn interactions(
                 KeyCode::Up
             },
         )?;
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         ensure!(
             app.reader().reader_cursor != before,
             "Reader motion was lost"
@@ -256,7 +256,7 @@ fn interactions(
         let before = app.current().context("Missing selection")?.id;
         press(&mut app, KeyCode::Down)?;
         press(&mut app, KeyCode::Enter)?;
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         ensure!(
             app.current().context("Selection lost")?.id < before,
             "Open retargeted the article"
@@ -299,7 +299,7 @@ fn reflow_latency(
             .context("Reader disappeared")?;
             let content = ui::workspace_reader_content(area, app.workspace());
             app.resize_reader(content.width.into(), content.height.into());
-            terminal.draw(|frame| ui::draw(frame, app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             ensure!(
                 app.reader().reader_text.contains("Systems"),
                 "Resize discarded article text"

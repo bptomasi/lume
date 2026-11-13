@@ -134,7 +134,7 @@ fn smart_form_pause_survives_restart_and_can_resume() -> Result<()> {
     for (width, height) in [(144, 44), (50, 18)] {
         let backend = ratatui::backend::TestBackend::new(width, height);
         let mut terminal = ratatui::Terminal::new(backend)?;
-        terminal.draw(|frame| lume::ui::draw(frame, &app))?;
+        terminal.draw(|frame| lume::ui::draw(frame, &app.presentation()))?;
         let pixels = terminal
             .backend()
             .buffer()

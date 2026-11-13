@@ -32,7 +32,7 @@ fn enter_edits_numeric_values_and_ctrl_s_persists_the_preview() -> Result<()> {
     app.paste("100")?;
     for (width, height) in [(1, 1), (24, 10), (120, 32)] {
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     }
     key(&mut app, KeyCode::Enter)?;
     assert_eq!(app.workspace().reading_width, 100);

@@ -9,17 +9,21 @@ use ratatui::{
 };
 
 use crate::{
-    app::{AnnotationPosition, App, Focus},
+    app::{AnnotationPosition, Focus, ReaderView},
     content,
 };
 
 use super::{hit::annotation_window, theme::*};
 
-pub(super) fn draw(frame: &mut Frame<'_>, app: &App, area: Rect) {
-    let reading = app.reader();
+pub(super) fn draw(
+    frame: &mut Frame<'_>,
+    reading: ReaderView<'_>,
+    focus: Focus,
+    area: Rect,
+) {
     let block = panel(
         format!(" Annotations · {} ", reading.annotations.len()),
-        app.focus() == Focus::Annotations,
+        focus == Focus::Annotations,
     );
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -36,7 +40,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, area: Rect) {
         );
         return;
     }
-    let (first, capacity) = annotation_window(app, inner.height);
+    let (first, capacity) = annotation_window(reading, inner.height);
     for (row, entry) in reading
         .annotations
         .iter()
@@ -50,17 +54,16 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, area: Rect) {
             inner.width,
             6.min(inner.height.saturating_sub(row as u16 * 6)),
         );
-        card(frame, app, entry, rect);
+        card(frame, reading, entry, rect);
     }
 }
 
 fn card(
     frame: &mut Frame<'_>,
-    app: &App,
+    reading: ReaderView<'_>,
     entry: &crate::app::AnnotationEntry,
     area: Rect,
 ) {
-    let reading = app.reader();
     let Some(note) = reading.comments.get(entry.comment_index) else {
         return;
     };

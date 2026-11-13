@@ -5,7 +5,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::{
     app::{Action, App, Focus, Mode},
-    media::{ImageDetail, ImageKey, ImageProtocol},
+    media::{ImageKey, ImageProtocol},
 };
 
 /// Captured publisher image, independent of later selection or feed refresh.
@@ -107,35 +107,7 @@ impl App {
 
     /// Exact inspector request, including source crop and terminal cell size.
     pub fn image_inspector_key(&self) -> Option<ImageKey> {
-        let Mode::Image(image) = self.interaction.mode() else {
-            return None;
-        };
-        let area = crate::ui::image_inspector_area(self.layout.screen());
-        let mut width = area.width.max(1);
-        let height = area.height.max(1);
-        let cell = self.images.cell_pixels;
-        if self.images.protocol != ImageProtocol::Blocks {
-            let column_pixels = u64::from(height)
-                * u64::from(cell.0.max(1))
-                * u64::from(cell.1.max(1));
-            width =
-                (4_000_000 / column_pixels).clamp(1, u64::from(width)) as u16;
-        }
-        Some(ImageKey {
-            url: image.url.clone(),
-            width,
-            height,
-            background: crate::ui::image_background(
-                &self.layout.workspace().theme,
-            ),
-            detail: Some(ImageDetail {
-                zoom: image.zoom,
-                pan: image.pan,
-                protocol: self.images.protocol,
-                cell_pixels: cell,
-                slice: None,
-            }),
-        })
+        self.image_view().image_inspector_key()
     }
 
     pub(in crate::app) fn set_image_protocol(

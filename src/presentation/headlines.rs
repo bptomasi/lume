@@ -3,7 +3,6 @@
 use chrono::{DateTime, Utc};
 use std::collections::VecDeque;
 
-use super::App;
 use crate::model::Article;
 
 #[derive(Clone)]
@@ -22,10 +21,10 @@ struct Entry {
 }
 
 #[derive(Default)]
-pub(super) struct Headlines(VecDeque<Entry>);
+pub(crate) struct Headlines(VecDeque<Entry>);
 
 impl Headlines {
-    fn labels(&mut self, article: &Article, width: u16) -> Labels {
+    pub(crate) fn labels(&mut self, article: &Article, width: u16) -> Labels {
         if let Some(entry) = self.0.iter().find(|entry| {
             entry.id == article.id
                 && entry.title == article.title
@@ -60,16 +59,6 @@ impl Headlines {
             self.0.truncate(64);
         }
         labels
-    }
-}
-
-impl App {
-    pub(crate) fn headline_labels(
-        &self,
-        article: &Article,
-        width: u16,
-    ) -> Labels {
-        self.headlines.borrow_mut().labels(article, width)
     }
 }
 

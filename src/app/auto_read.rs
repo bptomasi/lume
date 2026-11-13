@@ -46,14 +46,14 @@ impl App {
             && !self.pane_motion_active()
             && self.panel_drag().is_none()
             && self.current().is_some_and(|article| article.unread)
-            && crate::ui::workspace_areas(
+            && crate::presentation::geometry::workspace_areas(
                 self.layout.screen(),
                 self.layout.focus(),
                 self.layout.workspace(),
             )
             .reader
             .is_some_and(|area| {
-                !crate::ui::workspace_reader_content(
+                !crate::presentation::geometry::workspace_reader_content(
                     area,
                     self.layout.workspace(),
                 )

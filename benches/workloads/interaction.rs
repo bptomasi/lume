@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{Context, Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::{App, Focus, NavigationView},
     model::{FeedOrigin, IncomingArticle, View},
@@ -43,7 +44,7 @@ fn library_frames(
         || {
             app.select_library_destination(&destinations[step % 8])?;
             app.resize_workspace(Rect::new(0, 0, 144, 44));
-            terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+            terminal.draw(|frame| draw_interactive(frame, app))?;
             let area = ui::workspace_areas(
                 Rect::new(0, 0, 144, 44),
                 app.focus(),
@@ -58,7 +59,7 @@ fn library_frames(
                 })
                 .context("Selected Library row is not visible")?;
             ensure!(
-                ui::navigation_at(app, area, row)
+                ui::navigation_at(app.navigation_hits(), area, row)
                     == Some(app.navigation().nav_selected),
                 "Rendered navigation and mouse hit disagree"
             );
@@ -99,7 +100,7 @@ fn selection_frames(
             for key in ['k', 'j'] {
                 press(app, KeyCode::Char(key))?;
                 app.resize_workspace(Rect::new(0, 0, 144, 44));
-                terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+                terminal.draw(|frame| draw_interactive(frame, app))?;
             }
             ensure!(app.selected_range().is_some(), "Motion lost selection");
             Ok(())

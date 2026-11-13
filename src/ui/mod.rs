@@ -1,20 +1,15 @@
-//! Cached terminal rendering and bounded, optional pane-image capture.
+//! Render borrowed cached presentation; terminal composition owns capture.
 
 mod annotations;
 mod chrome;
 mod command_line;
-mod drag_picture;
 mod hit;
 mod image_view;
 mod images;
-pub(crate) use drag_picture::compact as compact_drag_picture;
-pub use image_view::image_inspector_area;
 mod key_guide;
-mod layout;
 mod navigation;
 mod note_preview;
 mod notebook;
-pub(crate) use notebook::context_scroll_limit as notebook_scroll_limit;
 mod overlays;
 mod pane_motion;
 mod pane_search;
@@ -25,64 +20,47 @@ mod selectors;
 mod theme;
 mod web;
 mod welcome;
-pub use web::content as web_content;
 
-pub(crate) use theme::image_background;
 pub use welcome::draw as draw_welcome;
 
 use ratatui::Frame;
 
-use crate::app::App;
+use crate::app::{ForegroundView, PresentationView};
 
-pub(crate) use hit::article_origin;
-pub use hit::{annotation_at, article_at, navigation_at};
-pub use layout::{
-    Areas, SplitBoundary, areas, pane_buttons, pane_close_rect, pane_move_rect,
-    picker_regions, reader_content, workspace_areas, workspace_reader_content,
+pub use crate::presentation::geometry::{
+    Areas, SplitBoundary, areas, image_inspector_area, note_preview_area,
+    pane_buttons, pane_close_rect, pane_move_rect, picker_regions,
+    reader_content, web_content, workspace_areas, workspace_reader_content,
 };
-pub(crate) use navigation::origin as navigation_origin;
-pub use note_preview::note_preview_area;
+pub use crate::presentation::hit::{
+    article_hit as article_at, navigation_hit as navigation_at,
+};
 
-/// Render cached rows; no SQL, HTTP, syntax parsing or Markdown layout occurs.
-pub fn draw(frame: &mut Frame<'_>, app: &App) {
-    draw_base(frame, app);
-    pane_motion::draw(frame, app);
-    images::draw_native(frame, app);
+/// Render cached rows without SQL, HTTP, parsing or mutable application access.
+pub fn draw(frame: &mut Frame<'_>, view: &PresentationView<'_>) {
+    draw_base(frame, view);
+    draw_foreground(frame, &view.foreground);
 }
 
-/// Capture bounded pane pictures before hints and terminal output.
-pub fn draw_interactive(frame: &mut Frame<'_>, app: &mut App) {
-    draw_base(frame, app);
-    if matches!(app.mode(), crate::app::Mode::Image(_)) {
+/// Paint cached panes and overlays before the terminal captures pane pictures.
+pub fn draw_base(frame: &mut Frame<'_>, view: &PresentationView<'_>) {
+    if matches!(view.overlays.mode, crate::app::Mode::Image(_)) {
+        image_view::draw(frame, &view.foreground.native.images);
         return;
     }
-    if app.web_active() {
-        images::draw_native(frame, app);
-        return;
-    }
-    app.capture_pane_frame(frame.buffer_mut());
-    pane_motion::draw(frame, app);
-    images::draw_native(frame, app);
-}
-
-fn draw_base(frame: &mut Frame<'_>, app: &App) {
-    if matches!(app.mode(), crate::app::Mode::Image(_)) {
-        image_view::draw(frame, app);
-        return;
-    }
-    if app.web_active() {
-        web::draw(frame, app);
-        if !matches!(app.mode(), crate::app::Mode::Web) {
-            overlays::draw(frame, app);
+    if view.web.images.web_active {
+        web::draw(frame, &view.web);
+        if !matches!(view.overlays.mode, crate::app::Mode::Web) {
+            overlays::draw(frame, &view.overlays);
         }
-        theme::apply(frame.buffer_mut(), &app.workspace().theme);
+        theme::apply(frame.buffer_mut(), &view.layout.workspace.theme);
         return;
     }
-    draw_workspace(frame, app);
-    theme::apply(frame.buffer_mut(), &app.workspace().theme);
+    draw_workspace(frame, view);
+    theme::apply(frame.buffer_mut(), &view.layout.workspace.theme);
 }
 
-fn draw_workspace(frame: &mut Frame<'_>, app: &App) {
+fn draw_workspace(frame: &mut Frame<'_>, view: &PresentationView<'_>) {
     use ratatui::{style::Style, widgets::Block};
     frame.render_widget(
         Block::new().style(Style::new().bg(theme::PANEL)),
@@ -95,37 +73,53 @@ fn draw_workspace(frame: &mut Frame<'_>, app: &App) {
         );
         return;
     }
-    if !app.workspace().fullscreen {
-        chrome::header(frame, app);
+    if !view.layout.workspace.fullscreen {
+        chrome::header(frame, &view.chrome);
     }
-    let areas = workspace_areas(frame.area(), app.focus(), app.workspace());
-    if app.notebook().is_some() {
-        notebook::draw(frame, app, &areas);
+    let areas =
+        workspace_areas(frame.area(), view.layout.focus, view.layout.workspace);
+    if let Some(notebook) = &view.notebook {
+        notebook::draw(frame, view.layout.focus, notebook, &areas);
     } else {
-        draw_reading_panes(frame, app, &areas);
+        draw_reading_panes(frame, view, &areas);
     }
-    chrome::pane_controls(frame, app, &areas);
-    if !app.workspace().fullscreen {
-        chrome::footer(frame, app);
+    chrome::pane_controls(frame, &view.controls, &areas);
+    if !view.layout.workspace.fullscreen {
+        chrome::footer(frame, &view.chrome);
     }
-    if app.notebook().is_none() {
-        note_preview::draw(frame, app);
+    if view.notebook.is_none() {
+        note_preview::draw(frame, &view.preview);
     }
-    overlays::draw(frame, app);
-    key_guide::draw(frame, app);
+    overlays::draw(frame, &view.overlays);
+    key_guide::draw(frame, &view.guide);
 }
 
-fn draw_reading_panes(frame: &mut Frame<'_>, app: &App, areas: &Areas) {
+fn draw_reading_panes(
+    frame: &mut Frame<'_>,
+    view: &PresentationView<'_>,
+    areas: &Areas,
+) {
     if let Some(area) = areas.library {
-        panes::library(frame, app, area);
+        panes::library(frame, &view.navigation, area);
     }
     if let Some(area) = areas.articles {
-        panes::articles(frame, app, area);
+        panes::articles(frame, &view.navigation, area);
     }
     if let Some(area) = areas.reader {
-        panes::reader(frame, app, area);
+        panes::reader(frame, &view.reader, area);
     }
     if let Some(area) = areas.annotations {
-        annotations::draw(frame, app, area);
+        annotations::draw(frame, view.reader.reader, view.layout.focus, area);
     }
+}
+
+/// Paint captured motion and prepared native images after terminal capture.
+pub fn draw_foreground(frame: &mut Frame<'_>, view: &ForegroundView<'_>) {
+    pane_motion::draw(frame, &view.motion);
+    images::draw_native(frame, &view.native);
+}
+
+/// Paint prepared native images for a linked-reading frame without capture.
+pub fn draw_native(frame: &mut Frame<'_>, view: &ForegroundView<'_>) {
+    images::draw_native(frame, &view.native);
 }

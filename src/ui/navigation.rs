@@ -13,16 +13,9 @@ use ratatui::{
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use crate::app::{App, NavigationView};
+use crate::presentation::navigation::{NavItem, NavigationView, Row, window};
 
 use super::theme::{ACCENT, FAINT, MUTED, RAISED};
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Row {
-    Blank,
-    Heading(&'static str),
-    Item(usize),
-}
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: NavigationView<'_>, area: Rect) {
     if app.indices().next().is_none() {
@@ -39,119 +32,6 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: NavigationView<'_>, area: Rect) {
         })
         .collect::<Vec<_>>();
     frame.render_widget(Paragraph::new(lines), area);
-}
-
-pub(super) fn at(app: &App, height: u16, row: usize) -> Option<usize> {
-    let app = app.navigation();
-    app.navigation.get(app.nav_selected)?;
-    match window(app, height).nth(row)? {
-        Row::Item(index) => Some(index),
-        Row::Blank | Row::Heading(_) => None,
-    }
-}
-
-fn window(
-    app: NavigationView<'_>,
-    height: u16,
-) -> impl Iterator<Item = Row> + '_ {
-    let (first, skip) = window_start(app, height);
-    rows(app, first).skip(skip).take(usize::from(height))
-}
-
-pub(crate) fn origin(app: &App, screen: Rect) -> Option<(usize, usize)> {
-    let area =
-        super::workspace_areas(screen, app.focus(), app.workspace()).library?;
-    let inner = super::pane_search::content(
-        app,
-        crate::model::Pane::Library,
-        area.inner(ratatui::layout::Margin::new(1, 1)),
-    );
-    (inner.height > 0).then(|| window_start(app.navigation(), inner.height))
-}
-
-fn window_start(app: NavigationView<'_>, height: u16) -> (usize, usize) {
-    let selected = app.position(app.nav_selected).unwrap_or(0);
-    if selected < app.navigation_first {
-        return lookbehind(app, selected, 0);
-    }
-    let first = app.navigation_first.min(selected);
-    let skip = if first == app.navigation_first {
-        app.navigation_skip.min(heading_rows(app, first))
-    } else {
-        0
-    };
-    if rows(app, first)
-        .skip(skip)
-        .take(usize::from(height))
-        .any(|row| row == Row::Item(app.nav_selected))
-    {
-        return (first, skip);
-    }
-    lookbehind(app, selected, usize::from(height).saturating_sub(1))
-}
-
-fn lookbehind(
-    app: NavigationView<'_>,
-    mut first: usize,
-    mut remaining: usize,
-) -> (usize, usize) {
-    let mut skip = heading_rows(app, first);
-    loop {
-        if remaining <= skip {
-            skip -= remaining;
-            break;
-        }
-        remaining -= skip;
-        if first == 0 {
-            skip = 0;
-            break;
-        }
-        first -= 1;
-        skip = heading_rows(app, first) + 1;
-    }
-    (first, skip)
-}
-
-fn heading_rows(app: NavigationView<'_>, position: usize) -> usize {
-    let Some(index) = app.indices().nth(position) else {
-        return 0;
-    };
-    let previous = position
-        .checked_sub(1)
-        .and_then(|position| app.indices().nth(position))
-        .map_or("", |index| app.navigation[index].group);
-    if app.navigation[index].group == previous {
-        return 0;
-    }
-    if matches!(app.navigation[index].view, crate::model::View::Group(_)) {
-        1
-    } else {
-        2
-    }
-}
-
-fn rows(
-    app: NavigationView<'_>,
-    first: usize,
-) -> impl Iterator<Item = Row> + '_ {
-    let mut group = first
-        .checked_sub(1)
-        .and_then(|position| app.indices().nth(position))
-        .map_or("", |index| app.navigation[index].group);
-    app.indices().skip(first).flat_map(move |index| {
-        let item = &app.navigation[index];
-        let changed_group = item.group != group;
-        group = item.group;
-        [
-            changed_group.then_some(Row::Blank),
-            (changed_group
-                && !matches!(item.view, crate::model::View::Group(_)))
-            .then_some(Row::Heading(group)),
-            Some(Row::Item(index)),
-        ]
-        .into_iter()
-        .flatten()
-    })
 }
 
 fn item_line(
@@ -179,7 +59,7 @@ fn item_line(
     Line::styled(text, style)
 }
 
-fn section_text(item: &crate::app::NavItem, width: u16) -> String {
+fn section_text(item: &NavItem, width: u16) -> String {
     let label = &item.title;
     let count = item.count.to_string();
     let width = usize::from(width);
@@ -191,7 +71,7 @@ fn section_text(item: &crate::app::NavItem, width: u16) -> String {
     }
 }
 
-fn item_text(item: &crate::app::NavItem, selected: bool, width: u16) -> String {
+fn item_text(item: &NavItem, selected: bool, width: u16) -> String {
     let marker = if selected { "▎" } else { " " };
     let digits = item.count.checked_ilog10().map_or(1, |value| value + 1);
     let title_width =

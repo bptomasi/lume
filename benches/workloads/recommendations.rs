@@ -172,7 +172,7 @@ fn navigation(store: Store, iterations: usize, _expected: usize) -> Result<()> {
             let start = Instant::now();
             for code in [KeyCode::Down, KeyCode::Up] {
                 app.key(KeyEvent::new(code, KeyModifiers::NONE))?;
-                terminal.draw(|frame| ui::draw(frame, &app))?;
+                terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             }
             latency.push(start.elapsed().as_secs_f64() * 1000.0);
             ensure!(

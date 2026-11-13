@@ -90,7 +90,7 @@ fn writes(
             app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
             command(app, "w")?;
             command(app, "w")?;
-            terminal.draw(|frame| ui::draw(frame, app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             ensure!(
                 app.reader().comments.len() == count,
                 "Repeated :w duplicated a note"
@@ -156,14 +156,14 @@ fn hover(
                 app.hovered_note().map(|(id, _)| id) == Some(id),
                 "Hover chose a different annotation"
             );
-            terminal.draw(|frame| ui::draw(frame, app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             app.mouse(MouseEvent {
                 column: 0,
                 row: 0,
                 ..event
             })?;
             ensure!(app.hovered_note().is_none(), "Preview stayed open");
-            terminal.draw(|frame| ui::draw(frame, app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             Ok(())
         },
     )

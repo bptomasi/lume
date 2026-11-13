@@ -39,7 +39,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
                 }
             }
             key(&mut app, KeyCode::Esc)?;
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             let line = (content.x..content.right())
                 .map(|x| terminal.backend().buffer()[(x, content.y)].symbol())
                 .collect::<String>();

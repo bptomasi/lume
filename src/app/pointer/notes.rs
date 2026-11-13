@@ -3,7 +3,7 @@
 use crossterm::event::MouseEvent;
 use ratatui::layout::Position;
 
-use crate::{model::Pane, ui};
+use crate::{model::Pane, presentation::geometry};
 
 use super::App;
 
@@ -24,7 +24,7 @@ impl App {
 
     pub(super) fn note_popup_at(&self, position: Position) -> Option<i64> {
         let (id, anchor) = self.reader.hovered_note()?;
-        ui::note_preview_area(self.layout.screen(), anchor)
+        geometry::note_preview_area(self.layout.screen(), anchor)
             .contains(position)
             .then_some(id)
     }
@@ -40,14 +40,14 @@ impl App {
         {
             return None;
         }
-        let area = ui::workspace_areas(
+        let area = geometry::workspace_areas(
             self.layout.screen(),
             self.layout.focus(),
             self.layout.workspace(),
         )
         .reader?;
         let content =
-            ui::workspace_reader_content(area, self.layout.workspace());
+            geometry::workspace_reader_content(area, self.layout.workspace());
         if event.row < content.y || event.row >= content.bottom() {
             return None;
         }

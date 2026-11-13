@@ -4,7 +4,8 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use lume::{app::App, media, model::WebDocument, ui};
+use lume::frame_composition::draw_interactive;
+use lume::{app::App, media, model::WebDocument};
 use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
 pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
@@ -101,7 +102,7 @@ fn selected_frames(app: &mut App, iterations: usize) -> Result<()> {
         "linked selected cached-image frame",
         iterations * 10,
         || {
-            terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+            terminal.draw(|frame| draw_interactive(frame, app))?;
             let page = app.web_page().context("Page")?;
             ensure!(page.selected_range().is_some(), "Selection was lost");
             ensure!(

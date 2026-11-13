@@ -3,14 +3,14 @@
 use crossterm::event::MouseEvent;
 use ratatui::layout::Position;
 
-use crate::ui;
+use crate::presentation::geometry;
 
 use super::{App, Gesture};
 
 impl App {
     pub(super) fn begin_split_resize(
         &mut self,
-        areas: &ui::Areas,
+        areas: &geometry::Areas,
         event: MouseEvent,
     ) -> bool {
         let Some(tree) = &self.layout.workspace().layout else {
@@ -35,7 +35,7 @@ impl App {
 
     pub(super) fn drag_split(
         &mut self,
-        boundary: &ui::SplitBoundary,
+        boundary: &geometry::SplitBoundary,
         grab: Position,
         event: MouseEvent,
     ) {
@@ -54,7 +54,7 @@ impl App {
     }
 }
 
-fn on_seam(boundary: &ui::SplitBoundary, position: Position) -> bool {
+fn on_seam(boundary: &geometry::SplitBoundary, position: Position) -> bool {
     let area = boundary.first.union(boundary.second);
     if boundary.horizontal {
         return position.x.abs_diff(boundary.second.x) <= 1

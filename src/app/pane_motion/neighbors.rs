@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use ratatui::{buffer::Buffer, layout::Rect};
 
-use crate::{model::Pane, ui::Areas};
+use crate::{model::Pane, presentation::geometry::Areas};
 
 use super::{FloatingPane, Slide, snapshot};
 

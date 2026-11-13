@@ -13,6 +13,8 @@ use crate::{
 pub struct ReaderView<'a> {
     horizontal_blocks: super::horizontal::HorizontalView<'a>,
     note_markers: &'a std::collections::BTreeMap<usize, Vec<i64>>,
+    note_passages: &'a [(std::ops::Range<usize>, i64)],
+    note_comments: &'a [(std::ops::Range<usize>, i64)],
     note_hover: Option<(i64, ratatui::layout::Position)>,
     /// Non-overlapping publisher images and formulas in display-row order.
     pub image_slots: &'a [crate::reader::images::ImageSlot],
@@ -88,6 +90,8 @@ impl ReaderState {
         ReaderView {
             horizontal_blocks: self.horizontal_view(),
             note_markers: &self.notes.marks.rows,
+            note_passages: &self.notes.marks.passages,
+            note_comments: &self.notes.marks.comments,
             note_hover: self.notes.marks.hover,
             image_slots: &self.projection.images,
             body: &self.publisher.body,
@@ -160,6 +164,18 @@ impl<'a> ReaderView<'a> {
     /// Stable hover target and popup origin, without parsing or storage reads.
     pub fn hovered_note(&self) -> Option<(i64, ratatui::layout::Position)> {
         self.note_hover
+    }
+
+    /// Resolve a cached note hit without parsing, I/O or eager frame work.
+    pub fn note_at_offset(&self, offset: usize) -> Option<i64> {
+        let preferred =
+            self.comments.get(self.comment_selected).map(|note| note.id);
+        super::note_marks::note_at_offset(
+            self.note_passages,
+            self.note_comments,
+            preferred,
+            offset,
+        )
     }
 
     /// Selected position in resolved annotation order.

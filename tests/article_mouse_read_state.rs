@@ -60,7 +60,9 @@ fn click(app: &mut App, selected: usize) -> Result<()> {
         .articles
         .context("Articles hidden")?;
     let row = (area.y + 1..area.bottom() - 1)
-        .find(|row| ui::article_at(app, area, *row) == Some(selected))
+        .find(|row| {
+            ui::article_at(app.navigation_hits(), area, *row) == Some(selected)
+        })
         .context("Card hidden")?;
     for kind in [
         MouseEventKind::Down(MouseButton::Left),

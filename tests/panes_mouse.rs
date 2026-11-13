@@ -7,6 +7,7 @@ use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
     MouseEventKind,
 };
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::{Action, AnnotationPosition, App, Focus, InputBatch},
     model::{Pane, Workspace},
@@ -438,7 +439,7 @@ fn resized_and_reordered_layouts_render_all_four_panes_without_overflow()
         let screen = Rect::new(0, 0, width, height);
         app.resize_workspace(screen);
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         let areas = ui::workspace_areas(screen, app.focus(), app.workspace());
         for (_, area) in areas.ordered() {
             assert!(area.width >= 16 || width < 80);
@@ -904,7 +905,7 @@ fn begin_panel_drag(app: &mut App, screen: Rect, pane: Pane) -> Result<()> {
 fn rendered_header(app: &App, area: Rect) -> Result<String> {
     let mut terminal =
         Terminal::new(TestBackend::new(SCREEN.width, SCREEN.height))?;
-    terminal.draw(|frame| ui::draw(frame, app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     Ok((area.x..area.right())
         .map(|x| terminal.backend().buffer()[(x, area.y)].symbol())
         .collect())
@@ -954,7 +955,7 @@ fn panel_moves_can_target_collapsed_top_tabs_without_expanding_them()
 fn motion_frame(app: &mut App) -> Result<ratatui::buffer::Buffer> {
     let mut terminal =
         Terminal::new(TestBackend::new(SCREEN.width, SCREEN.height))?;
-    terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+    terminal.draw(|frame| draw_interactive(frame, app))?;
     Ok(terminal.backend().buffer().clone())
 }
 

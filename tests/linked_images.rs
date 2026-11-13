@@ -8,6 +8,7 @@ use anyhow::{Context, Result, ensure};
 use crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::{Action, App, Focus, Mode},
     media::{self, ImageKey, ImageProtocol},
@@ -104,7 +105,7 @@ fn enter_on_article_link_loads_and_paints_the_linked_image() -> Result<()> {
     );
     assert!(app.images().thumbnail(&request).is_some());
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
     assert!(
         terminal
             .backend()
@@ -183,7 +184,7 @@ fn sixel_linked_rows_are_clipped_and_hidden_beneath_overlays() -> Result<()> {
             .is_some()
     );
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
     assert_eq!(native_rows(&terminal), 12);
     for _ in 0..6 {
         app.mouse(MouseEvent {
@@ -194,13 +195,13 @@ fn sixel_linked_rows_are_clipped_and_hidden_beneath_overlays() -> Result<()> {
         })?;
     }
     settle(&mut app)?;
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
     assert_eq!(native_rows(&terminal), 7);
     key(&mut app, KeyCode::Char('?'))?;
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
     assert_eq!(native_rows(&terminal), 0);
     key(&mut app, KeyCode::Esc)?;
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
     assert_eq!(native_rows(&terminal), 7);
     Ok(())
 }
@@ -300,7 +301,7 @@ fn back_history_restores_cached_pixels_without_loading_them_again() -> Result<()
     assert!(app.images().thumbnail(&image_key(&app)?).is_some());
     assert!(!app.images_pending());
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
     assert_eq!(native_rows(&terminal), 12);
     Ok(())
 }

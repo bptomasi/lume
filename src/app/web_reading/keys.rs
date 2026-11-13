@@ -16,7 +16,7 @@ impl App {
             MouseEventKind::ScrollUp => self.web_scroll(false, 1),
             MouseEventKind::Down(MouseButton::Left) => {
                 if let Some(page) = self.web_page() {
-                    let area = crate::ui::web_content(
+                    let area = crate::presentation::geometry::web_content(
                         self.layout.screen(),
                         page.width,
                     );
@@ -54,7 +54,10 @@ impl App {
 
     fn web_pointer_byte(&self, column: u16, row: u16) -> Option<usize> {
         let page = self.web.current.as_ref()?;
-        let area = crate::ui::web_content(self.layout.screen(), page.width);
+        let area = crate::presentation::geometry::web_content(
+            self.layout.screen(),
+            page.width,
+        );
         if !area.contains((column, row).into()) {
             return None;
         }

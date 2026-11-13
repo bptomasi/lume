@@ -5,7 +5,7 @@ use ratatui::layout::{Position, Rect};
 
 use crate::{
     model::{Pane, Workspace},
-    ui,
+    presentation::geometry,
 };
 
 use super::{App, Gesture, SelectionCapture, Widths};
@@ -13,7 +13,7 @@ use super::{App, Gesture, SelectionCapture, Widths};
 impl App {
     pub(super) fn begin_resize(
         &mut self,
-        areas: &ui::Areas,
+        areas: &geometry::Areas,
         event: MouseEvent,
     ) -> bool {
         if self.layout.workspace().layout.is_some() {
@@ -55,7 +55,7 @@ impl App {
             return;
         }
         let content =
-            ui::workspace_reader_content(area, self.layout.workspace());
+            geometry::workspace_reader_content(area, self.layout.workspace());
         if !content.contains(Position::new(event.column, event.row)) {
             return;
         }
@@ -181,14 +181,14 @@ impl App {
     }
 
     fn extend_pointer_selection(&mut self, event: MouseEvent) -> Option<usize> {
-        let reader = ui::workspace_areas(
+        let reader = geometry::workspace_areas(
             self.layout.screen(),
             self.layout.focus(),
             self.layout.workspace(),
         )
         .reader?;
         let content =
-            ui::workspace_reader_content(reader, self.layout.workspace());
+            geometry::workspace_reader_content(reader, self.layout.workspace());
         if event.row < content.y {
             self.scroll_reader(false, 1);
         } else if event.row >= content.bottom() {

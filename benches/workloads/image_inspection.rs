@@ -124,7 +124,7 @@ fn inspect_frames(
         press(app, character)?;
         app.poll_images();
         ensure!(!app.images_pending(), "Cached pan started preparation");
-        terminal.draw(|frame| ui::draw(frame, app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         ensure!(
             terminal
                 .backend()

@@ -202,7 +202,7 @@ fn narrow_headers_keep_a_clean_separator_between_pane_controls() -> Result<()> {
     let mut terminal = ratatui::Terminal::new(
         ratatui::backend::TestBackend::new(screen.width, screen.height),
     )?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let buffer = terminal.backend().buffer();
     assert_eq!(buffer[(grip.right(), grip.y)].symbol(), "─");
     assert_eq!(buffer[(library.right() - 1, library.y)].symbol(), "╮");

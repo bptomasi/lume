@@ -6,6 +6,7 @@ use anyhow::{Context, Result};
 use crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::App,
     model::{Dock, Pane, PaneLayout, PanelLayout},
@@ -383,7 +384,7 @@ fn oversized_readers_use_bounded_cards_with_their_complete_outline()
     let mut terminal = ratatui::Terminal::new(
         ratatui::backend::TestBackend::new(SCREEN.width, SCREEN.height),
     )?;
-    terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+    terminal.draw(|frame| draw_interactive(frame, &mut app))?;
     let card = app.floating_pane().context("Compact card missing")?;
     assert!(card.area.width <= 38 && card.area.height <= 9);
     for (x, y, symbol) in [

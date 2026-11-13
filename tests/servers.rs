@@ -234,7 +234,7 @@ fn paused_servers_remain_identifiable_in_a_narrow_library() -> Result<()> {
     store.set_server_enabled(id, false)?;
     let app = App::new(store, false)?;
     let mut terminal = Terminal::new(TestBackend::new(120, 40))?;
-    terminal.draw(|frame| lume::ui::draw(frame, &app))?;
+    terminal.draw(|frame| lume::ui::draw(frame, &app.presentation()))?;
     let text = terminal
         .backend()
         .buffer()
@@ -539,7 +539,7 @@ fn masked_token_command_publishes_the_key_without_exposing_it_in_frames_or_debug
     app.paste("private-ui-token\n")?;
     assert!(!format!("{:?}", app.mode()).contains("private-ui-token"));
     let mut terminal = Terminal::new(TestBackend::new(100, 32))?;
-    terminal.draw(|frame| lume::ui::draw(frame, &app))?;
+    terminal.draw(|frame| lume::ui::draw(frame, &app.presentation()))?;
     let pixels = terminal
         .backend()
         .buffer()

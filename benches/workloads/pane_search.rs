@@ -32,7 +32,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
                     == "https://source-0001.example/feed",
                 "Matching identity drifted"
             );
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             key(&mut app, KeyCode::Esc)?;
             ensure!(
                 app.library_query().is_empty(),

@@ -97,7 +97,7 @@ fn frame(app: &mut App, terminal: &mut Terminal<TestBackend>) -> Result<()> {
         app.resize_reader(content.width.into(), content.height.into());
     }
     app.poll_reader();
-    terminal.draw(|frame| ui::draw(frame, app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     Ok(())
 }
 

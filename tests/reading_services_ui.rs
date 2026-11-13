@@ -312,7 +312,7 @@ fn linked_pages_and_reports_render_at_small_sizes_without_overflow()
         app.resize_workspace(ratatui::layout::Rect::new(0, 0, width, height));
         command(&mut app, "open-page https://example.org/small")?;
         settle(&mut app)?;
-        terminal.draw(|frame| lume::ui::draw(frame, &app))?;
+        terminal.draw(|frame| lume::ui::draw(frame, &app.presentation()))?;
         assert_eq!(
             terminal.backend().buffer().content.len(),
             usize::from(width) * usize::from(height)

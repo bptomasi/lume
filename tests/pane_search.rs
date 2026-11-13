@@ -38,7 +38,7 @@ fn mouse_scroll_and_click_use_filtered_library_identities() -> Result<()> {
         .clone();
     let row = (area.y..area.bottom())
         .find(|row| {
-            ui::navigation_at(&app, area, *row)
+            ui::navigation_at(app.navigation_hits(), area, *row)
                 == Some(app.navigation().nav_selected)
         })
         .context("Filtered row missing")?;
@@ -155,10 +155,16 @@ fn inline_article_search_keeps_its_scope_and_pointer_rows() -> Result<()> {
         .articles
         .context("Articles hidden")?;
     let first = articles.y + 3;
-    assert_eq!(ui::article_at(&app, articles, first - 2), None);
-    assert_eq!(ui::article_at(&app, articles, first), Some(0));
+    assert_eq!(
+        ui::article_at(app.navigation_hits(), articles, first - 2),
+        None
+    );
+    assert_eq!(
+        ui::article_at(app.navigation_hits(), articles, first),
+        Some(0)
+    );
     let mut terminal = Terminal::new(TestBackend::new(160, 44))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let buffer = terminal.backend().buffer();
     assert_eq!(buffer[(articles.x + 1, articles.y + 1)].symbol(), "/");
     key(&mut app, KeyCode::Enter)?;

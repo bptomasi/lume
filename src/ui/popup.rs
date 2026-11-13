@@ -50,14 +50,16 @@ impl Popup {
             Self::Help => (88, 40),
             Self::Token => (76, 5),
             Self::Command => (100, 25),
-            Self::Picker => (110, 28),
+            Self::Picker => {
+                return crate::presentation::geometry::picker_area(screen);
+            }
             Self::Smart => (82, 22),
             Self::Document => (u16::MAX, u16::MAX),
             Self::Settings => (96, 15),
             Self::Leader => (72, 15),
             Self::Editor(multiline) => (84, if multiline { 24 } else { 9 }),
         };
-        super::overlays::centered(screen, width, height)
+        crate::presentation::geometry::centered(screen, width, height)
     }
 }
 

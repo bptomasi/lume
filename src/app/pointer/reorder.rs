@@ -10,7 +10,7 @@ use ratatui::buffer::Buffer;
 use crate::app::{FloatingPane, pane_motion};
 use ratatui::layout::{Position, Rect};
 
-use crate::{model::Pane, ui};
+use crate::{model::Pane, presentation::geometry};
 
 use super::{App, Gesture, PanelDrag};
 
@@ -114,7 +114,7 @@ impl MoveCapture {
             || u32::from(self.origin.width) * u32::from(self.origin.height)
                 > 20_000;
         self.picture = if self.compact {
-            Some(ui::compact_drag_picture(
+            Some(crate::presentation::pane_picture::compact(
                 frame,
                 self.origin,
                 self.preview.pane,
@@ -144,7 +144,7 @@ impl MoveCapture {
     }
 
     fn settle(self, app: &mut App) {
-        let areas = ui::workspace_areas(
+        let areas = geometry::workspace_areas(
             app.layout.screen(),
             app.layout.focus(),
             app.layout.workspace(),
@@ -268,7 +268,7 @@ impl App {
     pub(super) fn begin_reorder(
         &mut self,
         pane: Pane,
-        areas: &ui::Areas,
+        areas: &geometry::Areas,
         event: MouseEvent,
     ) {
         let Some(origin) = areas.get(pane) else {
@@ -277,7 +277,10 @@ impl App {
         let tabs = if self.layout.workspace().fullscreen {
             Vec::new()
         } else {
-            ui::pane_buttons(self.layout.screen(), self.layout.workspace())
+            geometry::pane_buttons(
+                self.layout.screen(),
+                self.layout.workspace(),
+            )
         };
         let capture = MoveCapture {
             preview: PanelDrag {

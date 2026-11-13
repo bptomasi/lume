@@ -115,7 +115,7 @@ fn offline_reader_draws_the_cached_list_and_keeps_the_saved_document()
     let content = ui::workspace_reader_content(screen, app.workspace());
     let mut terminal = Terminal::new(TestBackend::new(120, 40))?;
 
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
 
     let rows = (content.y..content.bottom())
         .map(|y| {

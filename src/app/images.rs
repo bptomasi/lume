@@ -3,17 +3,17 @@
 use crate::app::commands::routing;
 
 mod inspector;
+mod view;
 mod viewport;
 pub use inspector::ImageInspector;
+pub(crate) use view::ImageView;
 
 use std::{collections::VecDeque, path::PathBuf};
 
 use anyhow::Result;
 
 use crate::{
-    media::{
-        ImageDetail, ImageKey, ImageProtocol, ImageSlice, Thumbnail, Worker,
-    },
+    media::{ImageKey, ImageProtocol, Thumbnail, Worker},
     reader::images::ImageSlot,
 };
 
@@ -181,50 +181,7 @@ impl App {
 
     /// Exact preparation key for an already resolved publisher image slot.
     pub fn image_key(&self, slot: &ImageSlot) -> Option<ImageKey> {
-        if slot.url.is_empty()
-            || slot.formula.is_some() && !self.uses_sixel_images()
-        {
-            return None;
-        }
-        Some(ImageKey {
-            url: slot.url.clone(),
-            width: self.image_viewport().width.clamp(1, 160) as u16,
-            height: slot.rows.len().clamp(1, 48) as u16,
-            background: crate::ui::image_background(
-                &self.layout.workspace().theme,
-            ),
-            detail: self.inline_pixel_detail(slot),
-        })
-    }
-
-    fn inline_pixel_detail(&self, slot: &ImageSlot) -> Option<ImageDetail> {
-        if self.images.protocol != ImageProtocol::Sixel {
-            return None;
-        }
-        let viewport = self.image_viewport();
-        let bottom = viewport.scroll + viewport.height;
-        let eligible = slot.formula.is_some()
-            || viewport
-                .visible()
-                .iter()
-                .filter(|image| {
-                    image.formula.is_none() && image.rows.start < bottom
-                })
-                .take(4)
-                .any(|image| image.source == slot.source);
-        if !eligible {
-            return None;
-        }
-        Some(ImageDetail {
-            zoom: 1,
-            pan: [0, 0],
-            protocol: self.images.protocol,
-            cell_pixels: self.images.cell_pixels,
-            slice: Some(ImageSlice {
-                first_row: 0,
-                rows: slot.rows.len().clamp(1, 48) as u16,
-            }),
-        })
+        self.image_view().image_key(slot)
     }
 
     /// Whether drawing needs a synchronized Sixel frame in the native terminal.
@@ -289,7 +246,7 @@ impl App {
             }
         } else if self.notebook().is_some()
             || self.nav.navigation_loading()
-            || crate::ui::workspace_areas(
+            || crate::presentation::geometry::workspace_areas(
                 self.layout.screen(),
                 self.layout.focus(),
                 self.layout.workspace(),

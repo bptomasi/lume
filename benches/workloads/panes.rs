@@ -16,6 +16,7 @@ use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
     MouseEventKind,
 };
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::{Action, App, Focus, InputBatch},
     model::{FeedOrigin, IncomingArticle},
@@ -225,7 +226,7 @@ fn frame(app: &mut App, terminal: &mut Terminal<TestBackend>) -> Result<()> {
     app.resize_workspace(SCREEN);
     app.poll_reader();
     app.tick_pane_motion(Instant::now());
-    terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+    terminal.draw(|frame| draw_interactive(frame, app))?;
     Ok(())
 }
 

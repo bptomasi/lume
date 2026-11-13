@@ -2,41 +2,21 @@
 
 use ratatui::{
     Frame,
-    layout::{Position, Rect},
+    layout::Rect,
     style::{Modifier, Style},
     text::Line,
     widgets::{Paragraph, Wrap},
 };
 
-use crate::app::{App, Mode};
+use crate::app::{Mode, PreviewView, ReaderView};
+
+use crate::presentation::geometry::note_preview_area;
 
 use super::theme::{AMBER, BLUE, TEXT};
 
-/// Popup rectangle shared by drawing and hit testing, clamped to the terminal.
-pub fn note_preview_area(screen: Rect, anchor: Position) -> Rect {
-    let width = screen.width.saturating_sub(2).min(56);
-    let height = screen.height.saturating_sub(2).min(9);
-    let x = anchor
-        .x
-        .saturating_add(2)
-        .min(screen.right().saturating_sub(width + 1))
-        .max(screen.x);
-    let y = if anchor.y.saturating_add(height + 1) < screen.bottom() {
-        anchor.y + 1
-    } else {
-        anchor.y.saturating_sub(height)
-    };
-    Rect::new(
-        x,
-        y.clamp(screen.y, screen.bottom().saturating_sub(height)),
-        width,
-        height,
-    )
-}
-
-pub(super) fn area(app: &App, screen: Rect) -> Option<Rect> {
-    let reading = app.reader();
-    if !matches!(app.mode(), Mode::Normal) || app.layout_prefix_pending() {
+pub(super) fn area(view: &PreviewView<'_>, screen: Rect) -> Option<Rect> {
+    let reading = view.reader;
+    if !matches!(view.mode, Mode::Normal) || view.layout_prefix_pending {
         return None;
     }
     let (id, anchor) = reading.hovered_note()?;
@@ -47,9 +27,9 @@ pub(super) fn area(app: &App, screen: Rect) -> Option<Rect> {
         .then(|| note_preview_area(screen, anchor))
 }
 
-pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
-    let reading = app.reader();
-    if !matches!(app.mode(), Mode::Normal) || app.layout_prefix_pending() {
+pub(super) fn draw(frame: &mut Frame<'_>, view: &PreviewView<'_>) {
+    let reading = view.reader;
+    if !matches!(view.mode, Mode::Normal) || view.layout_prefix_pending {
         return;
     }
     let Some((id, anchor)) = reading.hovered_note() else {
@@ -117,8 +97,11 @@ fn preview_lines(
     lines
 }
 
-pub(super) fn markers(frame: &mut Frame<'_>, app: &App, column: Rect) {
-    let reading = app.reader();
+pub(super) fn markers(
+    frame: &mut Frame<'_>,
+    reading: ReaderView<'_>,
+    column: Rect,
+) {
     for index in reading.scroll..reading.scroll + usize::from(column.height) {
         let ids = reading.note_markers(index);
         if ids.is_empty() {

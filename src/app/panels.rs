@@ -8,7 +8,7 @@ use ratatui::layout::Rect;
 
 use crate::{
     model::{Dock, Pane},
-    ui,
+    presentation::geometry,
 };
 
 use super::{Action, App};
@@ -26,13 +26,14 @@ impl App {
                 self.resize_web_height();
             }
         }
-        let areas = ui::workspace_areas(
+        let areas = geometry::workspace_areas(
             area,
             self.layout.focus(),
             self.layout.workspace(),
         );
         if let Some(articles) = areas.articles {
-            self.nav.pin_articles(ui::article_origin(self, articles));
+            self.nav
+                .pin_articles(self.navigation_hits().article_origin(articles));
         }
         if let Some(reader) = areas.reader {
             if self.notebook().is_some() {
@@ -41,8 +42,10 @@ impl App {
                 );
                 return;
             }
-            let content =
-                ui::workspace_reader_content(reader, self.layout.workspace());
+            let content = geometry::workspace_reader_content(
+                reader,
+                self.layout.workspace(),
+            );
             self.resize_reader(content.width.into(), content.height.into());
         }
     }
@@ -127,7 +130,7 @@ impl App {
     }
 
     fn move_candidates(&self) -> Vec<Pane> {
-        let visible = ui::workspace_areas(
+        let visible = geometry::workspace_areas(
             self.layout.screen(),
             self.layout.focus(),
             self.layout.workspace(),

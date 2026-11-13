@@ -4,11 +4,11 @@ use std::time::Instant;
 
 use anyhow::{Context, Result, ensure};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::App,
     model::{FeedOrigin, IncomingArticle, Pane, View},
     store::Store,
-    ui,
 };
 use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
@@ -27,10 +27,10 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
             let start = Instant::now();
             crate::fixture_command(&mut app, &format!("width {}", width))?;
             app.resize_workspace(Rect::new(0, 0, 144, 44));
-            terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+            terminal.draw(|frame| draw_interactive(frame, &mut app))?;
             admission.push(start.elapsed().as_secs_f64() * 1000.0);
             super::workspaces::settle(&mut app)?;
-            terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
+            terminal.draw(|frame| draw_interactive(frame, &mut app))?;
             completion.push(start.elapsed().as_secs_f64() * 1000.0);
             ensure!(
                 app.reader().body == source,

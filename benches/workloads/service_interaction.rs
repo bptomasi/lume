@@ -59,7 +59,7 @@ fn selector(iterations: usize, stress: bool) -> Result<()> {
         || {
             for direction in [KeyCode::Down, KeyCode::Up] {
                 key(&mut app, direction)?;
-                terminal.draw(|frame| ui::draw(frame, &app))?;
+                terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             }
             ensure!(
                 matches!(app.mode(), Mode::Picker(picker) if picker.query.is_empty() && picker.selected == 0),

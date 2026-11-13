@@ -155,16 +155,15 @@ impl App {
     }
 
     fn clamp_notebook_scroll(&mut self) {
-        let area = crate::ui::workspace_areas(
+        let area = crate::presentation::geometry::workspace_areas(
             self.layout.screen(),
             self.layout.focus(),
             self.layout.workspace(),
         )
         .reader;
         if let Some(book) = &mut self.notebooks.active {
-            let limit = area.map(|area| {
-                crate::ui::notebook_scroll_limit(&book.view(), area.height)
-            });
+            let limit =
+                area.map(|area| book.view().context_scroll_limit(area.height));
             book.clamp_viewport(limit);
         }
     }

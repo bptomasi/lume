@@ -242,7 +242,7 @@ fn source_switches(store: Store, iterations: usize) -> Result<()> {
                 .any(|(_, url)| url == "https://community.example/discussion"),
             "Community discussion link lost"
         );
-        terminal.draw(|frame| ui::draw(frame, &app))?;
+        terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
         let screen = terminal
             .backend()
             .buffer()

@@ -301,7 +301,8 @@ fn notebook_frames_fit_themes_and_sizes_and_keep_the_reading_layout()
             app.resize_workspace(Rect::new(0, 0, width, height));
             common::settle_notes(&mut app)?;
             let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-            terminal.draw(|frame| lume::ui::draw(frame, &app))?;
+            terminal
+                .draw(|frame| lume::ui::draw(frame, &app.presentation()))?;
             assert_eq!(terminal.backend().buffer().area.width, width);
         }
     }
@@ -610,7 +611,7 @@ fn context_end_motion_keeps_a_full_final_page_and_clamps_further_scroll()
     key(&mut app, KeyCode::Char('j'))?;
     assert_eq!(app.notebook().context("Notebook missing")?.scroll, end);
     let mut terminal = Terminal::new(TestBackend::new(100, 24))?;
-    terminal.draw(|frame| lume::ui::draw(frame, &app))?;
+    terminal.draw(|frame| lume::ui::draw(frame, &app.presentation()))?;
     let area = lume::ui::workspace_areas(screen, app.focus(), app.workspace())
         .reader
         .context("Context missing")?;
@@ -646,7 +647,7 @@ fn backlinks_scroll_the_selected_reference_into_view() -> Result<()> {
     app.resize_workspace(Rect::new(0, 0, 120, 18));
     key(&mut app, KeyCode::Char('G'))?;
     let mut terminal = Terminal::new(TestBackend::new(120, 18))?;
-    terminal.draw(|frame| lume::ui::draw(frame, &app))?;
+    terminal.draw(|frame| lume::ui::draw(frame, &app.presentation()))?;
     let text = terminal
         .backend()
         .buffer()
@@ -695,7 +696,7 @@ fn widening_a_scrolled_context_reflows_and_clamps_without_losing_the_last_page()
         "Reflow retained an obsolete row offset"
     );
     let mut terminal = Terminal::new(TestBackend::new(220, 38))?;
-    terminal.draw(|frame| lume::ui::draw(frame, &app))?;
+    terminal.draw(|frame| lume::ui::draw(frame, &app.presentation()))?;
     let text = terminal
         .backend()
         .buffer()

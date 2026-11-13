@@ -7,12 +7,12 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::app::App;
+use crate::app::{ImageView, NativeImagesView};
 
-pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
-    let viewport = app.image_viewport();
+pub(super) fn draw(frame: &mut Frame<'_>, view: &ImageView<'_>, column: Rect) {
+    let viewport = view.viewport;
     for slot in viewport.visible() {
-        let Some(key) = app.image_key(slot) else {
+        let Some(key) = view.image_key(slot) else {
             if slot.formula.is_some() {
                 continue;
             }
@@ -25,7 +25,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
             );
             continue;
         };
-        if let Some(image) = app.images().thumbnail(&key) {
+        if let Some(image) = view.images.thumbnail(&key) {
             if slot.formula.is_some() {
                 clear_formula_caption(
                     frame,
@@ -45,42 +45,42 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
                 &image.cells,
             );
         } else if slot.formula.is_none() {
-            let status = app.images().placeholder(&key);
+            let status = view.images.placeholder(&key);
             message(frame, column, viewport.scroll, slot.rows.start, status);
         }
     }
-    paint_cursor(frame, app, column);
+    paint_cursor(frame, view, column);
 }
 
-pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
-    if !app.uses_sixel_images()
-        || matches!(app.mode(), crate::app::Mode::Image(_))
-        || app.pane_motion_active()
-        || (!app.web_active() && app.notebook().is_some())
-        || (!app.web_active() && app.article_preparing() && !app.reader_stale())
+pub(super) fn draw_native(frame: &mut Frame<'_>, view: &NativeImagesView<'_>) {
+    if !view.images.uses_sixel_images()
+        || matches!(view.images.mode, crate::app::Mode::Image(_))
+        || view.motion_active
+        || (!view.images.web_active && view.notebook)
+        || (!view.images.web_active && view.preparing && !view.stale)
         || frame.area().width < 24
         || frame.area().height < 10
     {
         return;
     }
-    let Some(column) = native_column(app, frame.area()) else {
+    let Some(column) = native_column(view, frame.area()) else {
         return;
     };
     let occlusions = [
-        super::popup::Popup::from_mode(app.mode())
+        super::popup::Popup::from_mode(view.images.mode)
             .map(|popup| popup.area(frame.area())),
-        super::key_guide::area(app, frame.area()),
-        super::note_preview::area(app, frame.area()),
+        super::key_guide::area(&view.guide, frame.area()),
+        super::note_preview::area(&view.preview, frame.area()),
     ]
     .into_iter()
     .flatten()
     .collect::<Vec<_>>();
-    let viewport = app.image_viewport();
+    let viewport = view.images.viewport;
     for slot in viewport.visible() {
-        let Some(key) = app.image_key(slot) else {
+        let Some(key) = view.images.image_key(slot) else {
             continue;
         };
-        if let Some(image) = app.images().thumbnail(&key)
+        if let Some(image) = view.images.images.thumbnail(&key)
             && let Some(rows) = &image.rows
             && let Some((area, first)) =
                 native_area(viewport.scroll, slot, column, image)
@@ -90,14 +90,14 @@ pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
     }
 }
 
-fn native_column(app: &App, screen: Rect) -> Option<Rect> {
-    if app.web_active() {
-        return matches!(app.mode(), crate::app::Mode::Web)
-            .then(|| super::web_content(screen, app.image_viewport().width));
+fn native_column(view: &NativeImagesView<'_>, screen: Rect) -> Option<Rect> {
+    if view.images.web_active {
+        return matches!(view.images.mode, crate::app::Mode::Web)
+            .then(|| super::web_content(screen, view.images.viewport.width));
     }
     let reader =
-        super::workspace_areas(screen, app.focus(), app.workspace()).reader?;
-    Some(super::workspace_reader_content(reader, app.workspace()))
+        super::workspace_areas(screen, view.focus, view.workspace).reader?;
+    Some(super::workspace_reader_content(reader, view.workspace))
 }
 
 fn clear_formula_caption(
@@ -142,24 +142,23 @@ fn native_area(
     Some((area, first as u16))
 }
 
-fn paint_cursor(frame: &mut Frame<'_>, app: &App, column: Rect) {
-    let reading = app.reader();
-    let viewport = app.image_viewport();
-    let row = if app.web_active() {
-        let Some(page) = app.web_page() else {
+fn paint_cursor(frame: &mut Frame<'_>, view: &ImageView<'_>, column: Rect) {
+    let viewport = view.viewport;
+    let row = if view.web_active {
+        let Some(page) = view.web_page else {
             return;
         };
-        if !matches!(app.mode(), crate::app::Mode::Web) {
+        if !matches!(view.mode, crate::app::Mode::Web) {
             return;
         }
         page.cursor_row()
     } else {
-        if app.focus() != crate::app::Focus::Reader
-            || !matches!(app.mode(), crate::app::Mode::Normal)
+        if view.focus != crate::app::Focus::Reader
+            || !matches!(view.mode, crate::app::Mode::Normal)
         {
             return;
         }
-        reading.reader_cursor
+        view.cursor
     };
     if row < viewport.scroll
         || row >= viewport.scroll + usize::from(column.height)

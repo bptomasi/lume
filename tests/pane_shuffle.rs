@@ -8,6 +8,7 @@ use anyhow::{Context, Result};
 use crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
+use lume::frame_composition::draw_interactive;
 use lume::{app::App, model::Pane, ui};
 use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
@@ -38,7 +39,7 @@ fn mouse(
 fn frame(app: &mut App) -> Result<()> {
     let mut terminal =
         Terminal::new(TestBackend::new(SCREEN.width, SCREEN.height))?;
-    terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+    terminal.draw(|frame| draw_interactive(frame, app))?;
     Ok(())
 }
 

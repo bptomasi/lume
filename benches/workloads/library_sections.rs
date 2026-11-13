@@ -4,13 +4,13 @@ use std::time::Instant;
 
 use anyhow::{Result, ensure};
 use crossterm::event::KeyCode;
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::{App, Focus},
     model::{
         FeedOrigin, IncomingArticle, RemoteFeedCandidate, SmartFilter, View,
     },
     store::Store,
-    ui,
 };
 use ratatui::{Terminal, backend::TestBackend};
 
@@ -50,7 +50,7 @@ fn measure(
     for _ in 0..iterations * 2 {
         let start = Instant::now();
         app.key(KeyCode::Enter.into())?;
-        terminal.draw(|frame| ui::draw_interactive(frame, app))?;
+        terminal.draw(|frame| draw_interactive(frame, app))?;
         samples.push(start.elapsed().as_secs_f64() * 1000.0);
         let folded =
             app.workspace().collapsed_groups.iter().any(|s| s == group);

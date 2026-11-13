@@ -39,7 +39,7 @@ fn fenced_code_has_one_solid_background_including_blank_and_short_rows()
             app.resize_reader(column.width.into(), column.height.into());
             let mut terminal = Terminal::new(TestBackend::new(width, 30))?;
 
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
 
             let buffer = terminal.backend().buffer();
             for row in 0..3 {
@@ -69,7 +69,7 @@ fn standalone_code_uses_a_block_but_inline_fragments_keep_their_own_background()
     app.resize_reader(column.width.into(), column.height.into());
     let mut terminal = Terminal::new(TestBackend::new(100, 30))?;
 
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
 
     let buffer = terminal.backend().buffer();
     assert!(app.reader().code_lines[0]);
@@ -102,7 +102,7 @@ fn tables_keep_the_uniform_panel_background_while_code_remains_distinct()
     app.resize_reader(column.width.into(), column.height.into());
     let mut terminal = Terminal::new(TestBackend::new(100, 30))?;
 
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
 
     let buffer = terminal.backend().buffer();
     for row in app.reader().table_rows[0].clone() {

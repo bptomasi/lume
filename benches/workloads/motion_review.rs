@@ -67,7 +67,7 @@ fn scrolling(store: Store, iterations: usize) -> Result<()> {
     app.activate_pane(Focus::Reader);
     app.resize_workspace(Rect::new(0, 0, 160, 44));
     let mut terminal = Terminal::new(TestBackend::new(160, 44))?;
-    terminal.draw(|frame| ui::draw(frame, &app))?;
+    terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
     let source = app.reader().body.to_owned();
     let article = app.current().context("Selected article")?.id;
     super::measure(
@@ -80,9 +80,9 @@ fn scrolling(store: Store, iterations: usize) -> Result<()> {
                 app.reader().reader_cursor == cursor + 1,
                 "Down motion failed"
             );
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             app.key(KeyCode::Char('k').into())?;
-            terminal.draw(|frame| ui::draw(frame, &app))?;
+            terminal.draw(|frame| ui::draw(frame, &app.presentation()))?;
             ensure!(
                 app.reader().reader_cursor == cursor,
                 "Reverse motion failed"

@@ -23,6 +23,7 @@ use crossterm::{
     },
     execute,
 };
+use lume::frame_composition::draw_interactive;
 use lume::{
     app::{Action, App, InputBatch},
     store::Store,
@@ -309,7 +310,7 @@ fn draw_workspace(
     let sixel = app.uses_sixel_images();
     let mut draw = || {
         presentation.draw(terminal, native_inspector, |frame| {
-            ui::draw_interactive(frame, app)
+            draw_interactive(frame, app)
         })
     };
     if sixel {
