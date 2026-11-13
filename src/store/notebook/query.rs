@@ -119,6 +119,7 @@ impl Store {
     }
 
     /// Load one active note's preview without changing the selected article.
+    /// The bounded connection cache reuses the statement, never note results.
     ///
     /// # Errors
     /// Returns a missing/trashed note or SQLite error.
@@ -128,7 +129,8 @@ impl Store {
             include_str!("../sql/notebook/select_note_page.sql")
         );
         self.connection
-            .query_row(&sql, [note], summary_row)
+            .prepare_cached(&sql)
+            .and_then(|mut statement| statement.query_row([note], summary_row))
             .context("Note is missing or its article is in Trash")
     }
 }
