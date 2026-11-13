@@ -1,0 +1,25 @@
+process,warmup,operation,iterations,total_ms,mean_ms
+0,True,reference export IDs through previews/counts,4,5515.102,1378.776
+0,True,export IDs without previews/counts,4,1642.501,410.625
+0,True,reference stale note page with repeated search,40,392.194,9.805
+0,True,stale note page with one snapshot/count,40,258.497,6.462
+1,False,reference export IDs through previews/counts,4,5518.63,1379.658
+1,False,export IDs without previews/counts,4,1670.303,417.576
+1,False,reference stale note page with repeated search,40,398.093,9.952
+1,False,stale note page with one snapshot/count,40,262.289,6.557
+2,False,reference export IDs through previews/counts,4,5483.358,1370.84
+2,False,export IDs without previews/counts,4,1649.393,412.348
+2,False,reference stale note page with repeated search,40,390.829,9.771
+2,False,stale note page with one snapshot/count,40,265.421,6.636
+3,False,reference export IDs through previews/counts,4,5564.548,1391.137
+3,False,export IDs without previews/counts,4,1605.979,401.495
+3,False,reference stale note page with repeated search,40,406.491,10.162
+3,False,stale note page with one snapshot/count,40,273.393,6.835
+4,False,reference export IDs through previews/counts,4,5442.507,1360.627
+4,False,export IDs without previews/counts,4,1606.039,401.51
+4,False,reference stale note page with repeated search,40,399.125,9.978
+4,False,stale note page with one snapshot/count,40,260.048,6.501
+5,False,reference export IDs through previews/counts,4,5473.543,1368.386
+5,False,export IDs without previews/counts,4,1612.097,403.024
+5,False,reference stale note page with repeated search,40,405.213,10.13
+5,False,stale note page with one snapshot/count,40,267.273,6.682
