@@ -73,6 +73,9 @@ impl App {
     /// # Errors
     /// Returns captured write/refresh failures while retaining the editor.
     pub fn poll_note_tasks(&mut self) -> Result<Option<Action>> {
+        if let Some(error) = self.note_flush_failure.take() {
+            return Err(error);
+        }
         self.tick_draft_recovery()?;
         let mut changed = false;
         while let Some(completion) = self
@@ -327,19 +330,38 @@ impl App {
     pub(super) fn flush_note_tasks(&mut self) -> Result<()> {
         let deadline =
             std::time::Instant::now() + std::time::Duration::from_secs(5);
-        let mut failure = None;
-        while self.notes_pending() {
+        self.flush_note_tasks_before(deadline)
+    }
+
+    pub(super) fn flush_note_tasks_before(
+        &mut self,
+        deadline: std::time::Instant,
+    ) -> Result<()> {
+        let mut failure = self.note_flush_failure.take();
+        loop {
             if let Err(error) = self.poll_note_tasks() {
                 failure.get_or_insert(error);
             }
-            ensure!(
-                std::time::Instant::now() < deadline,
-                "Personal writes did not finish before shutdown"
-            );
-            std::thread::sleep(std::time::Duration::from_millis(1));
-        }
-        if let Err(error) = self.poll_note_tasks() {
-            failure.get_or_insert(error);
+            if !self.notes_pending() {
+                break;
+            }
+            let waited = self
+                .personal_writes
+                .as_ref()
+                .context(
+                    "Personal writer is unavailable before acknowledgement",
+                )
+                .and_then(|writer| writer.wait(deadline));
+            let completion = match waited {
+                Ok(completion) => completion,
+                Err(error) => {
+                    self.note_flush_failure = failure;
+                    return Err(error);
+                }
+            };
+            if let Err(error) = self.apply_note_completion(completion) {
+                failure.get_or_insert(error);
+            }
         }
         if let Some(error) = failure {
             return Err(error);

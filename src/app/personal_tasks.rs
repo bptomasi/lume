@@ -12,7 +12,7 @@ pub(super) use review::review;
 
 use std::{cell::RefCell, collections::VecDeque, path::Path, sync::mpsc};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 
 use crate::model::{Comment, DraftTarget, NoteChange, NoteDraft, UndoEffect};
 
@@ -178,16 +178,45 @@ impl PersonalWrites {
         let completion = match self.results.try_recv() {
             Ok(completion) => completion,
             Err(mpsc::TryRecvError::Empty) => return None,
-            Err(mpsc::TryRecvError::Disconnected) => Completion {
-                ticket: *self.pending.borrow().front()?,
-                result: Err(anyhow!(
-                    "Personal writer stopped before acknowledgement; inspect the library before retrying"
-                )),
-                started: None,
-            },
+            Err(mpsc::TryRecvError::Disconnected) => self.stopped()?,
         };
         self.pending.borrow_mut().pop_front();
         Some(completion)
+    }
+
+    /// Wait only at an explicit flush boundary; UI polling remains nonblocking.
+    pub(super) fn wait(
+        &self,
+        deadline: std::time::Instant,
+    ) -> Result<Completion> {
+        anyhow::ensure!(
+            self.pending(),
+            "Missing personal write acknowledgement"
+        );
+        let completion = match self.results.recv_timeout(
+            deadline.saturating_duration_since(std::time::Instant::now()),
+        ) {
+            Ok(completion) => completion,
+            Err(mpsc::RecvTimeoutError::Disconnected) => self
+                .stopped()
+                .context("Missing personal write acknowledgement")?,
+            Err(error) => {
+                return Err(error)
+                    .context("Personal writes did not finish before shutdown");
+            }
+        };
+        self.pending.borrow_mut().pop_front();
+        Ok(completion)
+    }
+
+    fn stopped(&self) -> Option<Completion> {
+        Some(Completion {
+            ticket: *self.pending.borrow().front()?,
+            result: Err(anyhow!(
+                "Personal writer stopped before acknowledgement; inspect the library before retrying"
+            )),
+            started: None,
+        })
     }
 
     pub(super) fn pending(&self) -> bool {
@@ -233,3 +262,6 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod lifecycle;

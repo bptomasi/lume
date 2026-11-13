@@ -3,8 +3,8 @@ use crate::{
     model::{ArticlePage, ArticleQuery, RecommendationUpdate},
     store::Store,
 };
-use anyhow::{Result, anyhow};
-use std::{path::Path, sync::mpsc};
+use anyhow::{Context, Result, anyhow};
+use std::{path::Path, sync::mpsc, time::Instant};
 
 struct Job {
     edit: Option<Edit>,
@@ -20,6 +20,8 @@ pub(super) struct Worker {
     requests: mpsc::SyncSender<Job>,
     results: mpsc::Receiver<Result<Completed>>,
     pending: usize,
+    // A consumed error remains reportable after an incomplete flush.
+    flush_failure: Option<anyhow::Error>,
 }
 
 impl Worker {
@@ -39,6 +41,7 @@ impl Worker {
             requests,
             results,
             pending: 0,
+            flush_failure: None,
         })
     }
 
@@ -61,6 +64,9 @@ impl Worker {
     }
 
     pub(super) fn poll(&mut self) -> Option<Result<Completed>> {
+        if let Some(error) = self.flush_failure.take() {
+            return Some(Err(error));
+        }
         match self.results.try_recv() {
             Ok(result) => {
                 self.pending = self.pending.saturating_sub(1);
@@ -72,6 +78,28 @@ impl Worker {
             }
             _ => None,
         }
+    }
+
+    // Shutdown acknowledges every admitted result, retaining the first failure.
+    // A failed wait retains outstanding work and prior failures until a later
+    // flush or ordinary UI poll explicitly reports them.
+    pub(super) fn flush(&mut self, deadline: Instant) -> Result<()> {
+        while self.pending() {
+            let result = self
+                .results
+                .recv_timeout(
+                    deadline.saturating_duration_since(Instant::now()),
+                )
+                .context("Recommendation writes did not finish")?;
+            self.pending -= 1;
+            if let Err(error) = result {
+                self.flush_failure.get_or_insert(error);
+            }
+        }
+        if let Some(error) = self.flush_failure.take() {
+            return Err(error);
+        }
+        Ok(())
     }
 
     pub(super) fn pending(&self) -> bool {
@@ -110,3 +138,6 @@ fn retry<T>(mut operation: impl FnMut() -> Result<T>) -> Result<T> {
         }
     }
 }
+
+#[cfg(test)]
+mod lifecycle;

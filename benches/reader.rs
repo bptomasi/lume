@@ -105,6 +105,8 @@ mod server_refresh;
 mod servers;
 #[path = "workloads/service_interaction.rs"]
 mod service_interaction;
+#[path = "workloads/shutdown.rs"]
+mod shutdown;
 #[path = "workloads/smoothness.rs"]
 mod smoothness;
 #[path = "workloads/storage_details.rs"]
@@ -218,6 +220,7 @@ const FOCUSED_WORKLOADS: &[(&str, Workload)] = &[
     ("--sixel-production-only", images::production_profile),
     ("--inspector-loading-only", inspector_loading::run),
     ("--retention-inspection-only", retention_inspection::run),
+    ("--shutdown-only", shutdown::run),
     ("--backups-only", backups::run),
     ("--active-reading-only", active_reading::run),
     ("--image-priority-only", image_priority::run),

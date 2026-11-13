@@ -120,6 +120,7 @@ pub(super) struct SessionWriter {
     errors: mpsc::Receiver<String>,
     pending: Arc<AtomicUsize>,
     failures: Arc<AtomicUsize>,
+    capacity: mpsc::Receiver<()>,
 }
 
 impl SessionWriter {
@@ -127,18 +128,22 @@ impl SessionWriter {
         let store = Store::open(path)?;
         let (requests, receiver) = mpsc::sync_channel(WRITE_QUEUE);
         let (errors, outcomes) = mpsc::sync_channel(WRITE_QUEUE);
+        let (available, capacity) = mpsc::sync_channel(1);
         let pending = Arc::new(AtomicUsize::new(0));
         let active = pending.clone();
         let failures = Arc::new(AtomicUsize::new(0));
         let failed = failures.clone();
         std::thread::Builder::new()
             .name("lume-session".into())
-            .spawn(move || run(store, receiver, errors, active, failed))?;
+            .spawn(move || {
+                run(store, receiver, errors, active, failed, available);
+            })?;
         Ok(Self {
             requests,
             errors: outcomes,
             pending,
             failures,
+            capacity,
         })
     }
 
@@ -196,23 +201,18 @@ impl SessionWriter {
     }
 
     pub(super) fn flush(&self) -> Result<()> {
-        let deadline = Instant::now() + Duration::from_secs(5);
+        self.flush_before(Instant::now() + Duration::from_secs(5))
+    }
+
+    // Admission and completion consume one shared shutdown budget.
+    fn flush_before(&self, deadline: Instant) -> Result<()> {
         let (done, completion) = mpsc::sync_channel(1);
-        let mut write = Write::Flush(done);
-        loop {
-            match self.requests.try_send(write) {
-                Ok(()) => break,
-                Err(mpsc::TrySendError::Full(returned)) => write = returned,
-                Err(mpsc::TrySendError::Disconnected(_)) => {
-                    return Err(anyhow!("Session writer stopped"));
-                }
-            }
-            anyhow::ensure!(
-                Instant::now() < deadline,
-                "Session queue did not drain within five seconds"
-            );
-            std::thread::sleep(Duration::from_millis(1));
-        }
+        admit_barrier(
+            &self.requests,
+            &self.capacity,
+            Write::Flush(done),
+            deadline,
+        )?;
         completion
             .recv_timeout(deadline.saturating_duration_since(Instant::now()))
             .context("Session save did not finish within five seconds")?;
@@ -225,17 +225,47 @@ impl SessionWriter {
     }
 }
 
+// One buffered wake covers a dequeue between try_send and recv_timeout. Stale
+// wakes only cause one retry; worker exit disconnects the wait. UI admission
+// continues to use try_send directly and never waits on this notification.
+fn admit_barrier(
+    requests: &mpsc::SyncSender<Write>,
+    capacity: &mpsc::Receiver<()>,
+    mut write: Write,
+    deadline: Instant,
+) -> Result<()> {
+    loop {
+        match requests.try_send(write) {
+            Ok(()) => return Ok(()),
+            Err(mpsc::TrySendError::Full(returned)) => write = returned,
+            Err(mpsc::TrySendError::Disconnected(_)) => {
+                return Err(anyhow!("Session writer stopped"));
+            }
+        }
+        anyhow::ensure!(
+            Instant::now() < deadline,
+            "Session queue did not drain within five seconds"
+        );
+        capacity
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .context("Session queue did not drain within five seconds")?;
+    }
+}
+
 fn run(
     store: Store,
     receiver: mpsc::Receiver<Write>,
     errors: mpsc::SyncSender<String>,
     active: Arc<AtomicUsize>,
     failed: Arc<AtomicUsize>,
+    available: mpsc::SyncSender<()>,
 ) {
     // Admission stops at WRITE_QUEUE unresolved keys. Only the
     // already queued writes can add more: at most twice that bound.
     let mut unresolved = BTreeMap::new();
     while let Ok(write) = receiver.recv() {
+        // A full wake slot already represents available queue capacity.
+        let _ = available.try_send(());
         if let Write::Flush(done) = write {
             let keys = unresolved.keys().copied().collect::<Vec<_>>();
             for key in keys {
@@ -383,3 +413,6 @@ mod tests {
         assert!(saved.get(&7, ContentSource::Full, 3).is_none());
     }
 }
+
+#[cfg(test)]
+mod lifecycle;

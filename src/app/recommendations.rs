@@ -151,26 +151,7 @@ impl App {
         let Some(state) = &mut self.recommendations else {
             return Ok(());
         };
-        let mut failure = None;
-        loop {
-            while let Some(result) = state.worker.poll() {
-                if let Err(error) = result {
-                    failure = Some(error);
-                }
-            }
-            if !state.worker.pending() {
-                break;
-            }
-            ensure!(
-                Instant::now() < deadline,
-                "Recommendation writes did not finish"
-            );
-            std::thread::sleep(Duration::from_millis(2));
-        }
-        if let Some(error) = failure {
-            return Err(error);
-        }
-        Ok(())
+        state.worker.flush(deadline)
     }
 
     fn edit_recommendations(&mut self, edit: Edit) -> Result<()> {

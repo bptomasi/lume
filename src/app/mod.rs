@@ -371,6 +371,9 @@ pub struct App {
     note_catalog: Option<note_catalog::NoteCatalog>,
     recommendations: Option<recommendations::Recommendations>,
     pending_note_write: Option<personal_tasks::PendingWrite>,
+    /// A consumed failure survives an incomplete personal-write flush until the
+    /// next completed flush or ordinary note poll reports it exactly once.
+    note_flush_failure: Option<anyhow::Error>,
     pending_note_deletes: std::collections::BTreeMap<u64, i64>,
     recovery: recovery::Recovery,
     note_inspector: Option<notebook::inspection::Inspector>,
@@ -541,6 +544,7 @@ impl App {
             note_catalog: None,
             recommendations: None,
             pending_note_write: None,
+            note_flush_failure: None,
             pending_note_deletes: std::collections::BTreeMap::new(),
             recovery: recovery::Recovery::default(),
             note_inspector: None,
