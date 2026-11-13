@@ -31,7 +31,7 @@ fn reading(
     };
     let writer = Store::open(&directory.path().join("library.sqlite3"))?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     Ok((directory, app, writer, target))
 }
 
@@ -64,9 +64,9 @@ fn automatic_fetch_targets_only_the_opened_reader_with_missing_text()
     let (_directory, mut app, writer, target) = reading(DISCUSSION)?;
     let now = chrono::Utc::now().timestamp();
     assert_eq!(app.automatic_article_request(now), Some(target.clone()));
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     assert!(app.automatic_article_request(now).is_none());
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     writer.set_deleted(target.article, true)?;
     app.set_view(View::Trash)?;
     assert_eq!(app.current().context("Trashed article")?.id, target.article);
@@ -155,6 +155,40 @@ fn completion_waits_for_visual_selection_and_preserves_its_yank() -> Result<()>
 }
 
 #[test]
+fn completion_remains_pending_after_a_reading_position_save_failure()
+-> Result<()> {
+    let feed = "A distinct paragraph for reading position.\n\n".repeat(30);
+    let (directory, mut app, writer, target) = reading(&feed)?;
+    app.resize_reader(30, 3);
+    for _ in 0..8 {
+        press(&mut app, KeyCode::Char('j'))?;
+    }
+    assert!(app.reader().scroll > 0);
+    app.article_fetch_started(target.clone());
+    cache(&writer, &target, "Full text remains available for a retry.")?;
+    app.article_fetch_finished(target, None);
+    let injector =
+        rusqlite::Connection::open(directory.path().join("library.sqlite3"))?;
+    injector.execute_batch(include_str!(
+        "../src/store/sql/test_create_reject_article.sql"
+    ))?;
+
+    assert!(app.apply_document_completion().is_err());
+    assert_eq!(app.reader().body, feed);
+    injector.execute_batch(include_str!(
+        "../src/store/sql/test_drop_article_rejection.sql"
+    ))?;
+    assert!(app.apply_document_completion()?);
+    assert_eq!(app.reader().content_source, ContentSource::Full);
+    assert_eq!(
+        app.reader().body,
+        "Full text remains available for a retry."
+    );
+    assert!(!app.apply_document_completion()?);
+    Ok(())
+}
+
+#[test]
 fn a_feed_note_draft_keeps_its_captured_source_while_full_text_arrives()
 -> Result<()> {
     let (_directory, mut app, writer, target) = reading(DISCUSSION)?;
@@ -165,7 +199,7 @@ fn a_feed_note_draft_keeps_its_captured_source_while_full_text_arrives()
     app.article_fetch_finished(target.clone(), None);
 
     assert!(!app.apply_document_completion()?);
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         anyhow::bail!("Annotation draft was replaced");
     };
     let InputKind::Highlight { passage, .. } = &input.kind else {
@@ -201,7 +235,7 @@ fn completion_for_a_previous_article_never_changes_the_new_selection()
         }],
     )?;
     app.reload()?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     press(&mut app, KeyCode::Home)?;
     let selected = app.current().context("Missing new selection")?.id;
     assert_ne!(selected, target.article);
@@ -357,7 +391,7 @@ fn stale_full_passage_save_retains_the_draft_and_its_original_quote()
         app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL));
 
     assert!(saved.is_err());
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         anyhow::bail!("Draft was lost after a stale save");
     };
     assert_eq!(input.text, "An interpretation worth keeping.");

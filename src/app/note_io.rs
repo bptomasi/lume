@@ -5,7 +5,7 @@ use anyhow::{Context, Result, ensure};
 use super::{
     Action, App, InputKind, Mode,
     draft_commands::{Destination, ExCommand},
-    personal_tasks::{Completion, Outcome, PendingWrite, Task},
+    personal_tasks::{Completion, Outcome, PendingWrite},
 };
 
 impl App {
@@ -13,17 +13,17 @@ impl App {
         &mut self,
         command: ExCommand,
     ) -> Result<bool> {
-        if self.personal_writes.is_none() {
+        if !self.personal.enabled() {
             return Ok(false);
         }
         let ExCommand::Write(destination) = command else {
             ensure!(
-                self.pending_note_write.is_none(),
+                !self.personal.draft_pending(),
                 "Wait for the pending note write before closing"
             );
             return Ok(false);
         };
-        let Mode::Input(input) = &self.mode else {
+        let Mode::Input(input) = self.interaction.mode() else {
             return Ok(false);
         };
         if !input.modified() && super::draft_save::persisted(&input.kind) {
@@ -38,10 +38,10 @@ impl App {
         destination: Destination,
     ) -> Result<()> {
         ensure!(
-            self.pending_note_write.is_none(),
+            !self.personal.draft_pending(),
             "A write is pending; editing remains available"
         );
-        let Mode::Input(input) = &self.mode else {
+        let Mode::Input(input) = self.interaction.mode() else {
             anyhow::bail!("Open a note editor first");
         };
         let draft = crate::model::NoteDraft {
@@ -52,19 +52,12 @@ impl App {
             baseline: input.saved_text.clone(),
             initial_kind: input.initial_kind,
         };
-        let writer = self
-            .personal_writes
-            .as_mut()
-            .context("Note writer is unavailable")?;
-        let ticket = writer.submit(Task::Write(draft))?;
-        if let Mode::Input(input) = &mut self.mode {
+        self.personal.submit_draft(draft, destination)?;
+        if let Some(input) = self.interaction.draft_mut() {
             input.edit_mode = super::EditMode::Normal;
         }
-        self.pending_note_write = Some(PendingWrite {
-            ticket,
-            destination,
-        });
-        self.status = "Saving note… · editing remains available".into();
+        self.interaction
+            .report("Saving note… · editing remains available".into());
         Ok(())
     }
 
@@ -73,16 +66,12 @@ impl App {
     /// # Errors
     /// Returns captured write/refresh failures while retaining the editor.
     pub fn poll_note_tasks(&mut self) -> Result<Option<Action>> {
-        if let Some(error) = self.note_flush_failure.take() {
+        if let Some(error) = self.personal.take_flush_failure() {
             return Err(error);
         }
         self.tick_draft_recovery()?;
         let mut changed = false;
-        while let Some(completion) = self
-            .personal_writes
-            .as_ref()
-            .and_then(|writer| writer.poll())
-        {
+        while let Some(completion) = self.personal.poll() {
             changed = true;
             let action = self.apply_note_completion(completion)?;
             if action == Action::Quit {
@@ -116,7 +105,6 @@ impl App {
             self.performance
                 .record(super::Operation::Save, started.elapsed());
         }
-        self.pending_note_deletes.remove(&completion.ticket);
         self.finish_library_edit(completion.ticket);
         let pending = self.take_completed_write(completion.ticket);
         if self.complete_article_edit(
@@ -183,7 +171,7 @@ impl App {
         let action = if let Some(pending) = pending {
             self.finish_note_write(pending.destination)?
         } else {
-            self.status = "Annotation saved · u undo".into();
+            self.interaction.report("Annotation saved · u undo".into());
             Action::None
         };
         self.observe_draft();
@@ -214,27 +202,19 @@ impl App {
     }
 
     fn take_completed_write(&mut self, ticket: u64) -> Option<PendingWrite> {
-        if self
-            .pending_note_write
-            .as_ref()
-            .is_some_and(|pending| pending.ticket == ticket)
-        {
-            self.pending_note_write.take()
-        } else {
-            None
-        }
+        self.personal.acknowledge_draft(ticket)
     }
 
     fn show_note_export(
         &mut self,
         report: crate::exchange::incremental::ExportReport,
     ) {
-        self.status = format!(
+        self.interaction.report(format!(
             "Note files · {} written · {} unchanged · {} conflicts preserved",
             report.written,
             report.unchanged,
             report.conflicts.len()
-        );
+        ));
         if !report.conflicts.is_empty() {
             let text = report
                 .conflicts
@@ -255,7 +235,7 @@ impl App {
         draft: &crate::model::NoteDraft,
         target: crate::model::DraftTarget,
     ) -> Result<()> {
-        let Mode::Input(input) = &mut self.mode else {
+        let Some(input) = self.interaction.draft_mut() else {
             return Ok(());
         };
         ensure!(
@@ -274,21 +254,23 @@ impl App {
         &mut self,
         destination: Destination,
     ) -> Result<Action> {
-        let Mode::Input(input) = &mut self.mode else {
-            self.status = "Note saved".into();
+        let Some(input) = self.interaction.draft_mut() else {
+            self.interaction.report("Note saved".into());
             return Ok(Action::None);
         };
         if input.modified() {
-            self.status =
+            self.interaction.report(
                 "Earlier revision saved · newer draft changes remain unsaved"
-                    .into();
+                    .into(),
+            );
             return Ok(Action::None);
         }
         input.edit_mode = super::EditMode::Normal;
         if !matches!(destination, Destination::Editor) {
-            self.mode = Mode::Normal;
+            self.interaction.enter(Mode::Normal);
         }
-        self.status = "Note saved · :w keeps editing · :wq closes".into();
+        self.interaction
+            .report("Note saved · :w keeps editing · :wq closes".into());
         if matches!(destination, Destination::Quit) {
             self.save_session()?;
             self.flush_session()?;
@@ -308,25 +290,22 @@ impl App {
             }
             crate::model::UndoEffect::Library => {
                 self.reload()?;
-                self.status = "Personal edit saved · u undo".into();
+                self.interaction
+                    .report("Personal edit saved · u undo".into());
                 return Ok(());
             }
             crate::model::UndoEffect::Unchanged => {
-                self.status = "No personal edits to undo".into();
+                self.interaction.report("No personal edits to undo".into());
                 return Ok(());
             }
         }
-        self.status = "Note updated · u undo".into();
+        self.interaction.report("Note updated · u undo".into());
         Ok(())
     }
 
     /// Whether personal transactions still need UI acknowledgement.
     pub fn notes_pending(&self) -> bool {
-        self.pending_note_write.is_some()
-            || self
-                .personal_writes
-                .as_ref()
-                .is_some_and(|writer| writer.pending())
+        self.personal.pending()
     }
 
     pub(super) fn flush_note_tasks(&mut self) -> Result<()> {
@@ -339,7 +318,7 @@ impl App {
         &mut self,
         deadline: std::time::Instant,
     ) -> Result<()> {
-        let mut failure = self.note_flush_failure.take();
+        let mut failure = self.personal.take_flush_failure();
         loop {
             if let Err(error) = self.poll_note_tasks() {
                 failure.get_or_insert(error);
@@ -347,17 +326,11 @@ impl App {
             if !self.notes_pending() {
                 break;
             }
-            let waited = self
-                .personal_writes
-                .as_ref()
-                .context(
-                    "Personal writer is unavailable before acknowledgement",
-                )
-                .and_then(|writer| writer.wait(deadline));
+            let waited = self.personal.wait(deadline);
             let completion = match waited {
                 Ok(completion) => completion,
                 Err(error) => {
-                    self.note_flush_failure = failure;
+                    self.personal.retain_flush_failure(failure);
                     return Err(error);
                 }
             };

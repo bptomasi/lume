@@ -71,6 +71,62 @@ impl PaneFlight {
     }
 }
 
+#[derive(Default)]
+pub(super) struct PaneMotion {
+    flight: Option<PaneFlight>,
+    neighbors: Option<Neighbors>,
+}
+
+impl PaneMotion {
+    pub(super) fn cancel(&mut self) {
+        self.flight = None;
+        self.neighbors = None;
+    }
+
+    pub(super) fn settle(
+        &mut self,
+        flight: Option<PaneFlight>,
+        neighbors: Option<Neighbors>,
+    ) {
+        self.flight = flight;
+        self.neighbors = neighbors;
+    }
+
+    fn floating(&self) -> Option<FloatingPane<'_>> {
+        self.flight.as_ref().map(PaneFlight::floating)
+    }
+
+    fn neighbors(&self) -> Option<&Neighbors> {
+        self.neighbors.as_ref()
+    }
+
+    fn active(&self) -> bool {
+        self.flight.is_some()
+            || self.neighbors.as_ref().is_some_and(Neighbors::active)
+    }
+
+    fn tick(&mut self, now: Instant) -> bool {
+        let mut changed = false;
+        if let Some(neighbors) = &mut self.neighbors {
+            changed |= neighbors.tick(now);
+        }
+        if let Some(flight) = &mut self.flight {
+            changed |= flight.slide.tick(now);
+            // Retain the held picture until every neighbor reaches its slot.
+            if !flight.slide.active()
+                && !self.neighbors.as_ref().is_some_and(Neighbors::active)
+            {
+                self.flight = None;
+                changed = true;
+            }
+        }
+        if self.flight.is_none() && self.neighbors.take().is_some() {
+            changed = true;
+        }
+        changed
+    }
+}
+
 impl App {
     /// Capture the held pane and bounded neighbors once per gesture.
     pub fn capture_pane_frame(&mut self, frame: &Buffer) {
@@ -79,10 +135,7 @@ impl App {
 
     /// Read pointer-following or settling presentation, without changing layout.
     pub fn floating_pane(&self) -> Option<FloatingPane<'_>> {
-        self.pane_flight
-            .as_ref()
-            .map(PaneFlight::floating)
-            .or_else(|| self.floating_drag())
+        self.pane_motion.floating().or_else(|| self.floating_drag())
     }
 
     /// Neighboring pane pictures, below the held pane, in bounded storage.
@@ -101,38 +154,20 @@ impl App {
     }
 
     fn neighbors(&self) -> Option<&Neighbors> {
-        self.pane_neighbors
-            .as_ref()
+        self.pane_motion
+            .neighbors()
             .or_else(|| self.drag_neighbors())
     }
 
     /// Whether pending pane translations need another animation frame.
     pub fn pane_motion_active(&self) -> bool {
-        self.pane_flight.is_some()
+        self.pane_motion.active()
             || self.neighbors().is_some_and(Neighbors::active)
     }
 
     /// Advance elapsed-time translations; delayed frames never build a queue.
     pub fn tick_pane_motion(&mut self, now: Instant) -> bool {
-        let mut changed = self.tick_drag_neighbors(now);
-        if let Some(neighbors) = &mut self.pane_neighbors {
-            changed |= neighbors.tick(now);
-        }
-        if let Some(flight) = &mut self.pane_flight {
-            changed |= flight.slide.tick(now);
-            // A stationary held picture still covers its gap while the
-            // remaining neighbors finish returning or making room.
-            if !flight.slide.active()
-                && !self.pane_neighbors.as_ref().is_some_and(Neighbors::active)
-            {
-                self.pane_flight = None;
-                changed = true;
-            }
-        }
-        if self.pane_flight.is_none() && self.pane_neighbors.take().is_some() {
-            changed = true;
-        }
-        changed
+        self.tick_drag_neighbors(now) | self.pane_motion.tick(now)
     }
 }
 

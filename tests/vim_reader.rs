@@ -21,7 +21,7 @@ fn reading_body(body: &str) -> Result<(tempfile::TempDir, App)> {
     parsed.articles[0].body = body.into();
     store.ingest(&feed, "Journal", &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_reader(70, 5);
     Ok((directory, app))
 }
@@ -91,7 +91,7 @@ fn counts_rows_edges_and_unicode_movement_leave_publisher_text_unchanged()
     keys(&mut app, "gg2j")?;
     assert_eq!(app.reader().reader_cursor, 2);
     assert_eq!(app.reader().body, original);
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     Ok(())
 }
 
@@ -229,10 +229,10 @@ fn a_count_is_honored_by_batched_input_and_escape_cancels_only_the_prefix()
     let mut batch = InputBatch::new(events);
     while batch.dispatch_next(&mut app)?.is_some() {}
     assert_eq!(app.reader().reader_cursor, 3);
-    app.workspace.fullscreen = true;
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
     keys(&mut app, "7f")?;
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
-    assert!(app.workspace.fullscreen);
+    assert!(app.workspace().fullscreen);
     keys(&mut app, "k")?;
     assert_eq!(app.reader().reader_cursor, 2);
     Ok(())
@@ -249,11 +249,11 @@ fn reader_search_shortcuts_and_note_commands_keep_their_distinct_contexts()
     keys(&mut app, "N")?;
     assert_eq!(app.reader().reader_column, first);
     command(&mut app, "note")?;
-    assert!(matches!(app.mode, Mode::Input(_)));
+    assert!(matches!(app.mode(), Mode::Input(_)));
     app.paste("A private note")?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
     command(&mut app, "edit-note")?;
-    assert!(matches!(app.mode, Mode::Input(_)));
+    assert!(matches!(app.mode(), Mode::Input(_)));
     Ok(())
 }
 
@@ -266,7 +266,7 @@ fn character_find_targets_take_priority_over_visual_and_yank_shortcuts()
         assert_eq!(app.reader().reader_column, column);
         assert!(app.reader().selection.is_none());
         assert!(app.reader().comments.is_empty());
-        assert!(matches!(app.mode, Mode::Normal));
+        assert!(matches!(app.mode(), Mode::Normal));
     }
     keys(&mut app, "0vfy")?;
     assert_eq!(keys(&mut app, "y")?, Action::Copy("a v y".into()));
@@ -333,7 +333,7 @@ fn uppercase_edges_and_column_motion_extend_selection_without_editing()
     keys(&mut app, "9|")?;
     assert_eq!(app.reader().reader_column, 5);
     assert_eq!(app.reader().body, body);
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     Ok(())
 }
 
@@ -350,8 +350,8 @@ fn control_word_and_document_aliases_are_reader_local() -> Result<()> {
         app.key(KeyEvent::new(code, KeyModifiers::CONTROL))?;
         assert_eq!(common::reader::position(&app), (row, column));
     }
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::CONTROL))?;
-    assert_eq!(app.focus, Focus::Articles);
+    assert_eq!(app.focus(), Focus::Articles);
     Ok(())
 }

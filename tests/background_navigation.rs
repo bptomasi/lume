@@ -86,7 +86,7 @@ fn locked_writer_does_not_block_navigation_or_layout_admission() -> Result<()> {
     settle(&mut app)?;
     assert!(app.current().is_some());
     assert!(app.session_pending());
-    assert!(app.workspace.layout.is_some());
+    assert!(app.workspace().layout.is_some());
 
     lock.execute_batch(include_str!(
         "sql/background_navigation/test_rollback.sql"
@@ -106,7 +106,7 @@ fn completed_layout_preserves_a_live_selection() -> Result<()> {
     )?;
     app.set_view(View::All)?;
     settle(&mut app)?;
-    app.focus = Pane::Reader;
+    app.activate_pane(Pane::Reader);
     app.key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))?;
     app.key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))?;
     let selected = app.reader().reader_text
@@ -154,7 +154,7 @@ fn explicit_source_jumps_cancel_stale_reads_and_keep_source_bound_tools()
     command(&mut app, "content full")?;
     assert_eq!(app.reader().body, full);
     assert_eq!(app.reader().content_source, ContentSource::Full);
-    app.focus = Pane::Reader;
+    app.activate_pane(Pane::Reader);
     app.key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))?;
     app.key(KeyEvent::new(KeyCode::Char('$'), KeyModifiers::NONE))?;
     let selected = common::reader::selected_text(&app)?;
@@ -263,7 +263,7 @@ fn additional_article_steps_replace_the_selection_of_a_page_still_loading()
     )?;
     app.set_view(View::All)?;
     settle(&mut app)?;
-    app.focus = Pane::Articles;
+    app.activate_pane(Pane::Articles);
 
     for _ in 0..3 {
         app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
@@ -294,11 +294,11 @@ fn active_read_admits_write_without_waiting_for_a_locked_database() -> Result<()
         "sql/background_navigation/test_begin_immediate.sql"
     ))?;
 
-    app.focus = Pane::Articles;
+    app.activate_pane(Pane::Articles);
     let start = Instant::now();
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     assert!(start.elapsed() < Duration::from_millis(200));
-    assert_eq!(app.focus, Pane::Reader);
+    assert_eq!(app.focus(), Pane::Reader);
     assert!(app.current().context("Selection")?.unread);
     active_read(&mut app)?;
     assert!(!app.current().context("Selection")?.unread);
@@ -336,7 +336,7 @@ fn manual_unread_and_undo_follow_the_admitted_automatic_read() -> Result<()> {
     lock.execute_batch(include_str!(
         "sql/background_navigation/test_begin_immediate.sql"
     ))?;
-    app.focus = Pane::Articles;
+    app.activate_pane(Pane::Articles);
 
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     active_read(&mut app)?;
@@ -367,7 +367,7 @@ fn catalog_refresh_preserves_selection_and_a_live_publisher_quotation()
     app.set_view(View::All)?;
     settle(&mut app)?;
     let id = app.current().context("Article")?.id;
-    app.focus = Pane::Reader;
+    app.activate_pane(Pane::Reader);
     app.key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))?;
     app.key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))?;
     let anchor = app.reader().selection;
@@ -419,7 +419,7 @@ fn retained_preview_keeps_its_title_and_rejects_source_bound_actions()
     settle(&mut app)?;
     let title = app.current().context("Article")?.title.clone();
     let body = app.reader().reader_text.to_owned();
-    app.focus = Pane::Articles;
+    app.activate_pane(Pane::Articles);
 
     app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
     assert!(app.reader_stale());
@@ -431,7 +431,7 @@ fn retained_preview_keeps_its_title_and_rejects_source_bound_actions()
             .title,
         title
     );
-    app.focus = Pane::Reader;
+    app.activate_pane(Pane::Reader);
     app.key(KeyEvent::new(KeyCode::Char('G'), KeyModifiers::NONE))?;
     assert_eq!(
         app.reader().reader_cursor,
@@ -440,7 +440,7 @@ fn retained_preview_keeps_its_title_and_rejects_source_bound_actions()
     app.key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))?;
     assert!(app.reader().selection.is_none());
     assert!(command(&mut app, "note").is_err());
-    app.mode = lume::app::Mode::Normal;
+    app.key(crossterm::event::KeyCode::Esc.into())?;
     settle(&mut app)?;
 
     assert!(!app.reader_stale());
@@ -484,7 +484,7 @@ fn failed_read_save_reports_the_failure_and_reconciles_optimistic_flags()
     injector.execute_batch(include_str!(
         "../src/store/sql/test_create_reject_read_state.sql"
     ))?;
-    app.focus = Pane::Articles;
+    app.activate_pane(Pane::Articles);
 
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     let deadline = Instant::now() + Duration::from_secs(5);
@@ -517,7 +517,7 @@ fn page_navigation_publishes_full_content_only_after_its_projection_is_ready()
     app.set_view(View::All)?;
     settle(&mut app)?;
     let previous = app.reader().reader_text.to_owned();
-    app.focus = Pane::Articles;
+    app.activate_pane(Pane::Articles);
 
     app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
     let deadline = Instant::now() + Duration::from_secs(5);
@@ -569,7 +569,7 @@ fn paged_full_source() -> Result<(tempfile::TempDir, Store, String)> {
 fn automatic_read_keeps_an_opened_unread_smart_list_article() -> Result<()> {
     for pending in [false, true] {
         let (_directory, mut app, observer, view) = unread_smart_reader()?;
-        app.focus = Pane::Articles;
+        app.activate_pane(Pane::Articles);
         if pending {
             app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
         }
@@ -667,7 +667,7 @@ fn failed_session_writes_can_be_inspected_and_retried_without_restarting()
     }
 
     command(&mut app, "save-status")?;
-    let lume::app::Mode::Document(document) = &app.mode else {
+    let lume::app::Mode::Document(document) = app.mode() else {
         anyhow::bail!("Save diagnostics did not open");
     };
     assert!(
@@ -685,8 +685,8 @@ fn failed_session_writes_can_be_inspected_and_retried_without_restarting()
     assert!(!app.session_failed());
     assert!(!app.session_pending());
     let saved = Store::open(&path)?.workspace()?;
-    assert_eq!(saved.show_annotations, app.workspace.show_annotations);
-    assert_eq!(saved.layout, app.workspace.layout);
+    assert_eq!(saved.show_annotations, app.workspace().show_annotations);
+    assert_eq!(saved.layout, app.workspace().layout);
     app.end_session()?;
     Ok(())
 }
@@ -734,7 +734,7 @@ fn changing_page_limits_replaces_pending_reads_and_keeps_the_requested_row()
     app.enable_background_navigation(
         &directory.path().join("library.sqlite3"),
     )?;
-    app.focus = Pane::Articles;
+    app.activate_pane(Pane::Articles);
     for _ in 0..3 {
         app.key(KeyCode::Down.into())?;
     }
@@ -788,7 +788,7 @@ fn resizing_live_search_keeps_preview_reads_metadata_only() -> Result<()> {
         app.enable_background_navigation(
             &directory.path().join("library.sqlite3"),
         )?;
-        app.focus = Pane::Articles;
+        app.activate_pane(Pane::Articles);
         app.key(KeyCode::Char('/').into())?;
         app.paste("title:resized")?;
         if !pending {
@@ -802,7 +802,7 @@ fn resizing_live_search_keeps_preview_reads_metadata_only() -> Result<()> {
         assert_eq!(app.navigation().page_total, 6);
         assert_eq!(app.navigation().selected, 0);
         assert_eq!(app.reader().body, body, "Preview loaded article content");
-        assert!(matches!(app.mode, lume::app::Mode::Input(_)));
+        assert!(matches!(app.mode(), lume::app::Mode::Input(_)));
         app.key(KeyCode::Enter.into())?;
         settle(&mut app)?;
         assert_eq!(app.reader().body, "Content for resized row 5.");

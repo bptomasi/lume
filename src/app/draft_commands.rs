@@ -60,18 +60,18 @@ impl App {
         if self.defer_draft_command(command)? {
             return Ok(Action::None);
         }
-        let Mode::Input(mut input) = std::mem::take(&mut self.mode) else {
+        let Mode::Input(mut input) = self.interaction.take_mode() else {
             bail!("Open a note editor first");
         };
         match self.apply_draft_command(&mut input, command) {
             Ok((action, Destination::Editor)) => {
                 input.edit_mode = super::EditMode::Normal;
-                self.mode = Mode::Input(input);
+                self.interaction.enter(Mode::Input(input));
                 Ok(action)
             }
             Ok((action, _)) => Ok(action),
             Err(error) => {
-                self.mode = Mode::Input(input);
+                self.interaction.enter(Mode::Input(input));
                 Err(error)
             }
         }
@@ -133,7 +133,7 @@ impl App {
         self.flush_session()?;
         self.save_session()?;
         self.flush_session()?;
-        self.status = "Session saved".into();
+        self.interaction.report("Session saved".into());
         if quit {
             return Ok(Action::Quit);
         }
@@ -141,13 +141,7 @@ impl App {
     }
 
     fn show_save_status(&mut self) {
-        while let Some(error) = self
-            .session_writer
-            .as_ref()
-            .and_then(|writer| writer.poll_error())
-        {
-            self.session_problem = Some(error);
-        }
+        while self.session.poll_problem().is_some() {}
         let state = if self.session_failed() {
             "Failed writes remain outstanding"
         } else if self.session_pending() {
@@ -156,8 +150,8 @@ impl App {
             "No outstanding session save failures"
         };
         let error = self
-            .session_problem
-            .as_deref()
+            .session
+            .problem()
             .unwrap_or("None recorded in this session");
         let text = format!(
             "# Session saving\n\n{state}\n\nLast error:\n{error}\n\n\

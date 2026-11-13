@@ -21,7 +21,7 @@ impl App {
         {
             notebook.cancel_delete();
         }
-        let previous_g = std::mem::take(&mut self.pending_g);
+        let previous_g = self.interaction.take_g_prefix();
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => self.close_notebook(),
             KeyCode::Char(':') => {
@@ -31,7 +31,7 @@ impl App {
             KeyCode::Tab => {
                 self.change_focus(true);
             }
-            KeyCode::Char('?') => self.mode = Mode::Help,
+            KeyCode::Char('?') => self.interaction.enter(Mode::Help),
             KeyCode::Char('y' | 'Y') => {
                 return self.copy_notebook_note(key.code);
             }
@@ -44,7 +44,7 @@ impl App {
             KeyCode::Char('g') if previous_g => {
                 self.move_notebook(false, usize::MAX)?;
             }
-            KeyCode::Char('g') => self.pending_g = true,
+            KeyCode::Char('g') => self.interaction.set_g_prefix(true),
             KeyCode::Char('G') => self.move_notebook(true, usize::MAX)?,
             code => self.notebook_personal_key(code, key.kind)?,
         }
@@ -68,7 +68,7 @@ impl App {
     }
 
     fn activate_notebook_pane(&mut self) -> Result<()> {
-        match self.focus {
+        match self.layout.focus() {
             Focus::Library => self.choose_note_collection(),
             Focus::Annotations => self.open_notebook_link(),
             _ => self.notebook_source(),
@@ -133,11 +133,11 @@ impl App {
             .active
             .as_mut()
             .context("Open Notebook first")?;
-        let limit = if self.focus == Focus::Reader {
+        let limit = if self.layout.focus() == Focus::Reader {
             let height = crate::ui::workspace_areas(
-                self.screen,
-                self.focus,
-                &self.workspace,
+                self.layout.screen(),
+                self.layout.focus(),
+                self.layout.workspace(),
             )
             .reader
             .map_or(1, |area| area.height);
@@ -145,7 +145,7 @@ impl App {
         } else {
             0
         };
-        notebook.move_within_pane(self.focus, forward, distance, limit)
+        notebook.move_within_pane(self.layout.focus(), forward, distance, limit)
     }
 
     pub(super) fn choose_note_collection(&mut self) -> Result<()> {
@@ -156,7 +156,7 @@ impl App {
             .context("Open Notebook first")?;
         let query = notebook.collection_query()?;
         self.set_notebook_query(&query)?;
-        self.focus = Focus::Articles;
+        self.layout.focus_pane(Focus::Articles);
         Ok(())
     }
 }

@@ -132,14 +132,14 @@ fn passage_review_rejects_a_note_changed_since_its_preview_opened() -> Result<()
     app_command(&mut app, "review")?;
     common::settle_notes(&mut app)?;
     assert!(
-        matches!(&app.mode, lume::app::Mode::Picker(picker) if picker.choices.len() == 1),
+        matches!(app.mode(), lume::app::Mode::Picker(picker) if picker.choices.len() == 1),
         "Expected one due note; mode={:?}; due={}",
-        app.mode,
+        app.mode(),
         writer.search_notes("is:due", None, 0, 100)?.total
     );
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     assert!(
-        matches!(&app.mode, lume::app::Mode::Picker(picker) if picker.choices.len() == 5),
+        matches!(app.mode(), lume::app::Mode::Picker(picker) if picker.choices.len() == 5),
         "Expected explicit grades"
     );
     writer.save_comment(article, Some(comment), "Revised explanation")?;

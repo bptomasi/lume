@@ -31,7 +31,7 @@ fn reading(body: &str, url: &str) -> Result<(tempfile::TempDir, App)> {
         }],
     )?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     Ok((directory, app))
 }
 
@@ -152,17 +152,17 @@ fn notice_reflows_in_panels_and_fullscreen_without_affecting_normal_articles()
     let (_directory, mut app) =
         reading(DISCUSSION, "https://author.example/article")?;
     for fullscreen in [false, true] {
-        app.workspace.fullscreen = fullscreen;
+        common::fixture_toggle(&mut app, "fullscreen", fullscreen)?;
         for (width, height) in [(40, 20), (80, 24), (144, 44)] {
             let mut terminal = Terminal::new(TestBackend::new(width, height))?;
             let reader = ui::workspace_areas(
                 Rect::new(0, 0, width, height),
-                app.focus,
-                &app.workspace,
+                app.focus(),
+                app.workspace(),
             )
             .reader
             .context("Missing reader")?;
-            let body = ui::workspace_reader_content(reader, &app.workspace);
+            let body = ui::workspace_reader_content(reader, app.workspace());
             app.resize_reader(body.width.into(), body.height.into());
             terminal.draw(|frame| ui::draw(frame, &app))?;
             let screen = terminal
@@ -177,7 +177,7 @@ fn notice_reflows_in_panels_and_fullscreen_without_affecting_normal_articles()
             assert!(!screen.contains("1 min"));
         }
     }
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     press(&mut app, KeyCode::Char('j'))?;
     assert_eq!(app.reader().body_kind, BodyKind::Text);
     assert!(app.reader().reading_minutes > 0);

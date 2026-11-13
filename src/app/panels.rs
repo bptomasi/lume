@@ -17,16 +17,20 @@ impl App {
     /// Update terminal geometry before dispatching pointer events or drawing.
     pub fn resize_workspace(&mut self, area: Rect) {
         self.pin_navigation_viewport();
-        if self.screen != area {
-            let height_changed = self.screen.height != area.height;
+        if self.layout.screen() != area {
+            let height_changed = self.layout.screen().height != area.height;
             self.cancel_pointer();
             self.reader.arm_note_delete(None);
-            self.screen = area;
+            self.layout.resize(area);
             if height_changed {
                 self.resize_web_height();
             }
         }
-        let areas = ui::workspace_areas(area, self.focus, &self.workspace);
+        let areas = ui::workspace_areas(
+            area,
+            self.layout.focus(),
+            self.layout.workspace(),
+        );
         if let Some(articles) = areas.articles {
             self.nav.pin_articles(ui::article_origin(self, articles));
         }
@@ -37,54 +41,57 @@ impl App {
                 );
                 return;
             }
-            let content = ui::workspace_reader_content(reader, &self.workspace);
+            let content =
+                ui::workspace_reader_content(reader, self.layout.workspace());
             self.resize_reader(content.width.into(), content.height.into());
         }
     }
 
     pub(super) fn toggle_pane(&mut self, pane: Pane) -> Result<()> {
-        let visible = !self.workspace.pane_visible(pane);
+        let visible = !self.layout.workspace().pane_visible(pane);
         if visible && pane == Pane::Annotations {
             self.select_first_annotation();
         }
-        self.workspace.set_pane_visible(pane, visible);
+        self.layout.show_pane(pane, visible);
         if visible {
-            self.focus = pane;
+            self.layout.focus_pane(pane);
         }
         self.commit_panel_layout()
     }
 
     pub(super) fn focus_pane(&mut self, pane: Pane) -> Result<()> {
-        if pane == Pane::Annotations && !self.workspace.show_annotations {
+        if pane == Pane::Annotations
+            && !self.layout.workspace().show_annotations
+        {
             self.select_first_annotation();
         }
-        self.workspace.set_pane_visible(pane, true);
-        self.focus = pane;
+        self.layout.show_pane(pane, true);
+        self.layout.focus_pane(pane);
         self.commit_panel_layout()
     }
 
     pub(super) fn commit_panel_layout(&mut self) -> Result<()> {
-        self.workspace.fullscreen = false;
-        self.workspace.zen = false;
+        self.layout.set_fullscreen(false);
+        self.layout.set_zen(false);
         self.ensure_visible_focus();
-        self.resize_workspace(self.screen);
-        if self.layouts.current
-            != crate::model::PanelLayout::capture(&self.workspace)
+        self.resize_workspace(self.layout.screen());
+        if self.layout.history().current
+            != crate::model::PanelLayout::capture(self.layout.workspace())
         {
             self.save_session()?;
         }
-        self.status =
-            "Layout saved · Ctrl-w: focus, resize, move or collapse".into();
+        self.interaction.report(
+            "Layout saved · Ctrl-w: focus, resize, move or collapse".into(),
+        );
         Ok(())
     }
 
     pub(super) fn move_pane_to(&mut self, pane: Pane, target: Pane) {
-        self.workspace.panel_order =
-            reordered(self.workspace.panel_order, pane, target);
+        self.layout.reorder_pane(pane, target);
     }
 
     fn move_focused_pane(&mut self, forward: bool) -> Result<()> {
-        if self.workspace.layout.is_some() {
+        if self.layout.workspace().layout.is_some() {
             return self.move_spatially(if forward {
                 Dock::Right
             } else {
@@ -94,7 +101,7 @@ impl App {
         let expanded = self.move_candidates();
         let position = expanded
             .iter()
-            .position(|pane| *pane == self.focus)
+            .position(|pane| *pane == self.layout.focus())
             .context("Expand a pane first")?;
         let target = if forward {
             position.saturating_add(1)
@@ -102,30 +109,33 @@ impl App {
             position.saturating_sub(1)
         };
         if target == position || target >= expanded.len() {
-            self.status = format!(
+            self.interaction.report(format!(
                 "{} is already at the {} edge · expand another pane to move",
-                self.focus.title(),
+                self.layout.focus().title(),
                 if forward { "right" } else { "left" }
-            );
+            ));
             return Ok(());
         }
-        self.move_pane_to(self.focus, expanded[target]);
+        self.move_pane_to(self.layout.focus(), expanded[target]);
         self.commit_panel_layout()?;
-        self.status = format!(
+        self.interaction.report(format!(
             "{} moved {} · layout saved",
-            self.focus.title(),
+            self.layout.focus().title(),
             if forward { "right" } else { "left" }
-        );
+        ));
         Ok(())
     }
 
     fn move_candidates(&self) -> Vec<Pane> {
-        let visible =
-            ui::workspace_areas(self.screen, self.focus, &self.workspace)
-                .ordered()
-                .into_iter()
-                .map(|(pane, _)| pane)
-                .collect::<Vec<_>>();
+        let visible = ui::workspace_areas(
+            self.layout.screen(),
+            self.layout.focus(),
+            self.layout.workspace(),
+        )
+        .ordered()
+        .into_iter()
+        .map(|(pane, _)| pane)
+        .collect::<Vec<_>>();
         if visible.len() > 1 {
             return visible;
         }
@@ -133,26 +143,27 @@ impl App {
     }
 
     pub(super) fn expanded_panes(&self) -> Vec<Pane> {
-        self.workspace
+        self.layout
+            .workspace()
             .panel_order
             .into_iter()
-            .filter(|pane| self.workspace.pane_visible(*pane))
+            .filter(|pane| self.layout.workspace().pane_visible(*pane))
             .collect()
     }
 
     fn resize_focused_pane(&mut self, delta: i32) -> Result<()> {
-        if self.workspace.layout.is_some() {
+        if self.layout.workspace().layout.is_some() {
             return self.resize_visible_split(delta);
         }
-        if self.focus != Pane::Reader {
-            self.workspace.resize_pane(self.focus, delta);
+        if self.layout.focus() != Pane::Reader {
+            self.layout.resize_pane(self.layout.focus(), delta);
         } else if let Some(neighbor) = self
             .expanded_panes()
             .into_iter()
             .rev()
             .find(|pane| *pane != Pane::Reader)
         {
-            self.workspace.resize_pane(neighbor, -delta);
+            self.layout.resize_pane(neighbor, -delta);
         }
         self.commit_panel_layout()
     }
@@ -170,7 +181,7 @@ impl App {
                 self.focus_pane(pane_named(argument)?)?
             }
             routing::PanelCommand::PanelClose => {
-                self.workspace.set_pane_visible(self.focus, false);
+                self.layout.show_pane(self.layout.focus(), false);
                 self.commit_panel_layout()?;
             }
             routing::PanelCommand::PanelMove => match argument {
@@ -198,22 +209,26 @@ impl App {
 
     fn mouse_command(&mut self, argument: &str) -> Result<()> {
         match argument {
-            "on" => self.workspace.mouse = true,
-            "off" => self.workspace.mouse = false,
+            "on" => self.layout.set_mouse(true),
+            "off" => self.layout.set_mouse(false),
             "" | "status" => {}
             _ => bail!("Use :mouse on|off|status"),
         }
         self.cancel_pointer();
         self.save_session()?;
-        self.status = format!(
+        self.interaction.report(format!(
             "Mouse {} · {} · keyboard always available",
-            if self.workspace.mouse { "on" } else { "off" },
+            if self.layout.workspace().mouse {
+                "on"
+            } else {
+                "off"
+            },
             if self.pointer.seen {
                 "terminal events received"
             } else {
                 "awaiting terminal events"
             }
-        );
+        ));
         Ok(())
     }
 
@@ -229,22 +244,24 @@ impl App {
         if key.code == KeyCode::Char('w')
             && key.modifiers.contains(KeyModifiers::CONTROL)
         {
-            self.vim.clear_input();
-            self.panel_prefix = true;
-            self.status = concat!(
-                "Layout: h/l focus · H/L or arrows move · ",
-                "+/- resize · c collapse · a notes · = reset"
-            )
-            .into();
+            self.interaction.vim_input().clear_input();
+            self.interaction.set_panel_prefix(true);
+            self.interaction.report(
+                concat!(
+                    "Layout: h/l focus · H/L or arrows move · ",
+                    "+/- resize · c collapse · a notes · = reset"
+                )
+                .into(),
+            );
             return Ok(true);
         }
-        if !self.panel_prefix {
+        if !self.interaction.panel_prefix() {
             return Ok(false);
         }
         if key.kind == KeyEventKind::Repeat {
             return Ok(true);
         }
-        self.panel_prefix = false;
+        self.interaction.set_panel_prefix(false);
         let code = match key.code {
             KeyCode::Char(character)
                 if key.modifiers.contains(KeyModifiers::SHIFT) =>
@@ -272,17 +289,19 @@ impl App {
             KeyCode::Char('>' | '+') => self.resize_focused_pane(2)?,
             KeyCode::Char('<' | '-') => self.resize_focused_pane(-2)?,
             KeyCode::Char('c') => {
-                self.workspace.set_pane_visible(self.focus, false);
+                self.layout.show_pane(self.layout.focus(), false);
                 self.commit_panel_layout()?;
             }
             KeyCode::Char('a') => self.focus_pane(Pane::Annotations)?,
             KeyCode::Esc => {}
             _ => {
-                self.status = concat!(
-                    "Ctrl-w: h/l focus · H/L or arrows move · ",
-                    "+/- resize · c collapse · a notes · = reset"
-                )
-                .into();
+                self.interaction.report(
+                    concat!(
+                        "Ctrl-w: h/l focus · H/L or arrows move · ",
+                        "+/- resize · c collapse · a notes · = reset"
+                    )
+                    .into(),
+                );
             }
         }
         Ok(())
@@ -327,7 +346,7 @@ impl App {
 
     /// Whether Ctrl-w is awaiting a discoverable layout operation.
     pub fn layout_prefix_pending(&self) -> bool {
-        self.panel_prefix
+        self.interaction.panel_prefix()
     }
 }
 

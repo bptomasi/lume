@@ -91,7 +91,7 @@ impl App {
             C::Fullscreen => return self.toggle_fullscreen(),
             _ => {}
         }
-        if self.workspace.fullscreen {
+        if self.layout.workspace().fullscreen {
             self.toggle_fullscreen()?;
             if matches!(command, C::Zen) {
                 return Ok(());
@@ -99,82 +99,68 @@ impl App {
         }
         match command {
             C::Zen => {
-                self.workspace.zen = !self.workspace.zen;
-                self.workspace.show_reader = true;
-                self.focus = Focus::Reader;
+                self.layout.set_zen(!self.layout.workspace().zen);
+                self.layout.show_pane(crate::model::Pane::Reader, true);
+                self.layout.focus_pane(Focus::Reader);
             }
-            C::Library => {
-                self.workspace.show_library = !self.workspace.show_library
+            C::Library => self.layout.show_pane(
+                crate::model::Pane::Library,
+                !self.layout.workspace().show_library,
+            ),
+            C::Headlines => self.layout.show_pane(
+                crate::model::Pane::Articles,
+                !self.layout.workspace().show_articles,
+            ),
+            C::Compact => {
+                self.layout.set_compact(!self.layout.workspace().compact)
             }
-            C::Headlines => {
-                self.workspace.show_articles = !self.workspace.show_articles
-            }
-            C::Compact => self.workspace.compact = !self.workspace.compact,
             _ => {}
         }
         self.ensure_visible_focus();
         self.save_session()?;
-        self.status = "Layout saved".into();
+        self.interaction.report("Layout saved".into());
         Ok(())
     }
 
     pub(super) fn ensure_visible_focus(&mut self) {
-        if self.workspace.fullscreen
-            || self.workspace.zen && self.workspace.show_reader
-        {
-            self.focus = Focus::Reader;
-            return;
-        }
-        if !self.workspace.pane_visible(self.focus) {
-            let expanded = self.expanded_panes();
-            self.focus = if expanded.contains(&Focus::Reader) {
-                Focus::Reader
-            } else {
-                expanded.first().copied().unwrap_or(Focus::Reader)
-            };
-        }
+        self.layout.ensure_visible_focus();
     }
 
     fn toggle_fullscreen(&mut self) -> Result<()> {
-        if !self.workspace.fullscreen {
+        if !self.layout.workspace().fullscreen {
             ensure!(self.current().is_some(), "Select an article first");
-            self.fullscreen_focus = Some(self.focus);
-            self.workspace.show_reader = true;
-            self.focus = Focus::Reader;
-        } else {
-            self.focus = self.fullscreen_focus.take().unwrap_or(Focus::Reader);
         }
-        self.workspace.fullscreen = !self.workspace.fullscreen;
-        self.ensure_visible_focus();
+        self.layout.toggle_fullscreen();
         self.save_session()?;
-        if !self.screen.is_empty() {
-            self.resize_workspace(self.screen);
+        if !self.layout.screen().is_empty() {
+            self.resize_workspace(self.layout.screen());
         }
-        self.status = if self.workspace.fullscreen {
-            "Article expanded".into()
-        } else {
-            "Reading layout restored".into()
-        };
+        self.interaction
+            .report(if self.layout.workspace().fullscreen {
+                "Article expanded".into()
+            } else {
+                "Reading layout restored".into()
+            });
         Ok(())
     }
 
     pub(super) fn undo(&mut self) -> Result<()> {
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(super::personal_tasks::Task::Undo)?;
-            self.status = "Undoing personal edit…".into();
+        if self.personal.enabled() {
+            self.personal.submit(super::personal_tasks::Task::Undo)?;
+            self.interaction.report("Undoing personal edit…".into());
             return Ok(());
         }
         match self.store.undo_effect()? {
             crate::model::UndoEffect::Unchanged => {
-                self.status = "No personal edits to undo".into()
+                self.interaction.report("No personal edits to undo".into())
             }
             crate::model::UndoEffect::Notes(article) => {
                 self.refresh_notes(article)?;
-                self.status = "Note edit undone".into();
+                self.interaction.report("Note edit undone".into());
             }
             crate::model::UndoEffect::Library => {
                 self.reload()?;
-                self.status = "Personal edit undone".into();
+                self.interaction.report("Personal edit undone".into());
             }
         }
         Ok(())
@@ -186,17 +172,18 @@ impl App {
                 [article.id].into(),
                 crate::model::BulkEdit::Queue(!article.queued),
             )?;
-            if self.personal_writes.is_none() {
+            if !self.personal.enabled() {
                 self.reload()?;
             }
-            self.status = "Read-next queue updated · u undo".into();
+            self.interaction
+                .report("Read-next queue updated · u undo".into());
         }
         Ok(())
     }
 
     pub(super) fn leader_key(&mut self, key: KeyEvent) -> Result<Action> {
         use WorkspaceCommand as C;
-        self.mode = Mode::Normal;
+        self.interaction.enter(Mode::Normal);
         let command = match key.code {
             KeyCode::Char('R') => {
                 return self.command("recommendations");
@@ -262,27 +249,27 @@ impl App {
         .iter()
         .map(|text| super::editor::textarea(text))
         .collect();
-        self.mode = Mode::Smart(Box::new(SmartForm {
+        self.interaction.enter(Mode::Smart(Box::new(SmartForm {
             fields,
             field: 0,
             unread: filter.unread,
             starred: filter.starred,
             paused: filter.paused,
             feeds: filter.feeds,
-        }));
+        })));
     }
 
     pub(super) fn smart_key(&mut self, key: KeyEvent) -> Result<Action> {
         let control = key.modifiers.contains(KeyModifiers::CONTROL);
         if key.code == KeyCode::Esc {
-            self.mode = Mode::Normal;
+            self.interaction.enter(Mode::Normal);
             return Ok(Action::None);
         }
         if control && key.code == KeyCode::Char('s') {
             self.save_smart()?;
             return Ok(Action::None);
         }
-        let Mode::Smart(form) = &mut self.mode else {
+        let Some(form) = self.interaction.smart_mut() else {
             return Ok(Action::None);
         };
         if control && key.code == KeyCode::Char(' ') && form.field == 1 {
@@ -315,7 +302,7 @@ impl App {
     }
 
     fn save_smart(&mut self) -> Result<()> {
-        let Mode::Smart(form) = &self.mode else {
+        let Mode::Smart(form) = self.interaction.mode() else {
             return Ok(());
         };
         let values = form
@@ -333,9 +320,9 @@ impl App {
             days: optional_number(&values[3])?,
         };
         self.store.save_smart_list(&values[0], &filter)?;
-        self.mode = Mode::Normal;
+        self.interaction.enter(Mode::Normal);
         self.reload()?;
-        self.status = "Smart list saved".into();
+        self.interaction.report("Smart list saved".into());
         Ok(())
     }
     fn smart_source(&self, value: &str) -> Result<Option<i64>> {
@@ -422,19 +409,17 @@ impl App {
     ) -> Result<Action> {
         use routing::DimensionCommand as C;
 
-        let width = value.parse::<u16>()?;
-        let mut workspace = self.workspace.clone();
-        match command {
-            C::Width => workspace.reading_width = width,
-            C::FullscreenWidth => workspace.fullscreen_width = width,
-            C::SidebarWidth => workspace.library_width = width,
-            C::ArticlesWidth => workspace.article_width = width,
-        }
-        crate::validation::validate_workspace_dimensions(&workspace)?;
-        self.workspace = workspace;
+        use super::layout_state::Dimension;
+        let dimension = match command {
+            C::Width => Dimension::Reading,
+            C::FullscreenWidth => Dimension::Fullscreen,
+            C::SidebarWidth => Dimension::Library,
+            C::ArticlesWidth => Dimension::Articles,
+        };
+        self.layout.set_dimension(dimension, value.parse()?)?;
         self.persist_preferences()?;
-        if !self.screen.is_empty() {
-            self.resize_workspace(self.screen);
+        if !self.layout.screen().is_empty() {
+            self.resize_workspace(self.layout.screen());
         }
         Ok(Action::None)
     }

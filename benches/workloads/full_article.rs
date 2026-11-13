@@ -219,7 +219,7 @@ fn failure_preservation(
 
 fn source_switches(store: Store, iterations: usize) -> Result<()> {
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_reader(78, 29);
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     super::measure("Feed/Full switches + cached frame", iterations, || {

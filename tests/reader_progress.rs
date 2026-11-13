@@ -21,8 +21,8 @@ fn reader(rows: usize) -> Result<(tempfile::TempDir, App)> {
     parsed.articles[0].body = format!("```text\n{lines}```");
     store.ingest(&feed, &feed.title, &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.workspace.fullscreen = true;
-    app.focus = Pane::Reader;
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
+    app.activate_pane(Pane::Reader);
     app.resize_workspace(SCREEN);
     Ok((directory, app))
 }
@@ -93,7 +93,7 @@ fn short_articles_advance_with_the_cursor_without_requiring_scroll()
 fn clicking_a_lower_visible_row_updates_progress_without_scrolling()
 -> Result<()> {
     let (_directory, mut app) = reader(80)?;
-    let content = ui::workspace_reader_content(SCREEN, &app.workspace);
+    let content = ui::workspace_reader_content(SCREEN, app.workspace());
     app.mouse(MouseEvent {
         kind: MouseEventKind::Down(MouseButton::Left),
         column: content.x,

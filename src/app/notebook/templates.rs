@@ -2,7 +2,7 @@
 
 use anyhow::{Result, ensure};
 
-use super::super::{App, EditMode, Mode};
+use super::super::{App, EditMode};
 
 impl App {
     pub(in crate::app) fn note_editor_command(
@@ -17,7 +17,7 @@ impl App {
             "link" => self.note_link_completion(argument.trim())?,
             "template" => self.insert_note_template(argument.trim())?,
             "find" => {
-                if let Mode::Input(input) = &mut self.mode {
+                if let Some(input) = self.interaction.draft_mut() {
                     ensure!(argument.len() <= 256, "Search exceeds 256 bytes");
                     input.editor.set_search_pattern(argument)?;
                     input.editor.search_forward(true);
@@ -31,7 +31,7 @@ impl App {
 
     fn insert_note_template(&mut self, name: &str) -> Result<()> {
         let (text, kind) = template(name)?;
-        let Mode::Input(input) = &mut self.mode else {
+        let Some(input) = self.interaction.draft_mut() else {
             anyhow::bail!("Open a note editor first");
         };
         ensure!(

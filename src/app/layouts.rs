@@ -4,7 +4,7 @@ use crate::app::commands::routing;
 
 use anyhow::{Context, Result, bail, ensure};
 
-use crate::model::{Dock, Pane, PaneLayout, PanelLayout, Workspace};
+use crate::model::{Dock, Pane, PanelLayout, Workspace};
 
 use super::{Action, App};
 
@@ -23,7 +23,7 @@ impl App {
             C::LayoutReset => self.reset_layout()?,
             C::PanelDock => self.dock_command(argument)?,
             C::LayoutColumns => {
-                self.workspace.layout = None;
+                self.layout.reset_columns();
                 self.commit_panel_layout()?;
             }
         }
@@ -33,17 +33,18 @@ impl App {
     fn reset_layout(&mut self) -> Result<()> {
         self.cancel_pointer();
         let standard = Workspace {
-            reading_width: self.workspace.reading_width,
-            fullscreen_width: self.workspace.fullscreen_width,
+            reading_width: self.layout.workspace().reading_width,
+            fullscreen_width: self.layout.workspace().fullscreen_width,
             ..Workspace::default()
         };
         let layout = PanelLayout::capture(&standard);
-        if layout != PanelLayout::capture(&self.workspace) {
-            layout.apply(&mut self.workspace);
-            self.fullscreen_focus = None;
+        if layout != PanelLayout::capture(self.layout.workspace()) {
+            self.layout.apply_panel_layout(&layout);
+            self.layout.remember_fullscreen_focus(None);
             self.commit_panel_layout()?;
         }
-        self.status = "Standard layout restored · Ctrl-w u undoes".into();
+        self.interaction
+            .report("Standard layout restored · Ctrl-w u undoes".into());
         Ok(())
     }
 
@@ -52,7 +53,8 @@ impl App {
         let name = name.trim();
         if verb == "list" || verb.is_empty() {
             let body = self
-                .layouts
+                .layout
+                .history()
                 .profiles
                 .keys()
                 .cloned()
@@ -70,40 +72,24 @@ impl App {
             "Use a workspace name of 1–64 plain characters"
         );
         self.change_profile(verb, name)?;
-        self.status = format!("Workspace {verb}: {name}");
+        self.interaction.report(format!("Workspace {verb}: {name}"));
         Ok(())
     }
 
     fn change_profile(&mut self, verb: &str, name: &str) -> Result<()> {
         match verb {
             "save" => {
-                ensure!(
-                    self.layouts.profiles.contains_key(name)
-                        || self.layouts.profiles.len() < 32,
-                    "At most 32 workspaces"
-                );
-                self.layouts.profiles.insert(
-                    name.into(),
-                    crate::model::PanelLayout::capture(&self.workspace),
-                );
+                self.layout.save_profile(name)?;
                 self.save_session()?;
             }
             "load" => {
-                self.layouts
-                    .profiles
-                    .get(name)
-                    .context("Workspace not found")?
-                    .clone()
-                    .apply(&mut self.workspace);
+                self.layout.load_profile(name)?;
                 self.ensure_visible_focus();
-                self.resize_workspace(self.screen);
+                self.resize_workspace(self.layout.screen());
                 self.save_session()?;
             }
             "delete" => {
-                ensure!(
-                    self.layouts.profiles.remove(name).is_some(),
-                    "Workspace not found"
-                );
+                self.layout.delete_profile(name)?;
                 self.save_session()?;
             }
             _ => bail!("Use :workspace list|save NAME|load NAME|delete NAME"),
@@ -112,21 +98,19 @@ impl App {
     }
 
     fn restore_layout(&mut self, redo: bool) -> Result<()> {
-        let layout = if redo {
-            self.layouts.redo()
-        } else {
-            self.layouts.undo()
-        };
+        let layout = self.layout.restore_history(redo);
         let Some(layout) = layout else {
-            self.status = "No layout changes in that direction".into();
+            self.interaction
+                .report("No layout changes in that direction".into());
             return Ok(());
         };
         self.cancel_pointer();
-        layout.apply(&mut self.workspace);
+        self.layout.apply_panel_layout(&layout);
         self.ensure_visible_focus();
-        self.resize_workspace(self.screen);
+        self.resize_workspace(self.layout.screen());
         self.save_session()?;
-        self.status = "Layout restored · :layout-undo / :layout-redo".into();
+        self.interaction
+            .report("Layout restored · :layout-undo / :layout-redo".into());
         Ok(())
     }
 
@@ -141,7 +125,7 @@ impl App {
         let edge =
             Dock::named(parts[2]).context("Unknown docking direction")?;
         self.dock_pane(pane, target, edge)?;
-        self.focus = pane;
+        self.layout.focus_pane(pane);
         self.commit_panel_layout()
     }
 
@@ -151,15 +135,6 @@ impl App {
         target: Pane,
         edge: Dock,
     ) -> Result<()> {
-        let tree = self.workspace.layout.clone().unwrap_or_else(|| {
-            PaneLayout::columns(&self.workspace.panel_order)
-        });
-        self.workspace.layout = Some(
-            tree.dock(pane, target, edge)
-                .context("Choose two different panes in a valid layout")?,
-        );
-        self.workspace.set_pane_visible(pane, true);
-        self.workspace.set_pane_visible(target, true);
-        Ok(())
+        self.layout.dock(pane, target, edge)
     }
 }

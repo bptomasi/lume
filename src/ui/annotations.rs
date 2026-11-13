@@ -19,7 +19,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let reading = app.reader();
     let block = panel(
         format!(" Annotations · {} ", reading.annotations.len()),
-        app.focus == Focus::Annotations,
+        app.focus() == Focus::Annotations,
     );
     let inner = block.inner(area);
     frame.render_widget(block, area);

@@ -29,7 +29,7 @@ fn command(app: &mut App, text: &str) -> Result<Action> {
 }
 
 fn input(app: &App) -> Result<&Input> {
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         anyhow::bail!("The draft was closed");
     };
     Ok(input)
@@ -40,7 +40,7 @@ fn note_editor() -> Result<(tempfile::TempDir, App, Store, i64)> {
     let article = store.library()?.articles[0].id;
     let writer = Store::open(&directory.path().join("library.sqlite3"))?;
     let mut app = App::new(store, false)?;
-    app.focus = lume::app::Focus::Reader;
+    app.activate_pane(lume::app::Focus::Reader);
     command(&mut app, "note")?;
     Ok((directory, app, writer, article))
 }
@@ -84,7 +84,7 @@ fn write_and_close_aliases_save_without_quitting_the_application() -> Result<()>
         let action = command(&mut app, alias)?;
 
         assert_eq!(action, Action::None, "{alias}");
-        assert!(matches!(app.mode, Mode::Normal), "{alias}");
+        assert!(matches!(app.mode(), Mode::Normal), "{alias}");
         assert_eq!(store.comments(article)?[0].body, "A private explanation");
     }
     Ok(())
@@ -112,13 +112,17 @@ fn write_all_quit_aliases_flush_note_and_session_before_returning_quit()
         "wqa", "wqa!", "wqall", "wqall!", "xa", "xa!", "xall", "xall!",
     ] {
         let (_directory, mut app, store, article) = note_editor()?;
-        app.workspace.fullscreen_width = 94;
+        press(&mut app, KeyCode::Esc)?;
+        command(&mut app, "q")?;
+        command(&mut app, "fullscreen-width 94")?;
+        command(&mut app, "note")?;
         app.paste("Saved before quitting")?;
         press(&mut app, KeyCode::Esc)?;
+        reset_stored_width(&store)?;
 
         assert_eq!(command(&mut app, alias)?, Action::Quit, "{alias}");
 
-        assert!(matches!(app.mode, Mode::Normal));
+        assert!(matches!(app.mode(), Mode::Normal));
         assert_eq!(store.comments(article)?[0].body, "Saved before quitting");
         assert_eq!(store.workspace()?.fullscreen_width, 94);
     }
@@ -158,7 +162,7 @@ fn quitting_a_clean_editor_does_not_create_an_empty_note() -> Result<()> {
 
     assert_eq!(command(&mut app, "q")?, Action::None);
 
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     assert!(store.comments(article)?.is_empty());
     Ok(())
 }
@@ -254,7 +258,7 @@ fn normal_motions_insert_undo_and_zz_keep_the_text_editor_responsible()
 
     type_keys(&mut app, "ZZ")?;
 
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     assert_eq!(
         store.comments(article)?[0].body,
         "café consensus\nsecond line"
@@ -268,7 +272,7 @@ fn zq_discards_and_control_s_saves_in_each_editor_layer() -> Result<()> {
     app.paste("Discard me")?;
     press(&mut app, KeyCode::Esc)?;
     type_keys(&mut app, "ZQ")?;
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     assert!(store.comments(article)?.is_empty());
     for mode in [
         EditMode::Insert,
@@ -277,13 +281,23 @@ fn zq_discards_and_control_s_saves_in_each_editor_layer() -> Result<()> {
     ] {
         command(&mut app, "note")?;
         app.paste("Saved through Ctrl-s")?;
-        if let Mode::Input(input) = &mut app.mode {
-            input.edit_mode = mode;
+        match mode {
+            EditMode::Insert => {}
+            EditMode::Normal => {
+                press(&mut app, KeyCode::Esc)?;
+            }
+            EditMode::Command(text) => {
+                press(&mut app, KeyCode::Esc)?;
+                type_keys(&mut app, &format!(":{text}"))?;
+            }
+            EditMode::PendingZ | EditMode::Search(_) => {
+                anyhow::bail!("Unexpected fixture editor layer");
+            }
         }
         let action =
             app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
         assert_eq!(action, Action::None);
-        assert!(matches!(app.mode, Mode::Normal));
+        assert!(matches!(app.mode(), Mode::Normal));
     }
     assert_eq!(store.comments(article)?.len(), 3);
     Ok(())
@@ -295,7 +309,7 @@ fn a_passage_without_note_text_is_dirty_and_writes_keep_its_quote() -> Result<()
     let (_directory, mut app, store, article) = note_editor()?;
     press(&mut app, KeyCode::Esc)?;
     command(&mut app, "q")?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     command(&mut app, "annotate")?;
     press(&mut app, KeyCode::Esc)?;
     assert!(input(&app)?.modified());
@@ -358,7 +372,8 @@ fn global_write_saves_session_and_write_quit_variants_request_exit()
     let (_directory, mut app, store, _article) = note_editor()?;
     press(&mut app, KeyCode::Esc)?;
     command(&mut app, "q")?;
-    app.workspace.fullscreen_width = 98;
+    common::fixture_command(&mut app, "fullscreen-width 98")?;
+    reset_stored_width(&store)?;
 
     assert_eq!(command(&mut app, "w")?, Action::None);
     assert_eq!(store.workspace()?.fullscreen_width, 98);
@@ -368,6 +383,16 @@ fn global_write_saves_session_and_write_quit_variants_request_exit()
     for alias in ["wq", "x", "exit", "wqa", "wqall", "xa", "xall", "qa!"] {
         assert_eq!(command(&mut app, alias)?, Action::Quit, "{alias}");
     }
+    Ok(())
+}
+
+fn reset_stored_width(store: &Store) -> Result<()> {
+    // The preference command already saves. Make the following session write
+    // observable so a missing save cannot pass on that earlier persistence.
+    let mut saved = store.workspace()?;
+    saved.fullscreen_width = 80;
+    store.save_workspace(&saved)?;
+    assert_eq!(store.workspace()?.fullscreen_width, 80);
     Ok(())
 }
 

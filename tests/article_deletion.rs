@@ -45,7 +45,7 @@ fn committed_deletion_updates_the_page_before_counts_or_next_source_arrive()
     let path = directory.path().join("library.sqlite3");
     app.enable_background_navigation(&path)?;
     settle_library(&mut app)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     let target = app.current().context("Target")?.id;
     keys(&mut app, "dd")?;
     assert!(
@@ -88,7 +88,7 @@ fn rejected_background_deletion_keeps_the_original_row_and_durable_state()
         "../src/store/sql/test_reject_article_deletion.sql"
     ))?;
     app.enable_background_navigation(&path)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     let target = app.current().context("Target")?.id;
     keys(&mut app, "dd")?;
     let error = settle_writes(&mut app)
@@ -107,7 +107,7 @@ fn an_already_deleted_durable_article_is_removed_from_stale_metadata()
     let (directory, mut app) = two_articles()?;
     let path = directory.path().join("library.sqlite3");
     app.enable_background_navigation(&path)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     let target = app.current().context("Target")?.id;
     let observed = Store::open(&path)?;
     observed.set_deleted(target, true)?;
@@ -138,7 +138,7 @@ fn consecutive_commits_target_distinct_rows_without_waiting_for_recounts()
     let (directory, mut app) = two_articles()?;
     let path = directory.path().join("library.sqlite3");
     app.enable_background_navigation(&path)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     let first = app.current().context("First")?.id;
     keys(&mut app, "dd")?;
     settle_writes(&mut app)?;
@@ -163,15 +163,15 @@ fn deletion_acknowledgement_does_not_replace_a_source_bound_editor()
     let path = directory.path().join("library.sqlite3");
     app.enable_background_navigation(&path)?;
     settle_library(&mut app)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     let target = app.current().context("Target")?.id;
     keys(&mut app, "dd")?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     command(&mut app, "note")?;
     app.paste("My source-bound draft")?;
     settle_writes(&mut app)?;
     assert!(
-        matches!(&app.mode, Mode::Input(input) if input.text == "My source-bound draft")
+        matches!(app.mode(), Mode::Input(input) if input.text == "My source-bound draft")
     );
     assert_eq!(app.current().map(|item| item.id), Some(target));
     press(&mut app, KeyCode::Esc)?;
@@ -211,7 +211,7 @@ fn deleting_the_last_page_refills_from_the_previous_page() -> Result<()> {
     app.jump_article(target)?;
     assert_eq!(app.navigation().page_offset, 1);
     app.enable_background_navigation(&path)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     keys(&mut app, "dd")?;
     settle_writes(&mut app)?;
     assert!(app.current().is_none());
@@ -236,7 +236,7 @@ fn grouped_deletion_replaces_the_representative_without_losing_its_group()
     app.enable_background_navigation(
         &directory.path().join("library.sqlite3"),
     )?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     let target = app.current().context("Target")?.id;
     keys(&mut app, "dd")?;
     settle_writes(&mut app)?;
@@ -323,14 +323,14 @@ fn discoverable_commands_delete_restore_and_undo_without_losing_articles()
 fn delete_shortcut_ignores_autorepeat_library_focus_and_visual_selections()
 -> Result<()> {
     let (directory, mut app) = two_articles()?;
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     press(&mut app, KeyCode::Char('D'))?;
     assert_eq!(app.navigation().page_total, 2);
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     keys(&mut app, "vD")?;
     assert_eq!(app.navigation().page_total, 2);
     press(&mut app, KeyCode::Esc)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     let target = app.current().map(|a| a.id);
 
     press(&mut app, KeyCode::Delete)?;
@@ -404,7 +404,7 @@ fn dd_moves_articles_to_trash_and_undo_preserves_notes_favorites_and_folders()
     store.save_comment(article, None, "Keep my note")?;
     store.save_collection("Personal", Some(article))?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     let observed = Store::open(&directory.path().join("library.sqlite3"))?;
     press(&mut app, KeyCode::Char('d'))?;
     assert!(!observed.is_deleted(article)?);
@@ -423,7 +423,7 @@ fn autorepeat_escape_and_focus_loss_cannot_complete_article_deletion()
 -> Result<()> {
     let (directory, store, _) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     press(&mut app, KeyCode::Char('d'))?;
     app.key(KeyEvent::new_with_kind(
         KeyCode::Char('d'),
@@ -455,7 +455,7 @@ fn changing_selected_article_requires_a_new_pair_for_the_new_identity()
     parsed.articles[0].url = "https://journal.example/another".into();
     store.ingest(&feed, &feed.title, &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     let first = app.current().context("First article")?.id;
     press(&mut app, KeyCode::Char('d'))?;
     press(&mut app, KeyCode::Down)?;
@@ -477,9 +477,9 @@ fn dd_in_trash_permanently_deletes_only_the_confirmed_article() -> Result<()> {
     let target = app.current().context("Target")?.id;
     observer.set_deleted(target, true)?;
     app.set_view(View::Trash)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     keys(&mut app, "d")?;
-    assert!(app.status.contains("permanently"));
+    assert!(app.status().contains("permanently"));
     assert!(observer.article(target).is_ok());
     press(&mut app, KeyCode::Esc)?;
     assert!(observer.article(target).is_ok());
@@ -503,7 +503,7 @@ fn background_purge_updates_the_page_before_recounts() -> Result<()> {
     app.set_view(View::Trash)?;
     app.enable_background_navigation(&path)?;
     settle_library(&mut app)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     keys(&mut app, "dd")?;
     settle_writes(&mut app)?;
     assert!(observer.article(target).is_err());
@@ -547,7 +547,7 @@ fn failed_background_purge_keeps_the_trashed_row_visible() -> Result<()> {
     ))?;
     app.enable_background_navigation(&path)?;
     settle_library(&mut app)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     keys(&mut app, "dd")?;
     let error = settle_writes(&mut app).err().context("Purge rejection")?;
     assert!(error.to_string().contains("Controlled permanent deletion"));

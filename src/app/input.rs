@@ -26,7 +26,7 @@ impl App {
         if self.inspection_key(key) {
             return Ok(Action::None);
         }
-        let action = match &self.mode {
+        let action = match self.interaction.mode() {
             Mode::Web => self.web_key(key),
             Mode::Help => {
                 self.help_key(key);
@@ -48,22 +48,19 @@ impl App {
     }
 
     fn cancel_delete_prefix(&mut self, key: KeyEvent) {
-        if !matches!(key.code, KeyCode::Char('d') | KeyCode::Esc)
-            || key
-                .modifiers
-                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
-        {
+        if self.interaction.observe_key(key) {
             self.reader.arm_note_delete(None);
-            self.pending_destination_delete = None;
-            self.pending_article_delete = None;
         }
     }
 
     fn stale_reader_key(&mut self, key: KeyEvent) -> bool {
-        let blocked = matches!(self.mode, Mode::Normal)
+        let blocked = matches!(self.interaction.mode(), Mode::Normal)
             && self.notebook().is_none()
             && self.reader_stale()
-            && matches!(self.focus, Focus::Reader | Focus::Annotations)
+            && matches!(
+                self.layout.focus(),
+                Focus::Reader | Focus::Annotations
+            )
             && !matches!(
                 key.code,
                 KeyCode::Esc
@@ -76,9 +73,10 @@ impl App {
             && !key
                 .modifiers
                 .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
-            && !self.panel_prefix;
+            && !self.interaction.panel_prefix();
         if blocked {
-            self.status = "Loading selection… · article actions paused".into();
+            self.interaction
+                .report("Loading selection… · article actions paused".into());
         }
         blocked
     }
@@ -89,7 +87,7 @@ impl App {
         {
             return true;
         }
-        matches!(self.mode, Mode::Normal | Mode::Web)
+        matches!(self.interaction.mode(), Mode::Normal | Mode::Web)
             && key.kind == KeyEventKind::Repeat
             && matches!(
                 key.code,
@@ -98,7 +96,8 @@ impl App {
     }
 
     fn inspection_key(&mut self, key: KeyEvent) -> bool {
-        if !self.note_inspection_pending() || !matches!(self.mode, Mode::Normal)
+        if !self.note_inspection_pending()
+            || !matches!(self.interaction.mode(), Mode::Normal)
         {
             return false;
         }
@@ -129,7 +128,7 @@ impl App {
             return Ok(action);
         }
         if self.article_preparing()
-            && self.focus == Focus::Reader
+            && self.layout.focus() == Focus::Reader
             && matches!(key.code, KeyCode::Char('v' | 'V'))
         {
             return Ok(Action::None);
@@ -150,7 +149,7 @@ impl App {
         &mut self,
         key: KeyEvent,
     ) -> Result<Option<Action>> {
-        if self.panel_prefix && self.panel_layout_key(key)? {
+        if self.interaction.panel_prefix() && self.panel_layout_key(key)? {
             return Ok(Some(Action::None));
         }
         if let Some(action) = self.bound_key(key)? {
@@ -166,8 +165,8 @@ impl App {
         match code {
             KeyCode::Char('q') => return Ok(Action::Quit),
             KeyCode::Char('r') => return Ok(Action::Refresh),
-            KeyCode::Char('?') => self.mode = Mode::Help,
-            KeyCode::Char(' ') => self.mode = Mode::Leader,
+            KeyCode::Char('?') => self.interaction.enter(Mode::Help),
+            KeyCode::Char(' ') => self.interaction.enter(Mode::Leader),
             KeyCode::Char('/') => {
                 self.begin_context_search()?;
             }
@@ -189,12 +188,12 @@ impl App {
     }
 
     fn begin_context_search(&mut self) -> Result<()> {
-        if self.focus == Focus::Reader {
+        if self.layout.focus() == Focus::Reader {
             self.begin_reader_search();
-        } else if self.focus == Focus::Library {
+        } else if self.layout.focus() == Focus::Library {
             self.begin_library_search();
         } else {
-            if self.focus != Focus::Articles {
+            if self.layout.focus() != Focus::Articles {
                 self.focus_pane(Focus::Articles)?;
             }
             self.save_reading_position()?;
@@ -205,7 +204,8 @@ impl App {
 
     fn bound_key(&mut self, key: KeyEvent) -> Result<Option<Action>> {
         let Some(command) = self
-            .workspace
+            .layout
+            .workspace()
             .keybindings
             .get(&super::key_name(key))
             .cloned()
@@ -215,15 +215,16 @@ impl App {
         if key.kind == KeyEventKind::Repeat {
             return Ok(Some(Action::None));
         }
-        self.vim.clear_input();
+        self.interaction.vim_input().clear_input();
         self.command(&command).map(Some)
     }
 
     fn enter_navigation(&mut self) -> Result<()> {
-        if self.focus == Focus::Reader && self.captured_image().is_ok() {
+        if self.layout.focus() == Focus::Reader && self.captured_image().is_ok()
+        {
             return self.open_image_inspector();
         }
-        if self.focus != Focus::Library {
+        if self.layout.focus() != Focus::Library {
             return self.open_reader();
         }
         if *self.nav.view() == View::Annotated {
@@ -233,7 +234,7 @@ impl App {
         if matches!(self.nav.view(), View::Group(_)) {
             self.toggle_navigation_group("")?;
         } else {
-            self.focus = Focus::Articles;
+            self.layout.focus_pane(Focus::Articles);
         }
         Ok(())
     }
@@ -252,7 +253,8 @@ impl App {
                 self.remove_from_list()?
             }
             KeyCode::Char('D') | KeyCode::Delete
-                if self.focus != Focus::Library && !self.reader.selecting() =>
+                if self.layout.focus() != Focus::Library
+                    && !self.reader.selecting() =>
             {
                 self.set_selected_deleted(true)?;
             }
@@ -266,7 +268,7 @@ impl App {
     }
 
     fn navigation_key(&mut self, code: KeyCode) -> Result<bool> {
-        let previous_g = std::mem::take(&mut self.pending_g);
+        let previous_g = self.interaction.take_g_prefix();
         match code {
             KeyCode::Char('j') | KeyCode::Down => {
                 self.move_selection(true, 1)?
@@ -290,7 +292,7 @@ impl App {
             KeyCode::Char('g') if previous_g => {
                 self.move_selection(false, usize::MAX)?
             }
-            KeyCode::Char('g') => self.pending_g = true,
+            KeyCode::Char('g') => self.interaction.set_g_prefix(true),
             KeyCode::Esc => self.escape_reader()?,
             KeyCode::PageDown => {
                 self.move_selection(true, self.reader.height())?
@@ -304,11 +306,11 @@ impl App {
     }
 
     fn escape_reader(&mut self) -> Result<()> {
-        let reader_search = self.focus == Focus::Reader
+        let reader_search = self.layout.focus() == Focus::Reader
             && !self.reader.view().reader_tools.needle.is_empty();
         if reader_search {
             self.reader.search_reader("");
-            self.status = "Reader search cleared".into();
+            self.interaction.report("Reader search cleared".into());
         }
         if self.reader.cancel_selection() {
             return Ok(());
@@ -316,11 +318,13 @@ impl App {
         if reader_search {
             return Ok(());
         }
-        if self.focus == Focus::Library && !self.library_query().is_empty() {
+        if self.layout.focus() == Focus::Library
+            && !self.library_query().is_empty()
+        {
             self.clear_library_search();
             return Ok(());
         }
-        if self.workspace.fullscreen {
+        if self.layout.workspace().fullscreen {
             self.perform(WorkspaceCommand::Fullscreen)?;
             return Ok(());
         }
@@ -328,18 +332,20 @@ impl App {
     }
 
     fn clear_search(&mut self) -> Result<()> {
-        if self.focus == Focus::Reader {
-            if self.workspace.zen || !self.workspace.show_articles {
+        if self.layout.focus() == Focus::Reader {
+            if self.layout.workspace().zen
+                || !self.layout.workspace().show_articles
+            {
                 self.focus_pane(Focus::Articles)?;
             } else {
-                self.focus = Focus::Articles;
+                self.layout.focus_pane(Focus::Articles);
             }
         }
         if self.nav.search().is_empty() {
             return Ok(());
         }
         self.nav.clear_query();
-        self.focus = Focus::Articles;
+        self.layout.focus_pane(Focus::Articles);
         self.filter()
     }
 
@@ -367,32 +373,26 @@ impl App {
     }
 
     fn help_key(&mut self, key: KeyEvent) {
-        if self.help_search_key(key) {
+        if self.interaction.help_input().search_key(key) {
             return;
         }
         match key.code {
-            KeyCode::Char('q' | '?') | KeyCode::Esc => self.mode = Mode::Normal,
+            KeyCode::Char('q' | '?') | KeyCode::Esc => {
+                self.interaction.enter(Mode::Normal);
+            }
             KeyCode::Char('j') | KeyCode::Down => {
-                self.help_scroll = self
-                    .help_scroll
-                    .saturating_add(1)
-                    .min(super::HELP.lines().count().saturating_sub(1))
+                self.interaction.help_input().scroll(true, 1)
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                self.help_scroll = self.help_scroll.saturating_sub(1)
+                self.interaction.help_input().scroll(false, 1)
             }
-            KeyCode::PageDown => {
-                self.help_scroll = self
-                    .help_scroll
-                    .saturating_add(10)
-                    .min(super::HELP.lines().count().saturating_sub(1))
+            KeyCode::PageDown => self.interaction.help_input().scroll(true, 10),
+            KeyCode::PageUp => self.interaction.help_input().scroll(false, 10),
+            KeyCode::Char('g') | KeyCode::Home => {
+                self.interaction.help_input().seek(false)
             }
-            KeyCode::PageUp => {
-                self.help_scroll = self.help_scroll.saturating_sub(10)
-            }
-            KeyCode::Char('g') | KeyCode::Home => self.help_scroll = 0,
             KeyCode::Char('G') | KeyCode::End => {
-                self.help_scroll = super::HELP.lines().count().saturating_sub(1)
+                self.interaction.help_input().seek(true)
             }
             _ => {}
         }

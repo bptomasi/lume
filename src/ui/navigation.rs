@@ -60,7 +60,7 @@ fn window(
 
 pub(crate) fn origin(app: &App, screen: Rect) -> Option<(usize, usize)> {
     let area =
-        super::workspace_areas(screen, app.focus, &app.workspace).library?;
+        super::workspace_areas(screen, app.focus(), app.workspace()).library?;
     let inner = super::pane_search::content(
         app,
         crate::model::Pane::Library,

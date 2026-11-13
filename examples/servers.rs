@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     let first = seed_connection(&mut store, "https://reader.example", false)?;
     seed_connection(&mut store, "https://archive.example", true)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     app.resize_workspace(Rect::new(0, 0, 144, 48));
     app.set_view(View::Server(first))?;
     let mut terminal = Terminal::new(TestBackend::new(144, 48))?;

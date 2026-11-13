@@ -92,7 +92,10 @@ fn selected_frames(app: &mut App, iterations: usize) -> Result<()> {
     let request = app
         .image_key(&app.web_page().context("Page")?.rendered.images[0])
         .context("Image key")?;
-    ensure!(app.images.thumbnail(&request).is_some(), "Image is missing");
+    ensure!(
+        app.images().thumbnail(&request).is_some(),
+        "Image is missing"
+    );
     let mut terminal = Terminal::new(TestBackend::new(120, 40))?;
     super::measure(
         "linked selected cached-image frame",
@@ -102,7 +105,7 @@ fn selected_frames(app: &mut App, iterations: usize) -> Result<()> {
             let page = app.web_page().context("Page")?;
             ensure!(page.selected_range().is_some(), "Selection was lost");
             ensure!(
-                app.images.thumbnail(&request).is_some(),
+                app.images().thumbnail(&request).is_some(),
                 "Image was evicted"
             );
             Ok(())

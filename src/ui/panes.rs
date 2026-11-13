@@ -16,7 +16,7 @@ use crate::{
 use super::theme::*;
 
 pub(super) fn library(frame: &mut Frame<'_>, app: &App, area: Rect) {
-    let block = panel(" 01  Library ".into(), app.focus == Focus::Library);
+    let block = panel(" 01  Library ".into(), app.focus() == Focus::Library);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let inner = super::pane_search::draw(frame, app, Focus::Library, inner);
@@ -25,7 +25,7 @@ pub(super) fn library(frame: &mut Frame<'_>, app: &App, area: Rect) {
 
 pub(super) fn articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let title = format!(" 02  Articles · {} ", app.navigation().page_total);
-    let block = panel(title, app.focus == Focus::Articles);
+    let block = panel(title, app.focus() == Focus::Articles);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let inner = super::pane_search::draw(frame, app, Focus::Articles, inner);
@@ -70,7 +70,7 @@ fn headline(frame: &mut Frame<'_>, app: &App, position: usize, area: Rect) {
             .spans
             .insert(0, Span::styled("✓", Style::new().fg(AMBER)));
     }
-    if app.workspace.compact {
+    if app.workspace().compact {
         lines.remove(1);
         lines.truncate(2);
     }
@@ -134,12 +134,12 @@ fn empty_articles(frame: &mut Frame<'_>, app: &App, area: Rect) {
 pub(super) fn reader(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let reading = app.reader();
     let navigation = app.navigation();
-    let title = if app.workspace.fullscreen {
+    let title = if app.workspace().fullscreen {
         " Article · FULLSCREEN · Esc / F11 exit "
     } else {
         " 03  Reader "
     };
-    let block = panel(title.into(), app.focus == Focus::Reader);
+    let block = panel(title.into(), app.focus() == Focus::Reader);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     if navigation.navigation_loading && reading.displayed_article.is_none() {
@@ -160,7 +160,7 @@ pub(super) fn reader(frame: &mut Frame<'_>, app: &App, area: Rect) {
         );
         return;
     };
-    let column = super::workspace_reader_content(area, &app.workspace);
+    let column = super::workspace_reader_content(area, app.workspace());
     let header =
         Rect::new(column.x, inner.y, column.width, 3.min(inner.height));
     frame.render_widget(
@@ -259,7 +259,7 @@ fn article_fetch_status(
     };
     let message: std::borrow::Cow<'_, str> = if app.reader_stale() {
         "Previous article · loading selection… · article actions paused".into()
-    } else if app.article_fetching.as_ref().is_some_and(|target| {
+    } else if app.article_fetching().as_ref().is_some_and(|target| {
         target.article == article.id && target.url == article.url
     }) {
         "Fetching article… · reading remains available".into()
@@ -321,10 +321,10 @@ fn reader_progress(frame: &mut Frame<'_>, app: &App, inner: Rect) {
     let reading = app.reader();
     let percent =
         cursor_percent(reading.reader_cursor, reading.reader_lines.len());
-    let text = if app.workspace.fullscreen {
+    let text = if app.workspace().fullscreen {
         format!(
             " {percent}% · Esc / F11 exit · {}",
-            content::label(&app.status, 160),
+            content::label(app.status(), 160),
         )
     } else {
         format!(

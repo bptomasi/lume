@@ -25,7 +25,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
             );
             continue;
         };
-        if let Some(image) = app.images.thumbnail(&key) {
+        if let Some(image) = app.images().thumbnail(&key) {
             if slot.formula.is_some() {
                 clear_formula_caption(
                     frame,
@@ -45,7 +45,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
                 &image.cells,
             );
         } else if slot.formula.is_none() {
-            let status = app.images.placeholder(&key);
+            let status = app.images().placeholder(&key);
             message(frame, column, viewport.scroll, slot.rows.start, status);
         }
     }
@@ -54,7 +54,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, column: Rect) {
 
 pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
     if !app.uses_sixel_images()
-        || matches!(app.mode, crate::app::Mode::Image(_))
+        || matches!(app.mode(), crate::app::Mode::Image(_))
         || app.pane_motion_active()
         || (!app.web_active() && app.notebook().is_some())
         || (!app.web_active() && app.article_preparing() && !app.reader_stale())
@@ -67,7 +67,7 @@ pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
         return;
     };
     let occlusions = [
-        super::popup::Popup::from_mode(&app.mode)
+        super::popup::Popup::from_mode(app.mode())
             .map(|popup| popup.area(frame.area())),
         super::key_guide::area(app, frame.area()),
         super::note_preview::area(app, frame.area()),
@@ -80,7 +80,7 @@ pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
         let Some(key) = app.image_key(slot) else {
             continue;
         };
-        if let Some(image) = app.images.thumbnail(&key)
+        if let Some(image) = app.images().thumbnail(&key)
             && let Some(rows) = &image.rows
             && let Some((area, first)) =
                 native_area(viewport.scroll, slot, column, image)
@@ -92,12 +92,12 @@ pub(super) fn draw_native(frame: &mut Frame<'_>, app: &App) {
 
 fn native_column(app: &App, screen: Rect) -> Option<Rect> {
     if app.web_active() {
-        return matches!(app.mode, crate::app::Mode::Web)
+        return matches!(app.mode(), crate::app::Mode::Web)
             .then(|| super::web_content(screen, app.image_viewport().width));
     }
     let reader =
-        super::workspace_areas(screen, app.focus, &app.workspace).reader?;
-    Some(super::workspace_reader_content(reader, &app.workspace))
+        super::workspace_areas(screen, app.focus(), app.workspace()).reader?;
+    Some(super::workspace_reader_content(reader, app.workspace()))
 }
 
 fn clear_formula_caption(
@@ -149,13 +149,13 @@ fn paint_cursor(frame: &mut Frame<'_>, app: &App, column: Rect) {
         let Some(page) = app.web_page() else {
             return;
         };
-        if !matches!(app.mode, crate::app::Mode::Web) {
+        if !matches!(app.mode(), crate::app::Mode::Web) {
             return;
         }
         page.cursor_row()
     } else {
-        if app.focus != crate::app::Focus::Reader
-            || !matches!(app.mode, crate::app::Mode::Normal)
+        if app.focus() != crate::app::Focus::Reader
+            || !matches!(app.mode(), crate::app::Mode::Normal)
         {
             return;
         }

@@ -25,7 +25,7 @@ fn failed_recommendation_edit_cannot_suppress_dirty_note_recovery() -> Result<()
     let mut app = App::new(store, false)?;
     app.enable_background_navigation(&path)?;
     command(&mut app, "interest-remove unknown-interest")?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     command(&mut app, "note")?;
     app.paste("Recover this even if another worker fails")?;
 
@@ -68,7 +68,7 @@ fn rapid_favorite_and_queue_toggles_preserve_intentions_and_undo_order()
         .map(|article| article.id)
         .ok_or_else(|| anyhow::anyhow!("Missing article"))?;
     app.enable_background_navigation(&path)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     for character in "ffss".chars() {
         app.key(KeyEvent::new(KeyCode::Char(character), KeyModifiers::NONE))?;
     }

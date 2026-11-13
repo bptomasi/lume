@@ -13,7 +13,7 @@ use crate::app::{App, EditMode, HELP, Input, InputKind, Mode};
 use super::{popup::Popup, selectors, theme::*};
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
-    match &app.mode {
+    match app.mode() {
         Mode::Help => help(frame, app),
         Mode::Input(input) => editor(frame, app, input),
         Mode::ServerToken(input) => server_token(frame, input),
@@ -77,36 +77,39 @@ fn visual_preferences(
     app: &App,
 ) -> [String; crate::app::SettingsDraft::FIELD_COUNT] {
     [
-        format!("Theme: {}", app.workspace.theme),
-        format!("Reading width: {}", app.workspace.reading_width),
-        format!("Sidebar width: {}", app.workspace.library_width),
-        format!("Headlines width: {}", app.workspace.article_width),
-        format!("Compact headlines: {}", app.workspace.compact),
-        format!("Show library: {}", app.workspace.show_library),
-        format!("Show headlines: {}", app.workspace.show_articles),
-        format!("Annotations width: {}", app.workspace.annotation_width),
-        format!("Show reader: {}", app.workspace.show_reader),
-        format!("Show annotations: {}", app.workspace.show_annotations),
-        format!("Mouse reporting: {}", app.workspace.mouse),
-        format!("Fullscreen: {} cols", app.workspace.fullscreen_width),
-        format!("Justify prose: {}", app.workspace.justify),
-        format!("LaTeX formulas: {}", app.workspace.latex_formulas),
+        format!("Theme: {}", app.workspace().theme),
+        format!("Reading width: {}", app.workspace().reading_width),
+        format!("Sidebar width: {}", app.workspace().library_width),
+        format!("Headlines width: {}", app.workspace().article_width),
+        format!("Compact headlines: {}", app.workspace().compact),
+        format!("Show library: {}", app.workspace().show_library),
+        format!("Show headlines: {}", app.workspace().show_articles),
+        format!("Annotations width: {}", app.workspace().annotation_width),
+        format!("Show reader: {}", app.workspace().show_reader),
+        format!("Show annotations: {}", app.workspace().show_annotations),
+        format!("Mouse reporting: {}", app.workspace().mouse),
+        format!("Fullscreen: {} cols", app.workspace().fullscreen_width),
+        format!("Justify prose: {}", app.workspace().justify),
+        format!("LaTeX formulas: {}", app.workspace().latex_formulas),
         format!(
             "Formula presentation: {}",
-            if app.workspace.latex_graphics {
+            if app.workspace().latex_graphics {
                 "Graphics"
             } else {
                 "Text"
             }
         ),
-        format!("Automatic read state: {}", app.workspace.auto_read.enabled),
+        format!(
+            "Automatic read state: {}",
+            app.workspace().auto_read.enabled
+        ),
         format!(
             "Active reading seconds: {}",
-            app.workspace.auto_read.min_active_seconds
+            app.workspace().auto_read.min_active_seconds
         ),
         format!(
             "Displayed article coverage: {}%",
-            app.workspace.auto_read.min_coverage_percent
+            app.workspace().auto_read.min_coverage_percent
         ),
     ]
 }
@@ -156,31 +159,29 @@ fn help(frame: &mut Frame<'_>, app: &App) {
         "Lume · field guide · / search · j/k scroll · Esc close",
         Popup::Help,
     );
-    if app.help_search.editor.is_some() || !app.help_search.query.is_empty() {
+    if app.help().editor.is_some() || !app.help().query.is_empty() {
         inner = help_search_field(frame, app, inner);
     }
     let capacity = inner.height as usize;
-    let offset = app.help_scroll.min(HELP.lines().count().saturating_sub(1));
+    let offset = app
+        .help_scroll()
+        .min(HELP.lines().count().saturating_sub(1));
     let lines = HELP
         .lines()
         .skip(offset)
         .take(capacity)
         .enumerate()
         .map(|(row, line)| {
-            let style = if app
-                .help_search
-                .hits
-                .binary_search(&(offset + row))
-                .is_ok()
-            {
-                Style::new()
-                    .fg(AMBER)
-                    .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
-            } else if line.starts_with("  ─") {
-                Style::new().fg(AMBER).add_modifier(Modifier::BOLD)
-            } else {
-                Style::new().fg(TEXT)
-            };
+            let style =
+                if app.help().hits.binary_search(&(offset + row)).is_ok() {
+                    Style::new()
+                        .fg(AMBER)
+                        .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
+                } else if line.starts_with("  ─") {
+                    Style::new().fg(AMBER).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::new().fg(TEXT)
+                };
             Line::styled(line, style)
         })
         .collect::<Vec<_>>();
@@ -202,20 +203,17 @@ fn help_search_field(frame: &mut Frame<'_>, app: &App, inner: Rect) -> Rect {
         field.width.saturating_sub(2),
         field.height,
     );
-    if let Some(input) = &app.help_search.editor {
+    if let Some(input) = app.help().editor {
         frame.render_widget(input, editor);
     } else {
-        frame.render_widget(
-            Paragraph::new(app.help_search.query.as_str()),
-            editor,
-        );
+        frame.render_widget(Paragraph::new(app.help().query), editor);
     }
     if inner.height > 1 {
-        let count = app.help_search.hits.len();
+        let count = app.help().hits.len();
         let current = if count == 0 {
             0
         } else {
-            app.help_search.selected + 1
+            app.help().selected + 1
         };
         frame.render_widget(
             Paragraph::new(format!(
@@ -280,7 +278,7 @@ fn editor_footer(
     frame.render_widget(
         Paragraph::new(vec![
             Line::styled(
-                crate::content::label(&app.status, 160),
+                crate::content::label(app.status(), 160),
                 Style::new().fg(MUTED),
             ),
             Line::styled(command, Style::new().fg(TEXT)),

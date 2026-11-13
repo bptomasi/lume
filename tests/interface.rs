@@ -43,13 +43,13 @@ fn compact_and_tiny_terminals_render_every_mode_without_overflow() -> Result<()>
     {
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
         for focus in [Focus::Library, Focus::Articles, Focus::Reader] {
-            app.focus = focus;
+            app.activate_pane(focus);
             terminal.draw(|frame| ui::draw(frame, &app))?;
             app.key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE))?;
             terminal.draw(|frame| ui::draw(frame, &app))?;
             app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
             app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
-            app.focus = Focus::Reader;
+            app.activate_pane(Focus::Reader);
             app.paste("note")?;
             app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
             terminal.draw(|frame| ui::draw(frame, &app))?;
@@ -75,7 +75,7 @@ fn selectors_zen_and_smart_forms_remain_usable_at_small_sizes() -> Result<()> {
     for (width, height) in [(24, 10), (40, 12), (80, 24), (144, 44)] {
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
         for sequence in [" ", " p", " f", " l", " s", ":", ":fold", "z"] {
-            app.mode = lume::app::Mode::Normal;
+            app.key(crossterm::event::KeyCode::Esc.into())?;
             for character in sequence.chars() {
                 app.key(KeyEvent::new(
                     KeyCode::Char(character),
@@ -83,7 +83,7 @@ fn selectors_zen_and_smart_forms_remain_usable_at_small_sizes() -> Result<()> {
                 ))?;
             }
             terminal.draw(|frame| ui::draw(frame, &app))?;
-            if matches!(app.mode, lume::app::Mode::Smart(_)) {
+            if matches!(app.mode(), lume::app::Mode::Smart(_)) {
                 for _ in 0..6 {
                     app.key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE))?;
                     terminal.draw(|frame| ui::draw(frame, &app))?;

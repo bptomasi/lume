@@ -218,23 +218,21 @@ fn complete_page(
 }
 
 impl App {
-    /// Enable bounded navigation reads and Markdown layout for interactive use.
+    /// Enable bounded navigation reads and Markdown layout once per session.
     ///
     /// # Errors
-    /// Returns database-opening or worker thread creation failures.
+    /// Returns database-opening/thread failures or an already enabled writer.
     pub fn enable_background_navigation(&mut self, path: &Path) -> Result<()> {
         let navigation = NavigationWorker::start(path)?;
-        let session = super::session_writer::SessionWriter::start(path)?;
+        self.session.enable(path)?;
         self.reader.enable_background_layout()?;
         self.wrap_reader();
         self.navigation_worker = Some(navigation);
         self.catalog_worker =
             Some(super::catalog_worker::CatalogWorker::start(path)?);
-        self.session_writer = Some(session);
         self.recommendations =
             Some(super::recommendations::Recommendations::start(path)?);
-        self.personal_writes =
-            Some(super::personal_tasks::PersonalWrites::start(path)?);
+        self.personal.enable(path)?;
         self.note_catalog =
             Some(super::note_catalog::NoteCatalog::start(path)?);
         Ok(())
@@ -246,7 +244,7 @@ impl App {
         self.defer_navigation(Request::Refresh {
             query: self.article_query(),
             selected: self.nav.selected(),
-            article: self.workspace.article,
+            article: self.layout.workspace().article,
         });
     }
 
@@ -263,15 +261,15 @@ impl App {
         self.reader.hover_note(None);
         self.reader.cancel_selection();
         self.nav.begin_navigation();
-        self.status =
-            "Loading selection… · navigation remains available".into();
+        self.interaction
+            .report("Loading selection… · navigation remains available".into());
     }
 
     pub(super) fn resize_navigation(&mut self, article: Option<i64>) {
         let pending = self.nav.navigation_loading();
         let query = self.article_query();
         let selected = self.nav.selected();
-        let preview = matches!(&self.mode, Mode::Input(input)
+        let preview = matches!(self.interaction.mode(), Mode::Input(input)
             if matches!(input.kind, super::InputKind::Search));
         let Some(worker) = &mut self.navigation_worker else {
             return;
@@ -328,7 +326,7 @@ impl App {
             .as_ref()
             .is_some_and(|worker| worker.preserve_identity);
         if preserve
-            && !self.article_edits.reconcile_required
+            && !self.personal.articles().reconcile_required()
             && let Some(article) = self.current()
             && self.nav.retained_article() == Some(article.id)
         {
@@ -367,22 +365,18 @@ impl App {
             _ => self
                 .current()
                 .map(|article| article.id)
-                .or(self.workspace.article),
+                .or(self.layout.workspace().article),
         }
     }
 
     /// Whether the session worker still has unconfirmed durable writes.
     pub fn session_pending(&self) -> bool {
-        self.session_writer
-            .as_ref()
-            .is_some_and(|writer| writer.pending())
+        self.session.pending()
     }
 
     /// Whether a failed admitted write still needs the user's attention.
     pub fn session_failed(&self) -> bool {
-        self.session_writer
-            .as_ref()
-            .is_some_and(|writer| writer.failed())
+        self.session.failed()
     }
 
     /// Wait at an explicit shutdown boundary for all admitted writes.
@@ -390,10 +384,7 @@ impl App {
     /// # Errors
     /// Reports write failures, disconnected workers and a five-second timeout.
     pub fn flush_session(&self) -> Result<()> {
-        if let Some(writer) = &self.session_writer {
-            writer.flush()?;
-        }
-        Ok(())
+        self.session.flush()
     }
 
     /// Deliver the latest read during navigation or disposable query editing.
@@ -402,20 +393,15 @@ impl App {
     /// # Errors
     /// Reports worker/storage failures while leaving the selected identity intact.
     pub fn poll_navigation(&mut self) -> Result<bool> {
-        if let Some(error) = self
-            .session_writer
-            .as_ref()
-            .and_then(|writer| writer.poll_error())
-        {
-            self.session_problem = Some(error.clone());
-            if self.session_failed() {
-                self.progress_memory.borrow_mut().clear();
+        if let Some(error) = self.session.poll_problem() {
+            if self.session.failed() {
                 anyhow::bail!(
                     "Background save failed: {error} · :save-status details · :w retry"
                 );
             }
-            self.status =
-                "Earlier session save recovered · :save-status details".into();
+            self.interaction.report(
+                "Earlier session save recovered · :save-status details".into(),
+            );
         }
         let catalog_changed =
             self.poll_configuration()? | self.poll_catalog()?;
@@ -443,13 +429,13 @@ impl App {
         if self.reader.selecting() {
             return false;
         }
-        if matches!(self.mode, Mode::Normal) {
+        if matches!(self.interaction.mode(), Mode::Normal) {
             return true;
         }
         // Query editors capture no article mutation. They receive live
         // results; source-bound drafts and explicit jump arrivals still wait.
         matches!(
-            &self.mode,
+            self.interaction.mode(),
             Mode::Input(input) if matches!(
                 input.kind,
                 super::InputKind::Search | super::InputKind::LibrarySearch
@@ -473,7 +459,7 @@ impl App {
                 .and_then(|(_, page, selected)| page.articles.get(*selected))
                 .or_else(|| self.current());
             let url = article.map_or("", |article| article.url.as_str());
-            let full = self.workspace.content_source
+            let full = self.layout.workspace().content_source
                 == crate::model::ContentSource::Full;
             let body = reading.source_body(full, url);
             if !self.reader.prepare_source(body) {
@@ -488,7 +474,7 @@ impl App {
         self.nav.complete_navigation();
         self.apply_navigation(result.context("Navigation failed")?)?;
         if navigating {
-            self.status = "Selection loaded".into();
+            self.interaction.report("Selection loaded".into());
         }
         if let Some(arrival) = self
             .navigation_worker
@@ -534,7 +520,7 @@ impl App {
     fn apply_navigation(&mut self, result: Completed) -> Result<()> {
         let snapshot = result.reading.as_ref().map(|_| self.capture_reader());
         if let Some((offset, page, selected)) = result.page {
-            self.article_edits.reconcile_required = false;
+            self.personal.article_editing().reconciled();
             self.nav.install_window(offset, page, selected);
             self.overlay_article_edits();
         }
@@ -574,7 +560,7 @@ mod tests {
         assert!(!app.poll_navigation()?);
 
         assert!(app.catalog_pending(), "Latest page was not requested");
-        assert!(!app.status.contains("obsolete"));
+        assert!(!app.interaction.status().contains("obsolete"));
         app.end_session()?;
         Ok(())
     }
@@ -635,7 +621,7 @@ mod tests {
     #[test]
     fn resizing_a_jump_applies_its_reader_arrival_once() -> Result<()> {
         let (_directory, mut app, article) = jump_application()?;
-        app.workspace.content_source = crate::model::ContentSource::Full;
+        app.layout.select_source(crate::model::ContentSource::Full);
         app.on_navigation_arrival(Arrival::Reader(
             crate::app::ReaderLocation {
                 article,
@@ -655,10 +641,10 @@ mod tests {
             app.reader().content_source,
             crate::model::ContentSource::Full
         );
-        assert_eq!(app.focus, crate::app::Focus::Reader);
-        app.focus = crate::app::Focus::Articles;
+        assert_eq!(app.layout.focus(), crate::app::Focus::Reader);
+        app.layout.focus_pane(crate::app::Focus::Articles);
         assert!(!app.poll_navigation()?);
-        assert_eq!(app.focus, crate::app::Focus::Articles);
+        assert_eq!(app.layout.focus(), crate::app::Focus::Articles);
         app.end_session()?;
         Ok(())
     }
@@ -674,7 +660,7 @@ mod tests {
         app.set_page_size(usize::MAX)?;
         settle_jump(&mut app)?;
 
-        let crate::app::Mode::Input(input) = &app.mode else {
+        let crate::app::Mode::Input(input) = app.interaction.mode() else {
             anyhow::bail!("Synthesis editor did not open");
         };
         assert!(matches!(input.kind, crate::app::InputKind::Comment {
@@ -684,7 +670,7 @@ mod tests {
         assert_eq!(input.initial_kind, Some(crate::model::NoteKind::Synthesis));
         app.paste(" plus newer edits")?;
         assert!(!app.poll_navigation()?);
-        let crate::app::Mode::Input(input) = &app.mode else {
+        let crate::app::Mode::Input(input) = app.interaction.mode() else {
             anyhow::bail!("Synthesis editor was replaced");
         };
         assert!(input.text.contains("plus newer edits"));
@@ -698,7 +684,7 @@ mod tests {
         let (_directory, mut app, article) = jump_application()?;
         settle_jump(&mut app)?;
         let body = app.reader().body.to_owned();
-        app.focus = crate::app::Focus::Articles;
+        app.layout.focus_pane(crate::app::Focus::Articles);
         app.key(crossterm::event::KeyCode::Char('/').into())?;
         app.paste("title:cache")?;
         app.set_page_size(1)?;
@@ -714,7 +700,7 @@ mod tests {
             Some(super::Request::Search { .. })
         ));
         assert_eq!(worker.revision, app.nav.library_revision());
-        assert!(matches!(app.mode, crate::app::Mode::Input(_)));
+        assert!(matches!(app.interaction.mode(), crate::app::Mode::Input(_)));
         app.key(crossterm::event::KeyCode::Esc.into())?;
         settle_jump(&mut app)?;
         app.end_session()?;

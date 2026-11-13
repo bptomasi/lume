@@ -50,7 +50,7 @@ pub(super) struct WebReading {
 impl App {
     /// Permit network work only when the runtime explicitly enables it.
     pub fn set_network_enabled(&mut self, enabled: bool) {
-        self.network_enabled = enabled && !self.demo;
+        self.network.enable(enabled);
     }
 
     /// Current read-only linked page, independent of the library article.
@@ -80,14 +80,15 @@ impl App {
             .submit(Request::Open {
                 address: url.to_string(),
                 width,
-                online: self.network_enabled,
+                online: self.network.enabled(),
                 fragment,
                 options,
             });
         self.web.active = true;
         self.web.opening = true;
-        self.mode = Mode::Web;
-        self.status = "Opening linked page… · Esc cancels".into();
+        self.interaction.enter(Mode::Web);
+        self.interaction
+            .report("Opening linked page… · Esc cancels".into());
         Ok(())
     }
 
@@ -129,8 +130,8 @@ impl App {
     }
 
     pub(super) fn web_width(&self) -> usize {
-        usize::from(self.screen.width.saturating_sub(6))
-            .min(self.workspace.reading_width.into())
+        usize::from(self.layout.screen().width.saturating_sub(6))
+            .min(self.layout.workspace().reading_width.into())
             .max(1)
     }
 
@@ -139,7 +140,7 @@ impl App {
     /// # Errors
     /// Reports extraction/network errors without altering the library reading.
     pub fn poll_web(&mut self) -> Result<bool> {
-        if !self.web.active || !matches!(self.mode, Mode::Web) {
+        if !self.web.active || !matches!(self.interaction.mode(), Mode::Web) {
             return Ok(false);
         }
         let result = self.web.worker.as_mut().and_then(Latest::poll);
@@ -172,7 +173,7 @@ impl App {
         if reflow && let Some(current) = &mut self.web.current {
             page.inherit_view(current);
         }
-        page.reveal(usize::from(self.screen.height.saturating_sub(6)));
+        page.reveal(usize::from(self.layout.screen().height.saturating_sub(6)));
         if let Some(previous) = self.web.current.take()
             && previous.document.url != page.document.url
         {
@@ -182,9 +183,10 @@ impl App {
                 self.web.back.pop_front();
             }
         }
-        self.status = page.notice.clone().unwrap_or_else(|| {
-            "Linked page · Ctrl-o back · :save-page keeps it".into()
-        });
+        self.interaction
+            .report(page.notice.clone().unwrap_or_else(|| {
+                "Linked page · Ctrl-o back · :save-page keeps it".into()
+            }));
         self.web.current = Some(page);
     }
 
@@ -196,7 +198,8 @@ impl App {
             self.close_web();
         }
         self.web.browser_request = Some(address);
-        self.status = "Resource requires the system browser".into();
+        self.interaction
+            .report("Resource requires the system browser".into());
     }
 
     /// Take a current non-HTML navigation's one-shot browser request.
@@ -235,7 +238,9 @@ impl App {
         if self.web.active
             && let Some(page) = &mut self.web.current
         {
-            page.reveal(usize::from(self.screen.height.saturating_sub(6)));
+            page.reveal(usize::from(
+                self.layout.screen().height.saturating_sub(6),
+            ));
         }
     }
 
@@ -245,8 +250,8 @@ impl App {
     }
 
     pub(super) fn restore_web_mode(&mut self) {
-        if self.web.active && matches!(self.mode, Mode::Normal) {
-            self.mode = Mode::Web;
+        if self.web.active && matches!(self.interaction.mode(), Mode::Normal) {
+            self.interaction.enter(Mode::Web);
         }
     }
 
@@ -309,7 +314,7 @@ impl App {
         self.web.current = None;
         self.web.back.clear();
         self.web.forward.clear();
-        self.mode = Mode::Normal;
+        self.interaction.enter(Mode::Normal);
     }
 
     pub(super) fn finish_web_save(
@@ -322,17 +327,19 @@ impl App {
             self.reload()?;
             self.jump_article(article)?;
         }
-        self.status = "Page saved · Saved pages folder".into();
+        self.interaction
+            .report("Page saved · Saved pages folder".into());
         Ok(())
     }
 
     fn save_web_document(&mut self, document: Arc<WebDocument>) -> Result<()> {
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(super::personal_tasks::Task::SavePage {
-                document,
-                visit: self.web.visit,
-            })?;
-            self.status = "Saving linked page…".into();
+        if self.personal.enabled() {
+            self.personal
+                .submit(super::personal_tasks::Task::SavePage {
+                    document,
+                    visit: self.web.visit,
+                })?;
+            self.interaction.report("Saving linked page…".into());
         } else {
             let article = self.store.save_web_document(&document)?;
             self.close_web();

@@ -38,7 +38,7 @@ fn internal_presets_publish_configuration_without_removing_articles()
     assert!(!config.retention.automatic);
     assert_eq!(app.navigation().library.articles.len(), 1);
     assert!(
-        matches!(&app.mode, Mode::Document(view) if view.confirm.is_none())
+        matches!(app.mode(), Mode::Document(view) if view.confirm.is_none())
     );
     Ok(())
 }
@@ -51,7 +51,7 @@ fn storage_units_reach_the_background_report_and_invalid_units_do_no_work()
     for unit in ["MiB", "GiB", "bytes", "auto"] {
         command(&mut app, &format!("storage {unit}"))?;
         settle(&mut app)?;
-        let Mode::Document(view) = &app.mode else {
+        let Mode::Document(view) = app.mode() else {
             anyhow::bail!("Missing report")
         };
         let body = view.lines.join("\n");
@@ -126,7 +126,7 @@ fn missing_section_preserves_readable_page_and_original_browser_target()
             .text
             .contains("Content remains")
     );
-    assert!(app.status.contains("Section unavailable"));
+    assert!(app.status().contains("Section unavailable"));
     app.resize_workspace(ratatui::layout::Rect::new(0, 0, 100, 40));
     settle(&mut app)?;
     let action =
@@ -176,7 +176,7 @@ fn cache_cleanup_requires_confirmation_and_closed_reports_never_reopen()
     let mut app = App::new(store, false)?;
     command(&mut app, "storage clean all")?;
     assert!(
-        matches!(&app.mode, Mode::Document(document) if document.confirm.is_some())
+        matches!(app.mode(), Mode::Document(document) if document.confirm.is_some())
     );
     assert!(!app.maintenance_pending());
     key(&mut app, KeyCode::Enter)?;
@@ -185,10 +185,10 @@ fn cache_cleanup_requires_confirmation_and_closed_reports_never_reopen()
 
     settle(&mut app)?;
 
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     command(&mut app, "performance on")?;
     assert!(
-        matches!(&app.mode, Mode::Document(document) if document.lines.iter().any(|line| line.contains("enabled")))
+        matches!(app.mode(), Mode::Document(document) if document.lines.iter().any(|line| line.contains("enabled")))
     );
     Ok(())
 }
@@ -211,7 +211,7 @@ fn cached_recommendations_propose_a_session_without_marking_articles_read()
     command(&mut app, "session 20")?;
     settle(&mut app)?;
     assert!(
-        matches!(&app.mode, Mode::Document(document) if document.confirm.is_some())
+        matches!(app.mode(), Mode::Document(document) if document.confirm.is_some())
     );
     assert!(reader.reading_session()?.is_none());
     key(&mut app, KeyCode::Enter)?;
@@ -244,9 +244,9 @@ fn rapid_selector_queries_and_reopening_keep_only_current_results() -> Result<()
     app.paste("no-such-result-unique")?;
     settle(&mut app)?;
     assert!(
-        matches!(&app.mode, Mode::Picker(picker) if picker.choices.is_empty() && picker.preview.contains("No matches")),
+        matches!(app.mode(), Mode::Picker(picker) if picker.choices.is_empty() && picker.preview.contains("No matches")),
         "Unexpected selector: {:?}",
-        app.mode
+        app.mode()
     );
     key(&mut app, KeyCode::Esc)?;
 
@@ -255,7 +255,7 @@ fn rapid_selector_queries_and_reopening_keep_only_current_results() -> Result<()
     app.paste("cache")?;
     settle(&mut app)?;
 
-    let Mode::Picker(picker) = &app.mode else {
+    let Mode::Picker(picker) = app.mode() else {
         anyhow::bail!("Selector closed unexpectedly");
     };
     assert_eq!(picker.choices.len(), 1);
@@ -719,7 +719,7 @@ fn retention_preview_requires_enter_and_preserves_the_current_reader()
     command(&mut app, "retention preview")?;
     settle(&mut app)?;
     assert!(
-        matches!(&app.mode, Mode::Document(view) if view.confirm.is_some())
+        matches!(app.mode(), Mode::Document(view) if view.confirm.is_some())
     );
     let observed = lume::store::Store::open(&path)?;
     assert_eq!(observed.view_count(&lume::model::View::All)?, 24);
@@ -728,7 +728,7 @@ fn retention_preview_requires_enter_and_preserves_the_current_reader()
     assert_eq!(observed.view_count(&lume::model::View::All)?, 1);
     assert!(observed.article(current).is_ok());
     assert!(
-        matches!(&app.mode, Mode::Document(view) if view.confirm.is_none())
+        matches!(app.mode(), Mode::Document(view) if view.confirm.is_none())
     );
     Ok(())
 }
@@ -740,7 +740,7 @@ fn retention_status_uses_its_own_report_title() -> Result<()> {
     command(&mut app, "retention status")?;
     settle(&mut app)?;
     assert!(
-        matches!(&app.mode, Mode::Document(view) if view.title == "Retention · Esc closes")
+        matches!(app.mode(), Mode::Document(view) if view.title == "Retention · Esc closes")
     );
     Ok(())
 }
@@ -757,7 +757,7 @@ fn backup_commands_use_the_ordered_background_lane_and_restore_the_document()
     app.configure_document(session.initial().clone());
     command(&mut app, "backup status")?;
     settle(&mut app)?;
-    let Mode::Document(view) = &app.mode else {
+    let Mode::Document(view) = app.mode() else {
         anyhow::bail!("Missing backup report");
     };
     assert!(view.lines.join("\n").contains("Automatic backups: false"));
@@ -765,7 +765,7 @@ fn backup_commands_use_the_ordered_background_lane_and_restore_the_document()
     command(&mut app, "backup now")?;
     assert!(app.maintenance_pending());
     settle(&mut app)?;
-    let Mode::Document(view) = &app.mode else {
+    let Mode::Document(view) = app.mode() else {
         anyhow::bail!("Missing completion report");
     };
     assert!(view.lines.join("\n").contains("Backup saved:"));
@@ -788,12 +788,12 @@ fn automatic_backup_keeps_normal_reading_and_does_not_repeat_on_each_poll()
     let article = app.current().map(|article| article.id);
     app.poll_maintenance()?;
     settle(&mut app)?;
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     assert_eq!(app.current().map(|article| article.id), article);
-    assert!(app.status.starts_with("Backup saved:"));
-    let status = app.status.clone();
+    assert!(app.status().starts_with("Backup saved:"));
+    let status = app.status().to_owned();
     assert!(!app.poll_maintenance()?);
-    assert_eq!(app.status, status);
+    assert_eq!(app.status(), status);
     assert!(!app.maintenance_pending());
     Ok(())
 }
@@ -821,14 +821,14 @@ fn retention_inspection_protects_the_active_article_and_does_not_mislabel_an_exp
         .context("Other article")?;
     command(&mut app, &format!("retention explain {other}"))?;
     settle(&mut app)?;
-    let Mode::Document(view) = &app.mode else {
+    let Mode::Document(view) = app.mode() else {
         anyhow::bail!("Missing inspection");
     };
     assert!(!view.lines.join("\n").contains("active reader"));
     key(&mut app, KeyCode::Esc)?;
     command(&mut app, "retention explain")?;
     settle(&mut app)?;
-    let Mode::Document(view) = &app.mode else {
+    let Mode::Document(view) = app.mode() else {
         anyhow::bail!("Missing selected inspection");
     };
     assert!(view.lines.join("\n").contains("active reader"));

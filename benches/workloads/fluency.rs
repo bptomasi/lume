@@ -59,12 +59,12 @@ fn help(
             key(app, KeyCode::Char('?'))?;
             key(app, KeyCode::Char('/'))?;
             app.paste("resize")?;
-            let first = app.help_scroll;
+            let first = app.help_scroll();
             key(app, KeyCode::Enter)?;
             key(app, KeyCode::Char('n'))?;
-            ensure!(app.help_scroll != first, "Help match did not move");
+            ensure!(app.help_scroll() != first, "Help match did not move");
             key(app, KeyCode::Char('N'))?;
-            ensure!(app.help_scroll == first, "Help reverse lost its place");
+            ensure!(app.help_scroll() == first, "Help reverse lost its place");
             terminal.draw(|frame| ui::draw(frame, app))?;
             key(app, KeyCode::Esc)?;
             key(app, KeyCode::Esc)
@@ -136,7 +136,7 @@ fn application(count: usize) -> Result<(tempfile::TempDir, App)> {
         store.ingest(&feed, "Fluency", batch)?;
     }
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     app.resize_workspace(Rect::new(0, 0, 160, 44));
     app.enable_background_navigation(&path)?;
     Ok((directory, app))

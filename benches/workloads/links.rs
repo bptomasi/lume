@@ -78,7 +78,7 @@ fn navigation(body: &str, iterations: usize) -> Result<()> {
     parsed.articles[0].body = body.to_owned();
     store.ingest(&feed, &parsed.title, &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_reader(80, 24);
     super::measure(
         "cached Enter jump + history return",

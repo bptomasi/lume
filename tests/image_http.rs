@@ -68,7 +68,7 @@ fn reading(url: &str) -> Result<(tempfile::TempDir, App)> {
         format!("Before image.\n\n![Diagram]({url})\n\nAfter image.");
     store.ingest(&feed, &incoming.title, &incoming.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_reader(70, 20);
     app.enable_images(directory.path().join("images"), false)?;
     Ok((directory, app))
@@ -105,18 +105,18 @@ fn http_image_download_is_cached_and_reopens_in_an_offline_session()
         .finished
         .recv_timeout(Duration::from_secs(5))?
         .map_err(anyhow::Error::msg)?;
-    assert!(app.images.thumbnail(&key).is_some());
+    assert!(app.images().thumbnail(&key).is_some());
 
     let mut offline = App::new(
         Store::open(&directory.path().join("library.sqlite3"))?,
         false,
     )?;
-    offline.focus = Focus::Reader;
+    offline.activate_pane(Focus::Reader);
     offline.resize_reader(70, 20);
     offline.enable_images(directory.path().join("images"), true)?;
     settle(&mut offline)?;
 
-    assert!(offline.images.thumbnail(&key).is_some());
+    assert!(offline.images().thumbnail(&key).is_some());
     assert!(
         media::cache::path(&directory.path().join("images"), &key.url)
             .is_file()
@@ -150,7 +150,7 @@ fn delayed_http_images_leave_cursor_input_available_and_do_not_bleed_after_navig
     assert!(started.elapsed() < Duration::from_secs(1));
     assert_eq!(app.reader().reader_column, 1);
     assert!(app.images_pending());
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     app.key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE))?;
     let current = app.current().context("Next article")?.id;
     app.poll_images();
@@ -161,7 +161,7 @@ fn delayed_http_images_leave_cursor_input_available_and_do_not_bleed_after_navig
     assert_eq!(app.current().map(|article| article.id), Some(current));
     assert_eq!(app.reader().body, "Independent article without images.");
     assert!(app.reader().image_slots.is_empty());
-    assert!(app.images.thumbnail(&old_key).is_none());
+    assert!(app.images().thumbnail(&old_key).is_none());
     server
         .finished
         .recv_timeout(Duration::from_secs(5))?
@@ -193,9 +193,9 @@ fn delayed_inspection_discards_old_crops_without_blocking_zoom_or_close()
     settle(&mut app)?;
 
     assert!(
-        app.images.thumbnail(&newest).is_some(),
+        app.images().thumbnail(&newest).is_some(),
         "{:?}",
-        app.images.error(&newest)
+        app.images().error(&newest)
     );
     assert_eq!(app.image_inspector_key(), Some(newest));
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
@@ -226,8 +226,8 @@ fn http_error_and_non_image_content_keep_the_article_and_show_recoverable_errors
         server.release.send(())?;
         settle(&mut app)?;
 
-        assert!(app.images.error(&key).is_some());
-        assert!(app.images.thumbnail(&key).is_none());
+        assert!(app.images().error(&key).is_some());
+        assert!(app.images().thumbnail(&key).is_none());
         assert_eq!(app.reader().body, original);
         server
             .finished
@@ -262,10 +262,10 @@ fn decoded_image_limit_applies_after_gzip_and_rejects_invalid_streams()
         server.release.send(())?;
         settle(&mut app)?;
         assert_eq!(
-            app.images.thumbnail(&key).is_some(),
+            app.images().thumbnail(&key).is_some(),
             accepted,
             "{:?}",
-            app.images.error(&key)
+            app.images().error(&key)
         );
         assert_eq!(
             media::cache::read(&directory.path().join("images"), &server.url)?
@@ -306,7 +306,7 @@ fn slow_first_download_does_not_block_a_second_visible_image() -> Result<()> {
         .image_key(&app.reader().image_slots[1])
         .context("Second key")?;
     let deadline = Instant::now() + Duration::from_secs(5);
-    while app.images.thumbnail(&key).is_none() {
+    while app.images().thumbnail(&key).is_none() {
         app.poll_images();
         ensure!(Instant::now() < deadline, "Second image blocked by first");
         thread::sleep(Duration::from_millis(1));
@@ -356,7 +356,7 @@ fn obsolete_header_waits_free_both_lanes_before_the_server_responds()
     let key = app
         .image_key(&reading.image_slots[0])
         .context("Latest key")?;
-    assert!(app.images.thumbnail(&key).is_some());
+    assert!(app.images().thumbnail(&key).is_some());
     // Obsolete responses can observe the client's intentional socket closure.
     first.finish_canceled()?;
     second.finish_canceled()?;

@@ -79,7 +79,7 @@ fn inspect(fixture: &Fixture) -> Result<()> {
     super::settle(&mut app)?;
     let delivery_ms = started.elapsed().as_secs_f64() * 1000.0;
     ensure!(
-        matches!(app.mode, Mode::Image(_)),
+        matches!(app.mode(), Mode::Image(_)),
         "Image inspector did not open"
     );
     let (wire_sha256, wire_bytes) = native_wire(&app)?;
@@ -98,7 +98,7 @@ fn inspect(fixture: &Fixture) -> Result<()> {
 
 fn native_wire(app: &App) -> Result<(String, usize)> {
     let key = app.image_inspector_key().context("Inspector image key")?;
-    let thumbnail = app.images.thumbnail(&key).context("Ready inspector")?;
+    let thumbnail = app.images().thumbnail(&key).context("Ready inspector")?;
     let Some(Protocol::Sixel(native)) = &thumbnail.native else {
         anyhow::bail!("Inspector did not receive native Sixel pixels");
     };
@@ -115,7 +115,7 @@ fn digest(bytes: &[u8]) -> String {
 fn report(app: &mut App, require_quantization: bool) -> Result<Vec<String>> {
     press(app, KeyCode::Esc)?;
     command(app, "performance status")?;
-    let Mode::Document(report) = &app.mode else {
+    let Mode::Document(report) = app.mode() else {
         anyhow::bail!("Performance report missing");
     };
     let text = report.lines.join("\n");

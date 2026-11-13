@@ -9,7 +9,7 @@ use super::App;
 impl App {
     /// Note under the reader cursor or selected in the annotation panel.
     pub fn cursor_note(&self) -> Option<i64> {
-        match self.focus {
+        match self.layout.focus() {
             super::Focus::Annotations => self
                 .reader
                 .view()

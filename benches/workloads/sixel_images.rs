@@ -52,7 +52,7 @@ fn cached_frames(bytes: &[u8], iterations: usize) -> Result<()> {
     app.enable_images(cache_dir, true)?;
     super::settle(&mut app)?;
     let area = app
-        .images
+        .images()
         .thumbnail(&key)
         .context("Ready pixels")?
         .cells

@@ -82,9 +82,9 @@ fn scenario(
     let (_directory, store, _) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
     command(&mut app, "workspace load Study")?;
-    app.workspace.theme = theme.into();
-    app.focus = Pane::Reader;
-    app.status = "Visual regression fixture".into();
+    common::fixture_command(&mut app, &format!("theme {}", theme))?;
+    app.activate_pane(Pane::Reader);
+    app.report_status("Visual regression fixture".into());
     let area = Rect::new(0, 0, width, height);
     app.resize_workspace(area);
     configure(&mut app, area, scene)?;
@@ -108,9 +108,10 @@ fn configure(app: &mut App, area: Rect, scene: &str) -> Result<()> {
             app.key(KeyEvent::new(KeyCode::Char('$'), KeyModifiers::NONE))?;
         }
         "drag" => {
-            let reader = ui::workspace_areas(area, app.focus, &app.workspace)
-                .reader
-                .context("Reader hidden")?;
+            let reader =
+                ui::workspace_areas(area, app.focus(), app.workspace())
+                    .reader
+                    .context("Reader hidden")?;
             let grip = ui::pane_move_rect(reader).context("Grip hidden")?;
             for (kind, x, y) in [
                 (MouseEventKind::Down(MouseButton::Left), grip.x, grip.y),

@@ -37,13 +37,13 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
         return;
     };
     chrome(frame, app, &key);
-    theme::apply(frame.buffer_mut(), &app.workspace.theme);
+    theme::apply(frame.buffer_mut(), &app.workspace().theme);
     let column = image_inspector_area(frame.area());
     if column.is_empty() {
         return;
     }
-    let Some(image) = app.images.thumbnail(&key) else {
-        let message = app.images.placeholder(&key);
+    let Some(image) = app.images().thumbnail(&key) else {
+        let message = app.images().placeholder(&key);
         frame.render_widget(
             Paragraph::new(crate::content::label(message, 300)),
             column,
@@ -64,16 +64,18 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
 }
 
 fn title(app: &App, key: &crate::media::ImageKey) -> Option<String> {
-    let Mode::Image(image) = &app.mode else {
+    let Mode::Image(image) = app.mode() else {
         return None;
     };
     let dimensions =
-        app.images.thumbnail(key).map_or_else(String::new, |ready| {
-            format!(
-                " · {}×{} source pixels",
-                ready.dimensions.0, ready.dimensions.1
-            )
-        });
+        app.images()
+            .thumbnail(key)
+            .map_or_else(String::new, |ready| {
+                format!(
+                    " · {}×{} source pixels",
+                    ready.dimensions.0, ready.dimensions.1
+                )
+            });
     let protocol = key
         .detail
         .as_ref()
@@ -107,7 +109,7 @@ fn chrome(frame: &mut Frame<'_>, app: &App, key: &crate::media::ImageKey) {
         screen.width,
         2.min(screen.height),
     );
-    let controls = if matches!(&app.mode, Mode::Image(image) if image.formula.is_some())
+    let controls = if matches!(app.mode(), Mode::Image(image) if image.formula.is_some())
     {
         "+/- zoom · 0 fit · hjkl/arrows or wheel pan · y copy LaTeX · Esc close"
     } else {

@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 
 use crate::{latest::Latest, store::Store};
 
-use super::{App, Choice, ChoiceAction, Mode, PickerKind};
+use super::{App, Choice, ChoiceAction, PickerKind};
 
 pub(super) struct PickerReads {
     list: Latest<String, Vec<Choice>>,
@@ -85,8 +85,8 @@ impl App {
     }
 
     pub(super) fn update_article_picker(&mut self) -> bool {
-        let (Mode::Picker(picker), Some(reads)) =
-            (&mut self.mode, &mut self.picker_reads)
+        let (Some(picker), Some(reads)) =
+            (self.interaction.picker_mut(), &mut self.picker_reads)
         else {
             return false;
         };
@@ -116,7 +116,7 @@ impl App {
         let Some(reads) = &mut self.picker_reads else {
             return Ok(false);
         };
-        let Mode::Picker(picker) = &mut self.mode else {
+        let Some(picker) = self.interaction.picker_mut() else {
             reads.reset();
             return Ok(false);
         };

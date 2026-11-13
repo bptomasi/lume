@@ -78,7 +78,8 @@ impl App {
     }
 
     pub(super) fn apply_reader_justification(&mut self) {
-        self.reader.apply_justification(self.workspace.justify)
+        self.reader
+            .apply_justification(self.layout.workspace().justify)
     }
 
     pub(super) fn select_first_annotation(&mut self) {
@@ -157,7 +158,7 @@ impl App {
     ) {
         self.reader.vim_g_key(code, count, !self.reader_stale());
         if let Some(status) = self.reader.take_motion_status() {
-            self.status = status;
+            self.interaction.report(status);
         }
     }
 
@@ -168,7 +169,7 @@ impl App {
     ) {
         self.reader.vim_z_key(code, count);
         if let Some(status) = self.reader.take_motion_status() {
-            self.status = status;
+            self.interaction.report(status);
         }
     }
 
@@ -188,7 +189,7 @@ impl App {
     ) {
         self.reader.find_character(find, count, repeat);
         if let Some(status) = self.reader.take_motion_status() {
-            self.status = status;
+            self.interaction.report(status);
         }
     }
 
@@ -213,8 +214,8 @@ impl App {
     pub(super) fn render_context(&self) -> super::reader_state::RenderContext {
         super::reader_state::RenderContext {
             annotated: *self.nav.view() == super::View::Annotated,
-            immediate: self.immediate_layout,
-            justify: self.workspace.justify,
+            immediate: self.reader.synchronous_loading(),
+            justify: self.layout.workspace().justify,
             options: self.formula_options(),
         }
     }

@@ -20,7 +20,7 @@ fn application(body: &str) -> Result<(tempfile::TempDir, App, Store)> {
     let observed = Store::open(&directory.path().join("library.sqlite3"))?;
     let mut app = App::new(store, false)?;
     app.resize_workspace(Rect::new(0, 0, 160, 44));
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     app.key(KeyCode::Enter.into())?;
     Ok((directory, app, observed))
 }
@@ -79,9 +79,9 @@ fn other_panes_unfocused_windows_and_dialogs_pause_active_time() -> Result<()> {
     let mut now = Instant::now();
     app.poll_auto_read(now)?;
     advance(&mut app, &mut now, 20)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     assert_eq!(advance(&mut app, &mut now, 80)?, 0);
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     let mut events = InputBatch::new(vec![Event::FocusLost]);
     events.dispatch_next(&mut app)?;
     assert_eq!(advance(&mut app, &mut now, 80)?, 0);
@@ -135,7 +135,7 @@ fn disabled_policy_keeps_articles_unread_until_explicitly_marked() -> Result<()>
     app.key(KeyCode::Char(':').into())?;
     app.paste("auto-read off")?;
     app.key(KeyCode::Enter.into())?;
-    assert!(!app.workspace.auto_read.enabled);
+    assert!(!app.workspace().auto_read.enabled);
     let mut now = Instant::now();
     assert_eq!(advance(&mut app, &mut now, 100)?, 0);
     assert_eq!(observed.view_count(&View::Inbox)?, 1);

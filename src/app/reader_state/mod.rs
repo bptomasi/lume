@@ -47,11 +47,20 @@ pub(super) struct ReaderState {
     notes: AnnotationState,
     auto_read: auto_read::AutoRead,
     motion_status: Option<String>,
+    synchronous_loading: bool,
     context: RenderContext,
     renderer: crate::reader::LiveRenderer,
 }
 
 impl ReaderState {
+    pub(in crate::app) fn synchronous_loading(&self) -> bool {
+        self.synchronous_loading
+    }
+
+    pub(in crate::app) fn set_synchronous_loading(&mut self, loading: bool) {
+        self.synchronous_loading = loading;
+    }
+
     pub(in crate::app) fn new() -> Result<Self> {
         Ok(Self {
             publisher: PublisherDocument::default(),
@@ -60,6 +69,7 @@ impl ReaderState {
             notes: AnnotationState::default(),
             auto_read: auto_read::AutoRead::default(),
             motion_status: None,
+            synchronous_loading: false,
             context: RenderContext {
                 annotated: false,
                 immediate: false,

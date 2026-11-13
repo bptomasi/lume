@@ -108,8 +108,8 @@ impl App {
 
     fn install_ready_recommendations(&mut self) -> Result<bool> {
         if self.notebook().is_some()
-            || self.focus == super::Focus::Reader
-            || !matches!(self.mode, Mode::Normal)
+            || self.layout.focus() == super::Focus::Reader
+            || !matches!(self.interaction.mode(), Mode::Normal)
             || self.reader.selecting()
             || self.nav.navigation_loading()
         {
@@ -151,14 +151,16 @@ impl App {
         let query = self.recommendation_query();
         if let Some(state) = &mut self.recommendations {
             state.worker.submit(Some(edit), query)?;
-            self.status =
+            self.interaction.report(
                 "Recommendation update queued · navigation remains available"
-                    .into();
+                    .into(),
+            );
         } else {
             apply_edit(&self.store, edit)?;
             self.store.refresh_recommendations()?;
             self.rebuild_navigation()?;
-            self.status = "Recommendation preferences saved".into();
+            self.interaction
+                .report("Recommendation preferences saved".into());
         }
         Ok(())
     }

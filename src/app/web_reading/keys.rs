@@ -16,7 +16,10 @@ impl App {
             MouseEventKind::ScrollUp => self.web_scroll(false, 1),
             MouseEventKind::Down(MouseButton::Left) => {
                 if let Some(page) = self.web_page() {
-                    let area = crate::ui::web_content(self.screen, page.width);
+                    let area = crate::ui::web_content(
+                        self.layout.screen(),
+                        page.width,
+                    );
                     if self.open_pointer_image_column(area, event) {
                         return Ok(Action::None);
                     }
@@ -51,7 +54,7 @@ impl App {
 
     fn web_pointer_byte(&self, column: u16, row: u16) -> Option<usize> {
         let page = self.web.current.as_ref()?;
-        let area = crate::ui::web_content(self.screen, page.width);
+        let area = crate::ui::web_content(self.layout.screen(), page.width);
         if !area.contains((column, row).into()) {
             return None;
         }
@@ -65,7 +68,8 @@ impl App {
         let Some(page) = &mut self.web.current else {
             return;
         };
-        let height = usize::from(self.screen.height.saturating_sub(6)).max(1);
+        let height =
+            usize::from(self.layout.screen().height.saturating_sub(6)).max(1);
         page.scroll = if forward {
             page.scroll
                 .saturating_add(amount)
@@ -112,7 +116,7 @@ impl App {
                 self.begin_input(InputKind::Command, String::new())
             }
             KeyCode::Enter => return self.web_enter(),
-            KeyCode::Char('?') => self.mode = Mode::Help,
+            KeyCode::Char('?') => self.interaction.enter(Mode::Help),
             KeyCode::Char('o') => return Ok(self.web_browser()),
             KeyCode::Char('j') | KeyCode::Down => self.web_move_rows(true, 1),
             KeyCode::Char('k') | KeyCode::Up => self.web_move_rows(false, 1),
@@ -144,7 +148,7 @@ impl App {
         forward: bool,
         amount: usize,
     ) {
-        let height = usize::from(self.screen.height.saturating_sub(6));
+        let height = usize::from(self.layout.screen().height.saturating_sub(6));
         let Some(page) = &mut self.web.current else {
             return;
         };
@@ -175,7 +179,7 @@ impl App {
     }
 
     fn web_motion(&mut self, code: KeyCode) {
-        let height = usize::from(self.screen.height.saturating_sub(6));
+        let height = usize::from(self.layout.screen().height.saturating_sub(6));
         let Some(page) = &mut self.web.current else {
             return;
         };
@@ -239,7 +243,9 @@ impl App {
                 page.back.remove(0);
             }
             page.forward.clear();
-            page.reveal(usize::from(self.screen.height.saturating_sub(6)));
+            page.reveal(usize::from(
+                self.layout.screen().height.saturating_sub(6),
+            ));
         } else {
             self.open_web_page(destination.as_str())?;
         }
@@ -277,7 +283,7 @@ impl App {
                 self.web.forward.push(page);
             }
         }
-        self.mode = Mode::Web;
+        self.interaction.enter(Mode::Web);
     }
 
     fn cancel_web_open(&mut self) -> bool {
@@ -291,8 +297,9 @@ impl App {
         if let Some(page) = &self.web.current {
             self.web.requested_width = page.width;
             self.web.requested_options = page.options;
-            self.status =
-                "Pending page discarded · previous reading retained".into();
+            self.interaction.report(
+                "Pending page discarded · previous reading retained".into(),
+            );
         } else {
             self.close_web();
         }
@@ -318,7 +325,7 @@ impl App {
             page.forward.push(current);
         }
         page.seek_source(target);
-        page.reveal(usize::from(self.screen.height.saturating_sub(6)));
+        page.reveal(usize::from(self.layout.screen().height.saturating_sub(6)));
         true
     }
 

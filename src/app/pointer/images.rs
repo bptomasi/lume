@@ -13,7 +13,8 @@ impl App {
         reader: Rect,
         event: MouseEvent,
     ) -> bool {
-        let column = ui::workspace_reader_content(reader, &self.workspace);
+        let column =
+            ui::workspace_reader_content(reader, self.layout.workspace());
         self.open_pointer_image_column(column, event)
     }
 
@@ -52,8 +53,8 @@ impl App {
             })
         });
         if let Some(image) = image {
-            self.vim.clear_input();
-            self.mode = Mode::Image(Box::new(image));
+            self.interaction.vim_input().clear_input();
+            self.interaction.enter(Mode::Image(Box::new(image)));
             return true;
         }
         false

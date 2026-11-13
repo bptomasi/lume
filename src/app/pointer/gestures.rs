@@ -16,7 +16,7 @@ impl App {
         areas: &ui::Areas,
         event: MouseEvent,
     ) -> bool {
-        if self.workspace.layout.is_some() {
+        if self.layout.workspace().layout.is_some() {
             return self.begin_split_resize(areas, event);
         }
         let panes = areas.ordered();
@@ -37,9 +37,9 @@ impl App {
                     left,
                     right,
                     column: event.column,
-                    before: Widths::capture(&self.workspace),
+                    before: Widths::capture(self.layout.workspace()),
                     visible: Widths::visible(
-                        &self.workspace,
+                        self.layout.workspace(),
                         areas,
                         [left, right],
                     ),
@@ -54,7 +54,8 @@ impl App {
         {
             return;
         }
-        let content = ui::workspace_reader_content(area, &self.workspace);
+        let content =
+            ui::workspace_reader_content(area, self.layout.workspace());
         if !content.contains(Position::new(event.column, event.row)) {
             return;
         }
@@ -99,7 +100,7 @@ impl App {
             }
             Gesture::Reorder(mut capture) => {
                 capture.update(event);
-                self.status = capture.hint();
+                self.interaction.report(capture.hint());
                 Some(Gesture::Reorder(capture))
             }
             Gesture::Select(mut capture) => {
@@ -122,13 +123,19 @@ impl App {
         } else {
             capture.visible
         };
-        widths.restore(&mut self.workspace);
+        self.layout.restore_widths(
+            widths.library,
+            widths.articles,
+            widths.annotations,
+        );
         let (left, right) = (capture.left, capture.right);
-        let delta = divider_delta(&self.workspace, left, right, requested);
-        self.workspace.resize_pane(left, delta);
-        self.workspace.resize_pane(right, -delta);
-        self.resize_workspace(self.screen);
-        self.status = "Resizing panes · release saves · Esc cancels".into();
+        let delta =
+            divider_delta(self.layout.workspace(), left, right, requested);
+        self.layout.resize_pane(left, delta);
+        self.layout.resize_pane(right, -delta);
+        self.resize_workspace(self.layout.screen());
+        self.interaction
+            .report("Resizing panes · release saves · Esc cancels".into());
     }
 
     pub(super) fn pointer_up(
@@ -147,9 +154,10 @@ impl App {
                 if !capture.moved {
                     self.reader.cancel_selection();
                 }
-                self.status =
+                self.interaction.report(
                     "Reader selection · y yank · s highlight · n annotate"
-                        .into();
+                        .into(),
+                );
             }
             None => {}
         }
@@ -173,10 +181,14 @@ impl App {
     }
 
     fn extend_pointer_selection(&mut self, event: MouseEvent) -> Option<usize> {
-        let reader =
-            ui::workspace_areas(self.screen, self.focus, &self.workspace)
-                .reader?;
-        let content = ui::workspace_reader_content(reader, &self.workspace);
+        let reader = ui::workspace_areas(
+            self.layout.screen(),
+            self.layout.focus(),
+            self.layout.workspace(),
+        )
+        .reader?;
+        let content =
+            ui::workspace_reader_content(reader, self.layout.workspace());
         if event.row < content.y {
             self.scroll_reader(false, 1);
         } else if event.row >= content.bottom() {

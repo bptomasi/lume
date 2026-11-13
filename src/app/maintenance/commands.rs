@@ -57,7 +57,7 @@ impl App {
             "prepare" | "queue" => self.offline_request(action, size)?,
             "resume" => {
                 ensure!(
-                    self.network_enabled,
+                    self.network.enabled(),
                     "Offline preparation requires an online session"
                 );
                 Request::Resume
@@ -81,7 +81,7 @@ impl App {
         size: Option<&str>,
     ) -> Result<Request> {
         ensure!(
-            self.network_enabled,
+            self.network.enabled(),
             "Offline preparation requires an online session"
         );
         let mut limits = OfflineLimits::default();
@@ -103,16 +103,14 @@ impl App {
     }
 
     fn cancel_maintenance(&mut self) {
-        if let Some(worker) = &self.maintenance {
-            worker
-                .cancel
-                .store(true, std::sync::atomic::Ordering::Relaxed);
-        }
-        self.status = concat!(
-            "Cancellation requested · ",
-            "the active HTTP request or transaction may finish first"
-        )
-        .into();
+        self.maintenance.cancel();
+        self.interaction.report(
+            concat!(
+                "Cancellation requested · ",
+                "the active HTTP request or transaction may finish first"
+            )
+            .into(),
+        );
     }
 
     fn storage_command(&mut self, argument: &str) -> Result<()> {

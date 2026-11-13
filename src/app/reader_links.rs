@@ -14,7 +14,7 @@ impl App {
         key: KeyEvent,
     ) -> Result<Option<Action>> {
         if key.code != KeyCode::Enter
-            || self.focus != Focus::Reader
+            || self.layout.focus() != Focus::Reader
             || self.reader.selecting()
             || self.captured_image().is_ok()
         {
@@ -31,7 +31,7 @@ impl App {
 
     /// Supported link under the reader cursor, excluding appended private notes.
     pub fn cursor_link(&self) -> Option<&str> {
-        if self.focus != Focus::Reader || self.reader_stale() {
+        if self.layout.focus() != Focus::Reader || self.reader_stale() {
             return None;
         }
         let offset = self.cursor_offset();
@@ -77,7 +77,8 @@ impl App {
         location.quote = None;
         self.remember_reader_jump();
         self.apply_reader_location(location)?;
-        self.status = "Section opened · Ctrl-o back · Ctrl-i forward".into();
+        self.interaction
+            .report("Section opened · Ctrl-o back · Ctrl-i forward".into());
         Ok(Action::None)
     }
 

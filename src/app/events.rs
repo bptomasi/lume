@@ -75,8 +75,7 @@ impl InputBatch {
                 app.auto_read_window_focus(false);
                 app.cancel_pointer();
                 app.reader.arm_note_delete(None);
-                app.pending_destination_delete = None;
-                app.pending_article_delete = None;
+                app.interaction.cancel_deletions();
                 Action::None
             }
             Event::FocusGained => {
@@ -147,7 +146,7 @@ impl InputBatch {
             steps = 1;
         }
         app.cancel_pointer();
-        app.pending_g = false;
+        app.interaction.set_g_prefix(false);
         let distance = amount.saturating_mul(steps);
         if app.notebook().is_some() {
             app.move_notebook(forward, distance)?;
@@ -176,11 +175,12 @@ impl InputBatch {
 }
 
 fn released_reader_repeat(app: &App, key: KeyEvent) -> bool {
-    app.focus == Focus::Reader
-        && matches!(app.mode, Mode::Normal)
+    app.layout.focus() == Focus::Reader
+        && matches!(app.interaction.mode(), Mode::Normal)
         && !app.vim_pending()
         && !app
-            .workspace
+            .layout
+            .workspace()
             .keybindings
             .contains_key(&super::key_name(key))
         && key.kind == KeyEventKind::Repeat
@@ -198,10 +198,11 @@ fn same_key(first: KeyEvent, second: KeyEvent) -> bool {
 }
 
 fn motion(app: &App, key: KeyEvent) -> Option<(bool, usize)> {
-    if !matches!(app.mode, Mode::Normal)
+    if !matches!(app.interaction.mode(), Mode::Normal)
         || app.vim_pending()
         || app
-            .workspace
+            .layout
+            .workspace()
             .keybindings
             .contains_key(&super::key_name(key))
         || key.kind == KeyEventKind::Release

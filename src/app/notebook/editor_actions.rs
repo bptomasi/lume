@@ -12,7 +12,7 @@ use super::{NoteAction, inspection::Inspection};
 impl App {
     pub(in crate::app) fn resume_note_editor(&mut self) {
         if let Some(input) = self.notebooks.resume_editor() {
-            self.mode = Mode::Input(input);
+            self.interaction.enter(Mode::Input(input));
         }
     }
 
@@ -21,10 +21,10 @@ impl App {
         query: &str,
     ) -> Result<()> {
         ensure!(
-            self.pending_note_write.is_none(),
+            !self.personal.draft_pending(),
             "Wait for the pending write first"
         );
-        let Mode::Input(input) = &self.mode else {
+        let Mode::Input(input) = self.interaction.mode() else {
             anyhow::bail!("Open a note editor first");
         };
         ensure!(
@@ -42,7 +42,7 @@ impl App {
             query: query.into(),
             exclude,
         })?;
-        if let Mode::Input(input) = std::mem::take(&mut self.mode) {
+        if let Mode::Input(input) = self.interaction.take_mode() {
             self.notebooks.suspend_editor(input);
         }
         Ok(())
@@ -97,16 +97,17 @@ impl App {
         );
         input.saved_text.clone_from(&draft.baseline);
         input.initial_kind = draft.initial_kind;
-        self.mode = Mode::Input(Box::new(input));
+        self.interaction.enter(Mode::Input(Box::new(input)));
         self.observe_draft();
-        self.status =
-            "Recovered draft · :w saves · :q! discards the checkpoint".into();
+        self.interaction.report(
+            "Recovered draft · :w saves · :q! discards the checkpoint".into(),
+        );
         Ok(())
     }
 
     fn insert_note_reference(&mut self, id: i64) -> Result<()> {
         self.resume_note_editor();
-        let Mode::Input(input) = &mut self.mode else {
+        let Some(input) = self.interaction.draft_mut() else {
             anyhow::bail!("The note editor is no longer open");
         };
         let reference = format!("[[Note-{id}]]");
@@ -158,8 +159,8 @@ impl App {
         current: Arc<crate::model::AnnotationSnapshot>,
         version: i64,
     ) -> Result<()> {
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(Task::Edit(
+        if self.personal.enabled() {
+            self.personal.submit(Task::Edit(
                 crate::app::NoteEdit::RestoreVersion { current, version },
             ))?;
         } else {
@@ -178,11 +179,10 @@ impl App {
         current: Arc<crate::model::AnnotationSnapshot>,
         passage: crate::model::Passage,
     ) -> Result<()> {
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(Task::Edit(crate::app::NoteEdit::Reanchor {
-                current,
-                passage,
-            }))?;
+        if self.personal.enabled() {
+            self.personal.submit(Task::Edit(
+                crate::app::NoteEdit::Reanchor { current, passage },
+            ))?;
         } else {
             self.store.reanchor_note(
                 current.article,

@@ -71,8 +71,8 @@ fn reading() -> Result<(tempfile::TempDir, App)> {
         "Before.\n\n![Diagram](/diagram)\n\nAfter.".into();
     store.ingest(&feed, &incoming.title, &incoming.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
     app.resize_workspace(Rect::new(0, 0, 144, 44));
     let row = app.reader().image_slots[0].caption;
     common::reader::cursor(&mut app, row, 0)?;
@@ -101,18 +101,18 @@ fn settle(app: &mut App) -> Result<()> {
 fn responsive_hidden_reader_does_not_admit_background_image_work() -> Result<()>
 {
     let (_directory, mut app) = reading()?;
-    app.workspace.fullscreen = false;
-    app.focus = Focus::Library;
+    common::fixture_toggle(&mut app, "fullscreen", false)?;
+    app.activate_pane(Focus::Library);
     app.resize_workspace(Rect::new(0, 0, 30, 15));
     app.poll_images();
     assert!(!app.images_pending());
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_workspace(Rect::new(0, 0, 30, 15));
     settle(&mut app)?;
     let key = app
         .image_key(&app.reader().image_slots[0])
         .context("Visible image")?;
-    assert!(app.images.thumbnail(&key).is_some());
+    assert!(app.images().thumbnail(&key).is_some());
     Ok(())
 }
 
@@ -134,7 +134,7 @@ impl ReaderState {
             scroll: app.reader().scroll,
             cursor: app.cursor_offset(),
             selection: app.reader().selection,
-            workspace: serde_json::to_string(&app.workspace)?,
+            workspace: serde_json::to_string(app.workspace())?,
         })
     }
 }
@@ -237,7 +237,7 @@ fn inspector_zoom_mouse_and_close_preserve_reader_selection_and_layout()
     common::reader::select(&mut app, anchor)?;
     let before = ReaderState::capture(&app)?;
     press(&mut app, KeyCode::Enter)?;
-    assert!(matches!(app.mode, Mode::Image(_)));
+    assert!(matches!(app.mode(), Mode::Image(_)));
     press(&mut app, KeyCode::Char('+'))?;
     let mouse = MouseEvent {
         kind: MouseEventKind::ScrollDown,
@@ -248,13 +248,13 @@ fn inspector_zoom_mouse_and_close_preserve_reader_selection_and_layout()
     let mut batch = InputBatch::new(vec![Event::Mouse(mouse); 3]);
     batch.dispatch_next(&mut app)?;
     assert!(
-        matches!(&app.mode, Mode::Image(image) if image.zoom == 2 && image.pan == [0, 150])
+        matches!(app.mode(), Mode::Image(image) if image.zoom == 2 && image.pan == [0, 150])
     );
     settle(&mut app)?;
     let key = app.image_inspector_key().context("Inspector key")?;
-    assert!(app.images.thumbnail(&key).is_some());
+    assert!(app.images().thumbnail(&key).is_some());
     press(&mut app, KeyCode::Esc)?;
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     assert_eq!(ReaderState::capture(&app)?, before);
     Ok(())
 }
@@ -266,10 +266,10 @@ fn explicit_inspection_loads_while_automatic_images_are_paused() -> Result<()> {
     command(&mut app, "image")?;
     settle(&mut app)?;
     let key = app.image_inspector_key().context("Inspector key")?;
-    assert!(app.images.thumbnail(&key).is_some());
+    assert!(app.images().thumbnail(&key).is_some());
     assert_eq!(press(&mut app, KeyCode::Char('o'))?, Action::Open(key.url));
     press(&mut app, KeyCode::Char('q'))?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     assert!(command(&mut app, "image").is_err());
     Ok(())
 }
@@ -282,7 +282,7 @@ fn iterm2_inspector_resize_keeps_native_pixels_out_of_reader() -> Result<()> {
     settle(&mut app)?;
     let old = app.image_inspector_key().context("Old key")?;
     assert!(
-        app.images
+        app.images()
             .thumbnail(&old)
             .context("Old image")?
             .native
@@ -346,7 +346,7 @@ fn corrupt_offline_cache_keeps_the_decoder_reason_and_can_be_replaced()
     let cache = directory.path().join("images");
     media::cache::write(&cache, &key.url, b"<html>Login required</html>")?;
     settle(&mut app)?;
-    let error = app.images.error(&key).context("Offline failure")?;
+    let error = app.images().error(&key).context("Offline failure")?;
     assert!(
         error.contains("Offline image cache")
             && error.contains("Supported images")
@@ -354,7 +354,7 @@ fn corrupt_offline_cache_keeps_the_decoder_reason_and_can_be_replaced()
     media::cache::write(&cache, &key.url, SVG)?;
     command(&mut app, "images retry")?;
     settle(&mut app)?;
-    assert!(app.images.thumbnail(&key).is_some());
+    assert!(app.images().thumbnail(&key).is_some());
     Ok(())
 }
 

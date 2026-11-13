@@ -149,20 +149,20 @@ fn layouts(
 ) -> Result<()> {
     let mut samples = Vec::new();
     for _ in 0..iterations {
-        let before = PanelLayout::capture(&app.workspace);
+        let before = PanelLayout::capture(app.workspace());
         let start = Instant::now();
         command(app, "workspace load Study")?;
-        ensure!(app.workspace.layout.is_some(), "Study topology missing");
-        let study = PanelLayout::capture(&app.workspace);
+        ensure!(app.workspace().layout.is_some(), "Study topology missing");
+        let study = PanelLayout::capture(app.workspace());
         command(app, "layout-reset")?;
         ensure!(
-            app.workspace.layout.is_none()
-                && app.workspace.panel_order == lume::model::Pane::ALL,
+            app.workspace().layout.is_none()
+                && app.workspace().panel_order == lume::model::Pane::ALL,
             "Reset did not restore standard columns"
         );
         command(app, "layout-undo")?;
         ensure!(
-            PanelLayout::capture(&app.workspace) == study,
+            PanelLayout::capture(app.workspace()) == study,
             "Reset lost the previous study arrangement"
         );
         app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
@@ -170,7 +170,7 @@ fn layouts(
         app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
         command(app, "layout-undo")?;
         ensure!(
-            PanelLayout::capture(&app.workspace) == before,
+            PanelLayout::capture(app.workspace()) == before,
             "Layout undo changed preferences"
         );
         settle(app)?;
@@ -201,7 +201,7 @@ fn command(app: &mut App, text: &str) -> Result<()> {
     app.paste(text)?;
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     ensure!(
-        !matches!(app.mode, lume::app::Mode::Input(_)),
+        !matches!(app.mode(), lume::app::Mode::Input(_)),
         "Command left incomplete"
     );
     Ok(())

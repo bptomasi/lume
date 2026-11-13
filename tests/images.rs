@@ -55,10 +55,10 @@ fn reading(body: &str) -> Result<(tempfile::TempDir, App)> {
     incoming.articles[0].body = body.into();
     store.ingest(&feed, &incoming.title, &incoming.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
     let column =
-        ui::workspace_reader_content(Rect::new(0, 0, 100, 36), &app.workspace);
+        ui::workspace_reader_content(Rect::new(0, 0, 100, 36), app.workspace());
     app.resize_reader(column.width.into(), column.height.into());
     Ok((directory, app))
 }
@@ -330,7 +330,7 @@ fn cached_image_completion_does_not_change_text_selection_or_scroll()
     app.enable_images(cache, true)?;
     settle(&mut app)?;
 
-    assert!(app.images.thumbnail(&key).is_some());
+    assert!(app.images().thumbnail(&key).is_some());
     let reading = app.reader();
     assert_eq!(reading.reader_text, text);
     assert_eq!(reading.cursor_offset(), cursor);
@@ -366,7 +366,7 @@ fn offline_miss_can_be_retried_and_loading_can_be_paused() -> Result<()> {
     command(&mut app, "images on")?;
     settle(&mut app)?;
     assert!(
-        app.images
+        app.images()
             .error(&key)
             .context("Offline error")?
             .contains("offline")
@@ -376,11 +376,11 @@ fn offline_miss_can_be_retried_and_loading_can_be_paused() -> Result<()> {
     command(&mut app, "images retry")?;
     settle(&mut app)?;
 
-    assert!(app.images.thumbnail(&key).is_some());
+    assert!(app.images().thumbnail(&key).is_some());
     let row = app.reader().image_slots[0].caption;
     common::reader::cursor(&mut app, row, 0)?;
     assert_eq!(command(&mut app, "image-open")?, Action::Open(key.url));
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     assert!(command(&mut app, "image-open").is_err());
     Ok(())
 }
@@ -421,14 +421,14 @@ fn theme_changes_keep_literal_image_colors_and_image_rows_keep_a_visible_cursor(
     media::cache::write(&cache, &key.url, svg)?;
     app.enable_images(cache, true)?;
     let column =
-        ui::workspace_reader_content(Rect::new(0, 0, 100, 36), &app.workspace);
+        ui::workspace_reader_content(Rect::new(0, 0, 100, 36), app.workspace());
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
     for theme in ["lume", "nord", "gruvbox"] {
-        app.workspace.theme = theme.into();
+        common::fixture_command(&mut app, &format!("theme {}", theme))?;
         settle(&mut app)?;
         let slot = &app.reader().image_slots[0];
         let key = app.image_key(slot).context("Themed image key")?;
-        let image = app.images.thumbnail(&key).context("Prepared image")?;
+        let image = app.images().thumbnail(&key).context("Prepared image")?;
         let x = column.x + (column.width - image.cells.area.width) / 2;
         let y = column.y + slot.rows.start as u16;
         let row = slot.rows.start;
@@ -463,11 +463,11 @@ fn resizing_uses_a_new_thumbnail_key_without_mutating_text_or_resolving_an_inval
         .image_key(&app.reader().image_slots[0])
         .context("Narrow key")?;
     assert_ne!(new, old);
-    assert!(app.images.thumbnail(&new).is_none());
+    assert!(app.images().thumbnail(&new).is_none());
     settle(&mut app)?;
 
     assert!(
-        app.images
+        app.images()
             .thumbnail(&new)
             .context("Narrow image")?
             .cells
@@ -539,22 +539,23 @@ fn disk_cache_obeys_its_byte_budget_and_ignores_non_cache_unicode_names()
 #[test]
 fn collapsed_reader_does_not_admit_images_until_it_is_visible() -> Result<()> {
     let (directory, mut app) = reading("![Diagram](/diagram.svg)")?;
+    app.resize_workspace(Rect::new(0, 0, 100, 36));
+    common::fixture_toggle(&mut app, "fullscreen", false)?;
     let key = app
         .image_key(&app.reader().image_slots[0])
         .context("Image key")?;
     let cache = directory.path().join("images");
     media::cache::write(&cache, &key.url, SVG)?;
     app.enable_images(cache, true)?;
-    app.workspace.fullscreen = false;
-    app.workspace.show_reader = false;
+    common::fixture_pane(&mut app, lume::model::Pane::Reader, false)?;
 
     app.poll_images();
 
     assert!(!app.images_pending());
-    assert!(app.images.thumbnail(&key).is_none());
-    app.workspace.show_reader = true;
+    assert!(app.images().thumbnail(&key).is_none());
+    common::fixture_pane(&mut app, lume::model::Pane::Reader, true)?;
     settle(&mut app)?;
-    assert!(app.images.thumbnail(&key).is_some());
+    assert!(app.images().thumbnail(&key).is_some());
     Ok(())
 }
 

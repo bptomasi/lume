@@ -23,15 +23,15 @@ pub(super) fn run(
     terminal: &mut Terminal<TestBackend>,
     iterations: usize,
 ) -> Result<()> {
-    let original = app.workspace.panel_order;
-    let mut moved = app.workspace.clone();
+    let original = app.workspace().panel_order;
+    let mut moved = app.workspace().clone();
     moved.panel_order = [
         Pane::Reader,
         Pane::Library,
         Pane::Articles,
         Pane::Annotations,
     ];
-    let outward = gesture(&app.workspace, Pane::Library)?;
+    let outward = gesture(app.workspace(), Pane::Library)?;
     let inward = gesture(&moved, Pane::Articles)?;
     let mut samples = Vec::new();
     for _ in 0..iterations {
@@ -39,7 +39,7 @@ pub(super) fn run(
         let second = inward.clone();
         let start = Instant::now();
         move_frame(app, terminal, first)?;
-        let intermediate = app.workspace.panel_order;
+        let intermediate = app.workspace().panel_order;
         move_frame(app, terminal, second)?;
         samples.push(start.elapsed().as_secs_f64() * 1000.0);
         ensure!(
@@ -47,7 +47,7 @@ pub(super) fn run(
             "Grip move lost its destination"
         );
         ensure!(
-            app.workspace.panel_order == original,
+            app.workspace().panel_order == original,
             "Grip roundtrip changed order"
         );
     }
@@ -103,7 +103,7 @@ fn keyboard_workload(
     terminal: &mut Terminal<TestBackend>,
     iterations: usize,
 ) -> Result<()> {
-    let original = app.workspace.panel_order;
+    let original = app.workspace().panel_order;
     let expected = [
         Pane::Library,
         Pane::Reader,
@@ -115,7 +115,7 @@ fn keyboard_workload(
         let start = Instant::now();
         app.key(KeyEvent::new(KeyCode::Left, KeyModifiers::ALT))?;
         frame(app, terminal)?;
-        let intermediate = app.workspace.panel_order;
+        let intermediate = app.workspace().panel_order;
         app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::ALT))?;
         frame(app, terminal)?;
         samples.push(start.elapsed().as_secs_f64() * 1000.0);
@@ -124,7 +124,7 @@ fn keyboard_workload(
             "Keyboard move did not change visible order"
         );
         ensure!(
-            app.workspace.panel_order == original,
+            app.workspace().panel_order == original,
             "Keyboard roundtrip lost order"
         );
     }

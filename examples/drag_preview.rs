@@ -38,7 +38,7 @@ fn main() -> Result<()> {
     let (_directory, mut app) = application()?;
     let mut terminal =
         Terminal::new(TestBackend::new(SCREEN.width, SCREEN.height))?;
-    let areas = ui::workspace_areas(SCREEN, app.focus, &app.workspace);
+    let areas = ui::workspace_areas(SCREEN, app.focus(), app.workspace());
     let grip = ui::pane_move_rect(areas.reader.context("Reader hidden")?)
         .context("Grip hidden")?;
     let down =

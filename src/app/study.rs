@@ -59,7 +59,7 @@ impl App {
 
     fn open_card(&mut self, argument: &str) -> Result<()> {
         let (article, comment) = self.selected_annotation()?;
-        if argument.is_empty() || self.personal_writes.is_some() {
+        if argument.is_empty() || self.personal.enabled() {
             self.ensure_no_recovery(&crate::model::DraftTarget::Card {
                 article,
                 note: comment,
@@ -74,7 +74,7 @@ impl App {
                 argument.into(),
             );
             if !argument.is_empty() {
-                if let super::Mode::Input(input) = &mut self.mode {
+                if let Some(input) = self.interaction.draft_mut() {
                     input.saved_text.clear();
                 }
                 self.request_draft_write(
@@ -89,18 +89,20 @@ impl App {
 
     fn link_note_article(&mut self, related: i64) -> Result<()> {
         let (article, comment) = self.selected_annotation()?;
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(super::personal_tasks::Task::LinkArticle {
-                article,
-                note: comment,
-                related,
-            })?;
+        if self.personal.enabled() {
+            self.personal
+                .submit(super::personal_tasks::Task::LinkArticle {
+                    article,
+                    note: comment,
+                    related,
+                })?;
         } else {
             self.store.link_annotation(article, comment, related)?;
             self.refresh_notes(article)?;
         }
-        self.status =
-            "Related article linked to the selected note · u undo".into();
+        self.interaction.report(
+            "Related article linked to the selected note · u undo".into(),
+        );
         Ok(())
     }
 
@@ -126,9 +128,10 @@ impl App {
             self.store
                 .create_study_card(article, comment, question, answer)?
         };
-        self.status =
+        self.interaction.report(
             "User-authored card saved · :cards reviews due questions · u undo"
-                .into();
+                .into(),
+        );
         Ok(id)
     }
 
@@ -193,25 +196,26 @@ impl App {
 
     fn export_incremental(&mut self, directory: &str) -> Result<()> {
         anyhow::ensure!(!directory.is_empty(), "Use :export-notes DIRECTORY");
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(super::personal_tasks::Task::ExportArticles(
-                directory.into(),
-            ))?;
-            self.status =
+        if self.personal.enabled() {
+            self.personal.submit(
+                super::personal_tasks::Task::ExportArticles(directory.into()),
+            )?;
+            self.interaction.report(
                 "Exporting article notes… · navigation remains available"
-                    .into();
+                    .into(),
+            );
             return Ok(());
         }
         let report = crate::exchange::incremental::notebook(
             &self.store,
             std::path::Path::new(directory),
         )?;
-        self.status = format!(
+        self.interaction.report(format!(
             "Notes export · {} written · {} unchanged · {} local edits preserved",
             report.written,
             report.unchanged,
             report.conflicts.len()
-        );
+        ));
         if !report.conflicts.is_empty() {
             let conflicts = report
                 .conflicts

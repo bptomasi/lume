@@ -194,8 +194,8 @@ fn paint_cursor(app: &App, index: usize, line: &mut Line<'static>) {
 
 fn cursor_column(app: &App, row: usize) -> Option<usize> {
     let reading = app.reader();
-    (app.focus == Focus::Reader
-        && matches!(app.mode, Mode::Normal)
+    (app.focus() == Focus::Reader
+        && matches!(app.mode(), Mode::Normal)
         && row == reading.reader_cursor)
         .then_some(reading.reader_column)
 }

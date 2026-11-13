@@ -29,18 +29,18 @@ fn a_rule_preview_waits_for_a_draft_and_cancel_changes_no_source_or_cache()
     let preview = proposed(&store, feed.id)?;
     let reader = Store::open(&directory.path().join("library.sqlite3"))?;
     let mut app = App::new(store, false)?;
-    app.focus = lume::app::Focus::Reader;
+    app.activate_pane(lume::app::Focus::Reader);
     app.key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE))?;
     app.rule_preview_finished(preview.clone());
     assert!(!app.present_rule_preview());
-    assert!(matches!(app.mode, Mode::Input(_)));
+    assert!(matches!(app.mode(), Mode::Input(_)));
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     assert!(!app.present_rule_preview());
     app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
     app.paste("q!")?;
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     assert!(app.present_rule_preview());
-    assert!(matches!(app.mode, Mode::Document(_)));
+    assert!(matches!(app.mode(), Mode::Document(_)));
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     assert_eq!(reader.article_selector(feed.id)?, "");
     assert!(reader.cached_document(preview.target.article)?.is_none());
@@ -202,7 +202,7 @@ fn source_health_distinguishes_unattempted_sources_and_shows_their_urls()
     app.paste("source-health")?;
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
 
-    let Mode::Picker(picker) = &app.mode else {
+    let Mode::Picker(picker) = app.mode() else {
         anyhow::bail!("Source health did not open");
     };
     assert!(picker.choices[0].title.ends_with(" · NEW"));

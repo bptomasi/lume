@@ -30,7 +30,7 @@ fn save(app: &mut App) -> Result<()> {
 fn cursor_edits_and_undo_preserve_unicode() -> Result<()> {
     let (_directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
-    app.focus = lume::app::Focus::Reader;
+    app.activate_pane(lume::app::Focus::Reader);
     text(&mut app, "nação")?;
     key(&mut app, KeyCode::Home, KeyModifiers::NONE)?;
     text(&mut app, "🦀 ")?;
@@ -48,7 +48,7 @@ fn visual_selection_saves_quote_and_notebook_retains_context() -> Result<()> {
     key(&mut app, KeyCode::Enter, KeyModifiers::NONE)?;
     text(&mut app, "vjnA useful passage")?;
     ensure!(
-        matches!(app.mode, Mode::Input(_)),
+        matches!(app.mode(), Mode::Input(_)),
         "Highlight should open a note editor"
     );
     save(&mut app)?;
@@ -59,7 +59,7 @@ fn visual_selection_saves_quote_and_notebook_retains_context() -> Result<()> {
 
     common::settle_notes(&mut app)?;
     assert!(app.notebook().is_some());
-    assert_eq!(app.focus, Focus::Articles);
+    assert_eq!(app.focus(), Focus::Articles);
     let notebook = app
         .notebook()
         .ok_or_else(|| anyhow::anyhow!("Missing notebook"))?;
@@ -80,7 +80,7 @@ fn command_palette_keeps_opened_modal_and_list_picker_commits_multiple()
     let mut app = App::new(store, false)?;
     text(&mut app, ":palette")?;
     key(&mut app, KeyCode::Enter, KeyModifiers::NONE)?;
-    assert!(matches!(app.mode, Mode::Picker(_)));
+    assert!(matches!(app.mode(), Mode::Picker(_)));
     text(&mut app, "organize")?;
     key(&mut app, KeyCode::Enter, KeyModifiers::NONE)?;
     text(&mut app, " ")?;
@@ -117,7 +117,7 @@ fn smart_form_saves_typed_criteria_and_layout_survives_restart() -> Result<()> {
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     let restored = App::new(store, false)?;
 
-    assert!(restored.workspace.zen);
+    assert!(restored.workspace().zen);
     assert_eq!(restored.current().map(|article| article.id), id);
     Ok(())
 }

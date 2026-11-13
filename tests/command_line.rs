@@ -35,7 +35,7 @@ fn colon_suggests_filters_and_completes_without_executing() -> Result<()> {
     assert_eq!(command_suggestions("fold").len(), 2);
     press(&mut app, KeyCode::Down)?;
     press(&mut app, KeyCode::Tab)?;
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         return Err(anyhow!("Completion closed the command editor"));
     };
     assert_eq!(input.text, "folders");
@@ -43,7 +43,7 @@ fn colon_suggests_filters_and_completes_without_executing() -> Result<()> {
     press(&mut app, KeyCode::Enter)?;
 
     assert!(matches!(
-        &app.mode,
+        app.mode(),
         Mode::Picker(picker) if matches!(picker.kind, PickerKind::Folders)
     ));
     Ok(())
@@ -57,7 +57,7 @@ fn incomplete_commands_require_an_argument_and_unknown_commands_keep_draft()
     type_text(&mut app, ":fold")?;
     press(&mut app, KeyCode::Enter)?;
     press(&mut app, KeyCode::Enter)?;
-    assert!(app.status.contains("folder NAME"));
+    assert!(app.status().contains("folder NAME"));
     assert!(app.navigation().library.collections.is_empty());
     type_text(&mut app, "Redes")?;
     press(&mut app, KeyCode::Enter)?;
@@ -67,7 +67,7 @@ fn incomplete_commands_require_an_argument_and_unknown_commands_keep_draft()
         .err()
         .ok_or_else(|| anyhow!("Unknown command unexpectedly succeeded"))?;
     assert!(error.to_string().contains("Unknown command"));
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         return Err(anyhow!("Invalid command discarded the draft"));
     };
     assert_eq!(input.text, "not-a-command");
@@ -133,7 +133,7 @@ fn completion_preserves_unicode_arguments_and_legacy_aliases() -> Result<()> {
     let mut app = App::new(store, false)?;
     type_text(&mut app, ":list Ciência e dados")?;
     press(&mut app, KeyCode::Tab)?;
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         return Err(anyhow!("Missing command draft"));
     };
     assert_eq!(input.text, "folder Ciência e dados");
@@ -145,6 +145,6 @@ fn completion_preserves_unicode_arguments_and_legacy_aliases() -> Result<()> {
     run(&mut app, "favorites")?;
     assert_eq!(*app.navigation().view, View::Starred);
     run(&mut app, "help")?;
-    assert!(matches!(app.mode, Mode::Help));
+    assert!(matches!(app.mode(), Mode::Help));
     Ok(())
 }

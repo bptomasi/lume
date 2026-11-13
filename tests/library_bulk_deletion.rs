@@ -47,7 +47,7 @@ fn matching(store: &Store, view: View) -> Result<Vec<i64>> {
 }
 
 fn dd(app: &mut App, view: View) -> Result<()> {
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     app.select_library_destination(&view)?;
     app.key(KeyCode::Char('d').into())?;
     app.key(KeyCode::Char('d').into())?;

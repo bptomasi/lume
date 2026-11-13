@@ -37,8 +37,8 @@ impl Background {
     }
 
     pub(super) fn refresh(&self, app: &mut App) {
-        if app.refreshing {
-            app.status = "A collection pass is already running".into();
+        if app.refreshing() {
+            app.report_status("A collection pass is already running".into());
             return;
         }
         let Some(worker) = &self.feeds else {
@@ -47,17 +47,18 @@ impl Background {
         };
         match worker.refresh() {
             Ok(()) => {
-                app.refreshing = true;
-                app.status =
-                    "Collecting subscriptions in the background".into();
+                app.collection_started();
+                app.report_status(
+                    "Collecting subscriptions in the background".into(),
+                );
             }
-            Err(error) => app.status = error.to_string(),
+            Err(error) => app.report_status(error.to_string()),
         }
     }
 
     pub(super) fn discover(&self, app: &mut App, url: String) {
-        if app.refreshing {
-            app.status = "Wait for the active feed request".into();
+        if app.refreshing() {
+            app.report_status("Wait for the active feed request".into());
             return;
         }
         let Some(worker) = &self.feeds else {
@@ -66,10 +67,10 @@ impl Background {
         };
         match worker.discover(url) {
             Ok(()) => {
-                app.refreshing = true;
-                app.status = "Discovering advertised feeds".into();
+                app.collection_started();
+                app.report_status("Discovering advertised feeds".into());
             }
-            Err(error) => app.status = error.to_string(),
+            Err(error) => app.report_status(error.to_string()),
         }
     }
 
@@ -80,7 +81,7 @@ impl Background {
         };
         match worker.fetch(target.clone()) {
             Ok(()) => app.article_fetch_started(target),
-            Err(error) => app.status = error.to_string(),
+            Err(error) => app.report_status(error.to_string()),
         }
     }
 
@@ -140,7 +141,7 @@ impl Background {
         }
         // An older deferred success must not hide a subsequent save failure.
         if dirty && let Some(error) = &self.configuration_error {
-            app.status = error.clone();
+            app.report_status(error.clone());
         }
         dirty
     }
@@ -151,10 +152,10 @@ impl Background {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Demo configuration is isolated"))
             .and_then(lume::configuration_service::Worker::reload);
-        app.status = match result {
+        app.report_status(match result {
             Ok(()) => "Configuration reload requested".into(),
             Err(error) => error.to_string(),
-        };
+        });
     }
 
     pub(super) fn finish_configuration(&mut self) -> Result<()> {
@@ -178,7 +179,7 @@ impl Background {
             Ok(()) => {
                 app.rule_preview_started(target);
             }
-            Err(error) => app.status = error.to_string(),
+            Err(error) => app.report_status(error.to_string()),
         }
     }
 
@@ -186,7 +187,8 @@ impl Background {
         if self.pending_feed.is_none() {
             self.pending_feed = self.feeds.as_ref().and_then(Worker::poll);
         }
-        if !matches!(app.mode, Mode::Normal) || app.reader().selection.is_some()
+        if !matches!(app.mode(), Mode::Normal)
+            || app.reader().selection.is_some()
         {
             return Ok(false);
         }
@@ -194,12 +196,14 @@ impl Background {
             return Ok(false);
         };
         if let Progress::Updated { completed, total } = progress {
-            app.status = format!("Collecting sources · {completed}/{total}");
+            app.report_status(format!(
+                "Collecting sources · {completed}/{total}"
+            ));
             return Ok(true);
         }
-        app.refreshing = false;
+        app.collection_finished();
         app.reload()?;
-        app.status = match progress {
+        let status = match progress {
             Progress::Updated { .. } => "Collecting sources".into(),
             Progress::Finished { feeds, failures } => {
                 format!("Collected {feeds} feeds · {failures} failures")
@@ -210,17 +214,18 @@ impl Background {
                 "Select a discovered feed to subscribe".into()
             }
         };
+        app.report_status(status);
         Ok(true)
     }
 }
 
 fn unavailable(app: &mut App) {
-    app.status = if app.demo {
+    app.report_status(if app.demo() {
         "Demo sources are fictional · use lume to build your library".into()
     } else {
         "Network disabled by --offline · cached articles remain available"
             .into()
-    };
+    });
 }
 
 #[cfg(test)]
@@ -245,7 +250,7 @@ mod tests {
         background.configuration_error = Some("Configuration conflict".into());
 
         assert!(background.receive_configuration(&mut app));
-        assert_eq!(app.status, "Configuration conflict");
+        assert_eq!(app.status(), "Configuration conflict");
         assert!(!background.receive_configuration(&mut app));
         Ok(())
     }

@@ -31,8 +31,8 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     super::popup::draw_frame(frame, title, screen);
     let Some(page) = app.web_page() else {
         frame.render_widget(
-            Paragraph::new(app.status.as_str()).style(Style::new().fg(TEXT)),
-            content(screen, app.workspace.reading_width.into()),
+            Paragraph::new(app.status()).style(Style::new().fg(TEXT)),
+            content(screen, app.workspace().reading_width.into()),
         );
         return;
     };
@@ -46,7 +46,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     draw_code_backgrounds(frame, page, area);
     frame.render_widget(Paragraph::new(lines), area);
     super::images::draw(frame, app, area);
-    draw_controls(frame, screen, &app.status);
+    draw_controls(frame, screen, app.status());
 }
 
 fn draw_code_backgrounds(frame: &mut Frame<'_>, page: &WebPage, area: Rect) {

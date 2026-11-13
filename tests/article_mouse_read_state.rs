@@ -29,7 +29,7 @@ fn application(background: bool) -> Result<(tempfile::TempDir, App, Store)> {
     let path = directory.path().join("library.sqlite3");
     let observed = Store::open(&path)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     app.resize_workspace(SCREEN);
     if background {
         app.enable_background_navigation(&path)?;
@@ -56,7 +56,7 @@ fn settle(app: &mut App) -> Result<()> {
 }
 
 fn click(app: &mut App, selected: usize) -> Result<()> {
-    let area = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let area = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .articles
         .context("Articles hidden")?;
     let row = (area.y + 1..area.bottom() - 1)
@@ -82,9 +82,9 @@ fn clicking_cards_keeps_them_unread_and_preserves_article_focus() -> Result<()>
     for background in [false, true] {
         for compact in [false, true] {
             let (_directory, mut app, observed) = application(background)?;
-            app.workspace.compact = compact;
+            common::fixture_toggle(&mut app, "compact", compact)?;
             click(&mut app, 1)?;
-            assert_eq!(app.focus, Focus::Articles);
+            assert_eq!(app.focus(), Focus::Articles);
             assert_eq!(app.navigation().selected, 1);
             assert!(!app.notes_pending(), "Click queued a personal mutation");
             settle(&mut app)?;
@@ -119,7 +119,7 @@ fn enter_after_a_mouse_preview_opens_without_marking_the_article_read()
     assert!(observed.article(target)?.unread);
     app.key(KeyCode::Enter.into())?;
     settle(&mut app)?;
-    assert_eq!(app.focus, Focus::Reader);
+    assert_eq!(app.focus(), Focus::Reader);
     assert!(observed.article(target)?.unread);
     assert_eq!(app.current().map(|item| item.id), Some(target));
     app.end_session()

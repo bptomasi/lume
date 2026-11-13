@@ -83,8 +83,11 @@ impl App {
         query: &str,
         article: Option<i64>,
     ) -> Result<()> {
-        let origin =
-            Origin::capture(&self.workspace, &self.layouts, self.focus);
+        let origin = Origin::capture(
+            self.layout.workspace(),
+            self.layout.history(),
+            self.layout.focus(),
+        );
         if !self.notebooks.open(
             &self.store.database_path()?,
             query,
@@ -94,21 +97,12 @@ impl App {
             return Ok(());
         }
         self.reader.cancel_selection();
-        self.vim.clear_input();
-        self.workspace.fullscreen = false;
-        self.workspace.zen = false;
-        self.workspace.show_library = true;
-        self.workspace.show_articles = true;
-        self.workspace.show_reader = true;
-        self.workspace.show_annotations = false;
-        if let Some(layout) = self.workspace.notebook_layout.clone() {
-            layout.apply(&mut self.workspace);
-        }
-        self.layouts = self.notebook_layout_history();
-        self.focus = Focus::Articles;
-        self.resize_workspace(self.screen);
-        self.status =
-            "Notebook · / search · e edit · Enter source · ? help".into();
+        self.interaction.vim_input().clear_input();
+        self.layout.enter_notebook(true);
+        self.resize_workspace(self.layout.screen());
+        self.interaction.report(
+            "Notebook · / search · e edit · Enter source · ? help".into(),
+        );
         Ok(())
     }
 
@@ -119,11 +113,11 @@ impl App {
     }
 
     fn restore_notebook_origin(&mut self, origin: Origin) {
-        self.workspace.notebook_layout =
-            Some(crate::model::PanelLayout::capture(&self.workspace));
-        origin.layout.apply(&mut self.workspace);
-        self.layouts = origin.layouts;
-        self.focus = origin.focus;
+        self.layout.leave_notebook(
+            &origin.layout,
+            origin.layouts,
+            origin.focus,
+        );
     }
 
     pub(super) fn suspend_notebook_for_source(&mut self) {
@@ -133,50 +127,38 @@ impl App {
     }
 
     pub(super) fn return_to_notebook(&mut self) -> Result<bool> {
-        let origin =
-            Origin::capture(&self.workspace, &self.layouts, self.focus);
+        let origin = Origin::capture(
+            self.layout.workspace(),
+            self.layout.history(),
+            self.layout.focus(),
+        );
         if !self.notebooks.resume_source(origin)? {
             return Ok(false);
         }
-        if let Some(layout) = self.workspace.notebook_layout.clone() {
-            layout.apply(&mut self.workspace);
-        }
-        self.layouts = self.notebook_layout_history();
-        self.focus = Focus::Articles;
+        self.layout.enter_notebook(false);
         Ok(true)
-    }
-
-    fn notebook_layout_history(&self) -> crate::model::LayoutHistory {
-        let mut history = crate::model::LayoutHistory::new(&self.workspace);
-        history.profiles.clone_from(&self.layouts.profiles);
-        history
     }
 
     pub(super) fn persist_notebook_layout(&mut self) -> Result<bool> {
         if self.notebooks.active.is_none() {
             return Ok(false);
         }
-        self.layouts
-            .observe(crate::model::PanelLayout::capture(&self.workspace));
+        self.layout.observe();
         let Some((saved, layouts)) = self
             .notebooks
-            .layout_snapshot(&self.workspace, &self.layouts)
+            .layout_snapshot(self.layout.workspace(), self.layout.history())
         else {
             return Ok(false);
         };
-        if let Some(writer) = &self.session_writer {
-            writer.layout(&saved, layouts)?;
-        } else {
-            self.store.save_layouts(&saved, layouts)?;
-        }
+        self.session.save_layout(&self.store, &saved, layouts)?;
         Ok(true)
     }
 
     fn clamp_notebook_scroll(&mut self) {
         let area = crate::ui::workspace_areas(
-            self.screen,
-            self.focus,
-            &self.workspace,
+            self.layout.screen(),
+            self.layout.focus(),
+            self.layout.workspace(),
         )
         .reader;
         if let Some(book) = &mut self.notebooks.active {

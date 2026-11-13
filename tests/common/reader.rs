@@ -14,7 +14,7 @@ fn counted(app: &mut App, count: usize, command: char) -> Result<()> {
 
 #[allow(dead_code, reason = "Each target uses its own reader scenarios")]
 pub fn cursor(app: &mut App, row: usize, byte: usize) -> Result<()> {
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     counted(app, row.saturating_add(1).min(9999), 'G')?;
     let text = app
         .reader()
@@ -84,7 +84,7 @@ pub fn select(app: &mut App, anchor: usize) -> Result<()> {
 pub fn comment(app: &mut App, index: usize) -> Result<()> {
     let row = app.reader().reader_cursor;
     let byte = app.reader().reader_column;
-    let focus = app.focus;
+    let focus = app.focus();
     let count = app.reader().comments.len();
     anyhow::ensure!(index < count, "Fixture comment is missing");
     for _ in 0..count {
@@ -98,7 +98,7 @@ pub fn comment(app: &mut App, index: usize) -> Result<()> {
         "Comment navigation did not select the fixture note"
     );
     cursor(app, row, byte)?;
-    app.focus = focus;
+    app.activate_pane(focus);
     Ok(())
 }
 

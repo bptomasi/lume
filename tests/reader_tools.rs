@@ -39,7 +39,7 @@ fn reading_body(body: &str) -> Result<(tempfile::TempDir, App)> {
     parsed.articles[0].body = body.into();
     store.ingest(&feed, &parsed.title, &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_reader(70, 12);
     Ok((directory, app))
 }
@@ -96,7 +96,7 @@ fn reader_search_does_not_filter_library_and_matches_survive_reflow()
 fn outline_history_and_code_yank_retain_source_bytes() -> Result<()> {
     let (_directory, mut app) = reading()?;
     command(&mut app, "toc")?;
-    let Mode::Picker(picker) = &app.mode else {
+    let Mode::Picker(picker) = app.mode() else {
         anyhow::bail!("Outline did not open");
     };
     assert_eq!(picker.choices.len(), 2);
@@ -154,7 +154,7 @@ fn wide_table_view_scrolls_without_mutating_article_or_search() -> Result<()> {
     command(&mut app, "tables")?;
     key(&mut app, KeyCode::Right)?;
     key(&mut app, KeyCode::Down)?;
-    let Mode::Document(document) = &app.mode else {
+    let Mode::Document(document) = app.mode() else {
         anyhow::bail!("Table viewport did not open");
     };
     assert_eq!((document.column, document.row), (8, 1));
@@ -179,7 +179,7 @@ fn inspector_keeps_tables_that_exceed_grid_limits_alongside_cached_grids()
 
     command(&mut app, "tables")?;
 
-    let Mode::Document(document) = &app.mode else {
+    let Mode::Document(document) = app.mode() else {
         anyhow::bail!("Table viewport did not open");
     };
     assert!(document.lines.iter().any(|line| line.contains("epoch")));

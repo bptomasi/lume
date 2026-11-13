@@ -13,7 +13,7 @@ impl App {
         areas: &ui::Areas,
         event: MouseEvent,
     ) -> bool {
-        let Some(tree) = &self.workspace.layout else {
+        let Some(tree) = &self.layout.workspace().layout else {
             return false;
         };
         let position = Position::new(event.column, event.row);
@@ -45,14 +45,12 @@ impl App {
             i32::from(event.row) - i32::from(grab.y)
         };
         let share = boundary.dragged_percent(delta);
-        let Some(tree) = &mut self.workspace.layout else {
-            return;
-        };
-        if !tree.resize_path(&boundary.path, share) {
+        if !self.layout.resize_split(&boundary.path, share) {
             return;
         }
-        self.resize_workspace(self.screen);
-        self.status = "Resizing split · release saves · Esc cancels".into();
+        self.resize_workspace(self.layout.screen());
+        self.interaction
+            .report("Resizing split · release saves · Esc cancels".into());
     }
 }
 

@@ -21,7 +21,7 @@ pub(super) fn run(
     iterations: usize,
 ) -> Result<()> {
     let scenario = DragScenario::new(app)?;
-    let original = app.workspace.panel_order;
+    let original = app.workspace().panel_order;
     let text = app.reader().reader_text.to_owned();
     let mut captures = Vec::new();
     let mut held = Vec::new();
@@ -43,7 +43,10 @@ pub(super) fn run(
             )?;
         }
         settling.extend(release_frames(app, terminal, scenario.release)?);
-        ensure!(app.workspace.panel_order == original, "Settling lost order");
+        ensure!(
+            app.workspace().panel_order == original,
+            "Settling lost order"
+        );
         ensure!(
             app.reader().reader_text == text,
             "Motion changed readable text"
@@ -61,12 +64,12 @@ fn compact_preview(
     terminal: &mut Terminal<TestBackend>,
     iterations: usize,
 ) -> Result<()> {
-    let workspace = app.workspace.clone();
-    let focus = app.focus;
+    crate::fixture_command(app, "workspace save Drag restore")?;
+    let focus = app.focus();
     let mut samples = Vec::new();
     for _ in 0..iterations {
-        app.workspace.fullscreen = true;
-        app.focus = Pane::Reader;
+        crate::fixture_toggle(app, "fullscreen", true)?;
+        app.activate_pane(Pane::Reader);
         app.resize_workspace(SCREEN);
         let grip =
             ui::pane_move_rect(SCREEN).context("Fullscreen grip hidden")?;
@@ -92,8 +95,9 @@ fn compact_preview(
         samples.push(start.elapsed().as_secs_f64() * 1000.0);
         app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     }
-    app.workspace = workspace;
-    app.focus = focus;
+    crate::fixture_command(app, "workspace load Drag restore")?;
+    crate::fixture_command(app, "workspace delete Drag restore")?;
+    app.activate_pane(focus);
     app.resize_workspace(SCREEN);
     report("compact pane capture + drag + two runtime frames", samples);
     Ok(())
@@ -105,10 +109,10 @@ fn neighbor_preview(
     iterations: usize,
 ) -> Result<()> {
     let scenario = DragScenario::new(app)?;
-    let areas = ui::workspace_areas(SCREEN, app.focus, &app.workspace);
+    let areas = ui::workspace_areas(SCREEN, app.focus(), app.workspace());
     let reader = areas.reader.context("Reader hidden")?;
     let article = areas.articles.context("Articles hidden")?;
-    let order = app.workspace.panel_order;
+    let order = app.workspace().panel_order;
     let mut samples = Vec::new();
     for _ in 0..iterations {
         app.mouse(scenario.down)?;
@@ -157,7 +161,7 @@ fn verify_insertion(
         "Overlap selected the wrong insertion slot"
     );
     ensure!(
-        app.workspace.panel_order == order,
+        app.workspace().panel_order == order,
         "Preview changed saved order"
     );
     Ok(())
@@ -216,7 +220,7 @@ struct DragScenario {
 
 impl DragScenario {
     fn new(app: &App) -> Result<Self> {
-        let areas = ui::workspace_areas(SCREEN, app.focus, &app.workspace);
+        let areas = ui::workspace_areas(SCREEN, app.focus(), app.workspace());
         let reader = areas.reader.context("Reader hidden")?;
         let grip = ui::pane_move_rect(reader).context("Reader grip hidden")?;
         let down =
@@ -250,7 +254,7 @@ fn release_frames(
     app.mouse(release)?;
     ensure!(app.pane_motion_active(), "Release failed to start settling");
     ensure!(
-        app.workspace.panel_order
+        app.workspace().panel_order
             == [
                 Pane::Library,
                 Pane::Reader,

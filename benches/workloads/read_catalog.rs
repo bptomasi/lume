@@ -33,9 +33,9 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
 
 fn sample(app: &mut App, observer: &Store, index: usize) -> Result<Duration> {
     settle(app)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     app.key(KeyCode::Enter.into())?;
-    app.workspace.auto_read.min_active_seconds = 1 + (index % 2) as u16;
+    crate::fixture_setting(app, 16, &(1 + (index % 2)).to_string())?;
     let id = app.current().context("Target")?.id;
     let started = Instant::now();
     for step in 0..=8 {

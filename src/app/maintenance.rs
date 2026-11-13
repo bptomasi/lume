@@ -6,9 +6,10 @@
 
 mod commands;
 mod diagnostics;
-pub(super) use diagnostics::Diagnostics;
 mod operation;
 mod report;
+mod state;
+pub(super) use state::MaintenanceState;
 
 use std::{
     path::PathBuf,
@@ -19,7 +20,7 @@ use std::{
     },
 };
 
-use anyhow::{Context, Result, ensure};
+use anyhow::Result;
 
 use crate::{
     model::{OfflineLimits, ReadingSession, View},
@@ -27,6 +28,11 @@ use crate::{
 };
 
 use super::{App, Mode};
+
+const COMPLETED_STATUS: &str = concat!(
+    "Background operation completed · ",
+    ":offline status · :session status · :storage",
+);
 
 #[derive(Clone, Debug)]
 pub(super) enum Request {
@@ -156,27 +162,7 @@ impl App {
     }
 
     fn admit_maintenance(&mut self, request: Request) -> Result<()> {
-        if self.maintenance.is_none() {
-            self.maintenance =
-                Some(Maintenance::start(self.store.database_path()?)?);
-        }
-        let worker = self
-            .maintenance
-            .as_mut()
-            .context("Maintenance worker unavailable")?;
-        ensure!(
-            !worker.pending,
-            "Maintenance is busy; :offline cancel requests cancellation"
-        );
-        worker.cancel.store(false, Ordering::Relaxed);
-        let cleaning = matches!(request, Request::Clean(_));
-        worker
-            .requests
-            .try_send(request)
-            .context("Maintenance request was not admitted")?;
-        worker.pending = true;
-        worker.cleaning = cleaning;
-        Ok(())
+        self.maintenance.admit(self.store.database_path()?, request)
     }
 
     /// Apply bounded progress/completions without disk or network work on input.
@@ -186,26 +172,9 @@ impl App {
     pub fn poll_maintenance(&mut self) -> Result<bool> {
         let inspected = self.poll_storage_diagnostic()?;
         self.admit_automatic_maintenance()?;
-        let Some(worker) = &mut self.maintenance else {
+        let Some(update) = self.maintenance.poll()? else {
             return Ok(inspected);
         };
-        let update = match worker.results.try_recv() {
-            Ok(update) => update,
-            Err(mpsc::TryRecvError::Empty) => return Ok(inspected),
-            Err(mpsc::TryRecvError::Disconnected) => {
-                if worker.pending {
-                    worker.pending = false;
-                    anyhow::bail!(
-                        "Maintenance worker stopped before acknowledgement; inspect its checkpoint"
-                    );
-                }
-                return Ok(inspected);
-            }
-        };
-        if matches!(update, Update::Finished(_)) {
-            worker.pending = false;
-            worker.cleaning = false;
-        }
         let changed = !matches!(
             &update,
             Update::Finished(Ok(Outcome::AutomaticRetention {
@@ -235,7 +204,7 @@ impl App {
 
     fn apply_maintenance_update(&mut self, update: Update) -> Result<()> {
         let visible = matches!(
-            &self.mode,
+            self.interaction.mode(),
             Mode::Document(view) if view.title == "Working · Esc closes report"
         );
         match update {
@@ -272,17 +241,11 @@ Inspect the current checkpoint before retrying."#
 
     /// Whether explicit maintenance still awaits acknowledgement.
     pub fn maintenance_pending(&self) -> bool {
-        self.durable_maintenance_pending()
-            || self
-                .storage_diagnostics
-                .as_ref()
-                .is_some_and(Diagnostics::pending)
+        self.maintenance.pending()
     }
 
     pub(super) fn durable_maintenance_pending(&self) -> bool {
-        self.maintenance
-            .as_ref()
-            .is_some_and(|worker| worker.pending)
+        self.maintenance.durable_pending()
     }
 
     fn finish_maintenance(
@@ -321,11 +284,7 @@ Inspect the current checkpoint before retrying."#
                 self.show_reading_session(session, visible)?
             }
             _ => {
-                self.status = concat!(
-                    "Background operation completed · ",
-                    ":offline status · :session status · :storage"
-                )
-                .into();
+                self.interaction.report(COMPLETED_STATUS.into());
             }
         }
         Ok(())
@@ -349,7 +308,7 @@ Inspect the current checkpoint before retrying."#
         if visible {
             self.show_document("Backup · Esc closes", &text, None);
         }
-        self.status = text;
+        self.interaction.report(text);
     }
 
     fn show_reading_plan(&mut self, session: ReadingSession) {
@@ -384,10 +343,10 @@ Inspect the current checkpoint before retrying."#
                 confirm,
             );
         } else if report.articles + report.full_texts + report.images > 0 {
-            self.status = format!(
+            self.interaction.report(format!(
                 "Retention: {} articles, {} Full caches, {} images",
                 report.articles, report.full_texts, report.images
-            );
+            ));
         }
         Ok(())
     }
@@ -398,8 +357,9 @@ Inspect the current checkpoint before retrying."#
         visible: bool,
     ) -> Result<()> {
         if !visible {
-            self.status =
-                "Reading session saved · :session status resumes it".into();
+            self.interaction.report(
+                "Reading session saved · :session status resumes it".into(),
+            );
             return Ok(());
         }
         let confirm = session

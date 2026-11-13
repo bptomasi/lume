@@ -129,7 +129,7 @@ fn sidebar_pins_collapse_and_expansion_persist_without_deleting_sources()
     assert!(app.navigation().navigation.iter().any(
         |item| matches!(&item.view, View::Group(group) if group == "FEEDS")
     ));
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     key(&mut app, KeyCode::Enter)?;
     assert!(
         app.navigation()
@@ -149,7 +149,7 @@ fn visual_preview_cancels_or_commits_with_actual_themed_cells() -> Result<()> {
     let mut app = App::new(store, false)?;
     command(&mut app, "settings")?;
     key(&mut app, KeyCode::Right)?;
-    assert_eq!(app.workspace.theme, "nord");
+    assert_eq!(app.workspace().theme, "nord");
     let mut terminal = Terminal::new(TestBackend::new(120, 32))?;
     terminal.draw(|frame| ui::draw(frame, &app))?;
     assert_eq!(
@@ -157,7 +157,7 @@ fn visual_preview_cancels_or_commits_with_actual_themed_cells() -> Result<()> {
         Color::Rgb(52, 60, 75)
     );
     key(&mut app, KeyCode::Esc)?;
-    assert_eq!(app.workspace.theme, "lume");
+    assert_eq!(app.workspace().theme, "lume");
     command(&mut app, "settings")?;
     key(&mut app, KeyCode::Right)?;
     key(&mut app, KeyCode::Down)?;
@@ -180,17 +180,17 @@ fn custom_motion_key_is_not_coalesced_and_draft_editing_keeps_its_own_keys()
         KeyModifiers::NONE,
     ))]);
     batch.dispatch_next(&mut app)?;
-    assert!(matches!(app.mode, Mode::Picker(_)));
+    assert!(matches!(app.mode(), Mode::Picker(_)));
     key(&mut app, KeyCode::Esc)?;
     key(&mut app, KeyCode::Char(':'))?;
     key(&mut app, KeyCode::Char('j'))?;
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         anyhow::bail!("Binding intercepted editor input");
     };
     assert_eq!(input.text, "j");
     key(&mut app, KeyCode::Esc)?;
     assert!(command(&mut app, "bind not-a-key toc").is_err());
-    assert!(!app.workspace.keybindings.contains_key("not-a-key"));
+    assert!(!app.workspace().keybindings.contains_key("not-a-key"));
     Ok(())
 }
 
@@ -220,15 +220,15 @@ fn hiding_a_focused_panel_in_settings_returns_focus_to_the_reader() -> Result<()
 {
     let (_directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     command(&mut app, "settings")?;
     for _ in 0..5 {
         key(&mut app, KeyCode::Down)?;
     }
     key(&mut app, KeyCode::Right)?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
-    assert!(!app.workspace.show_library);
-    assert_eq!(app.focus, Focus::Reader);
+    assert!(!app.workspace().show_library);
+    assert_eq!(app.focus(), Focus::Reader);
     Ok(())
 }
 
@@ -280,10 +280,10 @@ fn occurrence_grouping_applies_search_before_selecting_a_representative()
 fn exiting_during_visual_preview_discards_unconfirmed_settings() -> Result<()> {
     let (directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
-    let before = app.workspace.clone();
+    let before = app.workspace().clone();
     command(&mut app, "settings")?;
     key(&mut app, KeyCode::Right)?;
-    assert_ne!(app.workspace.theme, before.theme);
+    assert_ne!(app.workspace().theme, before.theme);
 
     let action =
         app.key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL))?;

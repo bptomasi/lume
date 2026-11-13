@@ -46,7 +46,7 @@ fn fixture(
     })?;
     let mut app = App::new(store, false)?;
     app.jump_article(parent)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.configure_image_terminal(protocol, (10, 20));
     app.resize_workspace(Rect::new(0, 0, 100, 36));
     let cache = directory.path().join("images");
@@ -102,7 +102,7 @@ fn enter_on_article_link_loads_and_paints_the_linked_image() -> Result<()> {
         request.width as usize,
         app.web_page().context("Page")?.width
     );
-    assert!(app.images.thumbnail(&request).is_some());
+    assert!(app.images().thumbnail(&request).is_some());
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
     terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
     assert!(
@@ -138,11 +138,11 @@ fn image_enter_and_mouse_inspection_return_to_the_linked_reading() -> Result<()>
     let cursor = app.web_page().context("Page")?.cursor;
     key(&mut app, KeyCode::Enter)?;
     assert!(
-        matches!(&app.mode, Mode::Image(image) if image.url == "https://example.org/diagram.svg")
+        matches!(app.mode(), Mode::Image(image) if image.url == "https://example.org/diagram.svg")
     );
     settle(&mut app)?;
     key(&mut app, KeyCode::Esc)?;
-    assert!(matches!(app.mode, Mode::Web));
+    assert!(matches!(app.mode(), Mode::Web));
     assert_eq!(app.web_page().context("Page")?.cursor, cursor);
     let page = app.web_page().context("Page")?;
     let area = ui::web_content(Rect::new(0, 0, 100, 36), page.width);
@@ -153,9 +153,9 @@ fn image_enter_and_mouse_inspection_return_to_the_linked_reading() -> Result<()>
         row,
         modifiers: KeyModifiers::NONE,
     })?;
-    assert!(matches!(app.mode, Mode::Image(_)));
+    assert!(matches!(app.mode(), Mode::Image(_)));
     key(&mut app, KeyCode::Esc)?;
-    assert!(matches!(app.mode, Mode::Web));
+    assert!(matches!(app.mode(), Mode::Web));
     assert_eq!(
         command(&mut app, "image-open")?,
         Action::Open("https://example.org/diagram.svg".into())
@@ -176,7 +176,7 @@ fn sixel_linked_rows_are_clipped_and_hidden_beneath_overlays() -> Result<()> {
     settle(&mut app)?;
     let request = image_key(&app)?;
     assert!(
-        app.images
+        app.images()
             .thumbnail(&request)
             .context("Thumbnail")?
             .rows
@@ -224,10 +224,10 @@ fn offscreen_images_wait_and_resize_preserves_source_mappings() -> Result<()> {
     let (_directory, mut app) = fixture(&body, ImageProtocol::Blocks)?;
     command(&mut app, &format!("open-page {URL}"))?;
     settle(&mut app)?;
-    assert!(app.images.thumbnail(&image_key(&app)?).is_none());
+    assert!(app.images().thumbnail(&image_key(&app)?).is_none());
     key(&mut app, KeyCode::Char('G'))?;
     settle(&mut app)?;
-    assert!(app.images.thumbnail(&image_key(&app)?).is_some());
+    assert!(app.images().thumbnail(&image_key(&app)?).is_some());
     app.resize_workspace(Rect::new(0, 0, 60, 24));
     app.poll_web()?;
     settle(&mut app)?;
@@ -287,7 +287,7 @@ fn back_history_restores_cached_pixels_without_loading_them_again() -> Result<()
     command(&mut app, &format!("open-page {URL}"))?;
     settle(&mut app)?;
     let request = image_key(&app)?;
-    assert!(app.images.thumbnail(&request).is_some());
+    assert!(app.images().thumbnail(&request).is_some());
     key(&mut app, KeyCode::Enter)?;
     settle(&mut app)?;
     assert_eq!(
@@ -297,7 +297,7 @@ fn back_history_restores_cached_pixels_without_loading_them_again() -> Result<()
     app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL))?;
     settle(&mut app)?;
     assert_eq!(app.web_page().context("Restored page")?.document.url, URL);
-    assert!(app.images.thumbnail(&image_key(&app)?).is_some());
+    assert!(app.images().thumbnail(&image_key(&app)?).is_some());
     assert!(!app.images_pending());
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
     terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
@@ -327,7 +327,7 @@ fn linked_formula_pixels_and_image_caption_survive_resize() -> Result<()> {
         .context("Graphical formula")?;
     let request = app.image_key(formula).context("Formula key")?;
     assert!(
-        app.images
+        app.images()
             .thumbnail(&request)
             .context("Formula pixels")?
             .rows
@@ -364,14 +364,14 @@ fn paused_sixel_images_report_pause_but_allow_explicit_inspection() -> Result<()
     command(&mut app, &format!("open-page {URL}"))?;
     settle(&mut app)?;
     let request = image_key(&app)?;
-    assert!(app.images.thumbnail(&request).is_none());
-    assert!(app.images.placeholder(&request).contains("paused"));
+    assert!(app.images().thumbnail(&request).is_none());
+    assert!(app.images().placeholder(&request).contains("paused"));
     key(&mut app, KeyCode::Enter)?;
     settle(&mut app)?;
     let inspector = app.image_inspector_key().context("Inspector")?;
-    assert!(app.images.thumbnail(&inspector).is_some());
+    assert!(app.images().thumbnail(&inspector).is_some());
     key(&mut app, KeyCode::Esc)?;
-    assert!(matches!(app.mode, Mode::Web));
+    assert!(matches!(app.mode(), Mode::Web));
     Ok(())
 }
 
@@ -390,7 +390,7 @@ fn terminal_selection_modifiers_do_not_open_linked_image_inspection()
         row: area.y,
         modifiers: KeyModifiers::SHIFT,
     })?;
-    assert!(matches!(app.mode, Mode::Web));
+    assert!(matches!(app.mode(), Mode::Web));
     assert!(app.web_page().context("Page")?.selection.is_none());
     Ok(())
 }

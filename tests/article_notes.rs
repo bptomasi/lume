@@ -55,8 +55,8 @@ fn application(notes: &[(&str, &str)]) -> Result<(tempfile::TempDir, App)> {
         }
     }
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
     app.resize_workspace(SCREEN);
     Ok((directory, app))
 }
@@ -94,10 +94,10 @@ fn mouse(kind: MouseEventKind, column: u16, row: u16) -> MouseEvent {
 }
 
 fn content(app: &App) -> Result<Rect> {
-    let area = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let area = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .reader
         .context("Reader missing")?;
-    Ok(ui::workspace_reader_content(area, &app.workspace))
+    Ok(ui::workspace_reader_content(area, app.workspace()))
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn note_deletion_cancels_on_escape_motion_and_focus_loss() -> Result<()> {
     ))?;
     assert_eq!(app.reader().comments.len(), 1);
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
-    assert_eq!(app.focus, Focus::Reader);
+    assert_eq!(app.focus(), Focus::Reader);
     press(&mut app, 'd')?;
     let mut batch = InputBatch::new(vec![Event::FocusLost]);
     batch.dispatch_next(&mut app)?;
@@ -152,9 +152,9 @@ fn note_deletion_cancels_on_escape_motion_and_focus_loss() -> Result<()> {
 #[test]
 fn annotations_pane_accepts_dd_and_preserves_publisher_text() -> Result<()> {
     let (_directory, mut app) = application(&[("café", "A passage note")])?;
-    app.workspace.fullscreen = false;
+    common::fixture_toggle(&mut app, "fullscreen", false)?;
     command(&mut app, "annotations")?;
-    assert_eq!(app.focus, Focus::Annotations);
+    assert_eq!(app.focus(), Focus::Annotations);
 
     press(&mut app, 'd')?;
     press(&mut app, 'd')?;
@@ -188,7 +188,7 @@ fn new_cursor_note_captures_source_and_gets_a_marker() -> Result<()> {
 
     press(&mut app, 'n')?;
 
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         anyhow::bail!("Expected a note editor");
     };
     let InputKind::Highlight { passage, .. } = &input.kind else {
@@ -212,12 +212,12 @@ fn search_n_stays_a_motion_and_annotate_can_override_it() -> Result<()> {
     let (_directory, mut app) = application(&[])?;
     command(&mut app, "find consensus")?;
     press(&mut app, 'n')?;
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     assert!(app.reader().comments.is_empty());
 
     command(&mut app, "annotate")?;
 
-    assert!(matches!(app.mode, Mode::Input(_)));
+    assert!(matches!(app.mode(), Mode::Input(_)));
     Ok(())
 }
 
@@ -232,7 +232,7 @@ fn footer_edit_and_enter_target_the_actual_note_and_keep_its_quote()
     cursor_on(&mut app, "Second private note")?;
     common::reader::comment(&mut app, 0)?;
     press(&mut app, 'e')?;
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         anyhow::bail!("Expected an editor");
     };
     assert!(matches!(input.kind,
@@ -245,7 +245,7 @@ fn footer_edit_and_enter_target_the_actual_note_and_keep_its_quote()
 
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
 
-    assert!(matches!(app.mode, Mode::Input(_)));
+    assert!(matches!(app.mode(), Mode::Input(_)));
     Ok(())
 }
 
@@ -285,7 +285,7 @@ fn hover_batches_show_the_note_and_clicking_popup_edits_it() -> Result<()> {
         popup.y + 1,
     ))?;
 
-    assert!(matches!(app.mode, Mode::Input(_)));
+    assert!(matches!(app.mode(), Mode::Input(_)));
     assert!(app.hovered_note().is_none());
     Ok(())
 }
@@ -357,7 +357,7 @@ fn hover_works_over_precise_unicode_text_and_disabled_mouse_dismisses_it()
     app.mouse(event)?;
 
     assert!(app.hovered_note().is_none());
-    assert_eq!(app.focus, Focus::Reader);
+    assert_eq!(app.focus(), Focus::Reader);
     Ok(())
 }
 
@@ -411,14 +411,14 @@ fn annotation_previews_stay_inside_small_viewports_in_all_themes() -> Result<()>
 {
     let (_directory, mut app) = application(&[("café", "Private insight")])?;
     for theme in ["lume", "nord", "gruvbox"] {
-        app.workspace.theme = theme.into();
+        common::fixture_command(&mut app, &format!("theme {}", theme))?;
         for (width, height) in [(24, 10), (40, 18), (80, 24), (140, 36)] {
             let screen = Rect::new(0, 0, width, height);
             app.resize_workspace(screen);
             let row = cursor_on(&mut app, "café")?;
             let scroll = row;
             common::reader::scroll(&mut app, scroll)?;
-            let column = ui::workspace_reader_content(screen, &app.workspace);
+            let column = ui::workspace_reader_content(screen, app.workspace());
             let marker_y = column.y + (row - app.reader().scroll) as u16;
             app.mouse(mouse(MouseEventKind::Moved, column.x - 1, marker_y))?;
             let (_, anchor) = app.hovered_note().context("No preview")?;
@@ -441,7 +441,7 @@ fn jumping_to_an_overlapping_note_keeps_it_as_the_deletion_target() -> Result<()
         ("café 🦀", "Chosen insight"),
     ])?;
     let chosen = app.reader().comments[1].id;
-    app.workspace.fullscreen = false;
+    common::fixture_toggle(&mut app, "fullscreen", false)?;
     command(&mut app, "annotations")?;
     app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE))?;
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;

@@ -24,7 +24,7 @@ impl App {
             Focus::Library => {
                 notebook.click_collection(row, area.height.saturating_sub(2));
                 self.choose_note_collection()?;
-                self.focus = Focus::Library;
+                self.layout.focus_pane(Focus::Library);
             }
             Focus::Articles => {
                 notebook.click_note(row, area.height.saturating_sub(2));
@@ -56,7 +56,7 @@ impl App {
             KeyCode::Char('v') => self.mark_notebook_note()?,
             KeyCode::Char('s') => self.synthesize_notes()?,
             KeyCode::Char('b') => self.show_note_references()?,
-            KeyCode::Char(' ') => self.mode = Mode::Leader,
+            KeyCode::Char(' ') => self.interaction.enter(Mode::Leader),
             _ => {}
         }
         Ok(())
@@ -69,7 +69,8 @@ impl App {
             .as_mut()
             .context("Open Notebook first")?;
         let Some((article, id)) = notebook.confirm_delete()? else {
-            self.status = "Note · d again deletes · u undo".into();
+            self.interaction
+                .report("Note · d again deletes · u undo".into());
             return Ok(());
         };
         self.delete_captured_note(article, id)

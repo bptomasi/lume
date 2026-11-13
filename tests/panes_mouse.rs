@@ -26,7 +26,7 @@ fn application() -> Result<(tempfile::TempDir, App)> {
     parsed.articles[0].body = BODY.into();
     store.ingest(&feed, "Journal", &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_workspace(SCREEN);
     Ok((directory, app))
 }
@@ -63,10 +63,10 @@ fn click(app: &mut App, column: u16, row: u16) -> Result<()> {
 }
 
 fn reader_content(app: &App) -> Result<Rect> {
-    let area = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let area = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .reader
         .context("Reader hidden")?;
-    Ok(ui::workspace_reader_content(area, &app.workspace))
+    Ok(ui::workspace_reader_content(area, app.workspace()))
 }
 
 fn reader_row(app: &App, needle: &str) -> Result<u16> {
@@ -139,7 +139,7 @@ fn dragging_across_a_sidebar_stays_in_the_original_reader_column() -> Result<()>
         press(&mut app, KeyCode::Char('y'))?,
         Action::Copy("A c".into())
     );
-    assert_eq!(app.focus, Focus::Reader);
+    assert_eq!(app.focus(), Focus::Reader);
     Ok(())
 }
 
@@ -180,7 +180,7 @@ fn divider_drag_previews_without_writing_then_commits_on_release() -> Result<()>
     app.save_session()?;
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     let initial = store.workspace()?;
-    let boundary = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let boundary = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .articles
         .context("Articles hidden")?
         .x;
@@ -198,8 +198,8 @@ fn divider_drag_previews_without_writing_then_commits_on_release() -> Result<()>
         12,
     )?;
 
-    assert_eq!(app.workspace.library_width, initial.library_width + 5);
-    assert_eq!(app.workspace.article_width, initial.article_width - 5);
+    assert_eq!(app.workspace().library_width, initial.library_width + 5);
+    assert_eq!(app.workspace().article_width, initial.article_width - 5);
     assert_eq!(store.workspace()?.library_width, initial.library_width);
     mouse(
         &mut app,
@@ -216,7 +216,7 @@ fn divider_drag_previews_without_writing_then_commits_on_release() -> Result<()>
 fn keys_focus_loss_and_resize_cancel_uncommitted_divider_widths() -> Result<()>
 {
     let (_directory, mut app) = application()?;
-    let initial = app.workspace.library_width;
+    let initial = app.workspace().library_width;
     for interruption in [
         Event::Key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)),
         Event::FocusLost,
@@ -224,10 +224,11 @@ fn keys_focus_loss_and_resize_cancel_uncommitted_divider_widths() -> Result<()>
         Event::Key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
     ] {
         app.resize_workspace(SCREEN);
-        let boundary = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
-            .articles
-            .context("Articles hidden")?
-            .x;
+        let boundary =
+            ui::workspace_areas(SCREEN, app.focus(), app.workspace())
+                .articles
+                .context("Articles hidden")?
+                .x;
         mouse(
             &mut app,
             MouseEventKind::Down(MouseButton::Left),
@@ -242,7 +243,7 @@ fn keys_focus_loss_and_resize_cancel_uncommitted_divider_widths() -> Result<()>
         )?;
         let mut batch = InputBatch::new(vec![interruption]);
         batch.dispatch_next(&mut app)?;
-        assert_eq!(app.workspace.library_width, initial);
+        assert_eq!(app.workspace().library_width, initial);
     }
     Ok(())
 }
@@ -250,7 +251,7 @@ fn keys_focus_loss_and_resize_cancel_uncommitted_divider_widths() -> Result<()>
 #[test]
 fn header_drag_and_keyboard_move_persist_the_same_pane_order() -> Result<()> {
     let (directory, mut app) = application()?;
-    let areas = ui::workspace_areas(SCREEN, app.focus, &app.workspace);
+    let areas = ui::workspace_areas(SCREEN, app.focus(), app.workspace());
     let library = areas.library.context("Library hidden")?;
     let reader = areas.reader.context("Reader hidden")?;
 
@@ -268,7 +269,7 @@ fn header_drag_and_keyboard_move_persist_the_same_pane_order() -> Result<()> {
     )?;
 
     assert_eq!(
-        app.workspace.panel_order,
+        app.workspace().panel_order,
         [
             Pane::Articles,
             Pane::Reader,
@@ -279,7 +280,7 @@ fn header_drag_and_keyboard_move_persist_the_same_pane_order() -> Result<()> {
     command(&mut app, "panel-focus library")?;
     command(&mut app, "panel-move left")?;
     assert_eq!(
-        app.workspace.panel_order,
+        app.workspace().panel_order,
         [
             Pane::Articles,
             Pane::Library,
@@ -288,7 +289,7 @@ fn header_drag_and_keyboard_move_persist_the_same_pane_order() -> Result<()> {
         ]
     );
     let stored = Store::open(&directory.path().join("library.sqlite3"))?;
-    assert_eq!(stored.workspace()?.panel_order, app.workspace.panel_order);
+    assert_eq!(stored.workspace()?.panel_order, app.workspace().panel_order);
     Ok(())
 }
 
@@ -299,25 +300,25 @@ fn every_pane_can_collapse_and_the_small_restore_buttons_remain_reachable()
     command(&mut app, "annotations")?;
     for pane in Pane::ALL {
         command(&mut app, &format!("panel-focus {}", pane.name()))?;
-        let area = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+        let area = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
             .get(pane)
             .context("Pane hidden")?;
         let button =
             ui::pane_close_rect(area).context("Close control absent")?;
         click(&mut app, button.x + 1, button.y)?;
-        assert!(!app.workspace.pane_visible(pane));
+        assert!(!app.workspace().pane_visible(pane));
     }
     assert!(
-        ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+        ui::workspace_areas(SCREEN, app.focus(), app.workspace())
             .ordered()
             .is_empty()
     );
     let screen = Rect::new(0, 0, 24, 10);
     app.resize_workspace(screen);
-    let (pane, button) = ui::pane_buttons(screen, &app.workspace).remove(2);
+    let (pane, button) = ui::pane_buttons(screen, app.workspace()).remove(2);
     click(&mut app, button.x + 2, button.y)?;
     assert_eq!(pane, Pane::Reader);
-    assert!(app.workspace.show_reader);
+    assert!(app.workspace().show_reader);
     Ok(())
 }
 
@@ -327,16 +328,16 @@ fn ctrl_w_keeps_layout_keys_out_of_reader_motions_and_reopens_notes()
     let (_directory, mut app) = application()?;
     app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
     press(&mut app, KeyCode::Char('a'))?;
-    assert_eq!(app.focus, Focus::Annotations);
-    assert!(app.workspace.show_annotations);
-    let original = app.workspace.annotation_width;
+    assert_eq!(app.focus(), Focus::Annotations);
+    assert!(app.workspace().show_annotations);
+    let original = app.workspace().annotation_width;
     app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
     press(&mut app, KeyCode::Char('+'))?;
-    assert_eq!(app.workspace.annotation_width, original + 2);
+    assert_eq!(app.workspace().annotation_width, original + 2);
     app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
     press(&mut app, KeyCode::Char('c'))?;
-    assert!(!app.workspace.show_annotations);
-    assert_eq!(app.focus, Focus::Reader);
+    assert!(!app.workspace().show_annotations);
+    assert_eq!(app.focus(), Focus::Reader);
     Ok(())
 }
 
@@ -378,12 +379,12 @@ fn annotations_sort_by_source_position_and_general_notes_follow_passages()
     assert_eq!(app.annotation_selected(), Some(0));
     press(&mut app, KeyCode::Down)?;
     press(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.focus, Focus::Reader);
+    assert_eq!(app.focus(), Focus::Reader);
     assert!(
         app.reader().reader_lines[app.reader().reader_cursor]
             .contains("Later recovery")
     );
-    assert!(app.workspace.show_annotations);
+    assert!(app.workspace().show_annotations);
     Ok(())
 }
 
@@ -415,10 +416,10 @@ fn hover_retains_input_without_forcing_frames_and_disabled_mouse_keeps_focus()
     assert!(!batch.is_empty());
     assert!(!batch.needs_redraw());
     command(&mut app, "mouse off")?;
-    let before = (app.focus, app.current().context("Article missing")?.id);
+    let before = (app.focus(), app.current().context("Article missing")?.id);
     click(&mut app, 5, 12)?;
     assert_eq!(
-        (app.focus, app.current().context("Article missing")?.id),
+        (app.focus(), app.current().context("Article missing")?.id),
         before
     );
     Ok(())
@@ -429,16 +430,16 @@ fn resized_and_reordered_layouts_render_all_four_panes_without_overflow()
 -> Result<()> {
     let (_directory, mut app) = application()?;
     command(&mut app, "annotations")?;
-    app.workspace.library_width = 48;
-    app.workspace.article_width = 80;
-    app.workspace.annotation_width = 80;
+    common::fixture_command(&mut app, "sidebar-width 48")?;
+    common::fixture_command(&mut app, "articles-width 80")?;
+    common::fixture_setting(&mut app, 7, &80.to_string())?;
     for (width, height) in [(160, 44), (120, 24), (100, 20), (40, 12), (24, 10)]
     {
         let screen = Rect::new(0, 0, width, height);
         app.resize_workspace(screen);
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
         terminal.draw(|frame| ui::draw(frame, &app))?;
-        let areas = ui::workspace_areas(screen, app.focus, &app.workspace);
+        let areas = ui::workspace_areas(screen, app.focus(), app.workspace());
         for (_, area) in areas.ordered() {
             assert!(area.width >= 16 || width < 80);
             assert!(area.right() <= width);
@@ -502,7 +503,7 @@ fn notes_from_the_other_source_are_labeled_and_mouse_jumps_validate_that_source(
         app.reader().annotations[1].position,
         AnnotationPosition::OtherSource { .. }
     ));
-    let pane = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let pane = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .annotations
         .context("Notes hidden")?;
 
@@ -554,9 +555,9 @@ fn wheel_bursts_coalesce_without_dropping_the_next_command() -> Result<()> {
     let mut batch = InputBatch::new(events);
 
     assert_eq!(batch.dispatch_next(&mut app)?, Some(Action::None));
-    assert_eq!(app.help_scroll, 20);
+    assert_eq!(app.help_scroll(), 20);
     assert_eq!(batch.dispatch_next(&mut app)?, Some(Action::None));
-    assert!(matches!(app.mode, lume::app::Mode::Normal));
+    assert!(matches!(app.mode(), lume::app::Mode::Normal));
     assert!(batch.is_empty());
     Ok(())
 }
@@ -571,9 +572,9 @@ fn mouse_can_activate_a_filtered_palette_choice_without_clicking_through()
 
     click(&mut app, choices.x + 2, choices.y)?;
 
-    assert!(app.workspace.show_annotations);
-    assert_eq!(app.focus, Focus::Annotations);
-    assert!(matches!(app.mode, lume::app::Mode::Normal));
+    assert!(app.workspace().show_annotations);
+    assert_eq!(app.focus(), Focus::Annotations);
+    assert!(matches!(app.mode(), lume::app::Mode::Normal));
     assert!(app.reader().selection.is_none());
     Ok(())
 }
@@ -659,7 +660,7 @@ fn reported_shift_press_does_not_consume_the_layout_prefix() -> Result<()> {
     while batch.dispatch_next(&mut app)?.is_some() {}
 
     assert_eq!(
-        app.workspace.panel_order,
+        app.workspace().panel_order,
         [
             Pane::Library,
             Pane::Reader,
@@ -673,7 +674,7 @@ fn reported_shift_press_does_not_consume_the_layout_prefix() -> Result<()> {
 #[test]
 fn a_background_reload_does_not_discard_a_panel_drag() -> Result<()> {
     let (_directory, mut app) = application()?;
-    let areas = ui::workspace_areas(SCREEN, app.focus, &app.workspace);
+    let areas = ui::workspace_areas(SCREEN, app.focus(), app.workspace());
     let library = areas.library.context("Missing library")?;
     let reader = areas.reader.context("Missing reader")?;
     mouse(
@@ -692,7 +693,7 @@ fn a_background_reload_does_not_discard_a_panel_drag() -> Result<()> {
     )?;
 
     assert_eq!(
-        app.workspace.panel_order,
+        app.workspace().panel_order,
         [
             Pane::Articles,
             Pane::Reader,
@@ -707,9 +708,9 @@ fn a_background_reload_does_not_discard_a_panel_drag() -> Result<()> {
 fn corner_grip_previews_the_target_and_persists_on_release_only() -> Result<()>
 {
     let (directory, mut app) = application()?;
-    let areas = ui::workspace_areas(SCREEN, app.focus, &app.workspace);
+    let areas = ui::workspace_areas(SCREEN, app.focus(), app.workspace());
     let reader = areas.reader.context("Missing reader")?;
-    let original = app.workspace.panel_order;
+    let original = app.workspace().panel_order;
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
 
     begin_panel_drag(&mut app, SCREEN, Pane::Library)?;
@@ -722,7 +723,7 @@ fn corner_grip_previews_the_target_and_persists_on_release_only() -> Result<()>
     let preview = app.panel_drag().context("Missing move preview")?;
     assert_eq!(preview.pane, Pane::Library);
     assert_eq!(preview.target, Some(Pane::Reader));
-    assert_eq!(app.workspace.panel_order, original);
+    assert_eq!(app.workspace().panel_order, original);
     assert_eq!(store.workspace()?.panel_order, original);
     let header = rendered_header(&app, reader)?;
     assert!(header.contains('│'), "Insertion seam was not drawn");
@@ -757,7 +758,7 @@ fn responsive_layout_keeps_drag_targets_stable_when_an_inactive_header_is_grabbe
     let (_directory, mut app) = application()?;
     let screen = Rect::new(0, 0, 100, 44);
     app.resize_workspace(screen);
-    let areas = ui::workspace_areas(screen, app.focus, &app.workspace);
+    let areas = ui::workspace_areas(screen, app.focus(), app.workspace());
     let library = areas.library.context("Missing library")?;
     let reader = areas.reader.context("Missing reader")?;
     let grip = ui::pane_move_rect(library).context("Missing grip")?;
@@ -769,7 +770,7 @@ fn responsive_layout_keeps_drag_targets_stable_when_an_inactive_header_is_grabbe
         grip.y,
     )?;
     app.resize_workspace(screen);
-    let during = ui::workspace_areas(screen, app.focus, &app.workspace);
+    let during = ui::workspace_areas(screen, app.focus(), app.workspace());
     assert_eq!(during.reader, Some(reader));
     assert!(during.articles.is_none());
     mouse(
@@ -779,7 +780,7 @@ fn responsive_layout_keeps_drag_targets_stable_when_an_inactive_header_is_grabbe
         12,
     )?;
 
-    let after = ui::workspace_areas(screen, app.focus, &app.workspace);
+    let after = ui::workspace_areas(screen, app.focus(), app.workspace());
     assert!(
         after.reader.context("Missing reader")?.x
             < after.library.context("Missing library")?.x
@@ -797,7 +798,7 @@ fn keyboard_reorders_visible_neighbors_instead_of_responsively_hidden_panes()
     app.key(KeyEvent::new(KeyCode::Left, KeyModifiers::ALT))?;
 
     assert_eq!(
-        app.workspace.panel_order,
+        app.workspace().panel_order,
         [
             Pane::Reader,
             Pane::Library,
@@ -805,7 +806,7 @@ fn keyboard_reorders_visible_neighbors_instead_of_responsively_hidden_panes()
             Pane::Annotations,
         ]
     );
-    let after = ui::workspace_areas(screen, app.focus, &app.workspace);
+    let after = ui::workspace_areas(screen, app.focus(), app.workspace());
     assert_eq!(after.reader.context("Missing reader")?.x, 0);
     assert!(after.articles.is_none());
     Ok(())
@@ -821,7 +822,7 @@ fn reader_and_notes_reorder_with_direct_and_prefixed_keys_and_survive_reopen()
     command(&mut app, "panel-focus reader")?;
 
     app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::ALT))?;
-    let after = ui::workspace_areas(SCREEN, app.focus, &app.workspace);
+    let after = ui::workspace_areas(SCREEN, app.focus(), app.workspace());
     assert!(
         after.annotations.context("Missing annotations")?.x
             < after.reader.context("Missing reader")?.x
@@ -831,7 +832,7 @@ fn reader_and_notes_reorder_with_direct_and_prefixed_keys_and_survive_reopen()
     let mut app = App::new(store, false)?;
     app.resize_workspace(SCREEN);
     assert_eq!(
-        app.workspace.panel_order,
+        app.workspace().panel_order,
         [
             Pane::Library,
             Pane::Articles,
@@ -841,7 +842,7 @@ fn reader_and_notes_reorder_with_direct_and_prefixed_keys_and_survive_reopen()
     );
     app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL))?;
     press(&mut app, KeyCode::Left)?;
-    let restored = ui::workspace_areas(SCREEN, app.focus, &app.workspace);
+    let restored = ui::workspace_areas(SCREEN, app.focus(), app.workspace());
     assert!(
         restored.reader.context("Missing reader")?.x
             < restored.annotations.context("Missing annotations")?.x
@@ -852,7 +853,7 @@ fn reader_and_notes_reorder_with_direct_and_prefixed_keys_and_survive_reopen()
 #[test]
 fn keys_focus_loss_and_resize_cancel_panel_move_previews() -> Result<()> {
     let (directory, mut app) = application()?;
-    let original = app.workspace.panel_order;
+    let original = app.workspace().panel_order;
     for interruption in [
         Event::Key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)),
         Event::FocusLost,
@@ -864,7 +865,7 @@ fn keys_focus_loss_and_resize_cancel_panel_move_previews() -> Result<()> {
         let mut batch = InputBatch::new(vec![interruption]);
         batch.dispatch_next(&mut app)?;
         assert!(app.panel_drag().is_none());
-        assert_eq!(app.workspace.panel_order, original);
+        assert_eq!(app.workspace().panel_order, original);
     }
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     assert_eq!(store.workspace()?.panel_order, original);
@@ -874,7 +875,7 @@ fn keys_focus_loss_and_resize_cancel_panel_move_previews() -> Result<()> {
 #[test]
 fn releasing_a_panel_outside_a_drop_target_keeps_its_order() -> Result<()> {
     let (directory, mut app) = application()?;
-    let original = app.workspace.panel_order;
+    let original = app.workspace().panel_order;
     begin_panel_drag(&mut app, SCREEN, Pane::Reader)?;
     mouse(
         &mut app,
@@ -888,7 +889,7 @@ fn releasing_a_panel_outside_a_drop_target_keeps_its_order() -> Result<()> {
 }
 
 fn begin_panel_drag(app: &mut App, screen: Rect, pane: Pane) -> Result<()> {
-    let area = ui::workspace_areas(screen, app.focus, &app.workspace)
+    let area = ui::workspace_areas(screen, app.focus(), app.workspace())
         .get(pane)
         .context("Missing drag source")?;
     let grip = ui::pane_move_rect(area).context("Missing corner grip")?;
@@ -913,7 +914,7 @@ fn rendered_header(app: &App, area: Rect) -> Result<String> {
 fn panel_moves_can_target_collapsed_top_tabs_without_expanding_them()
 -> Result<()> {
     let (directory, mut app) = application()?;
-    let (_, tab) = ui::pane_buttons(SCREEN, &app.workspace)
+    let (_, tab) = ui::pane_buttons(SCREEN, app.workspace())
         .into_iter()
         .find(|(pane, _)| *pane == Pane::Annotations)
         .context("Missing annotations tab")?;
@@ -936,7 +937,7 @@ fn panel_moves_can_target_collapsed_top_tabs_without_expanding_them()
         tab.y,
     )?;
 
-    assert!(!app.workspace.show_annotations);
+    assert!(!app.workspace().show_annotations);
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     assert_eq!(
         store.workspace()?.panel_order,
@@ -963,9 +964,10 @@ fn every_dragged_pane_keeps_its_entire_rounded_outline() -> Result<()> {
     command(&mut app, "annotations")?;
     for pane in Pane::ALL {
         for capture_before_motion in [true, false] {
-            let area = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
-                .get(pane)
-                .context("Pane hidden")?;
+            let area =
+                ui::workspace_areas(SCREEN, app.focus(), app.workspace())
+                    .get(pane)
+                    .context("Pane hidden")?;
             let grip = ui::pane_move_rect(area).context("Grip hidden")?;
             let column = if area.x >= 7 { grip.x - 6 } else { grip.x + 8 };
             begin_panel_drag(&mut app, SCREEN, pane)?;
@@ -1013,9 +1015,9 @@ fn assert_rounded_outline(buffer: &ratatui::buffer::Buffer, area: Rect) {
 fn held_pane_follows_the_grab_offset_with_frozen_cells_and_no_layout_write()
 -> Result<()> {
     let (directory, mut app) = application()?;
-    let original = app.workspace.panel_order;
+    let original = app.workspace().panel_order;
     let text = app.reader().reader_text.to_owned();
-    let area = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let area = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .reader
         .context("Missing reader")?;
     let grip = ui::pane_move_rect(area).context("Missing grip")?;
@@ -1040,7 +1042,7 @@ fn held_pane_follows_the_grab_offset_with_frozen_cells_and_no_layout_write()
     let mut held_cell = original_cell.clone();
     held_cell.set_bg(ratatui::style::Color::Rgb(13, 13, 15));
     assert_eq!(after[(floating.area.x + 4, floating.area.y + 1)], held_cell);
-    assert_eq!(app.workspace.panel_order, original);
+    assert_eq!(app.workspace().panel_order, original);
     assert_eq!(app.reader().reader_text, text);
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     assert_eq!(store.workspace()?.panel_order, original);
@@ -1057,7 +1059,7 @@ fn held_picture_clips_at_screen_edges_and_dim_backdrop_restores_on_cancel()
         ("nord", Color::Rgb(52, 60, 75), Color::Rgb(31, 36, 45)),
         ("gruvbox", Color::Rgb(40, 40, 40), Color::Rgb(24, 24, 24)),
     ] {
-        app.workspace.theme = theme.into();
+        common::fixture_command(&mut app, &format!("theme {}", theme))?;
         begin_panel_drag(&mut app, SCREEN, Pane::Library)?;
         let original = motion_frame(&mut app)?;
         for (column, row) in [(80, 12), (159, 43), (80, 0)] {
@@ -1108,8 +1110,8 @@ fn vertical_only_motion_settles_back_without_changing_saved_order() -> Result<()
 {
     use std::time::{Duration, Instant};
     let (directory, mut app) = application()?;
-    let original = app.workspace.panel_order;
-    let area = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let original = app.workspace().panel_order;
+    let area = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .library
         .context("Library hidden")?;
     let column = ui::pane_move_rect(area).context("Grip hidden")?.x + 1;
@@ -1134,7 +1136,7 @@ fn vertical_only_motion_settles_back_without_changing_saved_order() -> Result<()
     assert!((2..43).contains(&picture.area.y));
     app.tick_pane_motion(now + Duration::from_secs(1));
     assert!(app.floating_pane().is_none());
-    assert_eq!(app.workspace.panel_order, original);
+    assert_eq!(app.workspace().panel_order, original);
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     assert_eq!(store.workspace()?.panel_order, original);
     Ok(())
@@ -1142,7 +1144,7 @@ fn vertical_only_motion_settles_back_without_changing_saved_order() -> Result<()
 
 fn settling_application() -> Result<(tempfile::TempDir, App)> {
     let (directory, mut app) = application()?;
-    let reader = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let reader = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .reader
         .context("Missing reader")?;
     begin_panel_drag(&mut app, SCREEN, Pane::Library)?;
@@ -1196,14 +1198,14 @@ fn input_and_resize_interrupt_motion_without_delaying_the_requested_action()
 -> Result<()> {
     let (_directory, mut app) = settling_application()?;
     press(&mut app, KeyCode::Char('?'))?;
-    assert!(matches!(app.mode, lume::app::Mode::Help));
+    assert!(matches!(app.mode(), lume::app::Mode::Help));
     assert!(!app.pane_motion_active());
     let (_directory, mut app) = settling_application()?;
     app.resize_workspace(Rect::new(0, 0, 120, 32));
     assert!(!app.pane_motion_active());
     assert!(app.floating_pane().is_none());
     let (_directory, mut app) = settling_application()?;
-    let reader = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let reader = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .reader
         .context("Reader hidden")?;
     mouse(
@@ -1227,7 +1229,7 @@ fn compact_header_uses_the_removed_breadcrumb_row_for_pane_controls()
     assert!(controls.contains("Library"));
     assert!(controls.contains("Annotations"));
     assert!(!controls.contains("Inbox"));
-    let library = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let library = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .library
         .context("Missing library")?;
     assert_eq!(library.y, 2);

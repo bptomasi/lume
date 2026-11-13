@@ -231,7 +231,7 @@ fn interactions(
 ) -> Result<()> {
     let mut app = App::new(store, false)?;
     app.set_view(View::All)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_reader(82, 29);
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     latency("reader motion to frame", samples, |index| {
@@ -251,7 +251,7 @@ fn interactions(
         );
         Ok(())
     })?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     latency("cached article selection/open to frame", samples, |_| {
         let before = app.current().context("Missing selection")?.id;
         press(&mut app, KeyCode::Down)?;
@@ -261,11 +261,11 @@ fn interactions(
             app.current().context("Selection lost")?.id < before,
             "Open retargeted the article"
         );
-        app.focus = Focus::Articles;
+        app.activate_pane(Focus::Articles);
         Ok(())
     })?;
     press(&mut app, KeyCode::Home)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     reflow_latency(&mut app, &mut terminal, samples)?;
     background::run(&mut app, &mut terminal, path, samples, stress)
 }
@@ -281,18 +281,23 @@ fn reflow_latency(
         |index| {
             let (width, height) =
                 if index % 2 == 0 { (80, 24) } else { (144, 44) };
-            app.workspace.theme =
-                if index % 2 == 0 { "nord" } else { "lume" }.into();
+            crate::fixture_command(
+                app,
+                &format!(
+                    "theme {}",
+                    if index % 2 == 0 { "nord" } else { "lume" }
+                ),
+            )?;
             terminal.backend_mut().resize(width, height);
             terminal.autoresize()?;
             let area = ui::workspace_areas(
                 Rect::new(0, 0, width, height),
-                app.focus,
-                &app.workspace,
+                app.focus(),
+                app.workspace(),
             )
             .reader
             .context("Reader disappeared")?;
-            let content = ui::workspace_reader_content(area, &app.workspace);
+            let content = ui::workspace_reader_content(area, app.workspace());
             app.resize_reader(content.width.into(), content.height.into());
             terminal.draw(|frame| ui::draw(frame, app))?;
             ensure!(

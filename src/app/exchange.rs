@@ -21,20 +21,24 @@ impl App {
                 let candidates = opml::decode(&read_import(path)?)?;
                 let count = self.store.import_feeds(&candidates)?;
                 self.reload()?;
-                self.status =
-                    format!("Imported {count} subscriptions · r collect");
+                self.interaction.report(format!(
+                    "Imported {count} subscriptions · r collect"
+                ));
             }
             InputKind::ExportArticle(id) => {
                 markdown::article(&self.store, id, path)?;
-                self.status = "Article exported to Markdown".into();
+                self.interaction
+                    .report("Article exported to Markdown".into());
             }
             InputKind::ExportNotebook => {
                 markdown::notebook(&self.store, path)?;
-                self.status = "Notebook exported to Markdown".into();
+                self.interaction
+                    .report("Notebook exported to Markdown".into());
             }
             InputKind::ExportOpml => {
                 opml::export(&self.store, path)?;
-                self.status = "Subscriptions exported to OPML".into();
+                self.interaction
+                    .report("Subscriptions exported to OPML".into());
             }
             _ => {}
         }

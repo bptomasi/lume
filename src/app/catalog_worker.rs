@@ -163,7 +163,7 @@ impl App {
             worker.ready = None;
             worker.revision = self.nav.library_revision();
             worker.worker.submit(Request {
-                last_visit: self.workspace.last_visit,
+                last_visit: self.layout.workspace().last_visit,
                 previous: if matches!(worker.scope, Scope::Changes(_)) {
                     self.nav.navigation_sections().catalog().to_vec()
                 } else {
@@ -181,7 +181,9 @@ impl App {
         if let Some(result) = worker.worker.poll() {
             worker.ready = Some(result);
         }
-        if !matches!(self.mode, Mode::Normal) || self.reader.selecting() {
+        if !matches!(self.interaction.mode(), Mode::Normal)
+            || self.reader.selecting()
+        {
             return Ok(false);
         }
         let Some(result) = worker.ready.take() else {
@@ -254,7 +256,7 @@ mod tests {
         assert!(!app.poll_catalog()?);
 
         assert!(app.catalog_pending(), "Latest counts were not requested");
-        assert!(!app.status.contains("obsolete"));
+        assert!(!app.interaction.status().contains("obsolete"));
         app.end_session()?;
         Ok(())
     }
@@ -329,7 +331,7 @@ mod invalidation_tests {
     -> Result<()> {
         let (_directory, _path, store) = library()?;
         let mut app = App::new(store, false)?;
-        app.workspace.collapsed_groups.push("SMART LISTS".into());
+        app.toggle_navigation_group("smart")?;
         app.project_navigation();
         let id = app.current().context("Article")?.id;
         app.store.set_unread(id, false)?;
@@ -343,7 +345,7 @@ mod invalidation_tests {
             })
             .context("Collapsed group")?;
         assert_eq!(group.count, 1);
-        app.workspace.collapsed_groups.clear();
+        app.toggle_navigation_group("smart")?;
         app.project_navigation();
         let unread = app
             .navigation()

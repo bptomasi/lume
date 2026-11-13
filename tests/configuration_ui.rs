@@ -51,7 +51,7 @@ fn external_preferences_apply_without_replacing_newer_interface_choices()
 
     command(&mut app, "theme gruvbox")?;
     app.configuration_updated(reconciled.initial().clone())?;
-    assert_eq!(app.workspace.theme, "gruvbox");
+    assert_eq!(app.workspace().theme, "gruvbox");
     app.end_session()?;
     session.flush()?;
     assert_eq!(config::read_document(&path)?.ui.theme, "gruvbox");
@@ -130,8 +130,8 @@ fn image_preferences_survive_publication_and_reopening() -> Result<()> {
         lume::model::ImagePreference::Sixel
     );
     let reopened = App::new(Store::open(&database)?, false)?;
-    assert!(!reopened.images.enabled);
-    assert_eq!(reopened.workspace.images, config.ui.images);
+    assert!(!reopened.images().enabled);
+    assert_eq!(reopened.workspace().images, config.ui.images);
     Ok(())
 }
 
@@ -173,7 +173,7 @@ fn justification_alone_publishes_and_external_edits_survive_restart()
     session.flush()?;
     assert!(config::read_document(&path)?.ui.justify);
     let reopened = App::new(Store::open(&database)?, false)?;
-    assert!(reopened.workspace.justify);
+    assert!(reopened.workspace().justify);
 
     command(&mut app, "justify off")?;
     session.flush()?;
@@ -181,8 +181,12 @@ fn justification_alone_publishes_and_external_edits_survive_restart()
     fs::write(&path, "[ui]\njustify = true\n")?;
     let external = Session::open(&Store::open(&database)?, &path)?;
     app.configuration_updated(external.initial().clone())?;
-    assert!(app.workspace.justify);
-    assert!(App::new(Store::open(&database)?, false)?.workspace.justify);
+    assert!(app.workspace().justify);
+    assert!(
+        App::new(Store::open(&database)?, false)?
+            .workspace()
+            .justify
+    );
     Ok(())
 }
 
@@ -208,13 +212,13 @@ fn external_preferences_wait_for_a_polled_barrier_without_blocking_input()
     app.configuration_updated(update)?;
 
     assert!(started.elapsed() < std::time::Duration::from_millis(250));
-    assert_eq!(app.workspace.theme, "lume");
+    assert_eq!(app.workspace().theme, "lume");
     blocker.execute_batch(include_str!(
         "sql/configuration_ui/test_rollback.sql"
     ))?;
     let deadline =
         std::time::Instant::now() + std::time::Duration::from_secs(5);
-    while app.workspace.theme != "nord" {
+    while app.workspace().theme != "nord" {
         anyhow::ensure!(
             std::time::Instant::now() < deadline,
             "Configuration barrier timed out"
@@ -238,13 +242,13 @@ fn formula_only_edits_publish_and_survive_external_edits_and_restart()
     app.configure_document(session.initial().clone());
     app.save_session()?;
     session.flush()?;
-    assert!(app.workspace.latex_formulas);
+    assert!(app.workspace().latex_formulas);
     command(&mut app, "latex-formulas off")?;
     session.flush()?;
     assert!(!config::read_document(&path)?.ui.latex_formulas);
     assert!(
         !App::new(Store::open(&database)?, false)?
-            .workspace
+            .workspace()
             .latex_formulas
     );
     command(&mut app, "latex-formulas toggle")?;
@@ -253,10 +257,10 @@ fn formula_only_edits_publish_and_survive_external_edits_and_restart()
     fs::write(&path, "[ui]\nlatex_formulas = false\n")?;
     let external = Session::open(&Store::open(&database)?, &path)?;
     app.configuration_updated(external.initial().clone())?;
-    assert!(!app.workspace.latex_formulas);
+    assert!(!app.workspace().latex_formulas);
     assert!(
         !App::new(Store::open(&database)?, false)?
-            .workspace
+            .workspace()
             .latex_formulas
     );
     Ok(())
@@ -277,11 +281,11 @@ fn an_older_publication_cannot_undo_a_local_return_to_the_initial_value()
     let old = Session::open(&Store::open(&database)?, &path)?;
     command(&mut app, "latex-formulas on")?;
     app.configuration_updated(old.initial().clone())?;
-    assert!(app.workspace.latex_formulas);
+    assert!(app.workspace().latex_formulas);
     session.flush()?;
     let latest = Session::open(&Store::open(&database)?, &path)?;
     app.configuration_updated(latest.initial().clone())?;
-    assert!(app.workspace.latex_formulas);
+    assert!(app.workspace().latex_formulas);
     fs::write(
         &path,
         fs::read_to_string(&path)?
@@ -289,7 +293,7 @@ fn an_older_publication_cannot_undo_a_local_return_to_the_initial_value()
     )?;
     let external = Session::open(&Store::open(&database)?, &path)?;
     app.configuration_updated(external.initial().clone())?;
-    assert!(!app.workspace.latex_formulas);
+    assert!(!app.workspace().latex_formulas);
     Ok(())
 }
 
@@ -307,7 +311,7 @@ fn configuration_inspection_uses_the_cached_redacted_document() -> Result<()> {
     app.configure_document(session.initial().clone());
     fs::remove_file(&path)?;
     command(&mut app, "config")?;
-    let lume::app::Mode::Document(document) = &app.mode else {
+    let lume::app::Mode::Document(document) = app.mode() else {
         anyhow::bail!("Configuration inspection did not open");
     };
     let visible = document.lines.join("\n");

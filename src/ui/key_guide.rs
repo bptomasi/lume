@@ -11,7 +11,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
         return;
     };
     let width = area.width;
-    let title = format!("Layout · Ctrl-w · {}", app.focus.title());
+    let title = format!("Layout · Ctrl-w · {}", app.focus().title());
     let inner = super::popup::draw_frame(frame, &title, area);
     let help = if width < 62 {
         concat!(
@@ -41,7 +41,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
 }
 
 pub(super) fn area(app: &App, screen: Rect) -> Option<Rect> {
-    if !app.layout_prefix_pending() || !matches!(app.mode, Mode::Normal) {
+    if !app.layout_prefix_pending() || !matches!(app.mode(), Mode::Normal) {
         return None;
     }
     let width = screen.width.saturating_sub(4).min(70);

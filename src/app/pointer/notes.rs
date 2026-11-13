@@ -24,7 +24,7 @@ impl App {
 
     pub(super) fn note_popup_at(&self, position: Position) -> Option<i64> {
         let (id, anchor) = self.reader.hovered_note()?;
-        ui::note_preview_area(self.screen, anchor)
+        ui::note_preview_area(self.layout.screen(), anchor)
             .contains(position)
             .then_some(id)
     }
@@ -40,10 +40,14 @@ impl App {
         {
             return None;
         }
-        let area =
-            ui::workspace_areas(self.screen, self.focus, &self.workspace)
-                .reader?;
-        let content = ui::workspace_reader_content(area, &self.workspace);
+        let area = ui::workspace_areas(
+            self.layout.screen(),
+            self.layout.focus(),
+            self.layout.workspace(),
+        )
+        .reader?;
+        let content =
+            ui::workspace_reader_content(area, self.layout.workspace());
         if event.row < content.y || event.row >= content.bottom() {
             return None;
         }
@@ -73,7 +77,7 @@ impl App {
             return Ok(false);
         };
         self.cancel_pointer();
-        self.focus = Pane::Reader;
+        self.layout.focus_pane(Pane::Reader);
         self.edit_note(id)?;
         Ok(true)
     }

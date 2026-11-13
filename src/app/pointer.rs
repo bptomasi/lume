@@ -39,12 +39,6 @@ impl Widths {
         }
     }
 
-    fn restore(self, workspace: &mut Workspace) {
-        workspace.library_width = self.library;
-        workspace.article_width = self.articles;
-        workspace.annotation_width = self.annotations;
-    }
-
     fn visible(
         workspace: &Workspace,
         areas: &ui::Areas,
@@ -113,21 +107,24 @@ pub(super) struct Pointer {
 impl App {
     pub(super) fn cancel_pointer(&mut self) {
         self.reader.hover_note(None);
-        self.pane_flight = None;
-        self.pane_neighbors = None;
+        self.pane_motion.cancel();
         match self.pointer.gesture.take() {
             Some(Gesture::SplitResize { before, .. }) => {
-                self.workspace.layout = Some(before);
-                self.resize_workspace(self.screen);
-                self.status = "Panel resize canceled".into();
+                self.layout.restore_tree(before);
+                self.resize_workspace(self.layout.screen());
+                self.interaction.report("Panel resize canceled".into());
             }
             Some(Gesture::Resize(capture)) => {
-                capture.before.restore(&mut self.workspace);
-                self.resize_workspace(self.screen);
-                self.status = "Panel resize canceled".into();
+                self.layout.restore_widths(
+                    capture.before.library,
+                    capture.before.articles,
+                    capture.before.annotations,
+                );
+                self.resize_workspace(self.layout.screen());
+                self.interaction.report("Panel resize canceled".into());
             }
             Some(Gesture::Reorder(_)) => {
-                self.status = "Panel move canceled".into();
+                self.interaction.report("Panel move canceled".into());
             }
             _ => {}
         }
@@ -204,21 +201,20 @@ impl App {
                 | MouseEventKind::ScrollLeft
                 | MouseEventKind::ScrollRight
         ) {
-            self.pending_destination_delete = None;
-            self.pending_article_delete = None;
+            self.interaction.cancel_deletions();
         }
-        if !self.workspace.mouse
+        if !self.layout.workspace().mouse
             || !event.modifiers.is_empty()
-            || self.screen.width < 24
-            || self.screen.height < 10
+            || self.layout.screen().width < 24
+            || self.layout.screen().height < 10
         {
             self.cancel_pointer();
             return Ok(Action::None);
         }
-        if matches!(self.mode, Mode::Web) {
+        if matches!(self.interaction.mode(), Mode::Web) {
             return self.web_mouse(event);
         }
-        if !matches!(self.mode, Mode::Normal) {
+        if !matches!(self.interaction.mode(), Mode::Normal) {
             return self.modal_pointer(event);
         }
         match event.kind {
@@ -245,18 +241,21 @@ impl App {
         if self.panel_drag().is_some() {
             return;
         }
-        let Some(reader) =
-            ui::workspace_areas(self.screen, self.focus, &self.workspace)
-                .reader
+        let Some(reader) = ui::workspace_areas(
+            self.layout.screen(),
+            self.layout.focus(),
+            self.layout.workspace(),
+        )
+        .reader
         else {
             return;
         };
-        let content = ui::workspace_reader_content(reader, &self.workspace);
+        let content =
+            ui::workspace_reader_content(reader, self.layout.workspace());
         if !content.contains(Position::new(event.column, event.row)) {
             return;
         }
-        self.pane_flight = None;
-        self.pane_neighbors = None;
+        self.pane_motion.cancel();
         let row = self.reader.first_row() + usize::from(event.row - content.y);
         self.scroll_horizontal_row(
             row,
@@ -270,8 +269,10 @@ impl App {
         }
         self.cancel_pointer();
         let position = Position::new(event.column, event.row);
-        if !self.workspace.fullscreen {
-            for (pane, button) in ui::pane_buttons(self.screen, &self.workspace)
+        let layout = self.layout.view();
+        if !layout.workspace.fullscreen {
+            for (pane, button) in
+                ui::pane_buttons(layout.screen, layout.workspace)
             {
                 if button.contains(position) {
                     return self.toggle_pane(pane);
@@ -279,7 +280,7 @@ impl App {
             }
         }
         let areas =
-            ui::workspace_areas(self.screen, self.focus, &self.workspace);
+            ui::workspace_areas(layout.screen, layout.focus, layout.workspace);
         if self.begin_resize(&areas, event) {
             return Ok(());
         }
@@ -287,19 +288,16 @@ impl App {
             if !area.contains(position) {
                 continue;
             }
-            if event.row == area.y
-                && !ui::pane_close_rect(area)
-                    .is_some_and(|rect| rect.contains(position))
-            {
+            let closing = ui::pane_close_rect(area)
+                .is_some_and(|rect| rect.contains(position));
+            if event.row == area.y && !closing {
                 self.begin_reorder(pane, &areas, event);
                 return Ok(());
             }
-            self.focus = pane;
+            self.layout.focus_pane(pane);
             self.reader.cancel_selection();
-            self.vim.clear_input();
-            if ui::pane_close_rect(area)
-                .is_some_and(|rect| rect.contains(position))
-            {
+            self.interaction.vim_input().clear_input();
+            if closing {
                 return self.toggle_pane(pane);
             }
             return self.click_pane(pane, area, event);
@@ -351,7 +349,7 @@ impl App {
                 }
             }
         }
-        self.resize_workspace(self.screen);
+        self.resize_workspace(self.layout.screen());
         Ok(())
     }
 
@@ -375,26 +373,27 @@ impl App {
     ) -> Result<()> {
         self.pointer.seen = true;
         self.reader.arm_note_delete(None);
-        self.pending_destination_delete = None;
-        self.pending_article_delete = None;
-        if !self.workspace.mouse
+        self.interaction.cancel_deletions();
+        if !self.layout.workspace().mouse
             || !event.modifiers.is_empty()
-            || self.screen.width < 24
-            || self.screen.height < 10
+            || self.layout.screen().width < 24
+            || self.layout.screen().height < 10
         {
             return Ok(());
         }
-        if !matches!(self.mode, Mode::Normal) {
+        if !matches!(self.interaction.mode(), Mode::Normal) {
             return self.scroll_modal(event, amount);
         }
         if self.panel_drag().is_some() {
             return Ok(());
         }
-        self.pane_flight = None;
-        self.pane_neighbors = None;
+        self.pane_motion.cancel();
         self.reader.hover_note(None);
-        let areas =
-            ui::workspace_areas(self.screen, self.focus, &self.workspace);
+        let areas = ui::workspace_areas(
+            self.layout.screen(),
+            self.layout.focus(),
+            self.layout.workspace(),
+        );
         let target = areas.ordered().into_iter().find(|(_, area)| {
             area.contains(Position::new(event.column, event.row))
         });
@@ -405,12 +404,12 @@ impl App {
                 } else {
                     pane
                 };
-            self.focus = pane;
+            self.layout.focus_pane(pane);
             let motion = self.pending_formula_motion();
             self.scroll_focused_pane(event, amount)?;
             self.retarget_formula_motion(motion);
         }
-        self.resize_workspace(self.screen);
+        self.resize_workspace(self.layout.screen());
         Ok(())
     }
     fn scroll_focused_pane(
@@ -421,7 +420,7 @@ impl App {
         let forward = event.kind == MouseEventKind::ScrollDown;
         if self.notebook().is_some() {
             self.move_notebook(forward, amount)?;
-        } else if self.focus == Pane::Reader {
+        } else if self.layout.focus() == Pane::Reader {
             self.scroll_reader(forward, amount);
         } else {
             self.move_selection(forward, amount)?;

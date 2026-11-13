@@ -27,24 +27,27 @@ impl App {
         body: &str,
         confirm: Option<ChoiceAction>,
     ) {
-        self.mode = Mode::Document(Box::new(DocumentView {
-            title: title.to_owned(),
-            lines: crate::content::clean(body)
-                .lines()
-                .map(str::to_owned)
-                .collect(),
-            row: 0,
-            column: 0,
-            confirm,
-        }));
+        self.interaction
+            .enter(Mode::Document(Box::new(DocumentView {
+                title: title.to_owned(),
+                lines: crate::content::clean(body)
+                    .lines()
+                    .map(str::to_owned)
+                    .collect(),
+                row: 0,
+                column: 0,
+                confirm,
+            })));
     }
 
     pub(super) fn document_key(&mut self, key: KeyEvent) -> Result<Action> {
-        let Mode::Document(document) = &mut self.mode else {
+        let Some(document) = self.interaction.document_mut() else {
             return Ok(Action::None);
         };
         match key.code {
-            KeyCode::Esc | KeyCode::Char('q') => self.mode = Mode::Normal,
+            KeyCode::Esc | KeyCode::Char('q') => {
+                self.interaction.enter(Mode::Normal)
+            }
             KeyCode::Down | KeyCode::Char('j') => {
                 document.row = (document.row + 1)
                     .min(document.lines.len().saturating_sub(1));
@@ -65,9 +68,9 @@ impl App {
             KeyCode::PageUp => document.row = document.row.saturating_sub(10),
             KeyCode::Enter => {
                 if let Some(action) = document.confirm.clone() {
-                    let previous = std::mem::take(&mut self.mode);
+                    let previous = self.interaction.take_mode();
                     if let Err(error) = self.apply_choice(action) {
-                        self.mode = previous;
+                        self.interaction.enter(previous);
                         return Err(error);
                     }
                 }

@@ -7,7 +7,7 @@ use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tui_textarea::CursorMove;
 
-use super::{Action, App, Input, Mode, editor::multiline};
+use super::{Action, App, Input, editor::multiline};
 
 /// Editing layer within a captured annotation or study-card buffer.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -29,7 +29,7 @@ impl App {
         &mut self,
         key: KeyEvent,
     ) -> Result<Option<Action>> {
-        let Mode::Input(input) = &mut self.mode else {
+        let Some(input) = self.interaction.draft_mut() else {
             return Ok(None);
         };
         if !multiline(&input.kind) {

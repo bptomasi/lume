@@ -34,7 +34,7 @@ fn main() -> Result<()> {
 
 fn preview_note_editor(app: &mut App) -> Result<()> {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    app.focus = lume::app::Focus::Reader;
+    app.activate_pane(lume::app::Focus::Reader);
     app.key(KeyEvent::new(KeyCode::Char(':'), KeyModifiers::NONE))?;
     app.paste("note")?;
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
@@ -71,14 +71,14 @@ fn finish_notebook(app: &mut App) -> Result<()> {
 fn preview_note_hover(app: &mut App) -> Result<()> {
     use crossterm::event::{KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
     let screen = ratatui::layout::Rect::new(0, 0, 144, 44);
-    let area = ui::workspace_areas(screen, app.focus, &app.workspace)
+    let area = ui::workspace_areas(screen, app.focus(), app.workspace())
         .reader
         .context("Missing reader")?;
-    let column = ui::workspace_reader_content(area, &app.workspace);
+    let column = ui::workspace_reader_content(area, app.workspace());
     let row = (0..app.reader().reader_lines.len())
         .find(|row| !app.reader_note_markers(*row).is_empty())
         .context("Missing note marker")?;
-    app.focus = lume::app::Focus::Reader;
+    app.activate_pane(lume::app::Focus::Reader);
     for character in format!("{}Gzt", row + 1).chars() {
         app.key(KeyCode::Char(character).into())?;
     }
@@ -291,8 +291,8 @@ fn preview_panel_move(app: &mut App) -> Result<()> {
     };
     let areas = ui::workspace_areas(
         ratatui::layout::Rect::new(0, 0, 144, 44),
-        app.focus,
-        &app.workspace,
+        app.focus(),
+        app.workspace(),
     );
     let grip = ui::pane_move_rect(areas.reader.context("Missing reader")?)
         .context("Missing move grip")?;

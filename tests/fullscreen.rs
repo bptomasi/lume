@@ -40,7 +40,7 @@ fn fullscreen_width_reflows_immediately_and_survives_restart_and_profiles()
 
     command(&mut app, "fullscreen-width 100")?;
     assert_eq!(app.reader().reader_width, 100);
-    assert_eq!(app.workspace.reading_width, 82);
+    assert_eq!(app.workspace().reading_width, 82);
     command(&mut app, "workspace save Wide")?;
     command(&mut app, "fullscreen-width 60")?;
     assert_eq!(app.reader().reader_width, 60);
@@ -52,7 +52,7 @@ fn fullscreen_width_reflows_immediately_and_survives_restart_and_profiles()
     let restored = Store::open(&directory.path().join("library.sqlite3"))?;
     let mut app = App::new(restored, false)?;
     app.resize_workspace(Rect::new(0, 0, 200, 44));
-    assert!(app.workspace.fullscreen);
+    assert!(app.workspace().fullscreen);
     assert_eq!(app.reader().reader_width, 100);
     Ok(())
 }
@@ -67,7 +67,7 @@ fn invalid_fullscreen_width_leaves_current_and_saved_preferences_intact()
         assert!(
             command(&mut app, &format!("fullscreen-width {invalid}")).is_err()
         );
-        assert_eq!(app.workspace.fullscreen_width, 100);
+        assert_eq!(app.workspace().fullscreen_width, 100);
         press(&mut app, KeyCode::Esc)?;
     }
     let saved = Store::open(&directory.path().join("library.sqlite3"))?;
@@ -118,24 +118,24 @@ fn fullscreen_restores_focus_panel_preferences_and_selected_article()
 -> Result<()> {
     let (_directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Library;
-    app.workspace.article_width = 42;
-    app.workspace.library_width = 28;
-    app.workspace.reading_width = 65;
-    app.workspace.show_articles = false;
+    app.activate_pane(Focus::Library);
+    common::fixture_command(&mut app, "articles-width 42")?;
+    common::fixture_command(&mut app, "sidebar-width 28")?;
+    common::fixture_command(&mut app, "width 65")?;
+    common::fixture_pane(&mut app, lume::model::Pane::Articles, false)?;
     let article = app.current().map(|article| article.id);
 
     press(&mut app, KeyCode::F(11))?;
-    assert!(app.workspace.fullscreen);
-    assert_eq!(app.focus, Focus::Reader);
+    assert!(app.workspace().fullscreen);
+    assert_eq!(app.focus(), Focus::Reader);
     press(&mut app, KeyCode::Esc)?;
 
-    assert!(!app.workspace.fullscreen);
-    assert_eq!(app.focus, Focus::Library);
-    assert_eq!(app.workspace.article_width, 42);
-    assert_eq!(app.workspace.library_width, 28);
-    assert_eq!(app.workspace.reading_width, 65);
-    assert!(!app.workspace.show_articles);
+    assert!(!app.workspace().fullscreen);
+    assert_eq!(app.focus(), Focus::Library);
+    assert_eq!(app.workspace().article_width, 42);
+    assert_eq!(app.workspace().library_width, 28);
+    assert_eq!(app.workspace().reading_width, 65);
+    assert!(!app.workspace().show_articles);
     assert_eq!(app.current().map(|article| article.id), article);
     Ok(())
 }
@@ -177,7 +177,7 @@ fn fullscreen_draws_article_and_exit_hint_without_application_chrome()
         let mut terminal = Terminal::new(TestBackend::new(width, height))?;
         let column = ui::workspace_reader_content(
             Rect::new(0, 0, width, height),
-            &app.workspace,
+            app.workspace(),
         );
         app.resize_reader(column.width.into(), column.height.into());
         terminal.draw(|frame| ui::draw(frame, &app))?;
@@ -205,16 +205,16 @@ fn closing_overlays_or_visual_selection_does_not_exit_fullscreen() -> Result<()>
     let mut app = App::new(store, false)?;
     text(&mut app, "Z?")?;
     press(&mut app, KeyCode::Esc)?;
-    assert!(app.workspace.fullscreen);
+    assert!(app.workspace().fullscreen);
     text(&mut app, ":fs")?;
     press(&mut app, KeyCode::Esc)?;
-    assert!(app.workspace.fullscreen);
+    assert!(app.workspace().fullscreen);
     text(&mut app, "v")?;
     press(&mut app, KeyCode::Esc)?;
     assert!(app.reader().selection.is_none());
-    assert!(app.workspace.fullscreen);
+    assert!(app.workspace().fullscreen);
     press(&mut app, KeyCode::Esc)?;
-    assert!(!app.workspace.fullscreen);
+    assert!(!app.workspace().fullscreen);
     Ok(())
 }
 
@@ -224,15 +224,15 @@ fn fullscreen_command_alias_and_restart_restore_reader_focus() -> Result<()> {
     let mut app = App::new(store, false)?;
     text(&mut app, ":fs")?;
     press(&mut app, KeyCode::Enter)?;
-    assert!(app.workspace.fullscreen);
+    assert!(app.workspace().fullscreen);
     drop(app);
     let store = Store::open(&directory.path().join("library.sqlite3"))?;
     let mut restored = App::new(store, false)?;
-    assert!(restored.workspace.fullscreen);
-    assert_eq!(restored.focus, Focus::Reader);
+    assert!(restored.workspace().fullscreen);
+    assert_eq!(restored.focus(), Focus::Reader);
     text(&mut restored, "Z")?;
-    assert!(!restored.workspace.fullscreen);
-    assert!(matches!(restored.mode, Mode::Normal));
+    assert!(!restored.workspace().fullscreen);
+    assert!(matches!(restored.mode(), Mode::Normal));
     let legacy: Workspace = serde_json::from_str(r#"{ "zen": true }"#)?;
     assert!(!legacy.fullscreen);
     assert!(legacy.zen);
@@ -246,13 +246,13 @@ fn empty_library_rejects_fullscreen_and_navigation_can_restore_panels()
     let store = Store::open(&directory.path().join("empty.sqlite3"))?;
     let mut empty = App::new(store, false)?;
     assert!(press(&mut empty, KeyCode::F(11)).is_err());
-    assert!(!empty.workspace.fullscreen);
+    assert!(!empty.workspace().fullscreen);
     let (_directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
     text(&mut app, "Z")?;
     press(&mut app, KeyCode::Tab)?;
-    assert!(!app.workspace.fullscreen);
-    assert_eq!(app.focus, Focus::Library);
+    assert!(!app.workspace().fullscreen);
+    assert_eq!(app.focus(), Focus::Library);
     Ok(())
 }
 
@@ -284,13 +284,13 @@ fn reflow_keeps_current_passage_visible_and_preserves_zen_layout() -> Result<()>
 
     text(&mut app, "Z")?;
     let column =
-        ui::workspace_reader_content(Rect::new(0, 0, 144, 44), &app.workspace);
+        ui::workspace_reader_content(Rect::new(0, 0, 144, 44), app.workspace());
     app.resize_reader(column.width.into(), column.height.into());
 
     assert!(app.reader().line_ranges[app.reader().scroll].contains(&anchor));
     text(&mut app, " z")?;
-    assert!(!app.workspace.fullscreen);
-    assert!(app.workspace.zen);
-    assert_eq!(app.workspace.reading_width, 82);
+    assert!(!app.workspace().fullscreen);
+    assert!(app.workspace().zen);
+    assert_eq!(app.workspace().reading_width, 82);
     Ok(())
 }

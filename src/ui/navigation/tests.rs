@@ -31,7 +31,7 @@ fn stable_windows_match_full_projection_across_repeated_groups() -> Result<()> {
 #[test]
 fn filtered_windows_keep_original_navigation_identities() -> Result<()> {
     let (_directory, mut app) = application()?;
-    app.focus = crate::app::Focus::Library;
+    app.activate_pane(crate::app::Focus::Library);
     app.key(KeyEvent::new(KeyCode::Char('/'), KeyModifiers::NONE))?;
     app.paste("destination")?;
     assert_windows(app.navigation());
@@ -43,7 +43,7 @@ fn selectable_section_titles_share_window_geometry_in_both_states() -> Result<()
 {
     let (_directory, mut app) = application()?;
     assert_windows(app.navigation());
-    app.focus = crate::app::Focus::Library;
+    app.activate_pane(crate::app::Focus::Library);
     app.set_view(View::Group("YOUR FOLDERS".into()))?;
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     assert_windows(app.navigation());

@@ -50,7 +50,7 @@ fn selector(iterations: usize, stress: bool) -> Result<()> {
     key(&mut app, KeyCode::Char('f'))?;
     settle(&mut app)?;
     ensure!(
-        matches!(&app.mode, Mode::Picker(picker) if picker.choices.len() == 50),
+        matches!(app.mode(), Mode::Picker(picker) if picker.choices.len() == 50),
         "Selector lost results"
     );
     super::measure(
@@ -62,7 +62,7 @@ fn selector(iterations: usize, stress: bool) -> Result<()> {
                 terminal.draw(|frame| ui::draw(frame, &app))?;
             }
             ensure!(
-                matches!(&app.mode, Mode::Picker(picker) if picker.query.is_empty() && picker.selected == 0),
+                matches!(app.mode(), Mode::Picker(picker) if picker.query.is_empty() && picker.selected == 0),
                 "Selection drifted"
             );
             Ok(())
@@ -70,7 +70,7 @@ fn selector(iterations: usize, stress: bool) -> Result<()> {
     )?;
     settle(&mut app)?;
     ensure!(
-        matches!(&app.mode, Mode::Picker(picker) if picker.preview.contains("Publisher feed remains")),
+        matches!(app.mode(), Mode::Picker(picker) if picker.preview.contains("Publisher feed remains")),
         "Preview is stale"
     );
     app.end_session()?;

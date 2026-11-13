@@ -45,8 +45,8 @@ fn application(stress: bool) -> Result<(tempfile::TempDir, App, Store)> {
     let observed = Store::open(&path)?;
     let mut app = App::new(store, false)?;
     app.resize_workspace(Rect::new(0, 0, 160, 44));
-    app.workspace.auto_read.min_active_seconds = 3600;
-    app.focus = Focus::Articles;
+    crate::fixture_setting(&mut app, 16, "3600")?;
+    app.activate_pane(Focus::Articles);
     app.key(KeyCode::Enter.into())?;
     Ok((directory, app, observed))
 }

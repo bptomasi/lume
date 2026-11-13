@@ -63,8 +63,9 @@ impl App {
             return false;
         }
         if self.reader.render_worker_stopped() {
-            self.status =
-                "Syntax worker stopped · plain code remains readable".into();
+            self.interaction.report(
+                "Syntax worker stopped · plain code remains readable".into(),
+            );
         }
         self.reader.reproject_ready(self.render_context());
         true
@@ -99,7 +100,7 @@ impl App {
 
     pub(super) fn load_current_deferred(&mut self) -> Result<()> {
         self.cancel_reader_pointer();
-        self.vim.clear_input();
+        self.interaction.vim_input().clear_input();
         let Some(id) = self.current().map(|article| article.id) else {
             self.clear_current();
             return Ok(());
@@ -130,9 +131,9 @@ impl App {
             article.id,
             article.feed_id,
         )?;
-        self.immediate_layout = true;
+        self.reader.set_synchronous_loading(true);
         let result = self.install_reading_data(data);
-        self.immediate_layout = false;
+        self.reader.set_synchronous_loading(false);
         result
     }
 
@@ -152,7 +153,7 @@ impl App {
         self.reader.open_document(
             article,
             &mut data,
-            self.workspace.content_source,
+            self.layout.workspace().content_source,
             self.render_context(),
             progress,
         )?;
@@ -164,15 +165,14 @@ impl App {
         data: &super::reading_data::ReadingData,
     ) -> super::reader_state::RememberedProgress {
         use crate::model::ContentSource;
-        let memory = self.progress_memory.borrow();
         super::reader_state::RememberedProgress {
-            feed: memory
-                .get(&data.article, ContentSource::Feed, 0)
-                .map(|progress| progress.anchor),
+            feed: self.session.anchor(data.article, ContentSource::Feed, 0),
             full: data.document.as_ref().and_then(|document| {
-                memory
-                    .get(&data.article, ContentSource::Full, document.revision)
-                    .map(|progress| progress.anchor)
+                self.session.anchor(
+                    data.article,
+                    ContentSource::Full,
+                    document.revision,
+                )
             }),
         }
     }
@@ -193,21 +193,7 @@ impl App {
             revision: identity.revision,
             anchor,
         };
-        if self.progress_memory.borrow().get(
-            &article.id,
-            self.reader.source(),
-            self.reader.revision(),
-        ) == Some(&progress)
-        {
-            return Ok(());
-        }
-        if let Some(writer) = &self.session_writer {
-            writer.progress(progress)?;
-        } else {
-            progress.save(&self.store)?;
-        }
-        self.progress_memory.borrow_mut().remember(progress);
-        Ok(())
+        self.session.save_progress(&self.store, progress)
     }
 
     /// Save the layout, active destination and reading position before exit.
@@ -216,9 +202,11 @@ impl App {
     /// Returns storage failures; the terminal runner still restores its state.
     pub fn save_session(&mut self) -> Result<()> {
         let position = self.save_reading_position();
-        self.workspace.article = self.session_article();
-        self.workspace.view = self.nav.view().clone();
-        self.workspace.page_offset = self.nav.page_offset();
+        self.layout.remember_session(
+            self.session_article(),
+            self.nav.view().clone(),
+            self.nav.page_offset(),
+        );
         let preferences = self.persist_preferences();
         finish_writes([position, preferences])
     }
@@ -228,12 +216,12 @@ impl App {
         if self.persist_notebook_layout()? {
             return Ok(());
         }
-        self.layouts
-            .observe(crate::model::PanelLayout::capture(&self.workspace));
-        if let Some(writer) = &self.session_writer {
-            return writer.layout(&self.workspace, &self.layouts);
-        }
-        self.store.save_layouts(&self.workspace, &self.layouts)
+        self.layout.observe();
+        self.session.save_layout(
+            &self.store,
+            self.layout.workspace(),
+            self.layout.history(),
+        )
     }
 
     /// Persist the session boundary only when leaving the terminal application.
@@ -246,11 +234,11 @@ impl App {
         let recommendations = self.flush_recommendations();
         let draft = self.checkpoint_draft();
         // Global Ctrl-c can leave this modal without its explicit confirmation.
-        if let super::Mode::Settings(draft) = &self.mode {
-            self.workspace = draft.before.clone();
-            self.mode = super::Mode::Normal;
+        if let super::Mode::Settings(draft) = self.interaction.mode() {
+            self.layout.restore_preview(draft.before.clone());
+            self.interaction.enter(super::Mode::Normal);
         }
-        self.workspace.last_visit = chrono::Utc::now().timestamp();
+        self.layout.end_visit(chrono::Utc::now().timestamp());
         let barrier = self.flush_session();
         let configuration = self.finish_configuration_preferences();
         let save = self.save_session();

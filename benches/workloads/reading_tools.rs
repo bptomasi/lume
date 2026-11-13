@@ -62,7 +62,7 @@ fn selection_frames(
     iterations: usize,
 ) -> Result<()> {
     let content =
-        ui::workspace_reader_content(Rect::new(0, 0, 144, 44), &app.workspace);
+        ui::workspace_reader_content(Rect::new(0, 0, 144, 44), app.workspace());
     super::measure(
         "precise selection + OSC52 + cached frame",
         iterations * 5,
@@ -142,10 +142,10 @@ fn selection_app(stress: bool) -> Result<(tempfile::TempDir, App)> {
         body.len()
     );
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    crate::fixture_toggle(&mut app, "fullscreen", true)?;
     let content =
-        ui::workspace_reader_content(Rect::new(0, 0, 144, 44), &app.workspace);
+        ui::workspace_reader_content(Rect::new(0, 0, 144, 44), app.workspace());
     app.resize_reader(content.width.into(), content.height.into());
     Ok((directory, app))
 }

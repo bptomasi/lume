@@ -108,11 +108,11 @@ fn offline_reader_draws_the_cached_list_and_keeps_the_saved_document()
     parsed.articles[0].published = 2_000_000_000;
     store.ingest(&feed, "Cached publisher", &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Pane::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Pane::Reader);
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
     let screen = Rect::new(0, 0, 120, 40);
     app.resize_workspace(screen);
-    let content = ui::workspace_reader_content(screen, &app.workspace);
+    let content = ui::workspace_reader_content(screen, app.workspace());
     let mut terminal = Terminal::new(TestBackend::new(120, 40))?;
 
     terminal.draw(|frame| ui::draw(frame, &app))?;

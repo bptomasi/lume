@@ -6,14 +6,14 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use super::{App, InputKind, Mode};
+use super::{App, InputKind};
 
 pub(super) use crate::command::resolve;
 pub use crate::command::{CommandSpec, command_suggestions};
 
 impl App {
     pub(super) fn completion_key(&mut self, key: KeyEvent) -> bool {
-        let Mode::Input(input) = &mut self.mode else {
+        let Some(input) = self.interaction.draft_mut() else {
             return false;
         };
         if matches!(input.kind, InputKind::NoteSearch)
@@ -55,7 +55,7 @@ impl App {
     }
 
     pub(super) fn prepare_command(&mut self) -> bool {
-        let Mode::Input(input) = &mut self.mode else {
+        let Some(input) = self.interaction.draft_mut() else {
             return true;
         };
         if !matches!(input.kind, InputKind::Command) {
@@ -72,7 +72,8 @@ impl App {
             .nth(1)
             .is_some_and(|argument| !argument.starts_with('['));
         if required && argument.trim().is_empty() {
-            self.status = format!("Usage: :{}", command.usage);
+            self.interaction
+                .report(format!("Usage: :{}", command.usage));
             return false;
         }
         true

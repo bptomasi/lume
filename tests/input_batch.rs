@@ -51,14 +51,14 @@ fn navigation_uses_the_storage_limit_for_zero_and_oversized_page_requests()
     app.set_page_size(0)?;
     app.jump_article(id)?;
     assert_eq!(app.navigation().library.articles.len(), 1);
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     dispatch(&mut app, vec![key(KeyCode::Down, KeyEventKind::Press)])?;
     assert_eq!(app.navigation().page_offset, 1);
     assert_eq!(app.navigation().selected, 0);
 
     app.set_page_size(usize::MAX)?;
     app.jump_article(id)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     dispatch(&mut app, vec![key(KeyCode::End, KeyEventKind::Press)])?;
     assert_eq!(app.navigation().page_offset, 0);
     assert_eq!(app.navigation().selected, 300);
@@ -141,7 +141,7 @@ fn opening_an_editor_in_a_burst_preserves_repeated_text_and_paste() -> Result<()
         KeyModifiers::CONTROL,
     )));
 
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     dispatch(&mut app, events)?;
 
     assert_eq!(app.reader().comments[0].body, "jjjj ação");
@@ -173,7 +173,7 @@ fn sidebar_counts_remain_valid_across_view_changes_and_boundary_keys()
         .iter()
         .map(|item| item.count)
         .collect::<Vec<_>>();
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     dispatch(&mut app, vec![key(KeyCode::Down, KeyEventKind::Press)])?;
     dispatch(&mut app, vec![key(KeyCode::Up, KeyEventKind::Press)])?;
     dispatch(&mut app, vec![key(KeyCode::Up, KeyEventKind::Press)])?;
@@ -196,7 +196,7 @@ fn sidebar_counts_remain_valid_across_view_changes_and_boundary_keys()
 fn word_and_horizontal_releases_cancel_repeats_without_losing_the_next_command()
 -> Result<()> {
     let (_directory, mut app) = articles()?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     let mut events = vec![key(KeyCode::Char('w'), KeyEventKind::Press)];
     events.extend(
         (0..100).map(|_| key(KeyCode::Char('w'), KeyEventKind::Repeat)),
@@ -212,7 +212,7 @@ fn word_and_horizontal_releases_cancel_repeats_without_losing_the_next_command()
     dispatch(&mut app, events)?;
 
     assert_eq!(app.cursor_offset(), 3);
-    assert!(matches!(app.mode, lume::app::Mode::Help));
+    assert!(matches!(app.mode(), lume::app::Mode::Help));
     Ok(())
 }
 
@@ -239,8 +239,8 @@ fn releases_and_modifier_events_do_not_request_an_identical_frame() {
 fn consecutive_resizes_keep_the_final_geometry_and_preserve_input_order()
 -> Result<()> {
     let (_directory, mut app) = articles()?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
     let text = app.reader().reader_text.to_owned();
     let mut batch = InputBatch::new(vec![
         Event::Resize(40, 18),
@@ -251,7 +251,7 @@ fn consecutive_resizes_keep_the_final_geometry_and_preserve_input_order()
     ]);
     batch.dispatch_next(&mut app)?;
     let area = ratatui::layout::Rect::new(0, 0, 100, 36);
-    let column = lume::ui::workspace_reader_content(area, &app.workspace);
+    let column = lume::ui::workspace_reader_content(area, app.workspace());
     assert_eq!(app.reader().reader_width, usize::from(column.width));
     assert_eq!(app.reader().reader_height, usize::from(column.height));
     assert_eq!(app.reader().reader_column, 0);
@@ -259,7 +259,7 @@ fn consecutive_resizes_keep_the_final_geometry_and_preserve_input_order()
     assert_eq!(app.reader().reader_column, 1);
     batch.dispatch_next(&mut app)?;
     let area = ratatui::layout::Rect::new(0, 0, 120, 40);
-    let column = lume::ui::workspace_reader_content(area, &app.workspace);
+    let column = lume::ui::workspace_reader_content(area, app.workspace());
     assert_eq!(app.reader().reader_height, usize::from(column.height));
     assert!(batch.is_empty());
     assert_eq!(app.reader().reader_text, text);

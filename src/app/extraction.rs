@@ -14,8 +14,9 @@ impl App {
         &mut self,
         target: crate::model::ArticleTarget,
     ) {
-        self.article_fetching = Some(target);
-        self.status = "Testing selector · rule remains unsaved".into();
+        self.article_requests.start_preview(target);
+        self.interaction
+            .report("Testing selector · rule remains unsaved".into());
     }
 
     pub(super) fn extraction_command(
@@ -26,7 +27,7 @@ impl App {
         match command {
             routing::ExtractionCommand::ExtractPreview => {
                 ensure!(
-                    self.article_fetching.is_none(),
+                    self.article_requests.fetching().is_none(),
                     "Article worker is busy"
                 );
                 let target = self.selected_article_target()?;
@@ -49,17 +50,21 @@ impl App {
 
     /// Stage a successful unsaved preview without replacing an active editor.
     pub fn rule_preview_finished(&mut self, preview: RulePreview) {
-        self.article_fetching = None;
-        self.pending_rule = Some(preview);
-        self.status = "Extraction preview ready · not saved".into();
+        if !self.article_requests.finish_preview(preview) {
+            return;
+        }
+        self.interaction
+            .report("Extraction preview ready · not saved".into());
     }
 
     /// Present a pending preview only when the user is no longer editing.
     pub fn present_rule_preview(&mut self) -> bool {
-        if !matches!(self.mode, Mode::Normal) || self.reader.selecting() {
+        if !matches!(self.interaction.mode(), Mode::Normal)
+            || self.reader.selecting()
+        {
             return false;
         }
-        let Some(preview) = self.pending_rule.take() else {
+        let Some(preview) = self.article_requests.take_preview() else {
             return false;
         };
         let warnings =
@@ -96,7 +101,7 @@ impl App {
 
     pub(super) fn inspect(&mut self, choices: Vec<Choice>) -> Result<()> {
         self.open_picker(PickerKind::Inspection)?;
-        if let Mode::Picker(picker) = &mut self.mode {
+        if let Some(picker) = self.interaction.picker_mut() {
             picker.replace_candidates(choices);
         }
         self.update_picker()

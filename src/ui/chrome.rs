@@ -29,7 +29,7 @@ pub(super) fn header(frame: &mut Frame<'_>, app: &App) {
         ),
     ]);
     frame.render_widget(Paragraph::new(title), Rect::new(0, 0, area.width, 1));
-    let state = if app.demo {
+    let state = if app.demo() {
         "DEMO · LOCAL"
     } else {
         "LOCAL LIBRARY"
@@ -62,7 +62,7 @@ pub(super) fn footer(frame: &mut Frame<'_>, app: &App) {
 }
 
 fn hints(app: &App) -> &'static str {
-    if let Mode::Input(input) = &app.mode
+    if let Mode::Input(input) = app.mode()
         && matches!(
             input.kind,
             InputKind::Comment { .. }
@@ -78,13 +78,13 @@ fn hints(app: &App) -> &'static str {
     if app.notebook().is_some() {
         return "  / notes · e edit · Enter source · t tags · T type · p pin · r resolve · v mark · s synthesize · dd / u · Esc return";
     }
-    if app.focus == Focus::Annotations {
+    if app.focus() == Focus::Annotations {
         return concat!(
             "  j/k notes · Enter jump · e edit · dd delete · ",
             "Ctrl-w c collapse · Reader n creates"
         );
     }
-    if app.focus == Focus::Reader {
+    if app.focus() == Focus::Reader {
         return reader_hints(app);
     }
     concat!(
@@ -124,7 +124,7 @@ pub(super) fn pane_controls(
             );
         }
     }
-    if app.workspace.fullscreen {
+    if app.workspace().fullscreen {
         return;
     }
     restore_buttons(frame, app);
@@ -140,7 +140,7 @@ fn move_grip(frame: &mut Frame<'_>, app: &App, pane: Focus, area: Rect) {
     // Reserve the controls' entire strip, including their one-cell separator.
     // A long title must not leave stray letters between the two buttons.
     let strip = Rect::new(grip.x, grip.y, 7, 1);
-    let border = if app.focus == pane { ACCENT } else { BORDER };
+    let border = if app.focus() == pane { ACCENT } else { BORDER };
     frame.render_widget(
         Block::new()
             .borders(Borders::TOP)
@@ -161,7 +161,8 @@ pub(super) fn draw_panel_move(frame: &mut Frame<'_>, app: &App) {
     let Some(drag) = app.panel_drag() else {
         return;
     };
-    let areas = super::workspace_areas(frame.area(), app.focus, &app.workspace);
+    let areas =
+        super::workspace_areas(frame.area(), app.focus(), app.workspace());
     for (pane, area) in areas.ordered() {
         // Only decorate destinations. The source is captured intact, with
         // its original rounded corners, title and controls.
@@ -200,8 +201,8 @@ pub(super) fn draw_panel_move(frame: &mut Frame<'_>, app: &App) {
 }
 
 fn restore_buttons(frame: &mut Frame<'_>, app: &App) {
-    for (pane, button) in super::pane_buttons(frame.area(), &app.workspace) {
-        let visible = app.workspace.pane_visible(pane);
+    for (pane, button) in super::pane_buttons(frame.area(), app.workspace()) {
+        let visible = app.workspace().pane_visible(pane);
         let caption = if app.notebook().is_some() {
             match pane {
                 Focus::Library => "Lists",
@@ -253,7 +254,7 @@ fn collapsed_workspace(frame: &mut Frame<'_>) {
 
 fn status_line(app: &App) -> Line<'static> {
     let reading = app.reader();
-    let (mode, color) = match &app.mode {
+    let (mode, color) = match app.mode() {
         Mode::Normal if reading.selection.is_some() => (" VISUAL ", AMBER),
         Mode::Normal => (" NORMAL ", ACCENT),
         Mode::Web => (" WEB ", BLUE),
@@ -271,7 +272,7 @@ fn status_line(app: &App) -> Line<'static> {
         "  SAVE ERROR · :save-status"
     } else if app.session_pending() {
         "  saving…"
-    } else if app.refreshing {
+    } else if app.refreshing() {
         "  ↻ collecting feeds"
     } else {
         ""
@@ -287,7 +288,7 @@ fn status_line(app: &App) -> Line<'static> {
         ),
         Span::styled(activity, Style::new().fg(AMBER)),
         Span::styled(
-            format!("  {}", content::label(&app.status, 300)),
+            format!("  {}", content::label(app.status(), 300)),
             Style::new().fg(MUTED),
         ),
     ])
@@ -307,12 +308,12 @@ fn editor_mode(input: &crate::app::Input) -> &'static str {
 
 fn focus_caption(app: &App) -> &'static str {
     if app.notebook().is_some() {
-        return match app.focus {
+        return match app.focus() {
             Focus::Library => "Collections",
             Focus::Articles => "Notes",
             Focus::Reader => "Context",
             Focus::Annotations => "Backlinks",
         };
     }
-    app.focus.title()
+    app.focus().title()
 }

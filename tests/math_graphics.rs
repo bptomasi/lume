@@ -195,8 +195,8 @@ fn graphics_body(
     )?;
     let mut app = lume::app::App::new(store, false)?;
     app.configure_document(session.initial().clone());
-    app.focus = lume::app::Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(lume::app::Focus::Reader);
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
     app.configure_image_terminal(ImageProtocol::Sixel, (10, 20));
     app.resize_workspace(ratatui::layout::Rect::new(0, 0, 100, 32));
     app.enable_background_navigation(
@@ -223,7 +223,7 @@ fn settle_graphics(app: &mut lume::app::App) -> Result<()> {
                 .any(|slot| slot.formula.is_some())
             && app.reader().image_slots.iter().all(|slot| {
                 app.image_key(slot)
-                    .is_some_and(|key| app.images.thumbnail(&key).is_some())
+                    .is_some_and(|key| app.images().thumbnail(&key).is_some())
             })
         {
             return Ok(());
@@ -274,7 +274,7 @@ fn graphic_inspection_copies_original_latex_and_restores_the_reader()
         lume::app::Action::Copy(r"\frac{1}{2}+\ell_\infty".into())
     );
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
-    assert!(matches!(app.mode, lume::app::Mode::Normal));
+    assert!(matches!(app.mode(), lume::app::Mode::Normal));
     assert_eq!(app.reader().body, source);
     app.end_session()?;
     Ok(())
@@ -348,7 +348,7 @@ fn dense_formula_pages_remain_native_past_four_slots_without_cache_churn()
             Some(ImageProtocol::Sixel)
         );
         assert!(
-            app.images
+            app.images()
                 .thumbnail(&key)
                 .is_some_and(|image| image.rows.is_some())
         );

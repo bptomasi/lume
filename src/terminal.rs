@@ -171,7 +171,7 @@ fn event_loop(
             Ok(Some(_)) => dirty = true,
             Ok(None) => {}
             Err(error) => {
-                app.status = format!("{error:#}");
+                app.report_status(format!("{error:#}"));
                 dirty = true;
             }
         }
@@ -224,7 +224,7 @@ fn poll_auto_read(app: &mut App) -> bool {
     match app.poll_auto_read(Instant::now()) {
         Ok(changed) => changed,
         Err(error) => {
-            app.status = format!("{error:#}");
+            app.report_status(format!("{error:#}"));
             true
         }
     }
@@ -243,7 +243,7 @@ fn poll_reading_workers(app: &mut App) -> bool {
         match result {
             Ok(ready) => changed |= ready,
             Err(error) => {
-                app.status = format!("{error:#}");
+                app.report_status(format!("{error:#}"));
                 changed = true;
             }
         }
@@ -259,10 +259,10 @@ fn poll_reading_workers(app: &mut App) -> bool {
 }
 
 fn sync_mouse(guard: &mut TerminalGuard, app: &mut App) -> bool {
-    if let Err(error) = guard.mouse.sync(app.workspace.mouse) {
-        app.status = format!(
+    if let Err(error) = guard.mouse.sync(app.workspace().mouse) {
+        app.report_status(format!(
             "Mouse capture unavailable: {error} · keyboard remains available"
-        );
+        ));
         return true;
     }
     false
@@ -294,7 +294,8 @@ fn draw_workspace(
     app.begin_measurement(lume::app::Operation::Frame);
     if welcome {
         io::stdout().sync_update(|_| {
-            terminal.draw(|frame| ui::draw_welcome(frame, &app.workspace.theme))
+            terminal
+                .draw(|frame| ui::draw_welcome(frame, &app.workspace().theme))
         })??;
         app.finish_measurement(lume::app::Operation::Frame);
         return Ok(());
@@ -335,7 +336,7 @@ fn dispatch_batch(
             Ok(Some(action)) => action,
             Ok(None) => return Ok(false),
             Err(error) => {
-                app.status = format!("{error:#}");
+                app.report_status(format!("{error:#}"));
                 continue;
             }
         };
@@ -350,22 +351,24 @@ fn dispatch_batch(
                 background.preview_rule(app, request)
             }
             Action::ExternalEditor => edit_external(terminal, app, guard)?,
-            Action::Copy(text) => {
-                match lume::clipboard::copy(&mut io::stdout().lock(), &text) {
-                    Ok(()) => {
-                        app.clear_copied_selection();
-                        app.status = format!(
-                            "Yank sent to terminal clipboard · {} bytes",
-                            text.len(),
-                        );
-                    }
-                    Err(error) => app.status = format!("Clipboard: {error:#}"),
-                }
-            }
+            Action::Copy(text) => copy_to_terminal(app, &text),
             Action::None => {}
         }
     }
     Ok(false)
+}
+
+fn copy_to_terminal(app: &mut App, text: &str) {
+    match lume::clipboard::copy(&mut io::stdout().lock(), text) {
+        Ok(()) => {
+            app.clear_copied_selection();
+            app.report_status(format!(
+                "Yank sent to terminal clipboard · {} bytes",
+                text.len(),
+            ));
+        }
+        Err(error) => app.report_status(format!("Clipboard: {error:#}")),
+    }
 }
 
 fn launch_browser(app: &mut App, address: &str) {
@@ -390,10 +393,10 @@ fn launch_browser(app: &mut App, address: &str) {
             .context("Could not launch browser")?;
         Ok(())
     });
-    app.status = match result {
+    app.report_status(match result {
         Ok(()) => "Original URL sent to the system browser".into(),
         Err(error) => error.to_string(),
-    };
+    });
 }
 
 struct TerminalGuard {
@@ -430,7 +433,9 @@ fn edit_external(
         .filter(|s| !s.is_empty())
         .or_else(|| std::env::var("EDITOR").ok());
     let Some(command) = command else {
-        app.status = "Set VISUAL or EDITOR to use an external editor".into();
+        app.report_status(
+            "Set VISUAL or EDITOR to use an external editor".into(),
+        );
         return Ok(());
     };
     let enhanced = guard.keyboard;
@@ -448,14 +453,15 @@ fn edit_external(
         guard.keyboard = true;
     }
     execute!(io::stdout(), EnableBracketedPaste, EnableFocusChange)?;
-    guard.mouse.sync(app.workspace.mouse)?;
+    guard.mouse.sync(app.workspace().mouse)?;
     match result {
         Ok(text) => {
             app.replace_draft(text)?;
-            app.status =
-                "Draft updated · Ctrl-s saves/closes · Esc normal".into();
+            app.report_status(
+                "Draft updated · Ctrl-s saves/closes · Esc normal".into(),
+            );
         }
-        Err(error) => app.status = format!("{error:#}"),
+        Err(error) => app.report_status(format!("{error:#}")),
     }
     Ok(())
 }
@@ -479,7 +485,7 @@ mod durability_tests {
             let favorite = !article.starred;
             app.enable_background_navigation(&path)?;
             app.key(KeyEvent::new(KeyCode::Char('f'), KeyModifiers::NONE))?;
-            app.focus = lume::app::Focus::Reader;
+            app.activate_pane(lume::app::Focus::Reader);
             app.key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE))?;
             app.paste("Survive terminal I/O failure")?;
 

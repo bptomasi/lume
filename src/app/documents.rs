@@ -32,25 +32,19 @@ impl App {
     /// Choose a request only for the opened reader, respecting retry cooldown.
     /// Network availability and worker admission belong to the terminal runtime.
     pub fn automatic_article_request(&self, now: i64) -> Option<ArticleTarget> {
-        if self.demo
+        if self.network.demo()
             || self.nav.navigation_loading()
-            || self.focus != Focus::Reader
-            || self.workspace.content_source == ContentSource::Feed
+            || self.layout.focus() != Focus::Reader
+            || self.layout.workspace().content_source == ContentSource::Feed
             || *self.nav.view() == View::Annotated
-            || self.article_fetching.is_some()
-            || !matches!(self.mode, Mode::Normal)
+            || self.article_requests.fetching().is_some()
+            || !matches!(self.interaction.mode(), Mode::Normal)
             || self.reader.selecting()
         {
             return None;
         }
         let target = self.selected_article_target().ok()?;
-        if self
-            .last_article_attempt
-            .as_ref()
-            .is_some_and(|(previous, at)| {
-                previous == &target && now.saturating_sub(*at) < 900
-            })
-        {
+        if self.article_requests.attempted_recently(&target, now) {
             return None;
         }
         if let Some(cache) = &self.reader.view().document {
@@ -72,11 +66,11 @@ impl App {
 
     /// Reflect an admitted request without changing its selected article.
     pub fn article_fetch_started(&mut self, target: ArticleTarget) {
-        self.workspace.content_source = ContentSource::Full;
-        self.last_article_attempt =
-            Some((target.clone(), chrono::Utc::now().timestamp()));
-        self.article_fetching = Some(target);
-        self.status = "Fetching article… · reading remains available".into();
+        self.layout.select_source(ContentSource::Full);
+        self.article_requests
+            .start_fetch(target, chrono::Utc::now().timestamp());
+        self.interaction
+            .report("Fetching article… · reading remains available".into());
     }
 
     /// Stage completion; reading/draft changes wait for a safe UI boundary.
@@ -85,11 +79,10 @@ impl App {
         target: ArticleTarget,
         error: Option<&str>,
     ) {
-        if self.article_fetching.as_ref() == Some(&target) {
-            self.article_fetching = None;
+        if !self.article_requests.finish_fetch(target) {
+            return;
         }
-        self.pending_document = Some(target);
-        self.status = error.map_or_else(
+        self.interaction.report(error.map_or_else(
             || "Full article cached · :content switches sources".into(),
             |message| {
                 format!(
@@ -97,24 +90,26 @@ impl App {
                     content::label(message, 2000)
                 )
             },
-        );
+        ));
     }
 
     /// Apply a captured completion only when no draft or selection is active.
     ///
     /// # Errors
-    /// Returns local storage errors; completed content remains cached on disk.
+    /// Returns local storage errors; completed content stays cached and its
+    /// captured completion remains pending for a later retry.
     pub fn apply_document_completion(&mut self) -> Result<bool> {
-        let Some(target) = &self.pending_document else {
+        let Some(target) = self.article_requests.pending_document() else {
             return Ok(false);
         };
-        if !matches!(self.mode, Mode::Normal) || self.reader.selecting() {
+        if !matches!(self.interaction.mode(), Mode::Normal)
+            || self.reader.selecting()
+        {
             return Ok(false);
         }
         let selected = self.current().is_some_and(|article| {
             article.id == target.article && article.url == target.url
         });
-        self.pending_document = None;
         if selected {
             let cursor = self.cursor_offset();
             let previous_body = self.reader.view().body.to_owned();
@@ -129,6 +124,7 @@ impl App {
                 self.ensure_cursor_visible();
             }
         }
+        self.article_requests.acknowledge_document();
         Ok(selected)
     }
 
@@ -140,9 +136,12 @@ impl App {
         let action = match command {
             routing::DocumentCommand::Fetch => {
                 ensure!(argument.is_empty(), "Use :fetch without arguments");
-                ensure!(!self.demo, "Article fetching needs a real library");
                 ensure!(
-                    self.article_fetching.is_none(),
+                    !self.network.demo(),
+                    "Article fetching needs a real library"
+                );
+                ensure!(
+                    self.article_requests.fetching().is_none(),
                     "An article fetch is already running"
                 );
                 Action::FetchArticle(self.selected_article_target()?)
@@ -168,16 +167,16 @@ impl App {
             _ => bail!("Use :content feed or :content full"),
         };
         self.save_reading_position()?;
-        self.workspace.content_source = source;
+        self.layout.select_source(source);
         self.load_current()?;
-        self.status = match self.reader.source() {
+        self.interaction.report(match self.reader.source() {
             ContentSource::Full => {
                 "Full article cached · :content feed returns to the feed".into()
             }
             ContentSource::Feed => {
                 "Feed content · :fetch retrieves the original article".into()
             }
-        };
+        });
         if source == ContentSource::Full && self.reader.source() != source {
             return self.document_command(routing::DocumentCommand::Fetch, "");
         }
@@ -200,7 +199,8 @@ impl App {
         };
         self.store.set_fetch_policy(feed, policy)?;
         self.reader.set_fetch_policy(policy);
-        self.status = format!("Source fetch policy: {}", policy.as_str());
+        self.interaction
+            .report(format!("Source fetch policy: {}", policy.as_str()));
         Ok(())
     }
 }

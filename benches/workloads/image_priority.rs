@@ -16,7 +16,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     let mut store = Store::open(&directory.path().join("library.sqlite3"))?;
     let targets = seed(&mut store, &cache, count, stress)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_reader(80, 40);
     app.enable_images(cache, true)?;
     let mut elapsed = Duration::ZERO;
@@ -26,7 +26,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
         app.poll_images();
         let start = Instant::now();
         app.jump_article(target)?;
-        app.focus = Focus::Reader;
+        app.activate_pane(Focus::Reader);
         settle(&mut app)?;
         elapsed += start.elapsed();
         verify_visible_source(&app)?;
@@ -46,7 +46,7 @@ fn settle(app: &mut App) -> Result<()> {
         let key = app
             .image_key(&app.reader().image_slots[0])
             .context("Target image")?;
-        if app.images.thumbnail(&key).is_some() {
+        if app.images().thumbnail(&key).is_some() {
             return Ok(());
         }
         ensure!(Instant::now() < deadline, "Visible image starved");
@@ -149,7 +149,7 @@ fn verify_visible_source(app: &App) -> Result<()> {
         .image_key(&reading.image_slots[0])
         .context("Visible key")?;
     let image = app
-        .images
+        .images()
         .thumbnail(&key)
         .context("Visible pixels missing")?;
     ensure!(

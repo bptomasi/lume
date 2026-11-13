@@ -163,7 +163,7 @@ impl App {
             self.reset_picker_reads()?;
         }
         let candidates = self.picker_candidates(&kind);
-        self.mode = Mode::Picker(Box::new(Picker {
+        self.interaction.enter(Mode::Picker(Box::new(Picker {
             kind,
             query: String::new(),
             selected: 0,
@@ -172,7 +172,7 @@ impl App {
             candidates,
             applied_query: None,
             previewed: None,
-        }));
+        })));
         self.update_picker()
     }
 
@@ -231,7 +231,7 @@ impl App {
         if self.update_article_picker() {
             return Ok(());
         }
-        let Mode::Picker(picker) = &mut self.mode else {
+        let Some(picker) = self.interaction.picker_mut() else {
             return Ok(());
         };
         if picker.applied_query.as_deref() != Some(&picker.query) {
@@ -266,14 +266,14 @@ impl App {
 
     pub(super) fn picker_key(&mut self, key: KeyEvent) -> Result<Action> {
         if key.code == KeyCode::Esc {
-            self.mode = Mode::Normal;
+            self.interaction.enter(Mode::Normal);
             self.resume_note_editor();
             return Ok(Action::None);
         }
         if key.code == KeyCode::Enter {
             return self.commit_picker();
         }
-        let Mode::Picker(picker) = &mut self.mode else {
+        let Some(picker) = self.interaction.picker_mut() else {
             return Ok(Action::None);
         };
         if key.modifiers.contains(KeyModifiers::CONTROL)
@@ -287,7 +287,7 @@ impl App {
     }
 
     fn create_picker_list(&mut self) -> Result<Action> {
-        let Mode::Picker(picker) = &mut self.mode else {
+        let Some(picker) = self.interaction.picker_mut() else {
             return Ok(Action::None);
         };
         let PickerKind::Lists { names, .. } = &mut picker.kind else {
@@ -309,13 +309,14 @@ impl App {
     }
 
     fn commit_picker(&mut self) -> Result<Action> {
-        let Mode::Picker(picker) = &self.mode else {
+        let Mode::Picker(picker) = self.interaction.mode() else {
             return Ok(Action::None);
         };
         if let Some(edit) = membership_edit(picker)? {
             self.submit_library_edit(edit)?;
-            self.mode = Mode::Normal;
-            self.status = "List memberships admitted · u undo".into();
+            self.interaction.enter(Mode::Normal);
+            self.interaction
+                .report("List memberships admitted · u undo".into());
             return Ok(Action::None);
         }
         let Some(action) = picker
@@ -325,11 +326,11 @@ impl App {
         else {
             return Ok(Action::None);
         };
-        let previous = std::mem::take(&mut self.mode);
+        let previous = self.interaction.take_mode();
         match self.apply_choice(action) {
             Ok(action) => Ok(action),
             Err(error) => {
-                self.mode = previous;
+                self.interaction.enter(previous);
                 Err(error)
             }
         }
@@ -374,7 +375,8 @@ impl App {
             ChoiceAction::SaveRule(preview) => {
                 self.store.confirm_article_rule(&preview)?;
                 self.reload()?;
-                self.status = "Extraction rule and preview saved".into();
+                self.interaction
+                    .report("Extraction rule and preview saved".into());
             }
         }
         Ok(Action::None)
@@ -386,7 +388,7 @@ impl App {
     /// Returns selector-loading errors.
     pub fn discovered(&mut self, candidates: Vec<FeedCandidate>) -> Result<()> {
         self.open_picker(PickerKind::Sources)?;
-        if let Mode::Picker(picker) = &mut self.mode {
+        if let Some(picker) = self.interaction.picker_mut() {
             picker.replace_candidates(
                 candidates
                     .into_iter()

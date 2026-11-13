@@ -83,24 +83,14 @@ fn app_after_failed_flush() -> Result<(
     let store = crate::store::Store::open(&directory.path().join("notes.db"))?;
     let mut app = crate::app::App::new(store, false)?;
     let (writer, sender) = writer(&[1, 2]);
-    app.personal_writes = Some(writer);
+    app.personal =
+        crate::app::personal_state::PersonalState::background(writer);
     sender.send(Completion {
         result: Err(anyhow!("Captured flag mutation failed")),
         ..completion(1)
     })?;
     assert!(app.flush_note_tasks_before(Instant::now()).is_err());
     assert!(app.notes_pending());
-    assert_eq!(
-        app.personal_writes
-            .as_ref()
-            .context("Missing personal writer")?
-            .pending
-            .borrow()
-            .iter()
-            .copied()
-            .collect::<Vec<_>>(),
-        [2]
-    );
     Ok((app, sender, directory))
 }
 

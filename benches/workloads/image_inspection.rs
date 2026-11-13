@@ -136,7 +136,7 @@ fn inspect_frames(
         );
     }
     ensure!(
-        matches!(app.mode, Mode::Image(_)),
+        matches!(app.mode(), Mode::Image(_)),
         "Pan escaped the inspector"
     );
     Ok(())

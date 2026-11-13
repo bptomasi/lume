@@ -32,7 +32,7 @@ impl App {
     }
 
     fn search_pane(&self) -> Option<crate::model::Pane> {
-        let Mode::Input(input) = &self.mode else {
+        let Mode::Input(input) = self.interaction.mode() else {
             return None;
         };
         match input.kind {
@@ -49,10 +49,12 @@ impl App {
         let Some(pane) = self.search_pane() else {
             return Ok(None);
         };
-        let Some(area) =
-            ui::workspace_areas(self.screen, self.focus, &self.workspace)
-                .get(pane)
-        else {
+        let Some(area) = ui::workspace_areas(
+            self.layout.screen(),
+            self.layout.focus(),
+            self.layout.workspace(),
+        )
+        .get(pane) else {
             return Ok(None);
         };
         if !area.contains(Position::new(event.column, event.row)) {
@@ -83,9 +85,12 @@ impl App {
         let Some(pane) = self.search_pane() else {
             return Ok(());
         };
-        let area =
-            ui::workspace_areas(self.screen, self.focus, &self.workspace)
-                .get(pane);
+        let area = ui::workspace_areas(
+            self.layout.screen(),
+            self.layout.focus(),
+            self.layout.workspace(),
+        )
+        .get(pane);
         if area.is_some_and(|area| {
             area.contains(Position::new(event.column, event.row))
         }) {
@@ -105,10 +110,10 @@ impl App {
     }
 
     fn click_picker(&mut self, event: MouseEvent) -> Result<Action> {
-        let Mode::Picker(picker) = &mut self.mode else {
+        let Some(picker) = self.interaction.picker_mut() else {
             return Ok(Action::None);
         };
-        let (area, _) = ui::picker_regions(self.screen);
+        let (area, _) = ui::picker_regions(self.layout.screen());
         if !area.contains(Position::new(event.column, event.row)) {
             return Ok(Action::None);
         }
@@ -132,57 +137,16 @@ impl App {
         amount: usize,
     ) -> Result<()> {
         let forward = event.kind == MouseEventKind::ScrollDown;
-        match &mut self.mode {
-            Mode::Web => self.web_scroll(forward, amount),
-            Mode::Image(_) => self.pan_image(forward, amount),
-            Mode::Help => {
-                self.help_scroll = shifted(
-                    self.help_scroll,
-                    super::super::HELP.lines().count(),
-                    forward,
-                    amount,
-                )
-            }
-            Mode::Document(document) => {
-                document.row = shifted(
-                    document.row,
-                    document.lines.len(),
-                    forward,
-                    amount,
-                );
-            }
-            Mode::Picker(picker) => {
-                picker.selected = shifted(
-                    picker.selected,
-                    picker.choices.len(),
-                    forward,
-                    amount,
-                );
-                self.update_picker()?;
-            }
-            Mode::Settings(draft) if draft.editor.is_none() => {
-                draft.field = shifted(
-                    draft.field,
-                    super::super::SettingsDraft::FIELD_COUNT,
-                    forward,
-                    amount,
-                )
-            }
-            _ => self.scroll_pane_search(event, amount)?,
+        use super::super::interaction_state::ModalScroll;
+        match self.interaction.scroll_overlay(forward, amount) {
+            ModalScroll::Handled => {}
+            ModalScroll::Picker => self.update_picker()?,
+            ModalScroll::Unhandled => match self.interaction.mode() {
+                Mode::Web => self.web_scroll(forward, amount),
+                Mode::Image(_) => self.pan_image(forward, amount),
+                _ => self.scroll_pane_search(event, amount)?,
+            },
         }
         Ok(())
-    }
-}
-
-fn shifted(
-    current: usize,
-    length: usize,
-    forward: bool,
-    amount: usize,
-) -> usize {
-    if forward {
-        current.saturating_add(amount).min(length.saturating_sub(1))
-    } else {
-        current.saturating_sub(amount)
     }
 }

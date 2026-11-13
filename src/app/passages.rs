@@ -21,7 +21,7 @@ impl App {
         match code {
             KeyCode::Char('v') => self.visual_selection(false),
             KeyCode::Char('V') => self.visual_selection(true),
-            KeyCode::Char('y') if self.focus == Focus::Reader => {
+            KeyCode::Char('y') if self.layout.focus() == Focus::Reader => {
                 return self.yank_selection().map(Some);
             }
             KeyCode::Char('s') if self.reader.selecting() => {
@@ -33,12 +33,13 @@ impl App {
     }
 
     pub(super) fn visual_selection(&mut self, linewise: bool) {
-        self.pending_g = false;
-        self.focus = Focus::Reader;
+        self.interaction.set_g_prefix(false);
+        self.layout.focus_pane(Focus::Reader);
         self.reader.toggle_selection(linewise);
-        self.status =
+        self.interaction.report(
             "VISUAL · hjkl / w b · y copy · s highlight · n note · Esc cancel"
-                .into();
+                .into(),
+        );
     }
 
     pub(super) fn yank_selection(&self) -> Result<Action> {
@@ -75,12 +76,12 @@ impl App {
 
     pub(super) fn annotate_selection(&mut self) -> Result<()> {
         ensure!(
-            self.notebook().is_none() && self.focus == Focus::Reader,
+            self.notebook().is_none() && self.layout.focus() == Focus::Reader,
             "Focus Reader before creating an article annotation"
         );
         let captured = if self.reader.selecting() {
             self.captured_passage()?
-        } else if self.focus == Focus::Reader
+        } else if self.layout.focus() == Focus::Reader
             && self.cursor_offset() < self.reader.publisher_end()
             && !self.article_preparing()
         {
@@ -112,8 +113,8 @@ impl App {
     pub(super) fn save_selection(&mut self) -> Result<()> {
         let (article, passage) = self.captured_passage()?;
         let cursor = self.cursor_offset();
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(super::personal_tasks::Task::Write(
+        if self.personal.enabled() {
+            self.personal.submit(super::personal_tasks::Task::Write(
                 crate::model::NoteDraft {
                     target: crate::model::DraftTarget::Passage {
                         article,
@@ -125,8 +126,9 @@ impl App {
                 },
             ))?;
             self.reader.cancel_selection();
-            self.status =
-                "Saving highlight… · navigation remains available".into();
+            self.interaction.report(
+                "Saving highlight… · navigation remains available".into(),
+            );
             return Ok(());
         }
         self.store.save_passage(article, &passage, "")?;
@@ -138,8 +140,8 @@ impl App {
         self.reader.select_comment(
             self.reader.view().comments.len().saturating_sub(1),
         );
-        self.status =
-            "Highlight saved · :edit-note adds a note · u undo".into();
+        self.interaction
+            .report("Highlight saved · :edit-note adds a note · u undo".into());
         Ok(())
     }
 }

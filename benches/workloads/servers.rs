@@ -59,7 +59,7 @@ fn verify_section_fold(
     app: &mut App,
     terminal: &mut Terminal<TestBackend>,
 ) -> Result<()> {
-    app.focus = lume::app::Focus::Library;
+    app.activate_pane(lume::app::Focus::Library);
     app.set_view(View::Group("SERVERS".into()))?;
     app.key(crossterm::event::KeyCode::Enter.into())?;
     terminal.draw(|frame| ui::draw(frame, app))?;

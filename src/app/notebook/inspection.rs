@@ -35,7 +35,8 @@ impl App {
     ) -> Result<()> {
         self.notebooks
             .inspect(&self.store.database_path()?, request)?;
-        self.status = "Preparing note inspection… · Esc cancels".into();
+        self.interaction
+            .report("Preparing note inspection… · Esc cancels".into());
         Ok(())
     }
 
@@ -68,10 +69,10 @@ impl App {
         &mut self,
         text: String,
     ) -> Result<()> {
-        self.focus = super::super::Focus::Reader;
+        self.layout.focus_pane(super::super::Focus::Reader);
         self.begin_reader_note()?;
         self.replace_draft(text)?;
-        if let super::super::Mode::Input(input) = &mut self.mode {
+        if let Some(input) = self.interaction.draft_mut() {
             input.initial_kind = Some(crate::model::NoteKind::Synthesis);
         }
         Ok(())

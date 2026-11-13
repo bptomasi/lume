@@ -12,7 +12,7 @@ use super::{App, Focus, NavItem, View};
 impl App {
     pub(super) fn pin_navigation_viewport(&mut self) {
         if let Some((first, skip)) =
-            crate::ui::navigation_origin(self, self.screen)
+            crate::ui::navigation_origin(self, self.layout.screen())
         {
             self.nav.pin_navigation(first, skip);
         }
@@ -20,9 +20,9 @@ impl App {
 
     fn pin_article_viewport(&mut self) {
         let areas = crate::ui::workspace_areas(
-            self.screen,
-            self.focus,
-            &self.workspace,
+            self.layout.screen(),
+            self.layout.focus(),
+            self.layout.workspace(),
         );
         if let Some(area) = areas.articles {
             self.nav.pin_articles(crate::ui::article_origin(self, area));
@@ -54,7 +54,7 @@ impl App {
         let items = catalog_navigation(
             &self.store,
             self.nav.library(),
-            self.workspace.last_visit,
+            self.layout.workspace().last_visit,
         )?;
         self.install_navigation(items);
         Ok(())
@@ -62,15 +62,16 @@ impl App {
 
     pub(super) fn install_navigation(&mut self, items: Vec<NavItem>) {
         let editing = matches!(
-            &self.mode,
+            self.interaction.mode(),
             super::Mode::Input(input)
                 if matches!(input.kind, super::InputKind::LibrarySearch)
         );
-        self.nav.install_navigation(items, &self.workspace, editing);
+        self.nav
+            .install_navigation(items, self.layout.workspace(), editing);
     }
 
     pub(super) fn project_navigation(&mut self) {
-        self.nav.project_navigation(&self.workspace);
+        self.nav.project_navigation(self.layout.workspace());
     }
 
     pub(crate) fn filter(&mut self) -> Result<()> {
@@ -165,7 +166,7 @@ impl App {
         forward: bool,
         distance: usize,
     ) -> Result<()> {
-        match self.focus {
+        match self.layout.focus() {
             Focus::Library => {
                 let previous = self.nav.nav_selected();
                 if let Some(next) = self.move_library_match(forward, distance)
@@ -187,7 +188,7 @@ impl App {
             return Ok(());
         };
         self.pin_article_viewport();
-        let preview = matches!(&self.mode, super::Mode::Input(input)
+        let preview = matches!(self.interaction.mode(), super::Mode::Input(input)
             if matches!(input.kind, super::InputKind::Search));
         if !preview {
             self.save_reading_position()?;
@@ -208,28 +209,28 @@ impl App {
         self.prepare_panel_focus();
         let panes = self.expanded_panes();
         if panes.is_empty() {
-            self.workspace.show_reader = true;
-            self.focus = Focus::Reader;
+            self.layout.show_pane(crate::model::Pane::Reader, true);
+            self.layout.focus_pane(Focus::Reader);
             return;
         }
         let index = panes
             .iter()
-            .position(|pane| *pane == self.focus)
+            .position(|pane| *pane == self.layout.focus())
             .unwrap_or(0);
         let next = if forward {
             (index + 1) % panes.len()
         } else {
             (index + panes.len() - 1) % panes.len()
         };
-        self.focus = panes[next];
+        self.layout.focus_pane(panes[next]);
     }
 
     pub(super) fn prepare_panel_focus(&mut self) {
-        self.workspace.zen = false;
-        self.workspace.fullscreen = false;
-        self.fullscreen_focus = None;
+        self.layout.set_zen(false);
+        self.layout.set_fullscreen(false);
+        self.layout.remember_fullscreen_focus(None);
         self.reader.cancel_selection();
-        self.vim.clear_input();
+        self.interaction.vim_input().clear_input();
     }
 
     pub(crate) fn open_reader(&mut self) -> Result<()> {
@@ -238,8 +239,8 @@ impl App {
         }
         self.nav
             .retain_article(self.current().map(|article| article.id));
-        self.focus = Focus::Reader;
-        self.workspace.show_reader = true;
+        self.layout.focus_pane(Focus::Reader);
+        self.layout.show_pane(crate::model::Pane::Reader, true);
         Ok(())
     }
 
@@ -247,7 +248,7 @@ impl App {
         let navigation = super::catalog_worker::read_counts(
             &self.store,
             self.nav.library(),
-            self.workspace.last_visit,
+            self.layout.workspace().last_visit,
             self.nav.navigation_sections().catalog(),
         )?;
         self.install_navigation(navigation);
@@ -272,8 +273,8 @@ impl App {
             self.nav.jump_position(position);
             self.filter_now()?;
         }
-        self.workspace.show_reader = true;
-        self.focus = Focus::Reader;
+        self.layout.show_pane(crate::model::Pane::Reader, true);
+        self.layout.focus_pane(Focus::Reader);
         Ok(())
     }
 

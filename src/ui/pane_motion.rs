@@ -11,7 +11,7 @@ use unicode_width::UnicodeWidthStr;
 use crate::app::{App, FloatingPane, Mode};
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
-    if !matches!(app.mode, Mode::Normal) {
+    if !matches!(app.mode(), Mode::Normal) {
         return;
     }
     let Some(picture) = app.floating_pane() else {

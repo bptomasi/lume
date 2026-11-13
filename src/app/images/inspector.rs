@@ -46,8 +46,8 @@ impl App {
 
     pub(in crate::app) fn apply_image_preferences(&mut self) {
         use crate::model::ImagePreference;
-        self.images.enabled = self.workspace.images.enabled;
-        self.images.protocol = match self.workspace.images.protocol {
+        self.images.enabled = self.layout.workspace().images.enabled;
+        self.images.protocol = match self.layout.workspace().images.protocol {
             ImagePreference::Auto => self.images.automatic_protocol,
             ImagePreference::Blocks => ImageProtocol::Blocks,
             ImagePreference::Sixel => ImageProtocol::Sixel,
@@ -75,7 +75,8 @@ impl App {
         } else {
             self.guard_stale_command(crate::command::Command::Image)?;
             ensure!(
-                self.focus == Focus::Reader && self.notebook().is_none(),
+                self.layout.focus() == Focus::Reader
+                    && self.notebook().is_none(),
                 "Focus Reader before opening an image"
             );
             self.reader.cursor_row()
@@ -99,17 +100,17 @@ impl App {
 
     pub(crate) fn open_image_inspector(&mut self) -> Result<()> {
         let image = self.captured_image()?;
-        self.vim.clear_input();
-        self.mode = Mode::Image(Box::new(image));
+        self.interaction.vim_input().clear_input();
+        self.interaction.enter(Mode::Image(Box::new(image)));
         Ok(())
     }
 
     /// Exact inspector request, including source crop and terminal cell size.
     pub fn image_inspector_key(&self) -> Option<ImageKey> {
-        let Mode::Image(image) = &self.mode else {
+        let Mode::Image(image) = self.interaction.mode() else {
             return None;
         };
-        let area = crate::ui::image_inspector_area(self.screen);
+        let area = crate::ui::image_inspector_area(self.layout.screen());
         let mut width = area.width.max(1);
         let height = area.height.max(1);
         let cell = self.images.cell_pixels;
@@ -124,7 +125,9 @@ impl App {
             url: image.url.clone(),
             width,
             height,
-            background: crate::ui::image_background(&self.workspace.theme),
+            background: crate::ui::image_background(
+                &self.layout.workspace().theme,
+            ),
             detail: Some(ImageDetail {
                 zoom: image.zoom,
                 pan: image.pan,
@@ -141,22 +144,22 @@ impl App {
     ) -> Result<()> {
         use crate::model::ImagePreference;
         let preference = match argument {
-            "" => self.workspace.images.protocol,
+            "" => self.layout.workspace().images.protocol,
             "auto" => ImagePreference::Auto,
             "blocks" => ImagePreference::Blocks,
             "sixel" => ImagePreference::Sixel,
             "iterm2" => ImagePreference::Iterm2,
             _ => bail!("Usage: :image-protocol [auto|blocks|sixel|iterm2]"),
         };
-        if self.workspace.images.protocol != preference {
-            self.workspace.images.protocol = preference;
+        if self.layout.workspace().images.protocol != preference {
+            self.layout.set_image_protocol(preference);
             self.persist_preferences()?;
         }
         self.apply_image_preferences();
-        self.status = format!(
+        self.interaction.report(format!(
             "Images: {} · :image opens · :image-open shows original",
             self.images.protocol.label(),
-        );
+        ));
         Ok(())
     }
 
@@ -164,16 +167,16 @@ impl App {
         &mut self,
         key: KeyEvent,
     ) -> Result<Action> {
-        let Mode::Image(image) = &mut self.mode else {
+        let Some(image) = self.interaction.image_mut() else {
             return Ok(Action::None);
         };
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => {
-                self.mode = if self.web_active() {
+                self.interaction.enter(if self.web_active() {
                     Mode::Web
                 } else {
                     Mode::Normal
-                };
+                });
             }
             KeyCode::Char('y') if image.formula.is_some() => {
                 return Ok(image.original_action());
@@ -206,7 +209,7 @@ impl App {
     }
 
     pub(in crate::app) fn pan_image(&mut self, forward: bool, amount: usize) {
-        if let Mode::Image(image) = &mut self.mode {
+        if let Some(image) = self.interaction.image_mut() {
             pan(image, 1, forward, amount);
         }
     }

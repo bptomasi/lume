@@ -13,7 +13,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     let sources = if stress { 5000 } else { 200 };
     let (_directory, mut app) = catalog(sources)?;
     let mut terminal = Terminal::new(TestBackend::new(160, 44))?;
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     app.resize_workspace(Rect::new(0, 0, 160, 44));
     println!("inline search input · sources={sources}");
     super::measure(

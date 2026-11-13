@@ -9,13 +9,13 @@ impl App {
     pub(super) fn note_key(&mut self, key: KeyEvent) -> Result<bool> {
         let pending = self.reader.take_note_delete();
         if self.reader.selecting()
-            || self.vim.prefix_pending()
+            || self.interaction.vim().prefix_pending()
             || !key.modifiers.difference(KeyModifiers::SHIFT).is_empty()
         {
             return Ok(false);
         }
         if pending.is_some() && key.code == KeyCode::Esc {
-            self.status = "Note deletion canceled".into();
+            self.interaction.report("Note deletion canceled".into());
             return Ok(true);
         }
         let target = self.cursor_note();
@@ -40,7 +40,7 @@ impl App {
     }
 
     fn reader_note_edit_key(&self, code: KeyCode) -> bool {
-        if self.focus != Focus::Reader {
+        if self.layout.focus() != Focus::Reader {
             return false;
         }
         match code {
@@ -62,7 +62,7 @@ impl App {
             self.reader.arm_note_delete(pending);
             return Ok(());
         }
-        self.vim.clear_input();
+        self.interaction.vim_input().clear_input();
         let Some(id) = target else {
             return Ok(());
         };
@@ -71,7 +71,8 @@ impl App {
             return self.delete_note(id);
         }
         self.reader.arm_note_delete(Some((article, id)));
-        self.status = "Note · d again deletes · Esc cancels · u undo".into();
+        self.interaction
+            .report("Note · d again deletes · Esc cancels · u undo".into());
         Ok(())
     }
 
@@ -104,21 +105,19 @@ impl App {
         article: i64,
         id: i64,
     ) -> Result<()> {
-        if self
-            .pending_note_deletes
-            .values()
-            .any(|pending| *pending == id)
-        {
-            self.status = "This note's deletion is already pending".into();
+        if self.personal.deleting(id) {
+            self.interaction
+                .report("This note's deletion is already pending".into());
             return Ok(());
         }
-        if let Some(writer) = &mut self.personal_writes {
-            let ticket = writer.submit(super::personal_tasks::Task::Edit(
-                crate::app::NoteEdit::Delete { article, note: id },
-            ))?;
-            self.pending_note_deletes.insert(ticket, id);
-            self.status =
-                "Deleting note… · navigation remains available".into();
+        if self.personal.enabled() {
+            let ticket =
+                self.personal.submit(super::personal_tasks::Task::Edit(
+                    crate::app::NoteEdit::Delete { article, note: id },
+                ))?;
+            self.personal.remember_delete(ticket, id);
+            self.interaction
+                .report("Deleting note… · navigation remains available".into());
             return Ok(());
         }
         let row = self.reader.cursor_row();
@@ -129,8 +128,9 @@ impl App {
             self.clamp_cursor();
             self.ensure_cursor_visible();
         }
-        self.status =
-            "Note deleted · u restores the note and study material".into();
+        self.interaction.report(
+            "Note deleted · u restores the note and study material".into(),
+        );
         Ok(())
     }
 }

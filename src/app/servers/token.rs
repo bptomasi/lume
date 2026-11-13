@@ -53,10 +53,10 @@ impl App {
         address: &str,
     ) -> Result<Action> {
         let address = crate::urls::server_url(address)?;
-        self.mode = Mode::ServerToken(ServerToken {
+        self.interaction.enter(Mode::ServerToken(ServerToken {
             address,
             value: String::new(),
-        });
+        }));
         Ok(Action::None)
     }
 
@@ -65,13 +65,13 @@ impl App {
         key: KeyEvent,
     ) -> Result<Action> {
         if key.code == KeyCode::Esc {
-            self.mode = Mode::Normal;
+            self.interaction.enter(Mode::Normal);
             return Ok(Action::None);
         }
         if key.code == KeyCode::Enter {
             return self.save_server_token();
         }
-        let Mode::ServerToken(input) = &mut self.mode else {
+        let Some(input) = self.interaction.token_mut() else {
             return Ok(Action::None);
         };
         match key.code {
@@ -96,12 +96,12 @@ impl App {
     }
 
     fn save_server_token(&mut self) -> Result<Action> {
-        let Mode::ServerToken(input) = &self.mode else {
+        let Mode::ServerToken(input) = self.interaction.mode() else {
             return Ok(Action::None);
         };
         let token = crate::model::ApiToken::from(input.value.as_str());
         let id = self.store.add_server_token(&input.address, &token)?;
-        self.mode = Mode::Normal;
+        self.interaction.enter(Mode::Normal);
         self.finish_server_connection(id)
     }
 }

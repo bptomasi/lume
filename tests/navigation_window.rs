@@ -28,7 +28,7 @@ fn clicking_visible_destinations_does_not_recenter_or_change_pointer_targets()
         .clone();
     app.set_view(destination)?;
     app.resize_workspace(screen);
-    let area = ui::workspace_areas(screen, app.focus, &app.workspace)
+    let area = ui::workspace_areas(screen, app.focus(), app.workspace())
         .library
         .context("Library pane")?;
     let targets = |app: &App| {
@@ -57,10 +57,10 @@ fn application() -> Result<(tempfile::TempDir, App)> {
         store.subscribe(&format!("https://feed{index}.example/rss"))?;
     }
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Library;
-    app.workspace.show_articles = false;
-    app.workspace.show_reader = false;
-    app.workspace.show_annotations = false;
+    app.activate_pane(Focus::Library);
+    common::fixture_pane(&mut app, lume::model::Pane::Articles, false)?;
+    common::fixture_pane(&mut app, lume::model::Pane::Reader, false)?;
+    common::fixture_pane(&mut app, lume::model::Pane::Annotations, false)?;
     app.set_view(View::All)?;
     Ok((directory, app))
 }

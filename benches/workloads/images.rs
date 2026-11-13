@@ -169,11 +169,11 @@ fn image_app() -> Result<(tempfile::TempDir, App)> {
     };
     store.ingest(&feed, "Image benchmark", &[article])?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    crate::fixture_toggle(&mut app, "fullscreen", true)?;
     app.resize_workspace(Rect::new(0, 0, 144, 44));
     let column =
-        ui::workspace_reader_content(Rect::new(0, 0, 144, 44), &app.workspace);
+        ui::workspace_reader_content(Rect::new(0, 0, 144, 44), app.workspace());
     app.resize_reader(column.width.into(), column.height.into());
     Ok((directory, app))
 }

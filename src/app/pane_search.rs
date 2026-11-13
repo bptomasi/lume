@@ -66,7 +66,7 @@ impl App {
     }
 
     pub(super) fn pane_search_key(&mut self, key: KeyEvent) -> Result<bool> {
-        let Mode::Input(input) = &self.mode else {
+        let Mode::Input(input) = self.interaction.mode() else {
             return Ok(false);
         };
         let library = matches!(input.kind, InputKind::LibrarySearch);

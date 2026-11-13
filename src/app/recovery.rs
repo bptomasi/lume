@@ -20,7 +20,7 @@ pub(super) struct Recovery {
 }
 
 impl Recovery {
-    fn observe(&mut self, input: Option<&Input>, now: Instant) {
+    pub(super) fn observe(&mut self, input: Option<&Input>, now: Instant) {
         let draft = input.filter(|input| input.modified()).and_then(snapshot);
         if self.snapshot == draft {
             return;
@@ -36,6 +36,19 @@ impl Recovery {
             (now + Duration::from_millis(250))
                 .min(since + Duration::from_secs(1)),
         );
+    }
+
+    pub(super) fn due(&self, now: Instant) -> Option<NoteDraft> {
+        if self.due.is_some_and(|due| due <= now) {
+            self.snapshot.clone()
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn checkpointed(&mut self) {
+        self.due = None;
+        self.since = None;
     }
 
     pub(super) fn reset(&mut self) {
@@ -65,29 +78,28 @@ impl App {
     }
 
     pub(super) fn observe_draft(&mut self) {
-        let input = match &self.mode {
+        let input = match self.interaction.mode() {
             Mode::Input(input) => Some(input.as_ref()),
             _ => self.notebooks.suspended_editor(),
         };
-        self.recovery.observe(input, Instant::now());
+        self.personal
+            .recovery_input()
+            .observe(input, Instant::now());
     }
 
     pub(super) fn tick_draft_recovery(&mut self) -> Result<()> {
-        if self.pending_note_write.is_some()
-            || self.recovery.due.is_none_or(|due| due > Instant::now())
-        {
+        if self.personal.draft_pending() {
             return Ok(());
         }
-        let Some(draft) = self.recovery.snapshot.clone() else {
+        let Some(draft) = self.personal.recovery().due(Instant::now()) else {
             return Ok(());
         };
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(Task::Checkpoint(draft))?;
+        if self.personal.enabled() {
+            self.personal.submit(Task::Checkpoint(draft))?;
         } else {
             self.store.save_note_draft(&draft)?;
         }
-        self.recovery.due = None;
-        self.recovery.since = None;
+        self.personal.recovery_input().checkpointed();
         Ok(())
     }
 
@@ -96,13 +108,13 @@ impl App {
         input: &Input,
     ) -> Result<()> {
         if let Some(target) = input.draft_target() {
-            if let Some(writer) = &mut self.personal_writes {
-                writer.submit(Task::Discard(target))?;
+            if self.personal.enabled() {
+                self.personal.submit(Task::Discard(target))?;
             } else {
                 self.store.discard_note_draft(&target)?;
             }
         }
-        self.recovery.reset();
+        self.personal.recovery_input().reset();
         Ok(())
     }
 
@@ -112,7 +124,7 @@ impl App {
     /// Returns pending transaction failures or recovery storage errors.
     pub fn checkpoint_draft(&mut self) -> Result<()> {
         let pending = self.flush_note_tasks();
-        let input = match &self.mode {
+        let input = match self.interaction.mode() {
             Mode::Input(input) => Some(input.as_ref()),
             _ => self.notebooks.suspended_editor(),
         };

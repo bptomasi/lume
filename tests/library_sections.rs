@@ -31,7 +31,7 @@ fn enter_folds_and_unfolds_each_selected_section_title() -> Result<()> {
             .count();
         assert!(before > 1, "{group} has visible children");
         app.key(KeyCode::Enter.into())?;
-        assert!(app.workspace.collapsed_groups.contains(&name));
+        assert!(app.workspace().collapsed_groups.contains(&name));
         assert_eq!(
             app.navigation()
                 .navigation
@@ -42,7 +42,7 @@ fn enter_folds_and_unfolds_each_selected_section_title() -> Result<()> {
         );
         assert_eq!(*app.navigation().view, view);
         app.key(KeyCode::Enter.into())?;
-        assert!(!app.workspace.collapsed_groups.contains(&name));
+        assert!(!app.workspace().collapsed_groups.contains(&name));
         assert_eq!(
             app.navigation()
                 .navigation
@@ -63,7 +63,7 @@ fn clicking_a_section_title_toggles_once_and_keeps_data_on_reopen() -> Result<()
     app.set_view(View::Group("SMART LISTS".into()))?;
     click_selected(&mut app)?;
     assert!(
-        app.workspace
+        app.workspace()
             .collapsed_groups
             .contains(&"SMART LISTS".into())
     );
@@ -80,7 +80,7 @@ fn clicking_a_section_title_toggles_once_and_keeps_data_on_reopen() -> Result<()
     assert_eq!(store.servers()?.len(), 1);
     click_selected(&mut app)?;
     assert!(
-        !app.workspace
+        !app.workspace()
             .collapsed_groups
             .contains(&"SMART LISTS".into())
     );
@@ -98,7 +98,7 @@ fn arrow_navigation_reaches_section_titles_and_their_children() -> Result<()> {
     app.key(KeyCode::Up.into())?;
     app.key(KeyCode::Enter.into())?;
     assert!(
-        app.workspace
+        app.workspace()
             .collapsed_groups
             .contains(&"YOUR FOLDERS".into())
     );
@@ -108,7 +108,7 @@ fn arrow_navigation_reaches_section_titles_and_their_children() -> Result<()> {
 }
 
 fn click_selected(app: &mut App) -> Result<()> {
-    let area = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let area = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .library
         .context("Library pane")?;
     let row = (area.y + 1..area.bottom() - 1)
@@ -140,7 +140,7 @@ fn application() -> Result<(tempfile::TempDir, App)> {
     store.save_smart_list("Saved query", &SmartFilter::default())?;
     store.add_server("https://reader.example", "LUME_TOKEN")?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     app.set_view(View::Starred)?;
     app.key(KeyCode::Char(':').into())?;
     app.paste("pin")?;
@@ -212,7 +212,7 @@ fn a_catalog_refresh_updates_counts_while_the_section_stays_folded()
         app.navigation().navigation[app.navigation().nav_selected].count,
         0
     );
-    assert!(app.workspace.collapsed_groups.contains(&"FEEDS".into()));
+    assert!(app.workspace().collapsed_groups.contains(&"FEEDS".into()));
     app.key(KeyCode::Enter.into())?;
     let feed = app
         .navigation()
@@ -279,9 +279,13 @@ fn reordering_keeps_folded_destinations_and_excludes_section_controls()
     run_command(&mut app, "collapse lists")?;
     app.set_view(View::Feed(app.navigation().library.feeds[0].id))?;
     run_command(&mut app, "move-up")?;
-    assert!(app.workspace.navigation_order.contains(&View::Smart(smart)));
     assert!(
-        !app.workspace
+        app.workspace()
+            .navigation_order
+            .contains(&View::Smart(smart))
+    );
+    assert!(
+        !app.workspace()
             .navigation_order
             .iter()
             .any(|view| matches!(view, View::Group(_)))
@@ -312,11 +316,11 @@ fn enter_on_a_filtered_section_toggles_it_and_keeps_library_focus() -> Result<()
     app.key(KeyCode::Char('/').into())?;
     app.paste("FEEDS")?;
     app.key(KeyCode::Enter.into())?;
-    assert_eq!(app.focus, Focus::Library);
+    assert_eq!(app.focus(), Focus::Library);
     assert_eq!(*app.navigation().view, View::Group("FEEDS".into()));
-    assert!(app.workspace.collapsed_groups.contains(&"FEEDS".into()));
+    assert!(app.workspace().collapsed_groups.contains(&"FEEDS".into()));
     app.key(KeyCode::Enter.into())?;
-    assert!(!app.workspace.collapsed_groups.contains(&"FEEDS".into()));
+    assert!(!app.workspace().collapsed_groups.contains(&"FEEDS".into()));
     assert!(
         app.navigation()
             .navigation
@@ -334,7 +338,7 @@ fn reordering_pins_changes_their_cached_order_without_reloading_the_article()
     run_command(&mut app, "pin")?;
     let article = app.current().context("Selected article")?.id;
     run_command(&mut app, "move-up")?;
-    assert_eq!(app.workspace.pins, [View::All, View::Starred]);
+    assert_eq!(app.workspace().pins, [View::All, View::Starred]);
     assert_eq!(
         app.navigation().navigation[app.navigation().nav_selected].view,
         View::All
@@ -345,10 +349,15 @@ fn reordering_pins_changes_their_cached_order_without_reloading_the_article()
 
 #[test]
 fn cached_pin_ranks_ignore_the_previous_sessions_time_boundary() -> Result<()> {
-    let (_directory, mut app) = application()?;
-    app.workspace.pins.push(View::SinceLastVisit(1));
-    app.workspace.last_visit = 42;
-    app.reload()?;
+    let (directory, app) = application()?;
+    let path = directory.path().join("library.sqlite3");
+    drop(app);
+    let store = Store::open(&path)?;
+    let mut workspace = store.workspace()?;
+    workspace.pins.push(View::SinceLastVisit(1));
+    workspace.last_visit = 42;
+    store.save_workspace(&workspace)?;
+    let mut app = App::new(store, false)?;
     let since = app
         .navigation()
         .navigation
@@ -381,6 +390,6 @@ fn the_collapse_command_can_replace_a_pending_article_selection() -> Result<()>
     run_command(&mut app, "collapse feeds")?;
     assert_eq!(*app.navigation().view, View::Group("FEEDS".into()));
     assert!(!app.navigation().navigation_loading);
-    assert!(app.workspace.collapsed_groups.contains(&"FEEDS".into()));
+    assert!(app.workspace().collapsed_groups.contains(&"FEEDS".into()));
     app.end_session()
 }

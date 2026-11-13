@@ -35,10 +35,10 @@ fn enter_edits_numeric_values_and_ctrl_s_persists_the_preview() -> Result<()> {
         terminal.draw(|frame| ui::draw(frame, &app))?;
     }
     key(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.workspace.reading_width, 100);
-    assert!(matches!(app.mode, Mode::Settings(_)));
+    assert_eq!(app.workspace().reading_width, 100);
+    assert!(matches!(app.mode(), Mode::Settings(_)));
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     assert_eq!(
         Store::open(&directory.path().join("library.sqlite3"))?
             .workspace()?
@@ -58,25 +58,25 @@ fn invalid_values_remain_editable_and_escape_cancels_only_the_inner_edit()
     key(&mut app, KeyCode::Enter)?;
     app.paste("999")?;
     assert!(key(&mut app, KeyCode::Enter).is_err());
-    assert_eq!(app.workspace.reading_width, 82);
+    assert_eq!(app.workspace().reading_width, 82);
     app.mouse(MouseEvent {
         kind: MouseEventKind::ScrollDown,
         column: 40,
         row: 15,
         modifiers: KeyModifiers::NONE,
     })?;
-    let Mode::Settings(draft) = &app.mode else {
+    let Mode::Settings(draft) = app.mode() else {
         anyhow::bail!("Editor closed")
     };
     assert_eq!(draft.field, 1);
     key(&mut app, KeyCode::Esc)?;
-    assert!(matches!(app.mode, Mode::Settings(_)));
+    assert!(matches!(app.mode(), Mode::Settings(_)));
     key(&mut app, KeyCode::Enter)?;
     app.paste("96")?;
     key(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.workspace.reading_width, 96);
+    assert_eq!(app.workspace().reading_width, 96);
     key(&mut app, KeyCode::Esc)?;
-    assert_eq!(app.workspace.reading_width, 82);
+    assert_eq!(app.workspace().reading_width, 82);
     Ok(())
 }
 
@@ -88,16 +88,16 @@ fn theme_values_and_boolean_switches_are_editable_with_enter() -> Result<()> {
     key(&mut app, KeyCode::Enter)?;
     app.paste("gruvbox")?;
     key(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.workspace.theme, "gruvbox");
+    assert_eq!(app.workspace().theme, "gruvbox");
     for _ in 0..4 {
         key(&mut app, KeyCode::Down)?;
     }
-    let compact = app.workspace.compact;
+    let compact = app.workspace().compact;
     key(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.workspace.compact, !compact);
-    assert!(matches!(app.mode, Mode::Settings(_)));
+    assert_eq!(app.workspace().compact, !compact);
+    assert!(matches!(app.mode(), Mode::Settings(_)));
     key(&mut app, KeyCode::Esc)?;
-    assert_eq!(app.workspace.theme, "lume");
-    assert_eq!(app.workspace.compact, compact);
+    assert_eq!(app.workspace().theme, "lume");
+    assert_eq!(app.workspace().compact, compact);
     Ok(())
 }

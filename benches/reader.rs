@@ -429,7 +429,7 @@ fn command_menu(app: &mut App, iterations: usize) -> Result<()> {
             terminal.draw(|frame| ui::draw(frame, app))?;
             app.key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE))?;
             ensure!(
-                matches!(&app.mode, lume::app::Mode::Input(input)
+                matches!(app.mode(), lume::app::Mode::Input(input)
                 if input.text == "export "),
                 "Completion lost its argument separator"
             );
@@ -660,10 +660,10 @@ fn fullscreen(app: &mut App, iterations: usize) -> Result<()> {
         || {
             type_keys(app, "Z")?;
             let screen = ratatui::layout::Rect::new(0, 0, 160, 50);
-            let content = ui::workspace_reader_content(screen, &app.workspace);
+            let content = ui::workspace_reader_content(screen, app.workspace());
             app.resize_reader(content.width.into(), content.height.into());
             terminal.draw(|frame| ui::draw(frame, app))?;
-            ensure!(app.workspace.fullscreen, "Fullscreen did not open");
+            ensure!(app.workspace().fullscreen, "Fullscreen did not open");
             ensure!(
                 content.width == 80 && content.x == 40,
                 "Fullscreen prose must occupy the centered 80-column block"
@@ -673,15 +673,18 @@ fn fullscreen(app: &mut App, iterations: usize) -> Result<()> {
                 "Article did not occupy the terminal"
             );
             app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
-            ensure!(!app.workspace.fullscreen, "Fullscreen did not close");
+            ensure!(!app.workspace().fullscreen, "Fullscreen did not close");
             ensure!(
                 app.current().map(|article| article.id) == article,
                 "Changing layout changed the selected article"
             );
-            let reader = ui::workspace_areas(screen, app.focus, &app.workspace)
-                .reader
-                .ok_or_else(|| anyhow::anyhow!("Reader was not restored"))?;
-            let content = ui::workspace_reader_content(reader, &app.workspace);
+            let reader =
+                ui::workspace_areas(screen, app.focus(), app.workspace())
+                    .reader
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Reader was not restored")
+                    })?;
+            let content = ui::workspace_reader_content(reader, app.workspace());
             app.resize_reader(content.width.into(), content.height.into());
             Ok(())
         },
@@ -695,7 +698,7 @@ fn navigation_workload(
 ) -> Result<()> {
     lume::catalog::install(&store)?;
     let mut app = App::new(store, false)?;
-    app.focus = lume::app::Focus::Library;
+    app.activate_pane(lume::app::Focus::Library);
     measure(
         "library down/up with 98 sources + 46 searches",
         iterations,
@@ -758,4 +761,62 @@ fn released_input(app: &mut App, iterations: usize) -> Result<()> {
         );
         Ok(())
     })
+}
+
+/// Drive fixture preferences through the same command entry as terminal input.
+#[allow(dead_code, reason = "Each target selects its fixture operations")]
+fn fixture_command(app: &mut lume::app::App, command: &str) -> Result<()> {
+    use crossterm::event::KeyCode;
+    app.key(KeyCode::Char(':').into())?;
+    app.paste(command)?;
+    app.key(KeyCode::Enter.into())?;
+    Ok(())
+}
+
+#[allow(dead_code, reason = "Each target selects its fixture operations")]
+fn fixture_toggle(
+    app: &mut lume::app::App,
+    setting: &str,
+    enabled: bool,
+) -> Result<()> {
+    let current = match setting {
+        "fullscreen" => app.workspace().fullscreen,
+        "zen" => app.workspace().zen,
+        "compact" => app.workspace().compact,
+        _ => anyhow::bail!("Unknown fixture toggle: {setting}"),
+    };
+    if current != enabled {
+        fixture_command(app, setting)?;
+    }
+    Ok(())
+}
+
+#[allow(dead_code, reason = "Each target selects its fixture operations")]
+fn fixture_pane(
+    app: &mut lume::app::App,
+    pane: lume::model::Pane,
+    visible: bool,
+) -> Result<()> {
+    if app.workspace().pane_visible(pane) != visible {
+        fixture_command(app, &format!("panel {}", pane.name()))?;
+    }
+    Ok(())
+}
+
+#[allow(dead_code, reason = "Each target selects its fixture operations")]
+fn fixture_setting(
+    app: &mut lume::app::App,
+    field: usize,
+    value: &str,
+) -> Result<()> {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    fixture_command(app, "settings")?;
+    for _ in 0..field {
+        app.key(KeyCode::Down.into())?;
+    }
+    app.key(KeyCode::Enter.into())?;
+    app.paste(value)?;
+    app.key(KeyCode::Enter.into())?;
+    app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
+    Ok(())
 }

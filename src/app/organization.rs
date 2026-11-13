@@ -32,9 +32,9 @@ impl App {
                 self.reorder_navigation(command == C::MoveDown)?
             }
             C::Continue => self.set_view(View::Continue)?,
-            C::SinceLastVisit => {
-                self.set_view(View::SinceLastVisit(self.workspace.last_visit))?
-            }
+            C::SinceLastVisit => self.set_view(View::SinceLastVisit(
+                self.layout.workspace().last_visit,
+            ))?,
             C::Grouped => self.set_view(View::Grouped)?,
         }
         Ok(Action::None)
@@ -42,17 +42,19 @@ impl App {
 
     fn toggle_article_selection(&mut self) -> Result<()> {
         self.nav.mark_current()?;
-        self.status = format!(
+        self.interaction.report(format!(
             "{} selected · :bulk ACTION · :clear-selection",
             self.nav.marked().len()
-        );
+        ));
         Ok(())
     }
 
     fn select_page(&mut self) -> Result<()> {
         self.nav.mark_page()?;
-        self.status =
-            format!("{} captured articles selected", self.nav.marked().len());
+        self.interaction.report(format!(
+            "{} captured articles selected",
+            self.nav.marked().len()
+        ));
         Ok(())
     }
 
@@ -69,12 +71,12 @@ impl App {
         let count = self.nav.marked().len();
         self.nav.clear_marks();
         self.nav.retain_article(None);
-        if self.personal_writes.is_none() {
+        if !self.personal.enabled() {
             self.reload()?;
         }
-        self.status = format!(
+        self.interaction.report(format!(
             "Updated {count} captured articles · u undoes the entire batch"
-        );
+        ));
         Ok(())
     }
 
@@ -96,8 +98,9 @@ impl App {
             target,
             tags,
         })?;
-        self.status =
-            "Tags saved · u undo · tags do not change folder membership".into();
+        self.interaction.report(
+            "Tags saved · u undo · tags do not change folder membership".into(),
+        );
         Ok(())
     }
 
@@ -125,16 +128,7 @@ impl App {
             !matches!(self.nav.view(), View::Group(_)),
             "Expand the group before pinning a destination"
         );
-        if let Some(position) = self
-            .workspace
-            .pins
-            .iter()
-            .position(|view| view.same_destination(self.nav.view()))
-        {
-            self.workspace.pins.remove(position);
-        } else {
-            self.workspace.pins.push(self.nav.view().clone());
-        }
+        self.layout.toggle_pin(self.nav.view());
         self.save_navigation()
     }
 
@@ -157,19 +151,11 @@ impl App {
             }
             _ => bail!("Use :collapse feeds|servers|lists|folders|pinned"),
         };
-        if let Some(position) = self
-            .workspace
-            .collapsed_groups
-            .iter()
-            .position(|item| item == group)
-        {
-            self.workspace.collapsed_groups.remove(position);
-        } else {
-            ensure!(
-                group != "LIBRARY",
-                "Built-in library destinations stay visible"
-            );
-            self.workspace.collapsed_groups.push(group.into());
+        ensure!(
+            group != "LIBRARY",
+            "Built-in library destinations stay visible"
+        );
+        if self.layout.toggle_group(group) {
             self.nav.project_destination(View::Group(group.into()));
         }
         self.save_navigation_projection()
@@ -180,31 +166,16 @@ impl App {
             !matches!(self.nav.view(), View::Group(_)),
             "Select a destination to reorder"
         );
-        let order = if self
-            .workspace
-            .pins
-            .iter()
-            .any(|view| view.same_destination(self.nav.view()))
-        {
-            &mut self.workspace.pins
-        } else {
-            self.workspace.navigation_order =
-                self.nav.navigation_sections().destinations();
-            &mut self.workspace.navigation_order
-        };
-        let index = order
-            .iter()
-            .position(|view| view.same_destination(self.nav.view()))
-            .context("Select a destination to reorder")?;
-        let next = index
-            .saturating_add_signed(if forward { 1 } else { -1 })
-            .min(order.len().saturating_sub(1));
-        order.swap(index, next);
+        self.layout.reorder_destination(
+            self.nav.view(),
+            self.nav.navigation_sections().destinations(),
+            forward,
+        )?;
         self.save_navigation()
     }
 
     fn save_navigation(&mut self) -> Result<()> {
-        self.nav.customize(&self.workspace);
+        self.nav.customize(self.layout.workspace());
         self.save_navigation_projection()
     }
 

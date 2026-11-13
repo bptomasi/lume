@@ -113,7 +113,9 @@ impl App {
             }
             catalog.ready = Some(result?);
         }
-        if !matches!(self.mode, Mode::Normal) || self.reader.selecting() {
+        if !matches!(self.interaction.mode(), Mode::Normal)
+            || self.reader.selecting()
+        {
             return Ok(false);
         }
         let Some(snapshot) = catalog.ready.take() else {

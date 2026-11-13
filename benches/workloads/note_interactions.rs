@@ -101,7 +101,7 @@ fn writes(
                 "Repeated :w changed its captured identity or text"
             );
             ensure!(
-                matches!(&app.mode, Mode::Input(input)
+                matches!(app.mode(), Mode::Input(input)
             if matches!(input.kind, InputKind::Comment { comment: Some(saved), .. }
                 if saved == id) && !input.modified()),
                 "Saved editor lost its identity or stayed dirty"
@@ -136,7 +136,7 @@ fn hover(
     terminal: &mut Terminal<TestBackend>,
     iterations: usize,
 ) -> Result<()> {
-    let column = ui::workspace_reader_content(SCREEN, &app.workspace);
+    let column = ui::workspace_reader_content(SCREEN, app.workspace());
     let event = MouseEvent {
         kind: MouseEventKind::Moved,
         column: column.x - 1,
@@ -234,8 +234,8 @@ fn application(stress: bool) -> Result<(tempfile::TempDir, App)> {
         )?;
     }
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    crate::fixture_toggle(&mut app, "fullscreen", true)?;
     app.resize_workspace(SCREEN);
     Ok((directory, app))
 }

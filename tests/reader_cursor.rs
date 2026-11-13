@@ -24,10 +24,10 @@ fn reader_app(body: &str) -> Result<(tempfile::TempDir, App, Rect)> {
     parsed.articles[0].body = body.into();
     store.ingest(&feed, &parsed.title, &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
     let content =
-        ui::workspace_reader_content(Rect::new(0, 0, 100, 30), &app.workspace);
+        ui::workspace_reader_content(Rect::new(0, 0, 100, 30), app.workspace());
     app.resize_reader(content.width.into(), content.height.into());
     Ok((directory, app, content))
 }
@@ -78,7 +78,7 @@ fn cursor_handles_wide_graphemes_and_empty_rows_without_coloring_unfocused_text(
         terminal.backend().buffer()[(content.x, content.y + 1)].bg,
         Color::Rgb(224, 219, 208)
     );
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
 
     terminal.draw(|frame| ui::draw(frame, &app))?;
 

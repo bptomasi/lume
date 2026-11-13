@@ -17,10 +17,10 @@ const SCREEN: Rect = Rect::new(0, 0, 160, 44);
 fn mouse_scroll_and_click_use_filtered_library_identities() -> Result<()> {
     use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
     let (_directory, mut app) = application()?;
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("security")?;
-    let area = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let area = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .library
         .context("Library hidden")?;
     app.mouse(MouseEvent {
@@ -49,7 +49,7 @@ fn mouse_scroll_and_click_use_filtered_library_identities() -> Result<()> {
         modifiers: KeyModifiers::NONE,
     })?;
     assert_eq!(*app.navigation().view, expected);
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     Ok(())
 }
 
@@ -87,7 +87,7 @@ fn library_search_filters_locally_and_commits_a_captured_destination()
 -> Result<()> {
     let (_directory, mut app) = application()?;
     let before = app.navigation().view.clone();
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("SECURITY")?;
     assert_eq!(*app.navigation().view, before);
@@ -106,9 +106,9 @@ fn library_search_filters_locally_and_commits_a_captured_destination()
         .clone();
     key(&mut app, KeyCode::Enter)?;
     assert_eq!(*app.navigation().view, expected);
-    assert_eq!(app.focus, Focus::Articles);
-    assert!(matches!(app.mode, Mode::Normal));
-    app.focus = Focus::Library;
+    assert_eq!(app.focus(), Focus::Articles);
+    assert!(matches!(app.mode(), Mode::Normal));
+    app.activate_pane(Focus::Library);
     key(&mut app, KeyCode::Char('k'))?;
     assert_eq!(
         app.navigation().navigation[app.navigation().nav_selected].title,
@@ -116,7 +116,7 @@ fn library_search_filters_locally_and_commits_a_captured_destination()
     );
     key(&mut app, KeyCode::Esc)?;
     assert!(app.library_query().is_empty());
-    assert_eq!(app.focus, Focus::Library);
+    assert_eq!(app.focus(), Focus::Library);
     Ok(())
 }
 
@@ -124,7 +124,7 @@ fn library_search_filters_locally_and_commits_a_captured_destination()
 fn empty_library_matches_are_safe_and_cancel_restores_selection() -> Result<()>
 {
     let (_directory, mut app) = application()?;
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     let selected = app.navigation().nav_selected;
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("no matching destination")?;
@@ -143,7 +143,7 @@ fn empty_library_matches_are_safe_and_cancel_restores_selection() -> Result<()>
 fn inline_article_search_keeps_its_scope_and_pointer_rows() -> Result<()> {
     let (_directory, mut app) = application()?;
     app.set_view(View::All)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     key(&mut app, KeyCode::Char('/'))?;
     for character in "cache".chars() {
         key(&mut app, KeyCode::Char(character))?;
@@ -151,7 +151,7 @@ fn inline_article_search_keeps_its_scope_and_pointer_rows() -> Result<()> {
     }
     assert_eq!(*app.navigation().view, View::All);
     assert_eq!(app.navigation().page_total, 1);
-    let articles = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let articles = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .articles
         .context("Articles hidden")?;
     let first = articles.y + 3;
@@ -176,7 +176,7 @@ fn background_article_search_filters_before_enter_and_replaces_old_queries()
     app.enable_background_navigation(
         &directory.path().join("library.sqlite3"),
     )?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("does-not-exist")?;
     app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL))?;
@@ -186,7 +186,7 @@ fn background_article_search_filters_before_enter_and_replaces_old_queries()
     common::settle_notes(&mut app)?;
     assert_eq!(app.navigation().search, "cache");
     assert_eq!(app.navigation().page_total, 1);
-    assert!(matches!(app.mode, Mode::Input(_)));
+    assert!(matches!(app.mode(), Mode::Input(_)));
     assert_eq!(
         app.current().context("Live result missing")?.title,
         "Cache & consequence"
@@ -202,9 +202,9 @@ fn background_article_search_filters_before_enter_and_replaces_old_queries()
 fn escape_removes_reader_search_without_leaving_fullscreen_or_reloading()
 -> Result<()> {
     let (_directory, mut app) = application()?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     key(&mut app, KeyCode::F(11))?;
-    assert!(app.workspace.fullscreen);
+    assert!(app.workspace().fullscreen);
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("copy")?;
     key(&mut app, KeyCode::Enter)?;
@@ -214,15 +214,15 @@ fn escape_removes_reader_search_without_leaving_fullscreen_or_reloading()
     key(&mut app, KeyCode::Esc)?;
     assert!(app.reader().reader_tools.hits.is_empty());
     assert!(app.reader().reader_tools.needle.is_empty());
-    assert!(app.workspace.fullscreen);
-    assert_eq!(app.focus, Focus::Reader);
+    assert!(app.workspace().fullscreen);
+    assert_eq!(app.focus(), Focus::Reader);
     assert_eq!(app.reader().reader_text, text);
     assert_eq!(app.current().context("Selection lost")?.id, selected);
     key(&mut app, KeyCode::Esc)?;
-    assert!(!app.workspace.fullscreen);
-    assert_eq!(app.focus, Focus::Reader);
+    assert!(!app.workspace().fullscreen);
+    assert_eq!(app.focus(), Focus::Reader);
     key(&mut app, KeyCode::Esc)?;
-    assert_eq!(app.focus, Focus::Articles);
+    assert_eq!(app.focus(), Focus::Articles);
     assert_eq!(app.current().context("Selection lost")?.id, selected);
     Ok(())
 }
@@ -231,12 +231,12 @@ fn escape_removes_reader_search_without_leaving_fullscreen_or_reloading()
 fn reader_escape_clears_local_search_before_leaving_and_clearing_filter()
 -> Result<()> {
     let (_directory, mut app) = application()?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("cache")?;
     key(&mut app, KeyCode::Enter)?;
     key(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.focus, Focus::Reader);
+    assert_eq!(app.focus(), Focus::Reader);
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("copy")?;
     key(&mut app, KeyCode::Enter)?;
@@ -246,9 +246,9 @@ fn reader_escape_clears_local_search_before_leaving_and_clearing_filter()
     assert!(app.reader().reader_tools.needle.is_empty());
     assert!(app.reader().reader_tools.hits.is_empty());
     assert_eq!(app.navigation().search, "cache");
-    assert_eq!(app.focus, Focus::Reader);
+    assert_eq!(app.focus(), Focus::Reader);
     key(&mut app, KeyCode::Esc)?;
-    assert_eq!(app.focus, Focus::Articles);
+    assert_eq!(app.focus(), Focus::Articles);
     assert!(app.navigation().search.is_empty());
     Ok(())
 }
@@ -256,12 +256,12 @@ fn reader_escape_clears_local_search_before_leaving_and_clearing_filter()
 #[test]
 fn reader_escape_without_a_search_preserves_the_loaded_article() -> Result<()> {
     let (_directory, mut app) = application()?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     let selected = app.current().context("Article missing")?.id;
     let text = app.reader().reader_text.to_owned();
 
     key(&mut app, KeyCode::Esc)?;
-    assert_eq!(app.focus, Focus::Articles);
+    assert_eq!(app.focus(), Focus::Articles);
     assert_eq!(app.current().context("Selection lost")?.id, selected);
     assert_eq!(app.reader().reader_text, text);
     Ok(())
@@ -271,16 +271,16 @@ fn reader_escape_without_a_search_preserves_the_loaded_article() -> Result<()> {
 fn reader_escape_reveals_articles_in_collapsed_and_zen_layouts() -> Result<()> {
     for zen in [false, true] {
         let (_directory, mut app) = application()?;
-        app.focus = Focus::Reader;
-        app.workspace.show_articles = false;
-        app.workspace.zen = zen;
+        app.activate_pane(Focus::Reader);
+        common::fixture_pane(&mut app, lume::model::Pane::Articles, false)?;
+        common::fixture_toggle(&mut app, "zen", zen)?;
 
         key(&mut app, KeyCode::Esc)?;
-        assert_eq!(app.focus, Focus::Articles);
-        assert!(app.workspace.show_articles);
-        assert!(!app.workspace.zen);
+        assert_eq!(app.focus(), Focus::Articles);
+        assert!(app.workspace().show_articles);
+        assert!(!app.workspace().zen);
         assert!(
-            ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+            ui::workspace_areas(SCREEN, app.focus(), app.workspace())
                 .articles
                 .is_some()
         );
@@ -298,7 +298,7 @@ fn query_cursor_motion_preserves_selection_and_does_not_start_navigation()
                 &directory.path().join("library.sqlite3"),
             )?;
         }
-        app.focus = Focus::Articles;
+        app.activate_pane(Focus::Articles);
         key(&mut app, KeyCode::Char('/'))?;
         app.paste("is:unread")?;
         common::settle_notes(&mut app)?;
@@ -336,7 +336,7 @@ fn query_cursor_motion_preserves_selection_and_does_not_start_navigation()
 fn catalog_refresh_preserves_an_uncommitted_library_match() -> Result<()> {
     let (directory, mut app) = application()?;
     let original = app.navigation().view.clone();
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("security")?;
     key(&mut app, KeyCode::Down)?;
@@ -372,7 +372,7 @@ fn async_search_publishes_titles_without_loading_the_selected_body()
     app.enable_background_navigation(
         &directory.path().join("library.sqlite3"),
     )?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     key(&mut app, KeyCode::Char('/'))?;
     let visible = app.navigation().visible.len();
     app.paste("cache")?;
@@ -399,7 +399,7 @@ fn async_search_publishes_titles_without_loading_the_selected_body()
 #[test]
 fn sidebar_backspace_and_replacement_expand_matches_again() -> Result<()> {
     let (_directory, mut app) = application()?;
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("Security reviews")?;
     assert_eq!(
@@ -432,7 +432,7 @@ fn beginning_article_search_saves_the_displayed_reading_position() -> Result<()>
     common::reader::scroll(&mut app, scroll)?;
     let expected = app.reader().line_ranges[app.reader().scroll].start;
     let id = app.current().context("Article")?.id;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     key(&mut app, KeyCode::Char('/'))?;
     let store =
         lume::store::Store::open(&directory.path().join("library.sqlite3"))?;
@@ -459,7 +459,7 @@ fn moving_during_a_pending_query_does_not_lose_results_after_page_shrink()
     app.enable_background_navigation(
         &directory.path().join("library.sqlite3"),
     )?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("title:cache")?;
     key(&mut app, KeyCode::Down)?;
@@ -480,7 +480,7 @@ fn cached_sidebar_selection_rejects_hidden_rows_without_changing_article_scope()
     let view = app.navigation().view.clone();
     let article = app.current().context("Article missing")?.id;
     let body = app.reader().body.to_owned();
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     key(&mut app, KeyCode::Char('/'))?;
     app.paste("security")?;
     let before = app.navigation().nav_selected;
@@ -500,6 +500,6 @@ fn cached_sidebar_selection_rejects_hidden_rows_without_changing_article_scope()
     assert_eq!(app.current().context("Unchanged article")?.id, article);
     assert_eq!(app.reader().body, body);
     assert!(!app.navigation().navigation_loading);
-    assert!(matches!(app.mode, Mode::Input(_)));
+    assert!(matches!(app.mode(), Mode::Input(_)));
     Ok(())
 }

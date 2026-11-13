@@ -34,7 +34,7 @@ fn library_frames(
     terminal: &mut Terminal<TestBackend>,
     iterations: usize,
 ) -> Result<()> {
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     let destinations = library_destinations(app.navigation())?;
     let mut step = 0;
     super::measure(
@@ -46,8 +46,8 @@ fn library_frames(
             terminal.draw(|frame| ui::draw_interactive(frame, app))?;
             let area = ui::workspace_areas(
                 Rect::new(0, 0, 144, 44),
-                app.focus,
-                &app.workspace,
+                app.focus(),
+                app.workspace(),
             )
             .library
             .context("Library pane")?;
@@ -73,8 +73,8 @@ fn selection_frames(
     terminal: &mut Terminal<TestBackend>,
     iterations: usize,
 ) -> Result<()> {
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    crate::fixture_toggle(app, "fullscreen", true)?;
     app.resize_workspace(Rect::new(0, 0, 144, 44));
     press(app, KeyCode::Char('G'))?;
     while app

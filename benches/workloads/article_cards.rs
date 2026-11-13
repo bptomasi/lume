@@ -26,7 +26,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     let mut terminal =
         Terminal::new(TestBackend::new(SCREEN.width, SCREEN.height))?;
     for compact in [false, true] {
-        app.workspace.compact = compact;
+        crate::fixture_toggle(&mut app, "compact", compact)?;
         app.resize_workspace(SCREEN);
         clicks(&mut app, &mut terminal, iterations)?;
     }
@@ -38,11 +38,11 @@ fn clicks(
     terminal: &mut Terminal<TestBackend>,
     iterations: usize,
 ) -> Result<()> {
-    let area = ui::workspace_areas(SCREEN, Pane::Articles, &app.workspace)
+    let area = ui::workspace_areas(SCREEN, Pane::Articles, app.workspace())
         .articles
         .context("Articles hidden")?;
     let before = targets(app, area);
-    let row_height = if app.workspace.compact { 2 } else { 4 };
+    let row_height = if app.workspace().compact { 2 } else { 4 };
     let bottom = before
         .iter()
         .rposition(Option::is_some)

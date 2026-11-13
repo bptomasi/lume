@@ -32,7 +32,10 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
                 app.navigation().page_total == articles,
                 "Live results changed"
             );
-            ensure!(matches!(app.mode, Mode::Input(_)), "Query editor closed");
+            ensure!(
+                matches!(app.mode(), Mode::Input(_)),
+                "Query editor closed"
+            );
             ensure!(
                 app.current().map(|article| article.id) == Some(selected),
                 "Caret motion changed the selected article"
@@ -111,7 +114,7 @@ fn application(count: usize) -> Result<(tempfile::TempDir, App)> {
         store.ingest(&feed, "Queries", batch)?;
     }
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     app.resize_workspace(Rect::new(0, 0, 160, 44));
     app.key(KeyEvent::new(KeyCode::Char('/'), KeyModifiers::NONE))?;
     app.paste("systems")?;

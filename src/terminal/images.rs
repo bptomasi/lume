@@ -6,7 +6,7 @@ pub(super) fn start(app: &mut App, path: &std::path::Path, offline: bool) {
     if let Some(directory) = path.parent()
         && let Err(error) = app.enable_images(directory.join("images"), offline)
     {
-        app.status = format!("Images unavailable: {error}");
+        app.report_status(format!("Images unavailable: {error}"));
     }
     let term = std::env::var("TERM").unwrap_or_default();
     let program = std::env::var("TERM_PROGRAM").unwrap_or_default();

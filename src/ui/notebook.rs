@@ -39,7 +39,7 @@ fn collections(
     notebook: &NotebookView<'_>,
     area: Rect,
 ) {
-    let block = panel(" Collections ".into(), app.focus == Focus::Library);
+    let block = panel(" Collections ".into(), app.focus() == Focus::Library);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let items = ["All notes", "Pinned", "Open questions", "Follow-up actions"]
@@ -76,7 +76,7 @@ fn notes(
             ""
         }
     );
-    let block = panel(title, app.focus == Focus::Articles);
+    let block = panel(title, app.focus() == Focus::Articles);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     if notebook.page.notes.is_empty() {
@@ -185,7 +185,7 @@ fn context(
     notebook: &NotebookView<'_>,
     area: Rect,
 ) {
-    let block = panel(" Context ".into(), app.focus == Focus::Reader);
+    let block = panel(" Context ".into(), app.focus() == Focus::Reader);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let Some(context) = notebook.current_context() else {
@@ -263,7 +263,7 @@ fn backlinks(
     notebook: &NotebookView<'_>,
     area: Rect,
 ) {
-    let block = panel(" Backlinks ".into(), app.focus == Focus::Annotations);
+    let block = panel(" Backlinks ".into(), app.focus() == Focus::Annotations);
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let Some(context) = notebook.current_context() else {

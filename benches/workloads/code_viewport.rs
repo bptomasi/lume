@@ -14,8 +14,8 @@ use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 
 pub fn run(iterations: usize, stress: bool) -> Result<()> {
     let (_directory, mut app, line) = application(stress)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    crate::fixture_toggle(&mut app, "fullscreen", true)?;
     app.resize_workspace(Rect::new(0, 0, 144, 44));
     let row = app
         .reader()

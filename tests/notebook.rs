@@ -22,7 +22,7 @@ fn command(app: &mut App, text: &str) -> Result<Action> {
 }
 
 fn input(app: &App) -> Result<&lume::app::Input> {
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         anyhow::bail!("Expected a captured editor");
     };
     Ok(input)
@@ -50,18 +50,33 @@ fn annotated() -> Result<(tempfile::TempDir, App, Store, i64, i64)> {
 }
 
 #[test]
+fn notebook_g_prefix_is_consumed_even_by_a_clamped_motion() -> Result<()> {
+    let (_directory, mut app, _store, _, _) = annotated()?;
+    command(&mut app, "notebook")?;
+    common::settle_notes(&mut app)?;
+    for character in "Ggjg".chars() {
+        key(&mut app, KeyCode::Char(character))?;
+    }
+    assert_eq!(app.notebook().context("Notebook missing")?.selected, 1);
+    key(&mut app, KeyCode::Char('g'))?;
+    assert_eq!(app.notebook().context("Notebook missing")?.selected, 0);
+    common::settle_notes(&mut app)?;
+    Ok(())
+}
+
+#[test]
 fn creation_requires_reader_even_when_a_source_article_is_selected()
 -> Result<()> {
     let (_directory, mut app, store, article, _) = annotated()?;
     for focus in [Focus::Library, Focus::Articles, Focus::Annotations] {
-        app.focus = focus;
+        app.activate_pane(focus);
         assert!(command(&mut app, "note").is_err());
         assert!(matches!(input(&app)?.kind, InputKind::Command));
         key(&mut app, KeyCode::Esc)?;
         assert!(key(&mut app, KeyCode::Char('n')).is_err());
-        assert!(matches!(app.mode, Mode::Normal));
+        assert!(matches!(app.mode(), Mode::Normal));
     }
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     command(&mut app, "note")?;
     assert!(matches!(
         input(&app)?.kind,
@@ -89,7 +104,7 @@ fn global_search_targets_one_note_and_source_jump_keeps_its_identity()
     );
     key(&mut app, KeyCode::Enter)?;
     assert!(app.notebook().is_none());
-    assert_eq!(app.focus, Focus::Reader);
+    assert_eq!(app.focus(), Focus::Reader);
     assert_eq!(app.current().context("Article missing")?.id, article);
     assert_eq!(app.reader().comments[app.reader().comment_selected].id, id);
     assert_eq!(store.comments(article)?.len(), 2);
@@ -177,7 +192,7 @@ fn deleting_and_undoing_a_notebook_row_never_deletes_its_article() -> Result<()>
 fn note_templates_search_and_reference_completion_preserve_the_draft()
 -> Result<()> {
     let (_directory, mut app, store, article, _) = annotated()?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     command(&mut app, "note")?;
     key(&mut app, KeyCode::Esc)?;
     command(&mut app, "template question")?;
@@ -208,7 +223,7 @@ fn note_templates_search_and_reference_completion_preserve_the_draft()
 fn interrupted_drafts_are_recoverable_and_stale_writes_are_rejected()
 -> Result<()> {
     let (directory, mut app, store, article, first) = annotated()?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     common::reader::comment(&mut app, 0)?;
     command(&mut app, "edit-note")?;
     app.paste(" with local edits")?;
@@ -219,7 +234,7 @@ fn interrupted_drafts_are_recoverable_and_stale_writes_are_rejected()
         Store::open(&directory.path().join("library.sqlite3"))?,
         false,
     )?;
-    assert!(app.status.contains("recoverable"));
+    assert!(app.status().contains("recoverable"));
     command(&mut app, "drafts")?;
     common::settle_notes(&mut app)?;
     key(&mut app, KeyCode::Enter)?;
@@ -241,7 +256,7 @@ fn writes_do_not_block_input_or_close_newer_text_while_sqlite_is_busy()
     let path = directory.path().join("library.sqlite3");
     let mut app = App::new(store, false)?;
     app.enable_background_navigation(&path)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     command(&mut app, "note")?;
     app.paste("First revision")?;
     key(&mut app, KeyCode::Esc)?;
@@ -266,7 +281,7 @@ fn writes_do_not_block_input_or_close_newer_text_while_sqlite_is_busy()
     key(&mut app, KeyCode::Esc)?;
     command(&mut app, "wq")?;
     common::settle_notes(&mut app)?;
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     let saved = reader.comments(article)?;
     assert_eq!(saved.len(), 1);
     assert_eq!(saved[0].body, "First revision with newer text");
@@ -277,11 +292,11 @@ fn writes_do_not_block_input_or_close_newer_text_while_sqlite_is_busy()
 fn notebook_frames_fit_themes_and_sizes_and_keep_the_reading_layout()
 -> Result<()> {
     let (_directory, mut app, store, _, _) = annotated()?;
-    let reading = lume::model::PanelLayout::capture(&app.workspace);
+    let reading = lume::model::PanelLayout::capture(app.workspace());
     command(&mut app, "notebook")?;
     common::settle_notes(&mut app)?;
     for theme in ["lume", "nord", "gruvbox"] {
-        app.workspace.theme = theme.into();
+        common::fixture_command(&mut app, &format!("theme {}", theme))?;
         for (width, height) in [(1, 1), (40, 18), (80, 28), (144, 44)] {
             app.resize_workspace(Rect::new(0, 0, width, height));
             common::settle_notes(&mut app)?;
@@ -290,7 +305,7 @@ fn notebook_frames_fit_themes_and_sizes_and_keep_the_reading_layout()
             assert_eq!(terminal.backend().buffer().area.width, width);
         }
     }
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     command(&mut app, "panel-close")?;
     app.save_session()?;
     let saved = store.workspace()?;
@@ -302,7 +317,7 @@ fn notebook_frames_fit_themes_and_sizes_and_keep_the_reading_layout()
             .visible[1]
     );
     key(&mut app, KeyCode::Esc)?;
-    assert_eq!(lume::model::PanelLayout::capture(&app.workspace), reading);
+    assert_eq!(lume::model::PanelLayout::capture(app.workspace()), reading);
     Ok(())
 }
 
@@ -326,8 +341,8 @@ fn batched_keyboard_and_mouse_motion_navigate_notes_without_moving_articles()
     assert_eq!(app.current().context("Article missing")?.id, article);
     let area = lume::ui::workspace_areas(
         Rect::new(0, 0, 144, 44),
-        app.focus,
-        &app.workspace,
+        app.focus(),
+        app.workspace(),
     )
     .articles
     .context("Notes pane missing")?;
@@ -381,13 +396,13 @@ fn card_review_hides_the_answer_and_records_only_an_explicit_grade()
     )?;
     command(&mut app, "cards body:consensus")?;
     common::settle_notes(&mut app)?;
-    let Mode::Picker(picker) = &app.mode else {
+    let Mode::Picker(picker) = app.mode() else {
         anyhow::bail!("Expected due questions");
     };
     assert_eq!(picker.choices.len(), 1);
     assert!(!picker.preview.contains("The transaction owner"));
     key(&mut app, KeyCode::Enter)?;
-    let Mode::Document(document) = &app.mode else {
+    let Mode::Document(document) = app.mode() else {
         anyhow::bail!("Expected revealed answer");
     };
     assert!(
@@ -422,7 +437,7 @@ fn a_new_editor_cannot_replace_an_interrupted_buffer_for_the_same_note()
         initial_kind: Some(NoteKind::Insight),
     };
     store.save_note_draft(&draft)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
 
     assert!(command(&mut app, "note").is_err());
     assert_eq!(store.note_drafts()?, vec![draft]);
@@ -443,7 +458,7 @@ fn version_restoration_previews_both_texts_and_is_reversible() -> Result<()> {
     common::settle_notes(&mut app)?;
     key(&mut app, KeyCode::Down)?;
     key(&mut app, KeyCode::Enter)?;
-    let Mode::Document(document) = &app.mode else {
+    let Mode::Document(document) = app.mode() else {
         anyhow::bail!("Expected version confirmation");
     };
     assert!(
@@ -497,14 +512,14 @@ fn zen_reader_can_open_the_full_notebook_and_keep_shared_named_profiles()
 -> Result<()> {
     let (_directory, mut app, store, _, _) = annotated()?;
     command(&mut app, "zen")?;
-    let reading = lume::model::PanelLayout::capture(&app.workspace);
+    let reading = lume::model::PanelLayout::capture(app.workspace());
     command(&mut app, "notebook")?;
     common::settle_notes(&mut app)?;
-    assert!(!app.workspace.zen);
-    assert!(app.workspace.show_library && app.workspace.show_articles);
+    assert!(!app.workspace().zen);
+    assert!(app.workspace().show_library && app.workspace().show_articles);
     command(&mut app, "workspace save My notebook")?;
     key(&mut app, KeyCode::Esc)?;
-    assert_eq!(lume::model::PanelLayout::capture(&app.workspace), reading);
+    assert_eq!(lume::model::PanelLayout::capture(app.workspace()), reading);
     app.save_session()?;
     assert!(
         store
@@ -518,7 +533,7 @@ fn zen_reader_can_open_the_full_notebook_and_keep_shared_named_profiles()
 #[test]
 fn anchor_repair_shows_old_and_new_ranges_before_committing() -> Result<()> {
     let (_directory, mut app, store, article, first) = annotated()?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     common::reader::comment(&mut app, 0)?;
     let row = 0;
     let byte = 0;
@@ -526,7 +541,7 @@ fn anchor_repair_shows_old_and_new_ranges_before_committing() -> Result<()> {
     key(&mut app, KeyCode::Char('v'))?;
     key(&mut app, KeyCode::Char('$'))?;
     command(&mut app, "note-reanchor")?;
-    assert!(matches!(app.mode, Mode::Document(_)));
+    assert!(matches!(app.mode(), Mode::Document(_)));
     assert!(store.annotation(article, first)?.comment.quote.is_empty());
     key(&mut app, KeyCode::Enter)?;
     let quote = store.annotation(article, first)?.comment.quote;
@@ -585,7 +600,7 @@ fn context_end_motion_keeps_a_full_final_page_and_clamps_further_scroll()
     )?;
     command(&mut app, &format!("notes id:{first}"))?;
     common::settle_notes(&mut app)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     let screen = Rect::new(0, 0, 100, 24);
     app.resize_workspace(screen);
     common::settle_notes(&mut app)?;
@@ -596,7 +611,7 @@ fn context_end_motion_keeps_a_full_final_page_and_clamps_further_scroll()
     assert_eq!(app.notebook().context("Notebook missing")?.scroll, end);
     let mut terminal = Terminal::new(TestBackend::new(100, 24))?;
     terminal.draw(|frame| lume::ui::draw(frame, &app))?;
-    let area = lume::ui::workspace_areas(screen, app.focus, &app.workspace)
+    let area = lume::ui::workspace_areas(screen, app.focus(), app.workspace())
         .reader
         .context("Context missing")?;
     let mut rows = 0;
@@ -667,7 +682,7 @@ fn widening_a_scrolled_context_reflows_and_clamps_without_losing_the_last_page()
     )?;
     command(&mut app, &format!("notes id:{first}"))?;
     common::settle_notes(&mut app)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_workspace(Rect::new(0, 0, 80, 18));
     common::settle_notes(&mut app)?;
     key(&mut app, KeyCode::Char('G'))?;
@@ -708,7 +723,7 @@ fn ex_searches_enter_recent_history_and_custom_normal_bindings_work_in_notebook(
     key(&mut app, KeyCode::Esc)?;
     common::settle_notes(&mut app)?;
     command(&mut app, "note-recent")?;
-    let Mode::Picker(picker) = &app.mode else {
+    let Mode::Picker(picker) = app.mode() else {
         anyhow::bail!("Expected recent search choices");
     };
     assert_eq!(picker.choices[0].title, "body:consensus");
@@ -719,7 +734,7 @@ fn ex_searches_enter_recent_history_and_custom_normal_bindings_work_in_notebook(
 fn pasted_code_keeps_tabs_and_trailing_newlines_through_save_and_yank()
 -> Result<()> {
     let (_directory, mut app, store, article, _) = annotated()?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     command(&mut app, "note")?;
     let body = "\t[[Note-999999]]\n\tfn main() {}\n";
     app.paste(body)?;

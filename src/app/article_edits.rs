@@ -18,12 +18,82 @@ pub(super) struct ArticleEdits {
     removals: BTreeMap<u64, View>,
     changes: crate::search::Changes,
     failed: bool,
-    pub(super) reconcile_required: bool,
+    reconcile_required: bool,
+}
+
+pub(super) enum EditCompletion {
+    Pending,
+    Reconcile(super::catalog_worker::Scope),
 }
 
 struct CapturedEdit {
     articles: BTreeSet<i64>,
     edit: crate::model::BulkEdit,
+}
+
+impl ArticleEdits {
+    pub(super) fn capture(
+        &mut self,
+        ticket: u64,
+        articles: BTreeSet<i64>,
+        edit: crate::model::BulkEdit,
+    ) {
+        self.pending.insert(ticket, CapturedEdit { articles, edit });
+    }
+
+    pub(super) fn removing(&self, target: &View) -> bool {
+        self.removals
+            .values()
+            .any(|pending| pending.same_destination(target))
+    }
+
+    pub(super) fn capture_removal(&mut self, ticket: u64, target: View) {
+        self.removals.insert(ticket, target);
+    }
+
+    pub(super) fn finish_removal(&mut self, ticket: u64) {
+        self.removals.remove(&ticket);
+    }
+
+    pub(super) fn reconcile_required(&self) -> bool {
+        self.reconcile_required
+    }
+
+    pub(super) fn reconciled(&mut self) {
+        self.reconcile_required = false;
+    }
+
+    pub(super) fn complete(
+        &mut self,
+        ticket: u64,
+        failed: bool,
+    ) -> Option<EditCompletion> {
+        let pending = self.pending.remove(&ticket)?;
+        self.reconcile_required |= failed;
+        self.failed |= failed;
+        self.changes = self
+            .changes
+            .union(crate::search::Changes::bulk(&pending.edit));
+        if !self.pending.is_empty() {
+            return Some(EditCompletion::Pending);
+        }
+        let scope = if self.failed {
+            super::catalog_worker::Scope::Library
+        } else {
+            super::catalog_worker::Scope::Changes(self.changes)
+        };
+        self.failed = false;
+        self.changes = crate::search::Changes::default();
+        Some(EditCompletion::Reconcile(scope))
+    }
+
+    pub(super) fn overlays(
+        &self,
+    ) -> impl Iterator<Item = (&BTreeSet<i64>, &crate::model::BulkEdit)> {
+        self.pending
+            .values()
+            .map(|pending| (&pending.articles, &pending.edit))
+    }
 }
 
 impl App {
@@ -47,17 +117,15 @@ impl App {
             !articles.is_empty() && articles.len() <= 1000,
             "Select 1–1,000 articles"
         );
-        if let Some(writer) = &mut self.personal_writes {
-            let ticket = writer.submit(Task::Articles {
+        if self.personal.enabled() {
+            let ticket = self.personal.submit(Task::Articles {
                 articles: articles.clone(),
                 edit: edit.clone(),
             })?;
-            self.article_edits.pending.insert(
+            self.personal.article_editing().capture(
                 ticket,
-                CapturedEdit {
-                    articles: articles.clone(),
-                    edit: edit.clone(),
-                },
+                articles.clone(),
+                edit.clone(),
             );
         } else {
             super::personal_tasks::operation::article_edit(
@@ -74,20 +142,21 @@ impl App {
         &mut self,
         edit: LibraryEdit,
     ) -> Result<()> {
-        if let Some(writer) = &mut self.personal_writes {
+        if self.personal.enabled() {
             let target = edit.removal_target();
-            if target.as_ref().is_some_and(|target| {
-                self.article_edits
-                    .removals
-                    .values()
-                    .any(|pending| pending.same_destination(target))
-            }) {
-                self.status = "Library removal already queued".into();
+            if target
+                .as_ref()
+                .is_some_and(|target| self.personal.articles().removing(target))
+            {
+                self.interaction
+                    .report("Library removal already queued".into());
                 return Ok(());
             }
-            let ticket = writer.submit(Task::Library(edit))?;
+            let ticket = self.personal.submit(Task::Library(edit))?;
             if let Some(target) = target {
-                self.article_edits.removals.insert(ticket, target);
+                self.personal
+                    .article_editing()
+                    .capture_removal(ticket, target);
             }
         } else {
             let outcome = super::personal_tasks::operation::library_edit(
@@ -106,7 +175,7 @@ impl App {
     }
 
     pub(super) fn finish_library_edit(&mut self, ticket: u64) {
-        self.article_edits.removals.remove(&ticket);
+        self.personal.article_editing().finish_removal(ticket);
     }
 
     pub(super) fn complete_article_edit(
@@ -114,34 +183,21 @@ impl App {
         ticket: u64,
         failed: bool,
     ) -> bool {
-        let Some(pending) = self.article_edits.pending.remove(&ticket) else {
+        let Some(scope) =
+            self.personal.article_editing().complete(ticket, failed)
+        else {
             return false;
         };
         self.nav.invalidate_library();
-        self.article_edits.reconcile_required |= failed;
-        self.article_edits.failed |= failed;
-        self.article_edits.changes = self
-            .article_edits
-            .changes
-            .union(crate::search::Changes::bulk(&pending.edit));
-        if self.article_edits.pending.is_empty() {
-            let scope = if self.article_edits.failed {
-                super::catalog_worker::Scope::Library
-            } else {
-                super::catalog_worker::Scope::Changes(
-                    self.article_edits.changes,
-                )
-            };
-            self.article_edits.failed = false;
-            self.article_edits.changes = crate::search::Changes::default();
+        if let EditCompletion::Reconcile(scope) = scope {
             self.request_catalog(scope);
         }
         true
     }
 
     pub(super) fn overlay_article_edits(&mut self) {
-        for pending in self.article_edits.pending.values() {
-            self.nav.overlay_edit(&pending.articles, &pending.edit);
+        for (articles, edit) in self.personal.articles().overlays() {
+            self.nav.overlay_edit(articles, edit);
         }
     }
 }

@@ -14,38 +14,45 @@ impl App {
         match &input.kind {
             InputKind::NoteTags { .. }
             | InputKind::NoteCollection
-            | InputKind::NoteSearch => return Ok(Action::None),
+            | InputKind::NoteSearch => Ok(Action::None),
             InputKind::Search => {
-                return self.commit_article_search().map(|()| Action::None);
+                self.commit_article_search().map(|()| Action::None)
             }
             InputKind::LibrarySearch => {
-                return self.commit_library_search().map(|()| Action::None);
+                self.commit_library_search().map(|()| Action::None)
             }
             InputKind::ReaderSearch => {
                 self.search_reader(&input.text)?;
-                return Ok(Action::None);
+                Ok(Action::None)
             }
             InputKind::StudyCard { .. }
             | InputKind::Highlight { .. }
             | InputKind::Comment { .. } => {
-                return self.write_draft(input).map(|_| Action::None);
+                self.write_draft(input).map(|_| Action::None)
             }
-            InputKind::Command => return self.command(&input.text),
-            InputKind::NewList => {
-                self.save_folder(&input.text, None)?;
-                self.status =
-                    "Folder created · a organizes the selected article".into();
-            }
-            InputKind::AddToList(article) => {
-                self.save_folder(&input.text, Some(*article))?;
-                self.status = format!("Saved to {}", input.text.trim());
+            InputKind::Command => self.command(&input.text),
+            InputKind::NewList | InputKind::AddToList(_) => {
+                self.apply_folder_input(input)
             }
             InputKind::Discover
             | InputKind::Import
             | InputKind::ExportArticle(_)
             | InputKind::ExportNotebook
-            | InputKind::ExportOpml => return self.exchange_input(input),
+            | InputKind::ExportOpml => self.exchange_input(input),
         }
+    }
+
+    fn apply_folder_input(&mut self, input: &Input) -> Result<Action> {
+        let article = match input.kind {
+            InputKind::AddToList(article) => Some(article),
+            _ => None,
+        };
+        self.save_folder(&input.text, article)?;
+        self.interaction.report(if article.is_some() {
+            format!("Saved to {}", input.text.trim())
+        } else {
+            "Folder created · a organizes the selected article".into()
+        });
         self.reload()?;
         Ok(Action::None)
     }
@@ -156,14 +163,15 @@ impl App {
             }
         }
         self.reload()?;
-        self.status = "Library updated".into();
+        self.interaction.report("Library updated".into());
         Ok(Action::None)
     }
 
     fn add_feed(&mut self, url: &str) -> Result<Action> {
         self.store.subscribe(url)?;
         self.reload()?;
-        self.status = "Feed added; collecting in the background".into();
+        self.interaction
+            .report("Feed added; collecting in the background".into());
         Ok(Action::Refresh)
     }
 
@@ -199,9 +207,9 @@ impl App {
             }
             routing::FolderCommand::Folder => {
                 self.save_folder(argument, None)?;
-                self.status = format!(
+                self.interaction.report(format!(
                     "Folder created · {argument} · a organizes articles"
-                );
+                ));
             }
             routing::FolderCommand::Save => {
                 let article =
@@ -235,10 +243,10 @@ impl App {
                 [article.id].into(),
                 crate::model::BulkEdit::Favorite(!article.starred),
             )?;
-            if self.personal_writes.is_none() {
+            if !self.personal.enabled() {
                 self.reload()?;
             }
-            self.status = "Favorite updated".into();
+            self.interaction.report("Favorite updated".into());
         }
         Ok(())
     }
@@ -258,24 +266,24 @@ impl App {
             anyhow::anyhow!("Select an article to change its read state")
         })?;
         if article.unread == unread {
-            self.status = if unread {
+            self.interaction.report(if unread {
                 "Article is already unread".into()
             } else {
                 "Article is already in Read".into()
-            };
+            });
             return Ok(());
         }
         let id = article.id;
         self.submit_read_state(std::iter::once(id).collect(), unread)?;
         self.nav.retain_article(None);
-        if self.personal_writes.is_none() {
+        if !self.personal.enabled() {
             self.reload()?;
         }
-        self.status = if unread {
+        self.interaction.report(if unread {
             "Marked unread · returned to Inbox · u undo".into()
         } else {
             "Marked read · saved in Read · u undo".into()
-        };
+        });
         Ok(())
     }
 
@@ -288,7 +296,8 @@ impl App {
                     folder: list,
                 },
             )?;
-            self.status = "Article removed from this list".into();
+            self.interaction
+                .report("Article removed from this list".into());
         }
         Ok(())
     }
@@ -315,7 +324,8 @@ impl App {
             })
             .flatten();
         if existing && selected.is_none() {
-            self.status = "Select an existing note to edit".into();
+            self.interaction
+                .report("Select an existing note to edit".into());
             return Ok(());
         }
         let comment = selected.map(|comment| comment.id);
@@ -333,7 +343,7 @@ impl App {
         if self.reader.view().comments.is_empty() {
             return;
         }
-        self.focus = super::Focus::Reader;
+        self.layout.focus_pane(super::Focus::Reader);
         let selected = if forward {
             (self.reader.view().comment_selected + 1)
                 % self.reader.view().comments.len()
@@ -344,11 +354,11 @@ impl App {
                 % self.reader.view().comments.len()
         };
         self.reader.select_comment(selected);
-        self.status = format!(
+        self.interaction.report(format!(
             "Comment {}/{} · :edit-note · :delete-comment remove",
             self.reader.view().comment_selected + 1,
             self.reader.view().comments.len(),
-        );
+        ));
         let marker = format!("[{}] ", self.reader.view().comment_selected + 1);
         let row = self
             .reader

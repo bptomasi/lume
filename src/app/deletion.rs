@@ -10,16 +10,16 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 impl App {
     pub(super) fn article_delete_key(&mut self, key: KeyEvent) -> Result<bool> {
-        if self.focus != Focus::Articles
+        if self.layout.focus() != Focus::Articles
             || self.reader.selecting()
             || !key.modifiers.difference(KeyModifiers::SHIFT).is_empty()
         {
             return Ok(false);
         }
         if key.code == KeyCode::Esc
-            && self.pending_article_delete.take().is_some()
+            && self.interaction.take_article_delete().is_some()
         {
-            self.status = "Article deletion canceled".into();
+            self.interaction.report("Article deletion canceled".into());
             return Ok(true);
         }
         if key.code != KeyCode::Char('d') {
@@ -29,18 +29,18 @@ impl App {
             return Ok(true);
         }
         let Some(article) = self.current().map(|article| article.id) else {
-            self.status = "Select an article first".into();
+            self.interaction.report("Select an article first".into());
             return Ok(true);
         };
-        if self.pending_article_delete.take() == Some(article) {
+        if self.interaction.take_article_delete() == Some(article) {
             self.confirm_article_deletion(article)?;
         } else {
-            self.pending_article_delete = Some(article);
-            self.status = if *self.nav.view() == View::Trash {
+            self.interaction.arm_article_delete(Some(article));
+            self.interaction.report(if *self.nav.view() == View::Trash {
                 "d again permanently deletes this article · cannot undo · Esc cancels"
             } else {
                 "d again moves this article to Trash · Esc cancels"
-            }.into();
+            }.into());
         }
         Ok(true)
     }
@@ -50,7 +50,8 @@ impl App {
             self.submit_library_edit(LibraryEdit::Delete(Deletion::Purge(
                 article,
             )))?;
-            self.status = "Article permanently deleted · cannot undo".into();
+            self.interaction
+                .report("Article permanently deleted · cannot undo".into());
         } else {
             self.change_article_deleted(article, true)?;
         }
@@ -89,8 +90,8 @@ impl App {
             Deletion::View(view)
         };
         self.submit_library_edit(LibraryEdit::Delete(edit))?;
-        if self.personal_writes.is_some() {
-            self.status = "Library deletion queued".into();
+        if self.personal.enabled() {
+            self.interaction.report("Library deletion queued".into());
         }
         Ok(())
     }
@@ -115,11 +116,11 @@ impl App {
         if self.nav.retained_article() == Some(article) {
             self.nav.retain_article(None);
         }
-        self.status = if deleted {
+        self.interaction.report(if deleted {
             "Article moved to Trash · u undo · :trash to restore".into()
         } else {
             "Article restored · u undo".into()
-        };
+        });
         Ok(())
     }
 
@@ -181,7 +182,7 @@ impl App {
         if self.nav.retained_article() == Some(article) {
             self.nav.retain_article(None);
         }
-        if matches!(self.mode, super::Mode::Normal)
+        if matches!(self.interaction.mode(), super::Mode::Normal)
             && !self.reader.selecting()
             && self.notebook().is_none()
         {
@@ -193,7 +194,7 @@ impl App {
             }
         }
         self.refresh_deleted_articles()?;
-        self.status = status.into();
+        self.interaction.report(status.into());
         checkpoint
     }
 
@@ -205,7 +206,7 @@ impl App {
     ) -> Result<()> {
         if count != 0 {
             if self.nav.view().same_destination(&view)
-                && matches!(self.mode, super::Mode::Normal)
+                && matches!(self.interaction.mode(), super::Mode::Normal)
                 && self.notebook().is_none()
                 && !self.reader.selecting()
             {
@@ -214,7 +215,7 @@ impl App {
             }
             self.refresh_deleted_articles()?;
         }
-        self.status = status;
+        self.interaction.report(status);
         Ok(())
     }
 

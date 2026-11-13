@@ -16,7 +16,7 @@ fn key(app: &mut App, code: KeyCode) -> Result<()> {
 }
 
 fn select(app: &mut App, target: View) -> Result<()> {
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     app.select_library_destination(&target)?;
     Ok(())
 }
@@ -145,7 +145,7 @@ fn background_sidebar_removal_uses_the_ordered_write_lane() -> Result<()> {
             .iter()
             .any(|item| item.view == View::Feed(feed.id))
     );
-    assert!(!app.status.contains("u undo"));
+    assert!(!app.status().contains("u undo"));
     app.end_session()?;
     Ok(())
 }
@@ -158,11 +158,13 @@ fn rejected_removal_preserves_pins_order_and_the_active_destination()
     rusqlite::Connection::open(&path)?.execute_batch(include_str!(
         "../src/store/sql/deletion/test_reject_purge.sql"
     ))?;
-    let mut app = App::new(store, false)?;
     let view = View::Feed(feed.id);
+    let mut workspace = store.workspace()?;
+    workspace.pins.push(view.clone());
+    workspace.navigation_order.push(view.clone());
+    store.save_workspace(&workspace)?;
+    let mut app = App::new(store, false)?;
     app.set_view(view.clone())?;
-    app.workspace.pins.push(view.clone());
-    app.workspace.navigation_order.push(view.clone());
     app.save_session()?;
     app.enable_background_navigation(&path)?;
     select(&mut app, view.clone())?;
@@ -173,8 +175,8 @@ fn rejected_removal_preserves_pins_order_and_the_active_destination()
         .context("Deletion rejection")?;
     assert!(error.to_string().contains("Controlled permanent deletion"));
     assert_eq!(*app.navigation().view, view);
-    assert!(app.workspace.pins.contains(&view));
-    assert!(app.workspace.navigation_order.contains(&view));
+    assert!(app.workspace().pins.contains(&view));
+    assert!(app.workspace().navigation_order.contains(&view));
     let observer = Store::open(&path)?;
     assert_eq!(observer.feeds()?.len(), 1);
     assert_eq!(observer.library()?.articles.len(), 1);

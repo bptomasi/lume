@@ -6,6 +6,7 @@
 
 mod annotations;
 mod article_edits;
+mod article_requests;
 mod auto_read;
 mod catalog_worker;
 mod commands;
@@ -28,6 +29,9 @@ mod help;
 pub(crate) use headlines::Labels as HeadlineLabels;
 mod images;
 mod input;
+mod interaction_state;
+mod layout_state;
+pub use layout_state::LayoutView;
 mod layouts;
 mod maintenance;
 mod navigation;
@@ -35,6 +39,7 @@ mod navigation_sections;
 mod navigation_state;
 pub use navigation_state::NavigationView;
 mod navigation_worker;
+mod network_state;
 mod note_actions;
 mod note_catalog;
 mod note_io;
@@ -51,10 +56,12 @@ mod performance;
 mod servers;
 pub use performance::Operation;
 pub use servers::ServerToken;
+mod personal_state;
 mod personal_tasks;
 mod picker;
 mod picker_reads;
 mod pointer;
+mod presentation;
 mod reader_links;
 mod reader_state;
 mod reader_state_api;
@@ -65,6 +72,7 @@ pub use reading::ReaderIdentity;
 mod reading_data;
 mod recommendations;
 mod recovery;
+mod session_state;
 mod session_writer;
 mod settings;
 mod study;
@@ -78,7 +86,7 @@ pub use completion::{CommandSpec, command_suggestions};
 pub use document_view::DocumentView;
 pub use draft_keys::EditMode;
 pub use events::InputBatch;
-pub use help::HELP;
+pub use help::{HELP, HelpView};
 pub use images::ImageInspector;
 pub use images::ReaderImages;
 pub use notebook::{NoteAction, NoteContext, NotebookView, ReviewTarget};
@@ -254,66 +262,29 @@ pub enum Action {
 /// State owned by the UI thread. Drawing reads this without performing I/O.
 pub struct App {
     reader: reader_state::ReaderState,
+    layout: layout_state::LayoutState,
     nav: navigation_state::NavigationState,
     configuration: configuration::ConfigurationState,
     notebooks: notebook::NotebookState,
-    pub(crate) store: Store,
-    pub(crate) layouts: crate::model::LayoutHistory,
+    store: Store,
     picker_reads: Option<picker_reads::PickerReads>,
     performance: performance::Performance,
     web: web_reading::WebReading,
-    network_enabled: bool,
-    maintenance: Option<maintenance::Maintenance>,
-    storage_diagnostics: Option<maintenance::Diagnostics>,
-    /// Current keyboard focus.
-    pub focus: Focus,
-    /// Current modal editor state.
-    pub mode: Mode,
-    pub(crate) pending_rule: Option<crate::model::RulePreview>,
-    /// Captured target of the one outstanding article fetch.
-    pub article_fetching: Option<crate::model::ArticleTarget>,
-    pub(crate) pending_document: Option<crate::model::ArticleTarget>,
-    pub(crate) last_article_attempt: Option<(crate::model::ArticleTarget, i64)>,
-    /// User-facing status, including recoverable failures.
-    pub status: String,
-    /// Whether a collection pass is outstanding.
-    pub refreshing: bool,
-    /// Whether the current database is an isolated demonstration.
-    pub demo: bool,
-    pub(crate) pending_g: bool,
-    pending_destination_delete: Option<View>,
-    pending_article_delete: Option<i64>,
-    pub(crate) fullscreen_focus: Option<Focus>,
-    /// Persistent layout and session preferences.
-    pub workspace: crate::model::Workspace,
+    network: network_state::NetworkState,
+    maintenance: maintenance::MaintenanceState,
+    interaction: interaction_state::InteractionState,
+    article_requests: article_requests::ArticleRequests,
     /// Separate image loading state; text layout never waits for it.
-    pub images: ReaderImages,
+    images: ReaderImages,
     headlines: std::cell::RefCell<headlines::Headlines>,
     navigation_worker: Option<navigation_worker::NavigationWorker>,
     catalog_worker: Option<catalog_worker::CatalogWorker>,
-    session_writer: Option<session_writer::SessionWriter>,
-    personal_writes: Option<personal_tasks::PersonalWrites>,
+    session: session_state::SessionState,
+    personal: personal_state::PersonalState,
     note_catalog: Option<note_catalog::NoteCatalog>,
     recommendations: Option<recommendations::Recommendations>,
-    pending_note_write: Option<personal_tasks::PendingWrite>,
-    /// A consumed failure survives an incomplete personal-write flush until the
-    /// next completed flush or ordinary note poll reports it exactly once.
-    note_flush_failure: Option<anyhow::Error>,
-    pending_note_deletes: std::collections::BTreeMap<u64, i64>,
-    recovery: recovery::Recovery,
-    article_edits: article_edits::ArticleEdits,
-    immediate_layout: bool,
-    progress_memory: std::cell::RefCell<session_writer::ProgressMemory>,
-    vim: vim::Vim,
-    session_problem: Option<String>,
-    /// Scrollable help position.
-    pub help_scroll: usize,
-    pub(crate) help_search: help::HelpSearch,
-    screen: ratatui::layout::Rect,
     pointer: pointer::Pointer,
-    panel_prefix: bool,
-    pane_flight: Option<pane_motion::PaneFlight>,
-    pane_neighbors: Option<pane_motion::Neighbors>,
+    pane_motion: pane_motion::PaneMotion,
 }
 
 impl App {
@@ -382,74 +353,41 @@ impl App {
             picker_reads: None,
             performance: performance::Performance::default(),
             web: web_reading::WebReading::default(),
-            network_enabled: false,
-            maintenance: None,
-            storage_diagnostics: None,
-            focus: if workspace.fullscreen {
-                Focus::Reader
-            } else {
-                Focus::Articles
-            },
-            mode: Mode::Normal,
-            pending_rule: None,
-            article_fetching: None,
-            pending_document: None,
-            last_article_attempt: None,
-            status:
-                "Welcome to Lume · ? for shortcuts · :feed URL to subscribe"
-                    .into(),
-            refreshing: false,
-            demo,
-            pending_g: false,
-            pending_destination_delete: None,
-            pending_article_delete: None,
-            fullscreen_focus: None,
-            layouts,
-            workspace,
+            network: network_state::NetworkState::new(demo),
+            maintenance: maintenance::MaintenanceState::default(),
+            interaction: interaction_state::InteractionState::default(),
+            article_requests: article_requests::ArticleRequests::default(),
+            layout: layout_state::LayoutState::new(workspace, layouts),
             images: ReaderImages::default(),
             headlines: std::cell::RefCell::default(),
             navigation_worker: None,
             catalog_worker: None,
-            session_writer: None,
-            personal_writes: None,
+            session: session_state::SessionState::default(),
+            personal: personal_state::PersonalState::default(),
             note_catalog: None,
             recommendations: None,
-            pending_note_write: None,
-            note_flush_failure: None,
-            pending_note_deletes: std::collections::BTreeMap::new(),
-            recovery: recovery::Recovery::default(),
-            article_edits: article_edits::ArticleEdits::default(),
-            immediate_layout: false,
-            progress_memory: std::cell::RefCell::default(),
-            vim: vim::Vim::default(),
-            session_problem: None,
-            help_scroll: 0,
-            help_search: help::HelpSearch::default(),
-            screen: ratatui::layout::Rect::default(),
             pointer: pointer::Pointer::default(),
-            panel_prefix: false,
-            pane_flight: None,
-            pane_neighbors: None,
+            pane_motion: pane_motion::PaneMotion::default(),
         };
         if eager {
             app.rebuild_navigation()?;
             app.filter()?;
-            if let Some(article) = app.workspace.article {
+            if let Some(article) = app.layout.workspace().article {
                 app.restore_article(article)?;
             }
         } else {
             app.install_navigation(navigation::pending_navigation(
                 app.navigation().library,
-                app.workspace.last_visit,
+                app.layout.workspace().last_visit,
             ));
         }
         app.apply_image_preferences();
         app.ensure_visible_focus();
         let drafts = app.store.note_draft_count()?;
         if drafts > 0 {
-            app.status = format!(
+            app.interaction.report(format!(
                 "{drafts} recoverable drafts · :drafts resumes editing"
-            );
+            ));
         }
         Ok(app)
     }

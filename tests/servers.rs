@@ -52,7 +52,7 @@ fn connections_have_their_own_section_and_removal_keeps_cached_content()
             .any(|item| item.title.contains("paused"))
     );
     assert_eq!(command(&mut app, "server-enable")?, Action::Refresh);
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     app.key(KeyCode::Char('d').into())?;
     assert_eq!(app.navigation().library.servers.len(), 1);
     app.key(KeyCode::Char('d').into())?;
@@ -89,7 +89,7 @@ fn remote_feeds_are_nested_and_collapsed_counts_do_not_double() -> Result<()> {
         app.navigation().navigation[app.navigation().nav_selected].count,
         1
     );
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     app.key(KeyCode::Enter.into())?;
     assert!(
         app.navigation()
@@ -97,7 +97,7 @@ fn remote_feeds_are_nested_and_collapsed_counts_do_not_double() -> Result<()> {
             .iter()
             .any(|item| item.view == View::Server(id))
     );
-    assert!(!app.workspace.collapsed_groups.contains(&"SERVERS".into()));
+    assert!(!app.workspace().collapsed_groups.contains(&"SERVERS".into()));
     Ok(())
 }
 
@@ -537,7 +537,7 @@ fn masked_token_command_publishes_the_key_without_exposing_it_in_frames_or_debug
     );
     assert!(app.navigation().library.servers.is_empty());
     app.paste("private-ui-token\n")?;
-    assert!(!format!("{:?}", app.mode).contains("private-ui-token"));
+    assert!(!format!("{:?}", app.mode()).contains("private-ui-token"));
     let mut terminal = Terminal::new(TestBackend::new(100, 32))?;
     terminal.draw(|frame| lume::ui::draw(frame, &app))?;
     let pixels = terminal
@@ -577,7 +577,7 @@ fn token_entry_cancels_and_rejects_controls_or_excessive_pastes_without_partial_
     app.paste("discarded-secret")?;
     app.key(KeyCode::Esc.into())?;
     assert!(app.navigation().library.servers.is_empty());
-    assert!(matches!(app.mode, lume::app::Mode::Normal));
+    assert!(matches!(app.mode(), lume::app::Mode::Normal));
     command(&mut app, "server https://reader.example --token")?;
     app.paste("replace-this")?;
     app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL))?;

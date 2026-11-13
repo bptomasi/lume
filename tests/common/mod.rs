@@ -48,3 +48,61 @@ pub fn settle_notes(app: &mut lume::app::App) -> Result<()> {
 }
 
 pub mod reader;
+
+/// Drive fixture preferences through the same command entry as terminal input.
+#[allow(dead_code, reason = "Each target selects its fixture operations")]
+pub fn fixture_command(app: &mut lume::app::App, command: &str) -> Result<()> {
+    use crossterm::event::KeyCode;
+    app.key(KeyCode::Char(':').into())?;
+    app.paste(command)?;
+    app.key(KeyCode::Enter.into())?;
+    Ok(())
+}
+
+#[allow(dead_code, reason = "Each target selects its fixture operations")]
+pub fn fixture_toggle(
+    app: &mut lume::app::App,
+    setting: &str,
+    enabled: bool,
+) -> Result<()> {
+    let current = match setting {
+        "fullscreen" => app.workspace().fullscreen,
+        "zen" => app.workspace().zen,
+        "compact" => app.workspace().compact,
+        _ => anyhow::bail!("Unknown fixture toggle: {setting}"),
+    };
+    if current != enabled {
+        fixture_command(app, setting)?;
+    }
+    Ok(())
+}
+
+#[allow(dead_code, reason = "Each target selects its fixture operations")]
+pub fn fixture_pane(
+    app: &mut lume::app::App,
+    pane: lume::model::Pane,
+    visible: bool,
+) -> Result<()> {
+    if app.workspace().pane_visible(pane) != visible {
+        fixture_command(app, &format!("panel {}", pane.name()))?;
+    }
+    Ok(())
+}
+
+#[allow(dead_code, reason = "Each target selects its fixture operations")]
+pub fn fixture_setting(
+    app: &mut lume::app::App,
+    field: usize,
+    value: &str,
+) -> Result<()> {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    fixture_command(app, "settings")?;
+    for _ in 0..field {
+        app.key(KeyCode::Down.into())?;
+    }
+    app.key(KeyCode::Enter.into())?;
+    app.paste(value)?;
+    app.key(KeyCode::Enter.into())?;
+    app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
+    Ok(())
+}

@@ -23,7 +23,7 @@ fn application() -> Result<(tempfile::TempDir, App)> {
         "# Reader\n\n```rust\nfn main() { let n = 42; }\n```\n".into();
     store.ingest(&feed, "Journal", &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_reader(60, 10);
     Ok((directory, app))
 }
@@ -82,7 +82,7 @@ fn help_documents_layout_and_all_later_sections_are_reachable() -> Result<()> {
     let (_directory, mut app) = application()?;
     keys(&mut app, ":help layout")?;
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
-    assert!(matches!(app.mode, Mode::Help));
+    assert!(matches!(app.mode(), Mode::Help));
     let mut terminal = Terminal::new(TestBackend::new(120, 44))?;
     terminal.draw(|frame| ui::draw(frame, &app))?;
     let visible = terminal
@@ -97,13 +97,13 @@ fn help_documents_layout_and_all_later_sections_are_reachable() -> Result<()> {
     assert!(visible.contains(":panel-dock"));
     assert!(lume::app::HELP.contains(":sidebar-width"));
     keys(&mut app, "G")?;
-    assert!(app.help_scroll > 60);
+    assert!(app.help_scroll() > 60);
     keys(&mut app, "q:help vim")?;
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     assert!(
         lume::app::HELP
             .lines()
-            .nth(app.help_scroll)
+            .nth(app.help_scroll())
             .is_some_and(|line| line.contains("VIM"))
     );
     Ok(())
@@ -153,7 +153,7 @@ fn formula_application() -> Result<(tempfile::TempDir, App)> {
     incoming.articles[0].body = "# $x^2$\n\nBefore $x^2$.\n\nAnchor target after the formula.\n\nLast paragraph.".into();
     store.ingest(&feed, "Formula", &incoming.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_reader(60, 8);
     let row = app
         .reader()
@@ -203,11 +203,11 @@ fn formula_switch_reprojects_cached_text_and_preserves_source_cursor()
             );
             assert_eq!(
                 app.reader().reader_text.contains("x²"),
-                app.workspace.latex_formulas
+                app.workspace().latex_formulas
             );
             assert_eq!(
                 app.reader().reader_text.contains("$x^2$"),
-                !app.workspace.latex_formulas
+                !app.workspace().latex_formulas
             );
         }
         app.end_session()?;
@@ -248,7 +248,7 @@ fn invalid_formula_policy_preserves_the_previous_setting_and_source()
     let (_directory, mut app) = formula_application()?;
     let text = app.reader().reader_text.to_owned();
     assert!(formula_command(&mut app, "latex-formulas nonsense").is_err());
-    assert!(app.workspace.latex_formulas);
+    assert!(app.workspace().latex_formulas);
     assert_eq!(app.reader().reader_text, text);
     Ok(())
 }
@@ -261,10 +261,10 @@ fn formula_setting_has_a_reversible_live_preview() -> Result<()> {
         app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE))?;
     }
     app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE))?;
-    assert!(!app.workspace.latex_formulas);
+    assert!(!app.workspace().latex_formulas);
     assert!(app.reader().reader_text.contains("$x^2$"));
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
-    assert!(app.workspace.latex_formulas);
+    assert!(app.workspace().latex_formulas);
     assert!(app.reader().reader_text.contains("x²"));
     Ok(())
 }

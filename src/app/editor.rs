@@ -39,7 +39,7 @@ pub(super) fn textarea(text: &str) -> TextArea<'static> {
 impl App {
     /// Return text only for an annotation/study draft eligible for external editing.
     pub fn external_draft(&self) -> Option<&str> {
-        let Mode::Input(input) = &self.mode else {
+        let Mode::Input(input) = self.interaction.mode() else {
             return None;
         };
         multiline(&input.kind).then_some(input.text.as_str())
@@ -50,18 +50,19 @@ impl App {
     /// # Errors
     /// Returns storage errors while updating a live search.
     pub fn paste(&mut self, text: &str) -> Result<()> {
-        if let Mode::ServerToken(input) = &mut self.mode {
+        if let Some(input) = self.interaction.token_mut() {
             return input.paste(text);
         }
         if self.paste_setting_value(text) {
             return Ok(());
         }
-        if matches!(self.mode, Mode::Help) && self.help_search.editor.is_some()
+        if matches!(self.interaction.mode(), Mode::Help)
+            && self.help().editor.is_some()
         {
-            self.paste_help_search(text);
+            self.interaction.help_input().paste_search(text);
             return Ok(());
         }
-        if let Mode::Picker(picker) = &mut self.mode {
+        if let Some(picker) = self.interaction.picker_mut() {
             let remaining = 4096_usize.saturating_sub(picker.query.len());
             let mut available = remaining;
             picker.query.extend(
@@ -76,8 +77,9 @@ impl App {
             );
             return self.update_picker();
         }
-        let Mode::Input(input) = &mut self.mode else {
-            self.status = "Open an editor before pasting".into();
+        let Some(input) = self.interaction.draft_mut() else {
+            self.interaction
+                .report("Open an editor before pasting".into());
             return Ok(());
         };
         input.paste_text(text);
@@ -86,21 +88,11 @@ impl App {
     }
 
     pub(crate) fn begin_input(&mut self, kind: InputKind, text: String) {
-        self.pending_g = false;
-        self.vim.clear_input();
         if matches!(kind, InputKind::Search) {
             self.nav.retain_article(None);
         }
-        self.mode = Mode::Input(Box::new(Input::new(
-            kind,
-            text,
-            self.nav.search().clone(),
-        )));
-        if let Mode::Input(input) = &mut self.mode
-            && matches!(input.kind, InputKind::NoteSearch)
-        {
-            input.previous_search.clone_from(&input.text);
-        }
+        self.interaction
+            .begin_input(kind, text, self.nav.search().clone());
     }
 
     pub(super) fn input_key(&mut self, key: KeyEvent) -> Result<Action> {
@@ -118,7 +110,7 @@ impl App {
             return Ok(Action::None);
         }
         let control = key.modifiers.contains(KeyModifiers::CONTROL);
-        let Mode::Input(input) = &mut self.mode else {
+        let Some(input) = self.interaction.draft_mut() else {
             return Ok(Action::None);
         };
         if control && key.code == KeyCode::Char('e') && multiline(&input.kind) {
@@ -127,7 +119,7 @@ impl App {
         if control && key.code == KeyCode::Char('s')
             || key.code == KeyCode::Enter && !multiline(&input.kind)
         {
-            if multiline(&input.kind) && self.personal_writes.is_some() {
+            if multiline(&input.kind) && self.personal.enabled() {
                 self.request_draft_write(
                     super::draft_commands::Destination::Reader,
                 )?;
@@ -142,7 +134,7 @@ impl App {
     }
 
     fn complete_typed_reference(&mut self, key: KeyEvent) -> Result<()> {
-        let Mode::Input(input) = &self.mode else {
+        let Mode::Input(input) = self.interaction.mode() else {
             return Ok(());
         };
         if key.code != KeyCode::Char('[')
@@ -165,23 +157,23 @@ impl App {
     }
 
     fn update_search(&mut self) -> Result<()> {
-        if let Mode::Input(input) = &self.mode
+        if let Mode::Input(input) = self.interaction.mode()
             && matches!(input.kind, InputKind::LibrarySearch)
         {
             let query = input.text.clone();
             self.update_library_search(&query);
             return Ok(());
         }
-        if let Mode::Input(input) = &self.mode
+        if let Mode::Input(input) = self.interaction.mode()
             && matches!(input.kind, InputKind::NoteSearch)
         {
             let query = input.text.clone();
             if let Err(error) = self.set_notebook_query(&query) {
-                self.status = error.to_string();
+                self.interaction.report(error.to_string());
             }
             return Ok(());
         }
-        if let Mode::Input(input) = &self.mode
+        if let Mode::Input(input) = self.interaction.mode()
             && matches!(input.kind, InputKind::Search)
             && self.nav.search() != &input.text
         {
@@ -192,29 +184,29 @@ impl App {
     }
 
     fn cancel_input(&mut self) -> Result<Action> {
-        if let Mode::Input(input) = &self.mode {
+        if let Mode::Input(input) = self.interaction.mode() {
             if matches!(input.kind, InputKind::LibrarySearch) {
                 self.cancel_library_search();
             } else if matches!(input.kind, InputKind::ReaderSearch) {
                 self.reader.search_reader("");
             }
         }
-        if let Mode::Input(input) = &self.mode
+        if let Mode::Input(input) = self.interaction.mode()
             && matches!(input.kind, InputKind::NoteSearch)
         {
             let query = input.previous_search.clone();
             self.set_notebook_query(&query)?;
         }
-        if let Mode::Input(input) = &self.mode
+        if let Mode::Input(input) = self.interaction.mode()
             && matches!(input.kind, InputKind::Search)
             && self.nav.search() != &input.previous_search
         {
             self.nav.restore_query(input.previous_search.clone());
             self.filter()?;
         }
-        let search = matches!(&self.mode, Mode::Input(input)
+        let search = matches!(self.interaction.mode(), Mode::Input(input)
             if matches!(input.kind, InputKind::Search));
-        self.mode = Mode::Normal;
+        self.interaction.enter(Mode::Normal);
         if search && self.reader_stale() && !self.nav.navigation_loading() {
             self.load_current_deferred()?;
         }
@@ -225,13 +217,13 @@ impl App {
         if !self.prepare_command() {
             return Ok(Action::None);
         }
-        let Mode::Input(mut input) = std::mem::take(&mut self.mode) else {
+        let Mode::Input(mut input) = self.interaction.take_mode() else {
             return Ok(Action::None);
         };
         match self.apply_input(&mut input) {
             Ok(action) => Ok(action),
             Err(error) => {
-                self.mode = Mode::Input(input);
+                self.interaction.enter(Mode::Input(input));
                 Err(error)
             }
         }
@@ -354,7 +346,7 @@ impl App {
     /// Rejects oversized drafts and attempts without an open annotation editor.
     pub fn replace_draft(&mut self, text: String) -> Result<()> {
         anyhow::ensure!(text.len() <= 16_384, "Draft exceeds 16 KiB");
-        let Mode::Input(input) = &mut self.mode else {
+        let Some(input) = self.interaction.draft_mut() else {
             anyhow::bail!("No draft is open");
         };
         anyhow::ensure!(

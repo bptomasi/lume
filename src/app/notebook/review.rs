@@ -46,14 +46,15 @@ impl App {
         days: u16,
         postpone: bool,
     ) -> Result<()> {
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(super::super::personal_tasks::Task::Edit(
-                crate::app::NoteEdit::Review {
-                    target,
-                    days,
-                    postpone,
-                },
-            ))?;
+        if self.personal.enabled() {
+            self.personal
+                .submit(super::super::personal_tasks::Task::Edit(
+                    crate::app::NoteEdit::Review {
+                        target,
+                        days,
+                        postpone,
+                    },
+                ))?;
         } else {
             let article = super::super::personal_tasks::review(
                 &self.store,
@@ -63,13 +64,13 @@ impl App {
             )?;
             self.refresh_notes(article)?;
         }
-        self.status = if postpone {
+        self.interaction.report(if postpone {
             format!(
                 "Postponed for {days} days · review count unchanged · u undo"
             )
         } else {
             format!("Review recorded · due in {days} days · u undo")
-        };
+        });
         Ok(())
     }
 }

@@ -25,7 +25,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         .map(|list| list.id)
         .collect::<Vec<_>>();
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     let mut samples = Vec::new();
     for _ in 0..iterations {
         for id in &lists {
@@ -55,8 +55,8 @@ fn reader_frames(
     terminal: &mut Terminal<TestBackend>,
     iterations: usize,
 ) -> Result<()> {
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    crate::fixture_toggle(app, "fullscreen", true)?;
     let mut samples = Vec::new();
     let original = app.reader().reader_text.to_owned();
     for _ in 0..iterations * 10 {
@@ -91,9 +91,9 @@ fn reader_frames(
 fn frame(app: &mut App, terminal: &mut Terminal<TestBackend>) -> Result<()> {
     let size = terminal.size()?;
     let area = ratatui::layout::Rect::new(0, 0, size.width, size.height);
-    let areas = ui::workspace_areas(area, app.focus, &app.workspace);
+    let areas = ui::workspace_areas(area, app.focus(), app.workspace());
     if let Some(area) = areas.reader {
-        let content = ui::workspace_reader_content(area, &app.workspace);
+        let content = ui::workspace_reader_content(area, app.workspace());
         app.resize_reader(content.width.into(), content.height.into());
     }
     app.poll_reader();

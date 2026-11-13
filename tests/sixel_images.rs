@@ -139,8 +139,8 @@ fn reading() -> Result<(tempfile::TempDir, App)> {
     );
     store.ingest(&feed, &incoming.title, &incoming.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
     app.configure_image_terminal(ImageProtocol::Sixel, (10, 20));
     app.resize_workspace(Rect::new(0, 0, 100, 36));
     let cache = directory.path().join("images");
@@ -203,13 +203,13 @@ fn both_scroll_directions_keep_the_same_prepared_image_and_source() -> Result<()
 fn help_and_theme_changes_restore_native_rows_without_covering_controls()
 -> Result<()> {
     let (_directory, mut app) = reading()?;
-    app.mode = Mode::Help;
+    app.key(crossterm::event::KeyCode::Char('?').into())?;
     let mut terminal = Terminal::new(TestBackend::new(100, 36))?;
     terminal.draw(|frame| ui::draw(frame, &app))?;
     assert_eq!(native_rows(terminal.backend().buffer()), 0);
 
-    app.mode = Mode::Normal;
-    app.workspace.theme = "nord".into();
+    app.key(crossterm::event::KeyCode::Esc.into())?;
+    common::fixture_command(&mut app, "theme nord")?;
     settle(&mut app)?;
     terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
     assert_eq!(native_rows(terminal.backend().buffer()), 12);
@@ -281,12 +281,12 @@ fn mouse_click_and_drag_keep_inline_pixels_through_every_selection_frame()
     let (_directory, mut app) = reading()?;
     let reader = ui::workspace_areas(
         Rect::new(0, 0, 100, 36),
-        app.focus,
-        &app.workspace,
+        app.focus(),
+        app.workspace(),
     )
     .reader
     .context("Reader")?;
-    let column = ui::workspace_reader_content(reader, &app.workspace);
+    let column = ui::workspace_reader_content(reader, app.workspace());
     let after = after_image_row(&app)?;
     let row = column.y + after as u16;
     for (kind, distance) in [
@@ -302,7 +302,7 @@ fn mouse_click_and_drag_keep_inline_pixels_through_every_selection_frame()
             row,
             modifiers: KeyModifiers::NONE,
         })?;
-        assert!(matches!(app.mode, Mode::Normal));
+        assert!(matches!(app.mode(), Mode::Normal));
         assert_native(&mut app)?;
     }
     assert_eq!(

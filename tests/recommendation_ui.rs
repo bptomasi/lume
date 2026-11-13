@@ -75,7 +75,7 @@ fn interests_feedback_why_and_palette_are_available_through_actual_commands()
     assert!(app.navigation().page_total > 0);
     let article = app.current().context("No recommended article")?.id;
     command(&mut app, "recommend-why")?;
-    let Mode::Document(document) = &app.mode else {
+    let Mode::Document(document) = app.mode() else {
         anyhow::bail!("Missing explanation");
     };
     assert!(
@@ -131,7 +131,7 @@ fn admitted_feedback_survives_navigation_and_shutdown_under_a_real_sqlite_lock()
     assert!(app.recommendations_pending());
     // Input remains admissible while the writer is provably unable to commit.
     app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE))?;
-    assert!(matches!(app.mode, Mode::Leader));
+    assert!(matches!(app.mode(), Mode::Leader));
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     app.set_view(View::Read)?;
     lock.execute_batch(include_str!(
@@ -158,7 +158,7 @@ fn cached_refresh_preserves_selected_identity_and_reader_layout_across_sizes()
     app.key(KeyEvent::new(KeyCode::Char('R'), KeyModifiers::NONE))?;
     settle(&mut app)?;
     let selected = app.current().context("Missing recommendation")?.id;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     let body = app.reader().body.to_owned();
     command(&mut app, "recommend-feedback useful")?;
     settle(&mut app)?;
@@ -170,7 +170,7 @@ fn cached_refresh_preserves_selected_identity_and_reader_layout_across_sizes()
         terminal.draw(|frame| ui::draw(frame, &app))?;
     }
     command(&mut app, "help recommendations")?;
-    assert!(matches!(app.mode, Mode::Help));
+    assert!(matches!(app.mode(), Mode::Help));
     Ok(())
 }
 

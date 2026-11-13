@@ -42,7 +42,7 @@ fn reader() -> Result<(tempfile::TempDir, App, Rect)> {
     let mut app = App::new(store, false)?;
     app.resize_workspace(SCREEN);
     command(&mut app, "fullscreen")?;
-    let content = ui::workspace_reader_content(SCREEN, &app.workspace);
+    let content = ui::workspace_reader_content(SCREEN, app.workspace());
     Ok((directory, app, content))
 }
 
@@ -117,7 +117,7 @@ fn sidebar_wheel_steps_select_one_destination_instead_of_skipping_items()
     app.resize_workspace(SCREEN);
     let before = app.navigation().nav_selected;
     app.mouse(event(MouseEventKind::ScrollDown, 4, 12))?;
-    assert_eq!(app.focus, Pane::Library);
+    assert_eq!(app.focus(), Pane::Library);
     assert_eq!(app.navigation().nav_selected, before + 1);
     app.mouse(event(MouseEventKind::ScrollUp, 4, 12))?;
     assert_eq!(app.navigation().nav_selected, before);
@@ -130,7 +130,7 @@ fn modal_scroll_is_one_step_and_reaches_the_fullscreen_width_preview()
     let (_directory, mut app, _) = reader()?;
     command(&mut app, "help")?;
     app.mouse(event(MouseEventKind::ScrollDown, 80, 15))?;
-    assert_eq!(app.help_scroll, 1);
+    assert_eq!(app.help_scroll(), 1);
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     command(&mut app, "settings")?;
     let mut batch = InputBatch::new(vec![
@@ -142,16 +142,16 @@ fn modal_scroll_is_one_step_and_reaches_the_fullscreen_width_preview()
         11
     ]);
     batch.dispatch_next(&mut app)?;
-    let Mode::Settings(draft) = &app.mode else {
+    let Mode::Settings(draft) = app.mode() else {
         anyhow::bail!("Settings preview closed unexpectedly");
     };
     assert_eq!(draft.field, 11);
     app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE))?;
-    assert_eq!(app.workspace.fullscreen_width, 81);
+    assert_eq!(app.workspace().fullscreen_width, 81);
     app.resize_workspace(SCREEN);
     assert_eq!(app.reader().reader_width, 81);
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
-    assert_eq!(app.workspace.fullscreen_width, 80);
+    assert_eq!(app.workspace().fullscreen_width, 80);
     app.resize_workspace(SCREEN);
     assert_eq!(app.reader().reader_width, 80);
     assert!(app.current().context("Reader lost its article")?.unread);

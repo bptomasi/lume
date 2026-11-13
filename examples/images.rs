@@ -29,11 +29,11 @@ fn main() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let store = seed(&directory.path().join("preview.sqlite3"))?;
     let mut app = App::new(store, true)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    app.key(crossterm::event::KeyCode::F(11).into())?;
     app.resize_workspace(Rect::new(0, 0, 144, 44));
     let column =
-        ui::workspace_reader_content(Rect::new(0, 0, 144, 44), &app.workspace);
+        ui::workspace_reader_content(Rect::new(0, 0, 144, 44), app.workspace());
     app.resize_reader(column.width.into(), column.height.into());
     let cache = directory.path().join("images");
     media::cache::write(&cache, ADDRESS, DIAGRAM)?;
@@ -80,9 +80,9 @@ fn settle(app: &mut App) -> Result<()> {
                 .or_else(|| app.image_key(&app.reader().image_slots[0]))
                 .context("Image key")?;
             ensure!(
-                app.images.thumbnail(&key).is_some(),
+                app.images().thumbnail(&key).is_some(),
                 "Image preview failed: {:?}",
-                app.images.error(&key)
+                app.images().error(&key)
             );
             return Ok(());
         }

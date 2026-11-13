@@ -10,7 +10,7 @@ use super::{App, Input, InputKind};
 impl App {
     pub(super) fn write_draft(&mut self, input: &mut Input) -> Result<()> {
         if !input.modified() && persisted(&input.kind) {
-            self.status = "Buffer already saved".into();
+            self.interaction.report("Buffer already saved".into());
             return Ok(());
         }
         let draft = super::recovery::snapshot(input).ok_or_else(|| {
@@ -23,8 +23,9 @@ impl App {
         if let Some(target) = input.draft_target() {
             self.refresh_notes(target.article())?;
         }
-        self.status =
-            "Buffer saved · :wq closes · :wqa saves and quits Lume".into();
+        self.interaction.report(
+            "Buffer saved · :wq closes · :wqa saves and quits Lume".into(),
+        );
         Ok(())
     }
 }

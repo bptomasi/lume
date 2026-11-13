@@ -27,7 +27,7 @@ pub(super) fn draw(frame: &mut Frame<'_>, app: &App, input: &Input) {
     frame.render_widget(
         Paragraph::new(vec![
             Line::styled(
-                crate::content::label(&app.status, 160),
+                crate::content::label(app.status(), 160),
                 Style::new().fg(MUTED),
             ),
             Line::styled(

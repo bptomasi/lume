@@ -46,7 +46,7 @@ pub fn definition_removal(iterations: usize, stress: bool) -> Result<()> {
             let mut app = App::new(store, false)?;
             app.enable_background_navigation(&path)?;
             settle(&mut app)?;
-            app.focus = Focus::Library;
+            app.activate_pane(Focus::Library);
             app.select_library_destination(&target)?;
             let start = Instant::now();
             app.key(KeyCode::Char('d').into())?;
@@ -148,7 +148,7 @@ fn tick(app: &mut App) -> Result<()> {
 }
 
 fn remove(app: &mut App) -> Result<i64> {
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     let article = app.current().context("Missing deletion target")?.id;
     app.key(KeyCode::Char('d').into())?;
     app.key(KeyCode::Char('d').into())?;

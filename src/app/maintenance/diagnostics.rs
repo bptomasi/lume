@@ -10,7 +10,7 @@ pub(in crate::app) struct Diagnostics {
 }
 
 impl Diagnostics {
-    fn start(path: std::path::PathBuf) -> Result<Self> {
+    pub(super) fn start(path: std::path::PathBuf) -> Result<Self> {
         let images = path.parent().context("Library directory")?.join("images");
         let mut store = None;
         let worker = Latest::start_cancellable(
@@ -43,6 +43,18 @@ impl Diagnostics {
     pub(super) fn pending(&self) -> bool {
         self.worker.pending()
     }
+
+    pub(super) fn submit(&mut self, unit: Unit, details: bool) {
+        self.worker.submit((unit, details));
+    }
+
+    pub(super) fn poll(&mut self) -> Option<Result<String>> {
+        self.worker.poll()
+    }
+
+    pub(super) fn cancel(&mut self) {
+        self.worker.cancel();
+    }
 }
 
 impl App {
@@ -51,13 +63,8 @@ impl App {
         unit: Unit,
         details: bool,
     ) -> Result<()> {
-        if self.storage_diagnostics.is_none() {
-            self.storage_diagnostics =
-                Some(Diagnostics::start(self.store.database_path()?)?);
-        }
-        if let Some(diagnostics) = &mut self.storage_diagnostics {
-            diagnostics.worker.submit((unit, details));
-        }
+        self.maintenance
+            .inspect(self.store.database_path()?, unit, details)?;
         self.show_document(
             TITLE,
             "Inspecting storage in the background…",
@@ -67,14 +74,10 @@ impl App {
     }
 
     pub(super) fn poll_storage_diagnostic(&mut self) -> Result<bool> {
-        let result = self
-            .storage_diagnostics
-            .as_mut()
-            .and_then(|diagnostics| diagnostics.worker.poll());
-        let Some(result) = result else {
+        let Some(result) = self.maintenance.poll_diagnostic() else {
             return Ok(false);
         };
-        let visible = matches!(&self.mode, crate::app::Mode::Document(view) if view.title == TITLE);
+        let visible = matches!(self.interaction.mode(), crate::app::Mode::Document(view) if view.title == TITLE);
         match result {
             Ok(text) if visible => {
                 self.show_document("Storage · Esc closes", &text, None)
@@ -95,19 +98,8 @@ impl App {
     }
 
     pub(in crate::app) fn cancel_storage_diagnostic(&mut self) {
-        if let Some(diagnostics) = &mut self.storage_diagnostics {
-            diagnostics.worker.cancel();
-        }
-        let cleaning = self
-            .maintenance
-            .as_ref()
-            .is_some_and(|worker| worker.pending && worker.cleaning);
-        if cleaning && let Some(worker) = &self.maintenance {
-            worker
-                .cancel
-                .store(true, std::sync::atomic::Ordering::Relaxed);
-        }
-        if matches!(&self.mode, crate::app::Mode::Document(view) if view.title == TITLE)
+        let cleaning = self.maintenance.cancel_storage();
+        if matches!(self.interaction.mode(), crate::app::Mode::Document(view) if view.title == TITLE)
         {
             self.show_document(
                 "Storage inspection cancelled · Esc closes",
@@ -115,14 +107,13 @@ impl App {
                 None,
             );
         }
-        self.status = if cleaning {
-            "Storage cancellation requested"
-        } else {
-            "Storage inspection cancelled"
-        }
-        .into();
+        self.interaction.report(
+            if cleaning {
+                "Storage cancellation requested"
+            } else {
+                "Storage inspection cancelled"
+            }
+            .into(),
+        );
     }
 }
-
-#[cfg(test)]
-mod tests;

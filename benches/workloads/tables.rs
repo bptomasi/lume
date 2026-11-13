@@ -146,7 +146,7 @@ fn inspector(app: &mut App, expected: &str, iterations: usize) -> Result<()> {
             key(app, character)?;
         }
         app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
-        let lume::app::Mode::Document(document) = &app.mode else {
+        let lume::app::Mode::Document(document) = app.mode() else {
             anyhow::bail!("Table inspector did not open");
         };
         ensure!(
@@ -181,8 +181,8 @@ fn application(body: &str) -> Result<(tempfile::TempDir, App)> {
         }],
     )?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
+    app.activate_pane(Focus::Reader);
+    crate::fixture_toggle(&mut app, "fullscreen", true)?;
     Ok((directory, app))
 }
 

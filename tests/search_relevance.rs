@@ -44,7 +44,7 @@ fn live_background_search_selects_the_best_title_before_enter() -> Result<()> {
     app.enable_background_navigation(
         &directory.path().join("relevance.sqlite3"),
     )?;
-    app.focus = Focus::Articles;
+    app.activate_pane(Focus::Articles);
     app.key(KeyEvent::new(KeyCode::Char('/'), KeyModifiers::NONE))?;
     app.paste("no-such-article")?;
     app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL))?;
@@ -52,7 +52,7 @@ fn live_background_search_selects_the_best_title_before_enter() -> Result<()> {
         app.key(KeyEvent::new(KeyCode::Char(character), KeyModifiers::NONE))?;
     }
     settle_navigation(&mut app)?;
-    assert!(matches!(app.mode, Mode::Input(_)));
+    assert!(matches!(app.mode(), Mode::Input(_)));
     assert_eq!(app.navigation().page_total, 5);
     assert_eq!(
         app.current().map(|article| article.title.as_str()),

@@ -10,7 +10,7 @@ use crate::{
 use super::theme::{AMBER, MUTED};
 
 fn editor(app: &App, pane: Pane) -> Option<&Input> {
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         return None;
     };
     matches!(

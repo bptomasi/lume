@@ -30,15 +30,15 @@ fn articles(compact: bool) -> Result<(tempfile::TempDir, App)> {
         .collect::<Vec<_>>();
     store.ingest(&feed, &feed.title, &articles)?;
     let mut app = App::new(store, false)?;
-    app.workspace.compact = compact;
-    app.focus = Pane::Articles;
+    common::fixture_toggle(&mut app, "compact", compact)?;
+    app.activate_pane(Pane::Articles);
     app.set_view(View::All)?;
     app.resize_workspace(SCREEN);
     Ok((directory, app))
 }
 
 fn area(app: &App) -> Result<Rect> {
-    ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .articles
         .context("Articles hidden")
 }
@@ -50,7 +50,7 @@ fn targets(app: &App, area: Rect) -> Vec<Option<usize>> {
 }
 
 fn key(app: &mut App, code: KeyCode) -> Result<()> {
-    app.focus = Pane::Articles;
+    app.activate_pane(Pane::Articles);
     app.key(KeyEvent::new(code, KeyModifiers::NONE))?;
     app.resize_workspace(SCREEN);
     Ok(())

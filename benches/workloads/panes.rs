@@ -42,7 +42,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     command(&mut app, "annotations")?;
     let mut samples = Vec::new();
     for index in 0..iterations * 5 {
-        app.focus = Focus::Annotations;
+        app.activate_pane(Focus::Annotations);
         let start = Instant::now();
         key(
             &mut app,
@@ -67,9 +67,9 @@ fn resize_workload(
     terminal: &mut Terminal<TestBackend>,
     iterations: usize,
 ) -> Result<()> {
-    let widths = (app.workspace.article_width, app.workspace.library_width);
+    let widths = (app.workspace().article_width, app.workspace().library_width);
     let text = app.reader().reader_text.to_owned();
-    let column = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let column = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .reader
         .context("Reader hidden")?
         .x;
@@ -86,7 +86,7 @@ fn resize_workload(
         frame(app, terminal)?;
         samples.push(start.elapsed().as_secs_f64() * 1000.0);
         ensure!(
-            (app.workspace.article_width, app.workspace.library_width)
+            (app.workspace().article_width, app.workspace().library_width)
                 == widths,
             "Divider roundtrip lost saved dimensions"
         );
@@ -125,10 +125,10 @@ fn selection_workload(
     terminal: &mut Terminal<TestBackend>,
     iterations: usize,
 ) -> Result<()> {
-    let reader = ui::workspace_areas(SCREEN, app.focus, &app.workspace)
+    let reader = ui::workspace_areas(SCREEN, app.focus(), app.workspace())
         .reader
         .context("Reader hidden")?;
-    let content = ui::workspace_reader_content(reader, &app.workspace);
+    let content = ui::workspace_reader_content(reader, app.workspace());
     let row = app
         .reader()
         .reader_lines
@@ -198,7 +198,7 @@ fn application(stress: bool) -> Result<(tempfile::TempDir, App)> {
         )?;
     }
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_workspace(SCREEN);
     Ok((directory, app))
 }

@@ -64,7 +64,7 @@ fn exact_yank_and_source_capture_survive_soft_wrapping_and_reflow() -> Result<()
         Action::Copy("café".into())
     );
     keys(&mut app, "n")?;
-    let Mode::Input(input) = &app.mode else {
+    let Mode::Input(input) = app.mode() else {
         anyhow::bail!("Expected an annotation draft");
     };
     let InputKind::Highlight { passage, .. } = &input.kind else {
@@ -132,7 +132,7 @@ fn linewise_selection_preserves_code_and_tab_changes_focus() -> Result<()> {
     keys(&mut app, "0$")?;
     assert_eq!(app.reader().reader_column, 6);
     press(&mut app, KeyCode::BackTab)?;
-    assert_eq!(app.focus, Focus::Articles);
+    assert_eq!(app.focus(), Focus::Articles);
     Ok(())
 }
 
@@ -307,7 +307,7 @@ fn cursor_and_selected_cells_render_inside_small_and_large_reader_viewports()
         keys(&mut app, "Z")?;
         let content = ui::workspace_reader_content(
             Rect::new(0, 0, width, height),
-            &app.workspace,
+            app.workspace(),
         );
         app.resize_reader(content.width.into(), content.height.into());
         keys(&mut app, "llvlll")?;

@@ -160,7 +160,7 @@ fn single_change(
 fn navigation(store: Store, iterations: usize, _expected: usize) -> Result<()> {
     let mut app = App::new(store, false)?;
     app.set_view(View::Recommended)?;
-    app.focus = lume::app::Focus::Articles;
+    app.activate_pane(lume::app::Focus::Articles);
     app.resize_workspace(ratatui::layout::Rect::new(0, 0, 144, 44));
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     let mut latency = Vec::new();

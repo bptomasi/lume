@@ -4,10 +4,10 @@ use crate::app::commands::routing;
 
 mod editing;
 
-use anyhow::{Result, ensure};
+use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::{model::Workspace, validation::validate_binding};
+use crate::model::Workspace;
 
 use super::{Action, App, Mode};
 
@@ -61,25 +61,21 @@ impl App {
         use routing::SettingsCommand as C;
 
         match command {
-            C::Settings => {
-                self.mode = Mode::Settings(Box::new(SettingsDraft {
-                    before: self.workspace.clone(),
+            C::Settings => self.interaction.enter(Mode::Settings(Box::new(
+                SettingsDraft {
+                    before: self.layout.workspace().clone(),
                     field: 0,
                     editor: None,
-                }))
-            }
+                },
+            ))),
             C::Theme => {
-                ensure!(
-                    ["lume", "nord", "gruvbox"].contains(&argument),
-                    "Use :theme lume|nord|gruvbox"
-                );
-                self.workspace.theme = argument.into();
+                self.layout.set_theme(argument)?;
                 self.persist_preferences()?;
             }
             C::Justify => self.set_justification(argument)?,
             C::Bind => self.bind_command(argument)?,
             C::Unbind => {
-                self.workspace.keybindings.remove(argument);
+                self.layout.unbind(argument);
                 self.persist_preferences()?;
             }
         }
@@ -90,16 +86,16 @@ impl App {
         let enabled = match argument {
             "on" => true,
             "off" => false,
-            "" | "toggle" => !self.workspace.justify,
+            "" | "toggle" => !self.layout.workspace().justify,
             _ => anyhow::bail!("Use :justify on|off|toggle"),
         };
-        self.workspace.justify = enabled;
+        self.layout.set_justification(enabled);
         self.apply_reader_justification();
         self.persist_preferences()?;
-        self.status = format!(
+        self.interaction.report(format!(
             "Prose justification {}",
             if enabled { "enabled" } else { "disabled" }
-        );
+        ));
         Ok(())
     }
 
@@ -109,54 +105,46 @@ impl App {
                 "Use :bind KEY COMMAND, for example :bind ctrl-t toc"
             )
         })?;
-        ensure!(
-            self.workspace.keybindings.contains_key(key)
-                || self.workspace.keybindings.len() < 128,
-            "At most 128 custom key bindings"
-        );
-        validate_binding(key, command)?;
-        self.workspace
-            .keybindings
-            .insert(key.into(), command.into());
+        self.layout.bind(key, command)?;
         self.persist_preferences()?;
-        self.status = format!(
+        self.interaction.report(format!(
             "Normal-mode {key} runs :{command}; editors keep their own keys"
-        );
+        ));
         Ok(())
     }
 
     pub(super) fn settings_key(&mut self, key: KeyEvent) -> Result<Action> {
-        let justify = self.workspace.justify;
+        let justify = self.layout.workspace().justify;
         if key.modifiers.contains(KeyModifiers::CONTROL)
             && key.code == KeyCode::Char('s')
         {
             self.confirm_setting_value()?;
             self.persist_preferences()?;
-            self.mode = Mode::Normal;
+            self.interaction.enter(Mode::Normal);
             self.ensure_visible_focus();
-            self.status = "Visual preferences saved".into();
-        } else if matches!(&self.mode, Mode::Settings(draft) if draft.editor.is_some())
+            self.interaction.report("Visual preferences saved".into());
+        } else if matches!(self.interaction.mode(), Mode::Settings(draft) if draft.editor.is_some())
         {
             self.edit_setting_key(key)?;
         } else {
             self.preview_setting_key(key)?;
         }
         self.apply_formula_preferences();
-        if self.workspace.justify != justify {
+        if self.layout.workspace().justify != justify {
             self.apply_reader_justification();
         }
         Ok(Action::None)
     }
 
     fn preview_setting_key(&mut self, key: KeyEvent) -> Result<()> {
-        let Mode::Settings(draft) = &mut self.mode else {
+        let Some(draft) = self.interaction.settings_mut() else {
             return Ok(());
         };
         match key.code {
             KeyCode::Esc => {
-                self.workspace = draft.before.clone();
-                self.mode = Mode::Normal;
-                self.status = "Visual preview discarded".into();
+                self.layout.restore_preview(draft.before.clone());
+                self.interaction.enter(Mode::Normal);
+                self.interaction.report("Visual preview discarded".into());
             }
             KeyCode::Enter => self.begin_setting_edit(),
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Tab => {
@@ -167,59 +155,13 @@ impl App {
                     % SettingsDraft::FIELD_COUNT;
             }
             KeyCode::Left | KeyCode::Char('h') => {
-                change_visual(&mut self.workspace, draft.field, false)
+                self.layout.preview_visual(draft.field, false)
             }
             KeyCode::Right | KeyCode::Char('l' | ' ') => {
-                change_visual(&mut self.workspace, draft.field, true)
+                self.layout.preview_visual(draft.field, true)
             }
             _ => {}
         }
         Ok(())
     }
-}
-
-fn change_visual(workspace: &mut Workspace, field: usize, forward: bool) {
-    if let Some(value) = visual_switch(workspace, field) {
-        *value = !*value;
-        return;
-    }
-    if let Some((value, minimum, maximum)) =
-        editing::numeric_setting(workspace, field)
-    {
-        *value = resize(*value, forward, minimum, maximum);
-        return;
-    }
-    if field == 0 {
-        let themes = ["lume", "nord", "gruvbox"];
-        let current = themes
-            .iter()
-            .position(|theme| *theme == workspace.theme)
-            .unwrap_or(0);
-        let next = (current + if forward { 1 } else { 2 }) % themes.len();
-        workspace.theme = themes[next].into();
-    }
-}
-
-fn resize(value: u16, forward: bool, minimum: u16, maximum: u16) -> u16 {
-    if forward {
-        value.saturating_add(1).min(maximum)
-    } else {
-        value.saturating_sub(1).max(minimum)
-    }
-}
-
-fn visual_switch(workspace: &mut Workspace, field: usize) -> Option<&mut bool> {
-    Some(match field {
-        4 => &mut workspace.compact,
-        5 => &mut workspace.show_library,
-        6 => &mut workspace.show_articles,
-        8 => &mut workspace.show_reader,
-        9 => &mut workspace.show_annotations,
-        10 => &mut workspace.mouse,
-        12 => &mut workspace.justify,
-        13 => &mut workspace.latex_formulas,
-        14 => &mut workspace.latex_graphics,
-        15 => &mut workspace.auto_read.enabled,
-        _ => return None,
-    })
 }

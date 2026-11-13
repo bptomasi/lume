@@ -3,10 +3,8 @@
 mod common;
 
 use anyhow::Result;
-use lume::{
-    app::{App, Focus},
-    source, ui,
-};
+use crossterm::event::KeyCode;
+use lume::{app::App, source, ui};
 use ratatui::{Terminal, backend::TestBackend, layout::Rect, style::Color};
 
 fn article(body: &str) -> Result<(tempfile::TempDir, App)> {
@@ -16,8 +14,11 @@ fn article(body: &str) -> Result<(tempfile::TempDir, App)> {
     parsed.articles[0].body = body.into();
     store.ingest(&feed, &parsed.title, &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.workspace.fullscreen = true;
-    app.focus = Focus::Articles;
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
+    // Keep the live reader cursor below the code rows whose entire background
+    // is checked. Focusing Articles would leave fullscreen and change geometry.
+    app.key(KeyCode::Char('G').into())?;
+    assert_eq!(app.reader().scroll, 0);
     Ok((directory, app))
 }
 
@@ -31,10 +32,10 @@ fn fenced_code_has_one_solid_background_including_blank_and_short_rows()
         ("nord", Color::Rgb(67, 76, 94), Color::Rgb(52, 60, 75)),
         ("gruvbox", Color::Rgb(60, 56, 54), Color::Rgb(40, 40, 40)),
     ] {
-        app.workspace.theme = theme.into();
+        common::fixture_command(&mut app, &format!("theme {}", theme))?;
         for width in [50, 100, 160] {
             let area = Rect::new(0, 0, width, 30);
-            let column = ui::workspace_reader_content(area, &app.workspace);
+            let column = ui::workspace_reader_content(area, app.workspace());
             app.resize_reader(column.width.into(), column.height.into());
             let mut terminal = Terminal::new(TestBackend::new(width, 30))?;
 
@@ -64,7 +65,7 @@ fn standalone_code_uses_a_block_but_inline_fragments_keep_their_own_background()
     let (_directory, mut app) =
         article("`standalone`\n\nText with `inline` code.")?;
     let area = Rect::new(0, 0, 100, 30);
-    let column = ui::workspace_reader_content(area, &app.workspace);
+    let column = ui::workspace_reader_content(area, app.workspace());
     app.resize_reader(column.width.into(), column.height.into());
     let mut terminal = Terminal::new(TestBackend::new(100, 30))?;
 
@@ -97,7 +98,7 @@ fn tables_keep_the_uniform_panel_background_while_code_remains_distinct()
     let (_directory, mut app) =
         article("| A | B |\n| --- | --- |\n| x | y |\n\n```c\nint n;\n```")?;
     let area = Rect::new(0, 0, 100, 30);
-    let column = ui::workspace_reader_content(area, &app.workspace);
+    let column = ui::workspace_reader_content(area, app.workspace());
     app.resize_reader(column.width.into(), column.height.into());
     let mut terminal = Terminal::new(TestBackend::new(100, 30))?;
 

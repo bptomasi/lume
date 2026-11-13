@@ -17,9 +17,9 @@ fn reading(body: &str) -> Result<(tempfile::TempDir, App, Rect)> {
     parsed.articles[0].body = body.into();
     store.ingest(&feed, &parsed.title, &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
-    app.workspace.fullscreen = true;
-    app.workspace.fullscreen_width = 40;
+    app.activate_pane(Focus::Reader);
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
+    common::fixture_command(&mut app, "fullscreen-width 40")?;
     let screen = Rect::new(0, 0, 100, 30);
     app.resize_workspace(screen);
     Ok((directory, app, screen))
@@ -45,7 +45,7 @@ fn justified_prose_keeps_copy_quotes_and_saved_preference_exact() -> Result<()>
     let mut terminal =
         Terminal::new(TestBackend::new(screen.width, screen.height))?;
     terminal.draw(|frame| ui::draw(frame, &app))?;
-    let content = ui::workspace_reader_content(screen, &app.workspace);
+    let content = ui::workspace_reader_content(screen, app.workspace());
     let visible = (content.x..content.right())
         .map(|x| terminal.backend().buffer()[(x, content.y)].symbol())
         .collect::<String>();
@@ -113,7 +113,7 @@ fn horizontal_mouse_wheel_changes_only_the_block_under_the_pointer()
         "b".repeat(120)
     );
     let (_directory, mut app, screen) = reading(&body)?;
-    let content = ui::workspace_reader_content(screen, &app.workspace);
+    let content = ui::workspace_reader_content(screen, app.workspace());
     let row = app
         .reader()
         .reader_lines
@@ -143,7 +143,7 @@ fn mouse_clicks_use_original_bytes_inside_justified_prose() -> Result<()> {
         "Alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima.",
     )?;
     command(&mut app, "justify on")?;
-    let content = ui::workspace_reader_content(screen, &app.workspace);
+    let content = ui::workspace_reader_content(screen, app.workspace());
     for kind in [
         MouseEventKind::Down(MouseButton::Left),
         MouseEventKind::Up(MouseButton::Left),

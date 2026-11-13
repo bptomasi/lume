@@ -63,9 +63,9 @@ impl App {
             .context("Select a note")?;
         let note = self.reader.view().comments[entry.comment_index].clone();
         self.reader.select_comment(entry.comment_index);
-        self.workspace.show_reader = true;
+        self.layout.show_pane(crate::model::Pane::Reader, true);
         if note.quote.is_empty() {
-            self.focus = Focus::Reader;
+            self.layout.focus_pane(Focus::Reader);
             self.reader.reveal_selected_comment();
             return Ok(());
         }
@@ -93,7 +93,7 @@ impl App {
         &mut self,
         code: KeyCode,
     ) -> Result<Option<Action>> {
-        if self.focus != Focus::Annotations {
+        if self.layout.focus() != Focus::Annotations {
             return Ok(None);
         }
         match code {

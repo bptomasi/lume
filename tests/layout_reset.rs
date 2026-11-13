@@ -27,23 +27,24 @@ fn reset_restores_columns_and_widths_and_can_be_undone_after_reopening()
     let (directory, store, _) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
     app.resize_workspace(Rect::new(0, 0, 160, 50));
-    app.workspace.theme = "nord".into();
-    app.workspace.justify = true;
-    app.workspace.reading_width = 90;
-    app.workspace.panel_order.swap(0, 1);
+    common::fixture_command(&mut app, "theme nord")?;
+    common::fixture_command(&mut app, "justify on")?;
+    common::fixture_command(&mut app, "width 90")?;
+    command(&mut app, "panel-focus library")?;
+    command(&mut app, "panel-move right")?;
     command(&mut app, "panel-dock library reader below")?;
     command(&mut app, "sidebar-width 48")?;
     command(&mut app, "fullscreen")?;
-    let before = PanelLayout::capture(&app.workspace);
+    let before = PanelLayout::capture(app.workspace());
     let article = app.current().context("No article")?.id;
     let source = app.reader().body.to_owned();
     command(&mut app, "layout-reset")?;
     assert_standard(&app);
     assert_eq!(app.current().context("Lost article")?.id, article);
     assert_eq!(app.reader().body, source);
-    assert_eq!(app.workspace.reading_width, 90);
-    assert_eq!(app.workspace.theme, "nord");
-    assert!(app.workspace.justify);
+    assert_eq!(app.workspace().reading_width, 90);
+    assert_eq!(app.workspace().theme, "nord");
+    assert!(app.workspace().justify);
     app.end_session()?;
     let mut restored = App::new(
         Store::open(&directory.path().join("library.sqlite3"))?,
@@ -51,21 +52,21 @@ fn reset_restores_columns_and_widths_and_can_be_undone_after_reopening()
     )?;
     assert_standard(&restored);
     command(&mut restored, "layout-undo")?;
-    assert_eq!(PanelLayout::capture(&restored.workspace), before);
+    assert_eq!(PanelLayout::capture(restored.workspace()), before);
     command(&mut restored, "layout-redo")?;
     assert_standard(&restored);
     Ok(())
 }
 
 fn assert_standard(app: &App) {
-    assert!(app.workspace.layout.is_none());
-    assert_eq!(app.workspace.panel_order, Pane::ALL);
-    assert!(app.workspace.show_library && app.workspace.show_articles);
-    assert!(app.workspace.show_reader && !app.workspace.show_annotations);
-    assert!(!app.workspace.fullscreen && !app.workspace.zen);
-    assert_eq!(app.workspace.library_width, 23);
-    assert_eq!(app.workspace.article_width, 36);
-    assert_eq!(app.workspace.annotation_width, 32);
+    assert!(app.workspace().layout.is_none());
+    assert_eq!(app.workspace().panel_order, Pane::ALL);
+    assert!(app.workspace().show_library && app.workspace().show_articles);
+    assert!(app.workspace().show_reader && !app.workspace().show_annotations);
+    assert!(!app.workspace().fullscreen && !app.workspace().zen);
+    assert_eq!(app.workspace().library_width, 23);
+    assert_eq!(app.workspace().article_width, 36);
+    assert_eq!(app.workspace().annotation_width, 32);
 }
 
 #[test]
@@ -79,7 +80,7 @@ fn keyboard_reset_is_idempotent_and_discoverable_in_commands() -> Result<()> {
     command(&mut app, "layout-reset")?;
     command(&mut app, "layout-undo")?;
     assert!(
-        app.workspace.layout.is_some(),
+        app.workspace().layout.is_some(),
         "Repeated reset polluted undo"
     );
     assert!(
@@ -114,11 +115,12 @@ fn standard_layout_respects_responsive_focus_in_small_terminals() -> Result<()>
     let mut app = App::new(store, false)?;
     for width in [48, 80, 119, 120, 160, 240] {
         for focus in [Pane::Library, Pane::Articles, Pane::Reader] {
-            app.focus = focus;
+            app.activate_pane(focus);
             let screen = Rect::new(7, 3, width, 30);
             app.resize_workspace(screen);
             command(&mut app, "layout-reset")?;
-            let areas = ui::workspace_areas(screen, app.focus, &app.workspace);
+            let areas =
+                ui::workspace_areas(screen, app.focus(), app.workspace());
             assert!(areas.get(focus).is_some(), "{width}: {focus:?}");
             if width >= 120 {
                 assert_eq!(areas.library.context("No library")?.width, 23);
@@ -137,8 +139,8 @@ fn dragging_a_nested_divider_cannot_hide_articles_when_the_terminal_fits()
     let screen = Rect::new(0, 0, 160, 50);
     app.resize_workspace(screen);
     command(&mut app, "panel-dock annotations reader below")?;
-    app.focus = Pane::Reader;
-    let areas = ui::workspace_areas(screen, app.focus, &app.workspace);
+    app.activate_pane(Pane::Reader);
+    let areas = ui::workspace_areas(screen, app.focus(), app.workspace());
     let boundary = areas.boundaries.first().context("Missing root divider")?;
     let row = boundary.first.y + 5;
     for (kind, column) in [
@@ -152,7 +154,7 @@ fn dragging_a_nested_divider_cannot_hide_articles_when_the_terminal_fits()
             row,
             modifiers: KeyModifiers::NONE,
         })?;
-        let areas = ui::workspace_areas(screen, app.focus, &app.workspace);
+        let areas = ui::workspace_areas(screen, app.focus(), app.workspace());
         let articles = areas.articles.context("Resize hid Articles")?;
         assert!(articles.width >= 24);
         assert!(areas.reader.is_some());
@@ -166,19 +168,19 @@ fn notebook_reset_preserves_the_separate_reading_arrangement() -> Result<()> {
     let mut app = App::new(store, false)?;
     app.resize_workspace(Rect::new(0, 0, 160, 50));
     command(&mut app, "panel-dock library reader below")?;
-    let reading = PanelLayout::capture(&app.workspace);
+    let reading = PanelLayout::capture(app.workspace());
     command(&mut app, "notebook")?;
     common::settle_notes(&mut app)?;
-    let notebook = PanelLayout::capture(&app.workspace);
+    let notebook = PanelLayout::capture(app.workspace());
     command(&mut app, "layout-reset")?;
     assert_standard(&app);
     command(&mut app, "layout-undo")?;
-    assert_eq!(PanelLayout::capture(&app.workspace), notebook);
+    assert_eq!(PanelLayout::capture(app.workspace()), notebook);
     command(&mut app, "layout-redo")?;
     assert_standard(&app);
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))?;
     assert!(app.notebook().is_none());
-    assert_eq!(PanelLayout::capture(&app.workspace), reading);
+    assert_eq!(PanelLayout::capture(app.workspace()), reading);
     command(&mut app, "notebook")?;
     common::settle_notes(&mut app)?;
     assert_standard(&app);
@@ -193,7 +195,7 @@ fn narrow_headers_keep_a_clean_separator_between_pane_controls() -> Result<()> {
     command(&mut app, "sidebar-width 16")?;
     let screen = Rect::new(0, 0, 160, 40);
     app.resize_workspace(screen);
-    let library = ui::workspace_areas(screen, app.focus, &app.workspace)
+    let library = ui::workspace_areas(screen, app.focus(), app.workspace())
         .library
         .context("Library missing")?;
     let grip = ui::pane_move_rect(library).context("Move grip missing")?;

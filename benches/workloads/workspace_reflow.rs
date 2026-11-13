@@ -25,7 +25,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     for _ in 0..iterations {
         for width in [40, 48, 60, 80] {
             let start = Instant::now();
-            app.workspace.reading_width = width;
+            crate::fixture_command(&mut app, &format!("width {}", width))?;
             app.resize_workspace(Rect::new(0, 0, 144, 44));
             terminal.draw(|frame| ui::draw_interactive(frame, &mut app))?;
             admission.push(start.elapsed().as_secs_f64() * 1000.0);
@@ -54,7 +54,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
 }
 
 fn select_passage(app: &mut App) -> Result<String> {
-    app.focus = Pane::Reader;
+    app.activate_pane(Pane::Reader);
     for character in "ggv3l".chars() {
         app.key(KeyEvent::new(KeyCode::Char(character), KeyModifiers::NONE))?;
     }

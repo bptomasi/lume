@@ -18,7 +18,7 @@ pub fn navigation_at(app: &App, area: Rect, row: u16) -> Option<usize> {
 }
 
 pub(super) fn article_window(app: &App, height: u16) -> (usize, usize, u16) {
-    let row_height = if app.workspace.compact { 2 } else { 4 };
+    let row_height = if app.workspace().compact { 2 } else { 4 };
     let capacity = usize::from(height / row_height).max(1);
     let last = app.navigation().visible.len().saturating_sub(capacity);
     let selected = app

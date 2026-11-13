@@ -64,7 +64,7 @@ fn empty_cleanup(
 
 fn scrolling(store: Store, iterations: usize) -> Result<()> {
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     app.resize_workspace(Rect::new(0, 0, 160, 44));
     let mut terminal = Terminal::new(TestBackend::new(160, 44))?;
     terminal.draw(|frame| ui::draw(frame, &app))?;

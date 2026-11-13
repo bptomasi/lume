@@ -18,7 +18,7 @@ pub(super) struct Find {
 }
 
 #[derive(Clone, Copy)]
-enum Prefix {
+pub(super) enum Prefix {
     G(Option<usize>),
     Z(usize),
     Find {
@@ -37,6 +37,34 @@ pub(super) struct Vim {
 }
 
 impl Vim {
+    pub(super) fn count(&self) -> usize {
+        self.count
+    }
+
+    pub(super) fn take_count(&mut self) -> usize {
+        std::mem::take(&mut self.count)
+    }
+
+    pub(super) fn push_digit(&mut self, digit: usize) {
+        self.count = (self.count * 10 + digit).min(9999);
+    }
+
+    pub(super) fn take_prefix(&mut self) -> Option<Prefix> {
+        self.prefix.take()
+    }
+
+    pub(super) fn begin_prefix(&mut self, prefix: Prefix) {
+        self.prefix = Some(prefix);
+    }
+
+    pub(super) fn last_find(&self) -> Option<Find> {
+        self.last_find
+    }
+
+    pub(super) fn remember_find(&mut self, find: Find) {
+        self.last_find = Some(find);
+    }
+
     pub(super) fn prefix_pending(&self) -> bool {
         self.prefix.is_some()
     }
@@ -49,32 +77,32 @@ impl Vim {
 
 impl App {
     pub(super) fn vim_pending(&self) -> bool {
-        self.panel_prefix
-            || self.vim.count > 0
-            || self.vim.prefix.is_some()
+        self.interaction.panel_prefix()
+            || self.interaction.vim().count() > 0
+            || self.interaction.vim().prefix_pending()
             || self.reader.pending_note_delete().is_some()
-            || self.pending_destination_delete.is_some()
-            || self.pending_article_delete.is_some()
+            || self.interaction.destination_delete().is_some()
+            || self.interaction.article_delete().is_some()
     }
 
     pub(super) fn reader_vim_key(&mut self, code: KeyCode) -> Result<bool> {
-        if self.focus != Focus::Reader {
+        if self.layout.focus() != Focus::Reader {
             return Ok(false);
         }
         if code == KeyCode::Esc && self.vim_pending() {
-            self.vim.clear_input();
+            self.interaction.vim_input().clear_input();
             return Ok(true);
         }
-        if let Some(prefix) = self.vim.prefix.take() {
+        if let Some(prefix) = self.interaction.vim_input().take_prefix() {
             self.finish_vim_prefix(prefix, code);
             return Ok(true);
         }
         if self.vim_digit(code) {
             return Ok(true);
         }
-        let explicit = std::mem::take(&mut self.vim.count);
+        let explicit = self.interaction.vim_input().take_count();
         if explicit > 0 {
-            self.status = "Reader motion · :help vim".into();
+            self.interaction.report("Reader motion · :help vim".into());
         }
         let count = explicit.max(1);
         if let Some((motion, wide)) = word_command(code) {
@@ -92,32 +120,34 @@ impl App {
         let KeyCode::Char(character @ '0'..='9') = code else {
             return false;
         };
-        if character == '0' && self.vim.count == 0 {
+        if character == '0' && self.interaction.vim().count() == 0 {
             return false;
         }
         let digit = character.to_digit(10).unwrap_or(0) as usize;
-        self.vim.count = (self.vim.count * 10 + digit).min(9999);
-        self.status = format!("Reader count: {}", self.vim.count);
+        self.interaction.vim_input().push_digit(digit);
+        self.interaction.report(format!(
+            "Reader count: {}",
+            self.interaction.vim().count()
+        ));
         true
     }
 
     fn vim_prefix_key(&mut self, code: KeyCode, explicit: usize) -> bool {
         let count = explicit.max(1);
-        self.vim.prefix = match code {
-            KeyCode::Char('g') => {
-                Some(Prefix::G((explicit > 0).then_some(explicit)))
-            }
-            KeyCode::Char('z') => Some(Prefix::Z(count)),
-            KeyCode::Char('f' | 'F' | 't' | 'T') => Some(Prefix::Find {
+        let prefix = match code {
+            KeyCode::Char('g') => Prefix::G((explicit > 0).then_some(explicit)),
+            KeyCode::Char('z') => Prefix::Z(count),
+            KeyCode::Char('f' | 'F' | 't' | 'T') => Prefix::Find {
                 forward: matches!(code, KeyCode::Char('f' | 't')),
                 till: matches!(code, KeyCode::Char('t' | 'T')),
                 count,
-            }),
+            },
             KeyCode::Char('i' | 'a') if self.reader.selecting() => {
-                Some(Prefix::Object(code == KeyCode::Char('a')))
+                Prefix::Object(code == KeyCode::Char('a'))
             }
             _ => return false,
         };
+        self.interaction.vim_input().begin_prefix(prefix);
         true
     }
 
@@ -137,7 +167,7 @@ impl App {
                         forward,
                         till,
                     };
-                    self.vim.last_find = Some(find);
+                    self.interaction.vim_input().remember_find(find);
                     self.find_character(find, count, false);
                 }
             }
@@ -195,7 +225,7 @@ impl App {
                 self.percent_motion(explicit.then_some(count))
             }
             KeyCode::Char(';') | KeyCode::Char(',') => {
-                if let Some(mut find) = self.vim.last_find {
+                if let Some(mut find) = self.interaction.vim().last_find() {
                     if code == KeyCode::Char(',') {
                         find.forward = !find.forward;
                     }
@@ -232,15 +262,15 @@ fn word_command(code: KeyCode) -> Option<(WordMotion, bool)> {
 
 impl App {
     pub(super) fn reader_vim_control(&mut self, code: KeyCode) -> Result<bool> {
-        if self.focus != Focus::Reader {
+        if self.layout.focus() != Focus::Reader {
             return Ok(false);
         }
-        let count = self.vim.count.max(1);
+        let count = self.interaction.vim().count().max(1);
         if matches!(
             code,
             KeyCode::Left | KeyCode::Right | KeyCode::Home | KeyCode::End
         ) {
-            self.vim.clear_input();
+            self.interaction.vim_input().clear_input();
             self.control_destination(code, count);
             return Ok(true);
         }
@@ -254,11 +284,11 @@ impl App {
             ),
             KeyCode::Char('e' | 'y') => {
                 self.scroll_reader(code == KeyCode::Char('e'), count);
-                self.vim.clear_input();
+                self.interaction.vim_input().clear_input();
                 return Ok(true);
             }
             KeyCode::Char('o' | 'i') => {
-                self.vim.clear_input();
+                self.interaction.vim_input().clear_input();
                 if code == KeyCode::Char('o') && self.return_to_notebook()? {
                     return Ok(true);
                 }
@@ -269,7 +299,7 @@ impl App {
             }
             _ => return Ok(false),
         };
-        self.vim.clear_input();
+        self.interaction.vim_input().clear_input();
         self.move_reader(forward, distance);
         Ok(true)
     }

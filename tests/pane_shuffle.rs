@@ -43,7 +43,7 @@ fn frame(app: &mut App) -> Result<()> {
 }
 
 fn begin(app: &mut App, pane: Pane) -> Result<ui::Areas> {
-    let areas = ui::workspace_areas(SCREEN, app.focus, &app.workspace);
+    let areas = ui::workspace_areas(SCREEN, app.focus(), app.workspace());
     let grip = ui::pane_move_rect(areas.get(pane).context("Pane hidden")?)
         .context("Grip hidden")?;
     mouse(
@@ -66,7 +66,7 @@ fn neighbor(app: &App, pane: Pane) -> Result<Rect> {
 #[test]
 fn neighbors_make_room_while_saved_order_stays_unchanged() -> Result<()> {
     let (directory, mut app) = application()?;
-    let order = app.workspace.panel_order;
+    let order = app.workspace().panel_order;
     let areas = begin(&mut app, Pane::Library)?;
     let reader = areas.reader.context("Reader hidden")?;
     let article = areas.articles.context("Articles hidden")?;
@@ -91,7 +91,7 @@ fn neighbors_make_room_while_saved_order_stays_unchanged() -> Result<()> {
         article.width + reader.width
     );
     assert!(!app.pane_motion_active());
-    assert_eq!(app.workspace.panel_order, order);
+    assert_eq!(app.workspace().panel_order, order);
     let store =
         lume::store::Store::open(&directory.path().join("library.sqlite3"))?;
     assert_eq!(store.workspace()?.panel_order, order);
@@ -150,7 +150,7 @@ fn release_continues_from_preview_and_commits_the_same_insertion_order()
 
     assert_eq!(neighbor(&app, Pane::Articles)?, before);
     assert_eq!(
-        app.workspace.panel_order,
+        app.workspace().panel_order,
         [
             Pane::Articles,
             Pane::Reader,
@@ -215,7 +215,7 @@ fn resize_cancels_live_neighbor_motion_before_reflow() -> Result<()> {
     assert!(app.neighboring_panes().next().is_none());
     assert!(app.pane_insertion_slot().is_none());
     assert!(!app.pane_motion_active());
-    assert_eq!(app.workspace.panel_order, Pane::ALL);
+    assert_eq!(app.workspace().panel_order, Pane::ALL);
     Ok(())
 }
 
@@ -247,7 +247,7 @@ fn pane_overlap_opens_a_slot_before_the_grip_reaches_the_neighbor() -> Result<()
         app.pane_insertion_slot().context("Gap missing")?.x,
         article.x
     );
-    assert_eq!(app.workspace.panel_order, Pane::ALL);
+    assert_eq!(app.workspace().panel_order, Pane::ALL);
     let store =
         lume::store::Store::open(&directory.path().join("library.sqlite3"))?;
     assert_eq!(store.workspace()?.panel_order, Pane::ALL);
@@ -272,7 +272,7 @@ fn dropping_while_the_grip_is_still_in_the_source_commits_the_preview()
     mouse(&mut app, MouseEventKind::Up(MouseButton::Left), column, 12)?;
 
     assert_eq!(
-        app.workspace.panel_order,
+        app.workspace().panel_order,
         [
             Pane::Library,
             Pane::Reader,
@@ -287,9 +287,9 @@ fn dropping_while_the_grip_is_still_in_the_source_commits_the_preview()
 fn title_drag_can_open_the_right_neighbor_before_the_pointer_crosses_it()
 -> Result<()> {
     let (_directory, mut app) = application()?;
-    app.workspace.show_annotations = true;
+    common::fixture_pane(&mut app, lume::model::Pane::Annotations, true)?;
     app.resize_workspace(SCREEN);
-    let areas = ui::workspace_areas(SCREEN, app.focus, &app.workspace);
+    let areas = ui::workspace_areas(SCREEN, app.focus(), app.workspace());
     let reader = areas.reader.context("Reader hidden")?;
     let notes = areas.annotations.context("Notes hidden")?;
     let column = reader.x + 4;
@@ -315,7 +315,7 @@ fn title_drag_can_open_the_right_neighbor_before_the_pointer_crosses_it()
     );
     app.tick_pane_motion(Instant::now() + Duration::from_secs(1));
     assert_eq!(neighbor(&app, Pane::Annotations)?.x, reader.x);
-    assert_eq!(app.workspace.panel_order, Pane::ALL);
+    assert_eq!(app.workspace().panel_order, Pane::ALL);
     Ok(())
 }
 

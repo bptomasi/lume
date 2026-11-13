@@ -23,7 +23,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
     ensure!(articles == 13_000, "Representative article count changed");
     let mut app = App::new(store, false)?;
     app.enable_background_navigation(&path)?;
-    app.focus = Focus::Library;
+    app.activate_pane(Focus::Library);
     let mut terminal = Terminal::new(TestBackend::new(144, 44))?;
     println!(
         "section input: {} feeds, {} smart lists, {} articles",
@@ -52,7 +52,8 @@ fn measure(
         app.key(KeyCode::Enter.into())?;
         terminal.draw(|frame| ui::draw_interactive(frame, app))?;
         samples.push(start.elapsed().as_secs_f64() * 1000.0);
-        let folded = app.workspace.collapsed_groups.iter().any(|s| s == group);
+        let folded =
+            app.workspace().collapsed_groups.iter().any(|s| s == group);
         ensure!(
             section_children(app, group) == if folded { 0 } else { expected },
             "Section lost destinations"

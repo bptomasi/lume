@@ -190,7 +190,9 @@ impl App {
             url: slot.url.clone(),
             width: self.image_viewport().width.clamp(1, 160) as u16,
             height: slot.rows.len().clamp(1, 48) as u16,
-            background: crate::ui::image_background(&self.workspace.theme),
+            background: crate::ui::image_background(
+                &self.layout.workspace().theme,
+            ),
             detail: self.inline_pixel_detail(slot),
         })
     }
@@ -232,7 +234,7 @@ impl App {
 
     /// Whether the inspector owns a native pixel surface outside text-cell diffs.
     pub fn uses_native_image_inspector(&self) -> bool {
-        matches!(self.mode, super::Mode::Image(_))
+        matches!(self.interaction.mode(), super::Mode::Image(_))
             && self.images.protocol != ImageProtocol::Blocks
     }
 
@@ -276,19 +278,21 @@ impl App {
     }
 
     fn visible_image_keys(&self) -> Vec<ImageKey> {
-        if matches!(self.mode, super::Mode::Image(_)) {
+        if matches!(self.interaction.mode(), super::Mode::Image(_)) {
             return self.image_inspector_key().into_iter().collect();
         }
         if self.web_active() {
-            if !matches!(self.mode, super::Mode::Web) || self.web.opening {
+            if !matches!(self.interaction.mode(), super::Mode::Web)
+                || self.web.opening
+            {
                 return Vec::new();
             }
         } else if self.notebook().is_some()
             || self.nav.navigation_loading()
             || crate::ui::workspace_areas(
-                self.screen,
-                self.focus,
-                &self.workspace,
+                self.layout.screen(),
+                self.layout.focus(),
+                self.layout.workspace(),
             )
             .reader
             .is_none()
@@ -308,7 +312,7 @@ impl App {
         for key in std::mem::take(&mut self.images.pending) {
             self.images.remember(key, Err(error.to_string()));
         }
-        self.status = error.to_string();
+        self.interaction.report(error.to_string());
         true
     }
 
@@ -329,10 +333,10 @@ impl App {
         if let Ok(image) = &completed.result
             && let Some(warning) = &image.cache_warning
         {
-            self.status = format!(
+            self.interaction.report(format!(
                 "Image visible · cache unavailable: {}",
                 crate::content::label(warning, 200)
-            );
+            ));
         }
         self.images.remember(completed.key, completed.result);
         true
@@ -367,7 +371,7 @@ impl App {
     }
 
     fn generated_image(&self, key: &ImageKey) -> Option<std::sync::Arc<[u8]>> {
-        if let super::Mode::Image(image) = &self.mode
+        if let super::Mode::Image(image) = self.interaction.mode()
             && image.url == key.url
             && let Some(formula) = &image.formula
         {
@@ -408,8 +412,8 @@ impl App {
         }
         match argument {
             "" => {}
-            "on" => self.workspace.images.enabled = true,
-            "off" => self.workspace.images.enabled = false,
+            "on" => self.layout.enable_images(true),
+            "off" => self.layout.enable_images(false),
             "retry" => {
                 self.images.deferred.clear();
                 self.images.cache.retain(|(_, value)| value.is_ok());
@@ -426,10 +430,10 @@ impl App {
             self.apply_image_preferences();
             self.persist_preferences()?;
         }
-        self.status = format!(
+        self.interaction.report(format!(
             "Image loading {} · :images on/off · :image-open",
             if self.images.enabled { "on" } else { "paused" }
-        );
+        ));
         Ok(Action::None)
     }
 }

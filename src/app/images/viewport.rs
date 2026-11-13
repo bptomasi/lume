@@ -25,7 +25,9 @@ impl App {
                 slots: page.map_or(&[], |page| page.rendered.images.as_slice()),
                 scroll: page.map_or(0, |page| page.scroll),
                 width: page.map_or(1, |page| page.width),
-                height: usize::from(self.screen.height.saturating_sub(6)),
+                height: usize::from(
+                    self.layout.screen().height.saturating_sub(6),
+                ),
             };
         }
         Viewport {

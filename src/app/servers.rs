@@ -23,8 +23,9 @@ impl App {
             C::ServerHistory => {
                 self.store.restart_server_history(self.selected_server()?)?;
                 self.reload()?;
-                self.status =
-                    "History restarted · cached articles retained".into();
+                self.interaction.report(
+                    "History restarted · cached articles retained".into(),
+                );
                 return Ok(Action::Refresh);
             }
             C::Unserver => {
@@ -52,8 +53,9 @@ impl App {
         self.reveal_server(&view)?;
         self.nav.project_destination(view);
         self.reload()?;
-        self.focus = Focus::Library;
-        self.status = "Server added · collecting in the background".into();
+        self.layout.focus_pane(Focus::Library);
+        self.interaction
+            .report("Server added · collecting in the background".into());
         Ok(Action::Refresh)
     }
 
@@ -62,7 +64,8 @@ impl App {
             return Ok(());
         }
         let group = if self
-            .workspace
+            .layout
+            .workspace()
             .pins
             .iter()
             .any(|pinned| pinned.same_destination(view))
@@ -72,12 +75,13 @@ impl App {
             "SERVERS"
         };
         if self
-            .workspace
+            .layout
+            .workspace()
             .collapsed_groups
             .iter()
             .any(|item| item == group)
         {
-            self.workspace.collapsed_groups.retain(|item| item != group);
+            self.layout.expand_group(group);
             self.persist_preferences()?;
             self.project_navigation();
         }
@@ -88,12 +92,14 @@ impl App {
         let id = self.selected_server()?;
         self.store.set_server_enabled(id, enabled)?;
         self.reload()?;
-        self.status = if enabled {
-            "Server enabled"
-        } else {
-            "Server paused · cached articles remain readable"
-        }
-        .into();
+        self.interaction.report(
+            if enabled {
+                "Server enabled"
+            } else {
+                "Server paused · cached articles remain readable"
+            }
+            .into(),
+        );
         Ok(if enabled {
             Action::Refresh
         } else {

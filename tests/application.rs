@@ -12,13 +12,13 @@ fn normal_mode_opens_reader_and_insert_mode_keeps_vim_letters() -> Result<()> {
     let mut app = App::new(store, false)?;
     let id = app.current().map(|article| article.id);
     press(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.focus, Focus::Reader);
+    assert_eq!(app.focus(), Focus::Reader);
     assert!(app.current().is_some_and(|article| article.unread));
     type_text(&mut app, ":note")?;
     press(&mut app, KeyCode::Enter)?;
     type_text(&mut app, "jk:q are my thoughts")?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
-    assert!(matches!(app.mode, Mode::Normal));
+    assert!(matches!(app.mode(), Mode::Normal));
     assert_eq!(app.reader().comments[0].body, "jk:q are my thoughts");
     assert_eq!(app.current().map(|article| article.id), id);
     Ok(())
@@ -28,14 +28,14 @@ fn normal_mode_opens_reader_and_insert_mode_keeps_vim_letters() -> Result<()> {
 fn invalid_comment_retains_draft_and_can_be_corrected() -> Result<()> {
     let (_directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     type_text(&mut app, ":note")?;
     press(&mut app, KeyCode::Enter)?;
     assert!(
         app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))
             .is_err()
     );
-    assert!(matches!(app.mode, Mode::Input(_)));
+    assert!(matches!(app.mode(), Mode::Input(_)));
     type_text(&mut app, "ação 🦀")?;
     press(&mut app, KeyCode::Backspace)?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
@@ -64,17 +64,17 @@ fn pasted_comments_do_not_execute_commands_and_respect_utf8_limits()
 -> Result<()> {
     let (_directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     type_text(&mut app, ":note")?;
     press(&mut app, KeyCode::Enter)?;
     app.paste(":q\nA private thought\u{1b}")?;
     app.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))?;
     assert_eq!(app.reader().comments[0].body, ":q\nA private thought");
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     type_text(&mut app, ":note")?;
     press(&mut app, KeyCode::Enter)?;
     app.paste(&"🦀".repeat(5000))?;
-    if let Mode::Input(input) = &app.mode {
+    if let Mode::Input(input) = app.mode() {
         assert_eq!(input.text.len(), 16_384);
     }
     Ok(())
@@ -128,7 +128,7 @@ fn comment_target_survives_a_background_reload_and_no_matching_view()
     let (directory, store, _feed) = common::seeded_store()?;
     let mut app = App::new(store, false)?;
     let id = app.current().map_or(0, |article| article.id);
-    app.focus = Focus::Reader;
+    app.activate_pane(Focus::Reader);
     type_text(&mut app, ":note")?;
     press(&mut app, KeyCode::Enter)?;
     type_text(&mut app, "Captured target")?;

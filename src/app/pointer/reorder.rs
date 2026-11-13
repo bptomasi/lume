@@ -144,23 +144,25 @@ impl MoveCapture {
     }
 
     fn settle(self, app: &mut App) {
-        let areas = ui::workspace_areas(app.screen, app.focus, &app.workspace);
+        let areas = ui::workspace_areas(
+            app.layout.screen(),
+            app.layout.focus(),
+            app.layout.workspace(),
+        );
         let from = self
             .floating()
             .map_or_else(|| self.drag_area(), |picture| picture.area);
-        if let (Some(picture), Some(to)) =
+        let flight = if let (Some(picture), Some(to)) =
             (self.picture, areas.get(self.preview.pane))
         {
-            app.pane_flight = pane_motion::PaneFlight::start(
-                self.preview.pane,
-                picture,
-                from,
-                to,
-            );
-        }
-        app.pane_neighbors = self
+            pane_motion::PaneFlight::start(self.preview.pane, picture, from, to)
+        } else {
+            None
+        };
+        let neighbors = self
             .neighbors
             .and_then(|neighbors| neighbors.settle(&areas, Instant::now()));
+        app.pane_motion.settle(flight, neighbors);
     }
 
     pub(super) fn floating(&self) -> Option<FloatingPane<'_>> {
@@ -235,29 +237,30 @@ impl App {
     ) -> anyhow::Result<()> {
         let pane = capture.preview.pane;
         if !capture.dragged {
-            self.focus = pane;
-            self.resize_workspace(self.screen);
-            self.status = format!("{} focused", pane.title());
+            self.layout.focus_pane(pane);
+            self.resize_workspace(self.layout.screen());
+            self.interaction.report(format!("{} focused", pane.title()));
             return Ok(());
         }
         let Some(target) = capture.preview.target else {
-            self.status = "Panel move canceled · no destination".into();
+            self.interaction
+                .report("Panel move canceled · no destination".into());
             capture.settle(self);
             return Ok(());
         };
         if capture.custom || capture.preview.edge.is_some() {
-            let expanded = self.workspace.pane_visible(target);
+            let expanded = self.layout.workspace().pane_visible(target);
             self.dock_pane(
                 pane,
                 target,
                 capture.preview.edge.unwrap_or(crate::model::Dock::Right),
             )?;
-            self.workspace.set_pane_visible(target, expanded);
+            self.layout.show_pane(target, expanded);
         } else {
             self.move_pane_to(pane, target);
         }
         self.commit_panel_layout()?;
-        self.status = capture.completed_hint();
+        self.interaction.report(capture.completed_hint());
         capture.settle(self);
         Ok(())
     }
@@ -271,10 +274,10 @@ impl App {
         let Some(origin) = areas.get(pane) else {
             return;
         };
-        let tabs = if self.workspace.fullscreen {
+        let tabs = if self.layout.workspace().fullscreen {
             Vec::new()
         } else {
-            ui::pane_buttons(self.screen, &self.workspace)
+            ui::pane_buttons(self.layout.screen(), self.layout.workspace())
         };
         let capture = MoveCapture {
             preview: PanelDrag {
@@ -284,24 +287,24 @@ impl App {
             },
             tabs,
             origin,
-            viewport: self.screen,
+            viewport: self.layout.screen(),
             grab: Position::new(event.column, event.row),
             pointer: Position::new(event.column, event.row),
             dragged: false,
-            custom: self.workspace.layout.is_some(),
+            custom: self.layout.workspace().layout.is_some(),
             compact: false,
             picture: None,
             captured: false,
             slots: areas.ordered(),
-            order: self.workspace.panel_order,
+            order: self.layout.workspace().panel_order,
             neighbors: None,
         };
         // Preserve focus so narrow layouts do not replace a visible target
         // when a header is pressed. Geometry remains fixed until release.
         self.reader.cancel_selection();
-        self.vim.clear_input();
-        self.panel_prefix = false;
-        self.status = capture.hint();
+        self.interaction.vim_input().clear_input();
+        self.interaction.set_panel_prefix(false);
+        self.interaction.report(capture.hint());
         self.pointer.gesture = Some(Gesture::Reorder(capture));
     }
 }

@@ -1,20 +1,20 @@
 //! Selected scalar preferences use the same bounded editor as other inputs.
-use super::super::{App, Mode};
+use super::super::App;
 use crate::model::Workspace;
-use anyhow::{Result, ensure};
+use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 impl App {
     pub(super) fn begin_setting_edit(&mut self) {
-        let Mode::Settings(draft) = &mut self.mode else {
+        let Some(draft) = self.interaction.settings_mut() else {
             return;
         };
-        if let Some(value) = value_text(&self.workspace, draft.field) {
+        if let Some(value) = value_text(self.layout.workspace(), draft.field) {
             let mut editor = super::super::editor::textarea(&value);
             editor.select_all();
             draft.editor = Some(editor);
         } else {
-            super::change_visual(&mut self.workspace, draft.field, true);
+            self.layout.preview_visual(draft.field, true);
         }
     }
 
@@ -22,7 +22,7 @@ impl App {
         if key.code == KeyCode::Enter {
             return self.confirm_setting_value();
         }
-        let Mode::Settings(draft) = &mut self.mode else {
+        let Some(draft) = self.interaction.settings_mut() else {
             return Ok(());
         };
         if key.code == KeyCode::Esc {
@@ -43,20 +43,20 @@ impl App {
     }
 
     pub(super) fn confirm_setting_value(&mut self) -> Result<()> {
-        let Mode::Settings(draft) = &mut self.mode else {
+        let Some(draft) = self.interaction.settings_mut() else {
             return Ok(());
         };
         let Some(editor) = &draft.editor else {
             return Ok(());
         };
         let value = editor.lines().join(" ");
-        apply_value(&mut self.workspace, draft.field, value.trim())?;
+        self.layout.preview_value(draft.field, value.trim())?;
         draft.editor = None;
         Ok(())
     }
 
     pub(in crate::app) fn paste_setting_value(&mut self, text: &str) -> bool {
-        let Mode::Settings(draft) = &mut self.mode else {
+        let Some(draft) = self.interaction.settings_mut() else {
             return false;
         };
         let Some(editor) = &mut draft.editor else {
@@ -87,50 +87,6 @@ fn value_text(workspace: &Workspace, field: usize) -> Option<String> {
         11 => workspace.fullscreen_width.to_string(),
         16 => workspace.auto_read.min_active_seconds.to_string(),
         17 => workspace.auto_read.min_coverage_percent.to_string(),
-        _ => return None,
-    })
-}
-
-fn apply_value(
-    workspace: &mut Workspace,
-    field: usize,
-    text: &str,
-) -> Result<()> {
-    if field == 0 {
-        ensure!(
-            ["lume", "nord", "gruvbox"].contains(&text),
-            "Use lume, nord or gruvbox"
-        );
-        workspace.theme = text.into();
-        return Ok(());
-    }
-    let value: u16 = text
-        .parse()
-        .map_err(|_| anyhow::anyhow!("Enter a whole number"))?;
-    let (destination, minimum, maximum) = numeric_setting(workspace, field)
-        .ok_or_else(|| {
-            anyhow::anyhow!("This setting has no editable scalar value")
-        })?;
-    ensure!(
-        (minimum..=maximum).contains(&value),
-        "Use a value from {minimum} to {maximum}"
-    );
-    *destination = value;
-    Ok(())
-}
-
-pub(super) fn numeric_setting(
-    workspace: &mut Workspace,
-    field: usize,
-) -> Option<(&mut u16, u16, u16)> {
-    Some(match field {
-        1 => (&mut workspace.reading_width, 40, 140),
-        2 => (&mut workspace.library_width, 16, 48),
-        3 => (&mut workspace.article_width, 24, 80),
-        7 => (&mut workspace.annotation_width, 24, 80),
-        11 => (&mut workspace.fullscreen_width, 40, 140),
-        16 => (&mut workspace.auto_read.min_active_seconds, 1, 3600),
-        17 => (&mut workspace.auto_read.min_coverage_percent, 1, 100),
         _ => return None,
     })
 }

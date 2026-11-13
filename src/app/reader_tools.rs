@@ -150,12 +150,12 @@ impl App {
         self.remember_reader_jump();
         self.place_cursor(hit);
         self.ensure_cursor_visible();
-        self.focus = Focus::Reader;
-        self.workspace.show_reader = true;
-        self.status = format!(
+        self.layout.focus_pane(Focus::Reader);
+        self.layout.show_pane(crate::model::Pane::Reader, true);
+        self.interaction.report(format!(
             "{} reader matches · :find-next / :find-prev",
             self.reader.view().reader_tools.hits.len()
-        );
+        ));
         Ok(())
     }
 
@@ -246,7 +246,7 @@ impl App {
             || *self.nav.view() == super::View::Annotated
         {
             if self.navigation_worker.is_some() {
-                self.workspace.content_source = target.source;
+                self.layout.select_source(target.source);
                 self.jump_article(target.article)?;
                 return self.on_navigation_arrival(
                     super::navigation_worker::Arrival::Reader(target),
@@ -255,7 +255,7 @@ impl App {
             self.jump_article(target.article)?;
         }
         self.save_reading_position()?;
-        self.workspace.content_source = target.source;
+        self.layout.select_source(target.source);
         self.load_current()?;
         self.apply_reader_location(target)
     }
@@ -279,9 +279,9 @@ impl App {
         {
             self.place_cursor(range.start);
         }
-        self.focus = Focus::Reader;
+        self.layout.focus_pane(Focus::Reader);
         self.ensure_cursor_visible();
-        self.workspace.show_reader = true;
+        self.layout.show_pane(crate::model::Pane::Reader, true);
         Ok(())
     }
 

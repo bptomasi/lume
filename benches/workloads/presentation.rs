@@ -19,7 +19,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     let (_directory, mut app) = reader(paragraphs, screen)?;
     let mut terminal =
         Terminal::new(TestBackend::new(screen.width, screen.height))?;
-    let content = ui::workspace_reader_content(screen, &app.workspace);
+    let content = ui::workspace_reader_content(screen, app.workspace());
     let original = app.reader().reader_text.to_owned();
     println!(
         "presentation input · paragraphs={paragraphs} · bytes={}",
@@ -68,9 +68,9 @@ fn reader(paragraphs: usize, screen: Rect) -> Result<(tempfile::TempDir, App)> {
     parsed.articles[0].body = format!("{PROSE}\n\n").repeat(paragraphs);
     store.ingest(&feed, &parsed.title, &parsed.articles)?;
     let mut app = App::new(store, false)?;
-    app.workspace.fullscreen = true;
-    app.workspace.fullscreen_width = 40;
-    app.focus = Focus::Reader;
+    crate::fixture_toggle(&mut app, "fullscreen", true)?;
+    crate::fixture_command(&mut app, "fullscreen-width 40")?;
+    app.activate_pane(Focus::Reader);
     app.resize_workspace(screen);
     for character in ":justify on".chars() {
         key(&mut app, KeyCode::Char(character))?;

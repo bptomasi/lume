@@ -12,10 +12,10 @@ use super::App;
 
 impl App {
     pub(super) fn split_focused(&mut self, edge: Dock) -> Result<()> {
-        let target = self.focus;
+        let target = self.layout.focus();
         let pane = crate::model::Pane::ALL
             .into_iter()
-            .find(|pane| !self.workspace.pane_visible(*pane))
+            .find(|pane| !self.layout.workspace().pane_visible(*pane))
             .or_else(|| {
                 self.expanded_panes()
                     .into_iter()
@@ -23,7 +23,7 @@ impl App {
             })
             .context("Another pane is required")?;
         self.dock_pane(pane, target, edge)?;
-        self.focus = pane;
+        self.layout.focus_pane(pane);
         self.commit_panel_layout()
     }
 
@@ -33,24 +33,30 @@ impl App {
             .or_else(|| {
                 self.expanded_panes()
                     .into_iter()
-                    .find(|pane| *pane != self.focus)
+                    .find(|pane| *pane != self.layout.focus())
             })
             .context("Expand another pane first")?;
-        self.dock_pane(self.focus, target, edge)?;
+        self.dock_pane(self.layout.focus(), target, edge)?;
         self.commit_panel_layout()
     }
 
     pub(super) fn resize_visible_split(&mut self, delta: i32) -> Result<()> {
-        let areas =
-            ui::workspace_areas(self.screen, self.focus, &self.workspace);
-        let focus = areas.get(self.focus).context("Focused pane is hidden")?;
+        let areas = ui::workspace_areas(
+            self.layout.screen(),
+            self.layout.focus(),
+            self.layout.workspace(),
+        );
+        let focus = areas
+            .get(self.layout.focus())
+            .context("Focused pane is hidden")?;
         let Some(boundary) = areas.boundaries.iter().rev().find(|boundary| {
             boundary.first.intersection(focus) == focus
                 || boundary.second.intersection(focus) == focus
         }) else {
-            self.status =
+            self.interaction.report(
                 "Expand another pane or leave fullscreen to resize a split"
-                    .into();
+                    .into(),
+            );
             return Ok(());
         };
         let signed = if boundary.first.intersection(focus) == focus {
@@ -58,27 +64,30 @@ impl App {
         } else {
             delta.saturating_neg()
         };
-        if let Some(tree) = &mut self.workspace.layout {
-            tree.resize_path(&boundary.path, boundary.adjusted_percent(signed));
-        }
+        self.layout
+            .resize_split(&boundary.path, boundary.adjusted_percent(signed));
         self.commit_panel_layout()
     }
 
     pub(super) fn focus_spatially(&mut self, edge: Dock) {
         self.prepare_panel_focus();
         if let Some(pane) = self.spatial_neighbor(edge) {
-            self.focus = pane;
+            self.layout.focus_pane(pane);
         }
     }
 
     fn spatial_neighbor(&self, edge: Dock) -> Option<Pane> {
-        let areas =
-            ui::workspace_areas(self.screen, self.focus, &self.workspace);
-        if let Some(pane) = neighbor(&areas, self.focus, edge) {
+        let areas = ui::workspace_areas(
+            self.layout.screen(),
+            self.layout.focus(),
+            self.layout.workspace(),
+        );
+        if let Some(pane) = neighbor(&areas, self.layout.focus(), edge) {
             return Some(pane);
         }
         if Pane::ALL.into_iter().all(|pane| {
-            !self.workspace.pane_visible(pane) || areas.get(pane).is_some()
+            !self.layout.workspace().pane_visible(pane)
+                || areas.get(pane).is_some()
         }) {
             return None;
         }
@@ -87,10 +96,10 @@ impl App {
         // Explicitly collapsed panes remain excluded by workspace_areas.
         let expanded = ui::workspace_areas(
             Rect::new(0, 0, 2048, 1024),
-            self.focus,
-            &self.workspace,
+            self.layout.focus(),
+            self.layout.workspace(),
         );
-        neighbor(&expanded, self.focus, edge)
+        neighbor(&expanded, self.layout.focus(), edge)
             .filter(|pane| areas.get(*pane).is_none())
     }
 }

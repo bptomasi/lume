@@ -20,8 +20,8 @@ impl App {
         match command {
             C::Recommendations => {
                 self.set_view(View::Recommended)?;
-                self.focus = super::super::Focus::Articles;
-                self.status = "For you · :recommend-why explains · :recommend-feedback rates".into();
+                self.layout.focus_pane(super::super::Focus::Articles);
+                self.interaction.report("For you · :recommend-why explains · :recommend-feedback rates".into());
             }
             C::RecommendProfile => self.show_recommendation_profile()?,
             C::Interest => self.edit_recommendations(Edit::Interest(
@@ -163,9 +163,10 @@ impl App {
         self.set_view(View::Recommended)?;
         self.nav.preview_query(query);
         self.filter()?;
-        self.focus = super::super::Focus::Articles;
-        self.status =
-            "More like this · strongest shared interests within For you".into();
+        self.layout.focus_pane(super::super::Focus::Articles);
+        self.interaction.report(
+            "More like this · strongest shared interests within For you".into(),
+        );
         Ok(())
     }
 }

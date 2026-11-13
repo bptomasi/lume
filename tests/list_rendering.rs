@@ -112,10 +112,9 @@ fn reading(source: &str) -> Result<(tempfile::TempDir, lume::app::App)> {
     parsed.articles[0].published = 2_000_000_000;
     store.ingest(&feed, "List journal", &parsed.articles)?;
     let mut app = lume::app::App::new(store, false)?;
-    app.focus = lume::model::Pane::Reader;
-    app.workspace.fullscreen = true;
-    app.workspace.fullscreen_width = 18;
-    app.resize_workspace(ratatui::layout::Rect::new(0, 0, 100, 30));
+    common::fixture_toggle(&mut app, "fullscreen", true)?;
+    // A narrow terminal exercises continuation padding with valid preferences.
+    app.resize_workspace(ratatui::layout::Rect::new(0, 0, 24, 30));
     Ok((directory, app))
 }
 
@@ -130,9 +129,9 @@ fn continuation_padding_keeps_mouse_cursor_selection_and_reflow_exact()
 
     let source = "- alpha bravo charlie delta echo foxtrot golf";
     let (_directory, mut app) = reading(source)?;
-    let screen = Rect::new(0, 0, 100, 30);
-    let content = lume::ui::workspace_reader_content(screen, &app.workspace);
-    let mut terminal = Terminal::new(TestBackend::new(100, 30))?;
+    let screen = Rect::new(0, 0, 24, 30);
+    let content = lume::ui::workspace_reader_content(screen, app.workspace());
+    let mut terminal = Terminal::new(TestBackend::new(24, 30))?;
     terminal.draw(|frame| lume::ui::draw(frame, &app))?;
     let row = (content.x..content.right())
         .map(|x| terminal.backend().buffer()[(x, content.y + 1)].symbol())

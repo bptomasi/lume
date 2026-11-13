@@ -165,8 +165,8 @@ impl App {
             "" | "status" => {}
             _ => bail!("Use :performance on|off|reset|status"),
         }
-        if let Some(writer) = &mut self.personal_writes {
-            writer.set_diagnostics(self.performance.enabled);
+        if self.personal.enabled() {
+            self.personal.set_diagnostics(self.performance.enabled);
         }
         let mut report = self.performance.report();
         report.push_str(&format!(

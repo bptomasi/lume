@@ -36,7 +36,7 @@ pub fn note_preview_area(screen: Rect, anchor: Position) -> Rect {
 
 pub(super) fn area(app: &App, screen: Rect) -> Option<Rect> {
     let reading = app.reader();
-    if !matches!(app.mode, Mode::Normal) || app.layout_prefix_pending() {
+    if !matches!(app.mode(), Mode::Normal) || app.layout_prefix_pending() {
         return None;
     }
     let (id, anchor) = reading.hovered_note()?;
@@ -49,7 +49,7 @@ pub(super) fn area(app: &App, screen: Rect) -> Option<Rect> {
 
 pub(super) fn draw(frame: &mut Frame<'_>, app: &App) {
     let reading = app.reader();
-    if !matches!(app.mode, Mode::Normal) || app.layout_prefix_pending() {
+    if !matches!(app.mode(), Mode::Normal) || app.layout_prefix_pending() {
         return;
     }
     let Some((id, anchor)) = reading.hovered_note() else {

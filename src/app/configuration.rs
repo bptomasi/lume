@@ -98,7 +98,7 @@ impl App {
     }
 
     pub(super) fn remember_appearance_write(&mut self) {
-        let current = crate::config::Ui::capture(&self.workspace);
+        let current = crate::config::Ui::capture(self.layout.workspace());
         let previous = self.configuration.written_ui.as_ref().or_else(|| {
             self.configuration
                 .document
@@ -108,15 +108,14 @@ impl App {
         if previous.is_some_and(|previous| *previous != current) {
             // Advance even when returning to the initial value. Delayed
             // publications carry this durable revision and cannot undo it.
-            self.workspace.appearance_revision =
-                self.workspace.appearance_revision.saturating_add(1);
+            self.layout.advance_appearance();
         }
         self.configuration.written_ui = Some(current);
     }
 
     /// Whether external definitions can be installed without interrupting edits.
     pub fn configuration_idle(&self) -> bool {
-        matches!(self.mode, Mode::Normal)
+        matches!(self.interaction.mode(), Mode::Normal)
             && !self.reader.selecting()
             && self.notebook().is_none()
             && self.panel_drag().is_none()
@@ -157,19 +156,20 @@ impl App {
         let Some(deferred) = &mut self.configuration.deferred else {
             return Ok(false);
         };
-        if let Some(writer) = &self.session_writer {
+        {
             if deferred.barrier.is_none() {
-                deferred.barrier = writer.barrier()?;
+                deferred.barrier = self.session.barrier()?;
             }
-            let Some(barrier) = &deferred.barrier else {
-                return Ok(false);
-            };
-            match barrier.try_recv() {
-                Ok(()) => {}
-                Err(std::sync::mpsc::TryRecvError::Empty) => return Ok(false),
-                Err(error) => return Err(error.into()),
+            if let Some(barrier) = &deferred.barrier {
+                match barrier.try_recv() {
+                    Ok(()) => {}
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                        return Ok(false);
+                    }
+                    Err(error) => return Err(error.into()),
+                }
             }
-            anyhow::ensure!(!writer.failed(), "Session writes failed");
+            anyhow::ensure!(!self.session.failed(), "Session writes failed");
         }
         if let Some(deferred) = self.configuration.deferred.take() {
             self.install_configuration(deferred.update)?;
@@ -182,29 +182,30 @@ impl App {
         update: crate::config::Update,
     ) -> Result<()> {
         let previous = self.configuration.document.as_ref();
-        let current = crate::config::Ui::capture(&self.workspace);
+        let current = crate::config::Ui::capture(self.layout.workspace());
         let appearance = current != update.ui
-            && update.appearance_revision >= self.workspace.appearance_revision
+            && update.appearance_revision
+                >= self.layout.workspace().appearance_revision
             && previous.is_none_or(|previous| previous.ui == current);
-        let profiles = self.layouts.profiles != update.workspaces
+        let profiles = self.layout.history().profiles != update.workspaces
             && previous.is_none_or(|previous| {
-                previous.workspaces == self.layouts.profiles
+                previous.workspaces == self.layout.history().profiles
             });
         let catalog = previous.is_none_or(|previous| {
             previous.catalog_fingerprint != update.catalog_fingerprint
         });
         if appearance || profiles {
             if appearance {
-                let justify = self.workspace.justify;
-                update.ui.apply(&mut self.workspace);
+                let justify = self.layout.workspace().justify;
+                self.layout.apply_ui(&update.ui)?;
                 self.apply_image_preferences();
                 self.apply_formula_preferences();
-                if self.workspace.justify != justify {
+                if self.layout.workspace().justify != justify {
                     self.apply_reader_justification();
                 }
             }
             if profiles {
-                self.layouts.profiles = update.workspaces.clone();
+                self.layout.install_profiles(update.workspaces.clone());
             }
             self.persist_preferences()?;
         }
@@ -212,7 +213,7 @@ impl App {
         if catalog {
             self.reload()?;
         }
-        self.status = "Configuration updated".into();
+        self.interaction.report("Configuration updated".into());
         Ok(())
     }
 

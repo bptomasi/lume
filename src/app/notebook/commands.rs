@@ -93,8 +93,9 @@ impl App {
         if query.trim().is_empty() {
             return Ok(());
         }
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(Task::Query(QueryEdit::Remember(query.into())))?;
+        if self.personal.enabled() {
+            self.personal
+                .submit(Task::Query(QueryEdit::Remember(query.into())))?;
         } else {
             self.store.remember_note_search(query)?;
             if let Some(notebook) = &mut self.notebooks.active {
@@ -131,8 +132,8 @@ impl App {
                 self.show_recent_note_searches()?;
             }
             routing::NotebookInspectionCommand::NoteCollectionDelete => {
-                if let Some(writer) = &mut self.personal_writes {
-                    writer.submit(Task::Query(QueryEdit::Delete(
+                if self.personal.enabled() {
+                    self.personal.submit(Task::Query(QueryEdit::Delete(
                         argument.into(),
                     )))?;
                 } else {
@@ -167,15 +168,15 @@ impl App {
     fn export_note_files(&mut self, argument: &str) -> Result<()> {
         ensure!(!argument.is_empty(), "Use :export-note-files DIRECTORY");
         let path = std::path::PathBuf::from(argument);
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(Task::Export(path))?;
+        if self.personal.enabled() {
+            self.personal.submit(Task::Export(path))?;
         } else {
             let report = crate::exchange::notes::notebook(&self.store, &path)?;
-            self.status = format!(
+            self.interaction.report(format!(
                 "Note files · {} written · {} conflicts preserved",
                 report.written,
                 report.conflicts.len()
-            );
+            ));
         }
         Ok(())
     }
@@ -233,13 +234,15 @@ impl App {
         note: AnnotationSnapshot,
         change: NoteChange,
     ) -> Result<()> {
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(Task::Edit(crate::app::NoteEdit::Metadata {
-                article: note.article,
-                note: note.comment.id,
-                change,
-            }))?;
-            self.status = "Updating note metadata…".into();
+        if self.personal.enabled() {
+            self.personal.submit(Task::Edit(
+                crate::app::NoteEdit::Metadata {
+                    article: note.article,
+                    note: note.comment.id,
+                    change,
+                },
+            ))?;
+            self.interaction.report("Updating note metadata…".into());
             return Ok(());
         }
         self.store.change_note_metadata(
@@ -284,13 +287,14 @@ impl App {
             text.split_whitespace().map(str::to_owned).collect()
         };
         let tags = crate::store::validate_tags(&tags)?;
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(Task::Edit(crate::app::NoteEdit::Tags {
-                article,
-                note,
-                tags,
-            }))?;
-            self.status = "Updating note tags…".into();
+        if self.personal.enabled() {
+            self.personal
+                .submit(Task::Edit(crate::app::NoteEdit::Tags {
+                    article,
+                    note,
+                    tags,
+                }))?;
+            self.interaction.report("Updating note tags…".into());
             return Ok(());
         }
         self.store.annotation(article, note)?;
@@ -309,8 +313,8 @@ impl App {
             .as_ref()
             .context("Open Notebook and choose a query first")?;
         crate::validation::validate_collection_name(name)?;
-        if let Some(writer) = &mut self.personal_writes {
-            writer.submit(Task::Query(QueryEdit::Save {
+        if self.personal.enabled() {
+            self.personal.submit(Task::Query(QueryEdit::Save {
                 name: name.into(),
                 query: notebook.query.clone(),
             }))?;
@@ -318,13 +322,14 @@ impl App {
             self.store.save_note_collection(name, &notebook.query)?;
             self.invalidate_notebook();
         }
-        self.status = "Note collection saved".into();
+        self.interaction.report("Note collection saved".into());
         Ok(())
     }
 
     pub(in crate::app) fn begin_reader_note(&mut self) -> Result<()> {
         ensure!(
-            self.notebooks.active.is_none() && self.focus == Focus::Reader,
+            self.notebooks.active.is_none()
+                && self.layout.focus() == Focus::Reader,
             "Focus Reader before creating an article note"
         );
         ensure!(
