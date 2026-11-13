@@ -2,7 +2,7 @@
 mod common;
 use anyhow::{Context, Result};
 use lume::{
-    backups,
+    backup_service,
     config::{self, backups::Backups},
     media::cache,
     model::OfflineStatus,
@@ -23,7 +23,7 @@ fn configure(store: &Store, root: &Path, policy: Backups) -> Result<()> {
     Ok(())
 }
 fn run(store: &Store, now: i64) -> Result<PathBuf> {
-    backups::run(store, now, &AtomicBool::new(false))?
+    backup_service::run(store, now, &AtomicBool::new(false))?
         .context("Backup was cancelled")
 }
 
@@ -33,7 +33,9 @@ fn automatic_is_opt_in_and_successful_schedule_survives_restart() -> Result<()>
     let (directory, store, _) = common::seeded_store()?;
     let root = directory.path();
     let cancel = AtomicBool::new(false);
-    assert!(backups::automatic(&store, 1_800_000_000, &cancel)?.is_none());
+    assert!(
+        backup_service::automatic(&store, 1_800_000_000, &cancel)?.is_none()
+    );
     assert!(!root.join("backups").exists());
     configure(
         &store,
@@ -45,16 +47,26 @@ fn automatic_is_opt_in_and_successful_schedule_survives_restart() -> Result<()>
         },
     )?;
     assert!(
-        backups::automatic(&store, 1_800_000_000, &AtomicBool::new(true))?
-            .is_none()
+        backup_service::automatic(
+            &store,
+            1_800_000_000,
+            &AtomicBool::new(true)
+        )?
+        .is_none()
     );
-    let path = backups::automatic(&store, 1_800_000_001, &cancel)?
+    let path = backup_service::automatic(&store, 1_800_000_001, &cancel)?
         .context("Due backup")?;
-    backups::verify(&path)?;
+    backup_service::verify(&path)?;
     let reopened = Store::open(&root.join("library.sqlite3"))?;
-    assert!(backups::automatic(&reopened, 1_800_000_002, &cancel)?.is_none());
-    assert!(backups::next_check(&reopened, 1_800_000_002)?.as_secs() > 3500);
-    assert!(backups::automatic(&reopened, 1_800_003_602, &cancel)?.is_some());
+    assert!(
+        backup_service::automatic(&reopened, 1_800_000_002, &cancel)?.is_none()
+    );
+    assert!(
+        backup_service::next_check(&reopened, 1_800_000_002)?.as_secs() > 3500
+    );
+    assert!(
+        backup_service::automatic(&reopened, 1_800_003_602, &cancel)?.is_some()
+    );
     Ok(())
 }
 
@@ -95,8 +107,8 @@ fn rotation_preserves_other_libraries_and_untracked_files() -> Result<()> {
     assert!(protected.join("personal.txt").is_file());
     assert!(other_backup.join("manifest.json").is_file());
     assert!(unrelated.join("private").is_file());
-    backups::verify(&newest)?;
-    backups::verify(&last)?;
+    backup_service::verify(&newest)?;
+    backup_service::verify(&last)?;
     Ok(())
 }
 
@@ -121,7 +133,7 @@ fn offline_bundle_restores_snapshot_notes_configuration_and_pinned_originals()
     let snapshot = run(&store, 100)?;
     store.save_comment(article, None, "After backup")?;
     let restored = root.join("restored");
-    backups::restore(&snapshot, &restored)?;
+    backup_service::restore(&snapshot, &restored)?;
     let recovered = Store::open(&restored.join("library.sqlite3"))?;
     assert_eq!(recovered.comments(article)?.len(), 1);
     assert_eq!(recovered.comments(article)?[0].body, "Before backup");
@@ -139,7 +151,7 @@ fn offline_bundle_restores_snapshot_notes_configuration_and_pinned_originals()
     assert!(!checkpoint.running);
     assert_eq!(checkpoint.items[0].images, 1);
     assert_eq!(checkpoint.items[0].status, OfflineStatus::Ready);
-    assert!(backups::restore(&snapshot, &restored).is_err());
+    assert!(backup_service::restore(&snapshot, &restored).is_err());
     assert_eq!(store.comments(article)?.len(), 2);
     Ok(())
 }
@@ -154,8 +166,8 @@ fn corrupted_bundle_fails_before_publishing_any_restore_destination()
     bytes[100] ^= 1;
     std::fs::write(&database, bytes)?;
     let restored = directory.path().join("rejected");
-    assert!(backups::verify(&snapshot).is_err());
-    assert!(backups::restore(&snapshot, &restored).is_err());
+    assert!(backup_service::verify(&snapshot).is_err());
+    assert!(backup_service::restore(&snapshot, &restored).is_err());
     assert!(!restored.exists());
     Ok(())
 }
@@ -175,10 +187,14 @@ fn explicit_bundles_are_no_clobber_and_can_omit_offline_files() -> Result<()> {
         "https://images.test/disposable",
         b"Disposable",
     )?;
-    backups::snapshot_existing(&root.join("library.sqlite3"), &output, false)?;
+    backup_service::snapshot_existing(
+        &root.join("library.sqlite3"),
+        &output,
+        false,
+    )?;
     assert!(!output.join("images").exists());
     assert!(
-        backups::snapshot_existing(
+        backup_service::snapshot_existing(
             &root.join("library.sqlite3"),
             &output,
             true
@@ -186,7 +202,7 @@ fn explicit_bundles_are_no_clobber_and_can_omit_offline_files() -> Result<()> {
         .is_err()
     );
     let restored = root.join("restored");
-    backups::restore(&output, &restored)?;
+    backup_service::restore(&output, &restored)?;
     assert_eq!(
         Store::open(&restored.join("library.sqlite3"))?
             .library()?
@@ -217,9 +233,9 @@ fn symlinks_and_path_traversal_are_rejected_without_reading_external_files()
     let outside = root.join("external");
     std::fs::write(&outside, b"Private")?;
     symlink(&outside, cache::path(&offline, "https://images.test/link"))?;
-    assert!(backups::run(&store, 1, &AtomicBool::new(false)).is_err());
+    assert!(backup_service::run(&store, 1, &AtomicBool::new(false)).is_err());
     assert_eq!(std::fs::read(&outside)?, b"Private");
-    let snapshot = backups::snapshot_existing(
+    let snapshot = backup_service::snapshot_existing(
         &root.join("library.sqlite3"),
         &root.join("bundle"),
         false,
@@ -231,7 +247,8 @@ fn symlinks_and_path_traversal_are_rejected_without_reading_external_files()
     value["files"][0]["name"] = "../external".into();
     std::fs::write(&manifest, serde_json::to_vec(&value)?)?;
     assert!(
-        backups::restore(&root.join("bundle"), &root.join("rejected")).is_err()
+        backup_service::restore(&root.join("bundle"), &root.join("rejected"))
+            .is_err()
     );
     assert!(!root.join("rejected").exists());
     assert_eq!(std::fs::read(&outside)?, b"Private");
@@ -240,7 +257,7 @@ fn symlinks_and_path_traversal_are_rejected_without_reading_external_files()
 
 fn prepared_checkpoint(store: &Store, article: i64) -> Result<()> {
     store.set_queued(article, true)?;
-    let mut state = lume::offline::capture(
+    let mut state = lume::offline_service::capture(
         store,
         lume::model::View::Queue,
         Default::default(),
@@ -262,13 +279,17 @@ fn restored_snapshots_without_assets_keep_targets_and_report_missing_images()
     let plain = root.join("plain.sqlite3");
     store.backup_to(&plain)?;
     let bundle = root.join("bundle");
-    backups::snapshot_existing(&root.join("library.sqlite3"), &bundle, false)?;
+    backup_service::snapshot_existing(
+        &root.join("library.sqlite3"),
+        &bundle,
+        false,
+    )?;
     for (snapshot, name) in
         [(&plain, "plain-restored"), (&bundle, "bundle-restored")]
     {
         let output = root.join(name);
         if snapshot.is_dir() {
-            backups::restore(snapshot, &output)?;
+            backup_service::restore(snapshot, &output)?;
         } else {
             Store::restore_snapshot(snapshot, &output)?;
         }
@@ -301,13 +322,13 @@ fn retargeted_offline_items_do_not_claim_availability_after_restore()
     store.ingest(&feed, &feed.title, &parsed.articles)?;
     for include_offline in [false, true] {
         let bundle = root.join(format!("bundle-{include_offline}"));
-        backups::snapshot_existing(
+        backup_service::snapshot_existing(
             &root.join("library.sqlite3"),
             &bundle,
             include_offline,
         )?;
         let output = root.join(format!("restored-{include_offline}"));
-        backups::restore(&bundle, &output)?;
+        backup_service::restore(&bundle, &output)?;
         let restored = Store::open(&output.join("library.sqlite3"))?;
         let state = restored.offline_state()?.context("Checkpoint")?;
         assert_eq!(state.items[0].article, article);

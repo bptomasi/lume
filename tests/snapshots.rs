@@ -206,3 +206,34 @@ fn assert_cli_success(output: std::process::Output) {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn cancelled_snapshot_leaves_no_output_or_temporary_files() -> Result<()> {
+    let (directory, store, _) = common::seeded_store()?;
+    let article = store.library()?.articles[0].id;
+    store.save_comment(article, None, "Keep committed reading data")?;
+    let inventory = || -> Result<std::collections::BTreeSet<_>> {
+        Ok(std::fs::read_dir(directory.path())?
+            .map(|entry| entry.map(|entry| entry.file_name()))
+            .collect::<std::io::Result<_>>()?)
+    };
+    let before = inventory()?;
+    let output = directory.path().join("cancelled.sqlite3");
+    let error = store
+        .backup_to_cancellable(
+            &output,
+            &std::sync::atomic::AtomicBool::new(true),
+        )
+        .err()
+        .ok_or_else(|| anyhow::anyhow!("Cancelled snapshot succeeded"))?;
+    assert_eq!(error.to_string(), "Backup cancelled before publication");
+    assert!(!output.exists());
+    assert_eq!(inventory()?, before);
+    assert_eq!(
+        store.comments(article)?[0].body,
+        "Keep committed reading data"
+    );
+    store.backup_to(&output)?;
+    assert_eq!(Store::open(&output)?.comments(article)?.len(), 1);
+    Ok(())
+}

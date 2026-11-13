@@ -48,7 +48,7 @@ impl Store {
                 reasons.push("active reader".into());
             }
             let explanation = store.retention_explanation(article)?;
-            crate::retention::check_cancel(cancel)?;
+            crate::cancellation::check_retention(cancel)?;
             ensure!(
                 store.retention_current(&plan)?,
                 "Library changed during inspection; inspect again"

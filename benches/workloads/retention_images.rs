@@ -5,7 +5,7 @@ use lume::{
     config::{self, retention::Age},
     configuration_service::Session,
     model::{FeedOrigin, IncomingArticle, View},
-    retention,
+    retention_service,
     store::Store,
 };
 use std::path::Path;
@@ -20,7 +20,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         &format!("fresh image retention preview ({count} articles, 32 files)"),
         iterations,
         || {
-            let report = retention::preview(&store, &images, now)?;
+            let report = retention_service::preview(&store, &images, now)?;
             ensure!(
                 report.images == 0 && report.articles == 0,
                 "Fresh content expired"
@@ -41,7 +41,7 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         iterations,
         || {
             ensure!(
-                retention::preview(&store, &images, now)?.images == 32,
+                retention_service::preview(&store, &images, now)?.images == 32,
                 "Index changed expiry"
             );
             Ok(())
@@ -112,7 +112,7 @@ fn initial_index(
 ) -> Result<()> {
     let started = std::time::Instant::now();
     ensure!(
-        retention::preview(store, images, now)?.images == 32,
+        retention_service::preview(store, images, now)?.images == 32,
         "Index lost expired references"
     );
     println!(

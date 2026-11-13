@@ -1,6 +1,6 @@
 //! Replaceable storage reads never queue behind durable maintenance.
 use super::App;
-use crate::{latest::Latest, storage::Unit, store::Store};
+use crate::{disk_usage::Unit, latest::Latest, store::Store};
 use anyhow::{Context, Result};
 
 const TITLE: &str = "Storage inspection · :storage cancel · Esc closes";
@@ -23,11 +23,12 @@ impl Diagnostics {
                 let store = store.as_ref().context("Inspection connection")?;
                 store.read_cancellable(cancel.clone(), |store| {
                     if details {
-                        let details = crate::storage::details::inspect(store)?;
+                        let details =
+                            crate::disk_usage::details::inspect(store)?;
                         cancel.check()?;
                         Ok(details.text(unit))
                     } else {
-                        crate::storage::inspect_checked(
+                        crate::disk_usage::inspect_checked(
                             store,
                             &images,
                             unit,

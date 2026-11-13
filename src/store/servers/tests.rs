@@ -571,9 +571,9 @@ fn retention_tombstones_keep_remote_aliases_removed_after_publisher_changes()
     let id = fixture.store.library()?.articles[0].id;
     fixture.expire_unread(id)?;
     let images = fixture._directory.path().join("images");
-    crate::retention::preview(&fixture.store, &images, 1_800_000_000)?;
+    crate::retention_service::preview(&fixture.store, &images, 1_800_000_000)?;
     assert_eq!(
-        crate::retention::apply(
+        crate::retention_service::apply(
             &fixture.store,
             &images,
             1_800_000_000,

@@ -1,4 +1,8 @@
 //! Snapshot scheduling is durable; declarative policy changes preserve history.
+//!
+//! `config::backups` owns policy validation; the backup service owns timing
+//! and rotation. This module persists policy and successful-run metadata.
+
 use super::Store;
 use crate::config::backups::Backups;
 use anyhow::Result;

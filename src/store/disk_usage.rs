@@ -3,20 +3,22 @@
 //! Emptying Full bodies fires the existing FTS/recommendation triggers; deleting
 //! cache rows would leave the Full text in FTS on older schemas. SQLite can
 //! reuse freed pages; this operation does not promise to shrink the database.
+//!
+//! SQLite accounting and bounded Full-cache writes return neutral model data;
+//! filesystem inventory and presentation belong to `disk_usage`.
 
 use anyhow::Result;
 
 use super::Store;
+use crate::model::disk_usage::{Details, SourceUsage, TableUsage, Usage};
 
 impl Store {
-    pub(crate) fn storage_usage(
-        &self,
-    ) -> Result<crate::storage::report::Usage> {
+    pub(crate) fn storage_usage(&self) -> Result<Usage> {
         let mut usage = self.connection.query_row(
             include_str!("sql/select_storage_usage.sql"),
             [],
             |row| {
-                Ok(crate::storage::report::Usage {
+                Ok(Usage {
                     articles: row.get(0)?,
                     feed: row.get(1)?,
                     full: row.get(2)?,
@@ -47,15 +49,13 @@ impl Store {
         Ok(usage)
     }
 
-    pub(crate) fn storage_details(
-        &self,
-    ) -> Result<crate::storage::details::Details> {
+    pub(crate) fn storage_details(&self) -> Result<Details> {
         self.read_snapshot(|store| {
             let sources = store
                 .connection
                 .prepare_cached(include_str!("sql/select_storage_sources.sql"))?
                 .query_map([], |row| {
-                    Ok(crate::storage::details::SourceUsage {
+                    Ok(SourceUsage {
                         feed_id: row.get(0)?,
                         title: row.get(1)?,
                         server: row.get(2)?,
@@ -69,7 +69,7 @@ impl Store {
                 .connection
                 .prepare_cached(include_str!("sql/select_storage_tables.sql"))?
                 .query_map([], |row| {
-                    Ok(crate::storage::details::TableUsage {
+                    Ok(TableUsage {
                         name: row.get(0)?,
                         allocated_bytes: row.get(1)?,
                     })
@@ -80,7 +80,7 @@ impl Store {
                 [],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )?;
-            Ok(crate::storage::details::Details::from_usage(
+            Ok(Details::from_usage(
                 sources,
                 tables,
                 fts_body_bytes,

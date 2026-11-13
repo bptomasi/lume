@@ -1,7 +1,7 @@
 //! Real WAL copies, checksums and isolated restores qualify managed rotation.
 use anyhow::{Context, Result, ensure};
 use lume::{
-    backups,
+    backup_service,
     config::{self, backups::Backups},
     model::View,
     store::Store,
@@ -30,10 +30,10 @@ pub fn run(iterations: usize, stress: bool) -> Result<()> {
         || {
             round += 1;
             let snapshot =
-                backups::run(&store, round, &AtomicBool::new(false))?
+                backup_service::run(&store, round, &AtomicBool::new(false))?
                     .context("Missing backup")?;
             let output = root.join(format!("restored-{round}"));
-            backups::restore(&snapshot, &output)?;
+            backup_service::restore(&snapshot, &output)?;
             let restored = Store::open(&output.join("library.sqlite3"))?;
             ensure!(
                 restored.view_count(&View::All)? == count,

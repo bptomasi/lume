@@ -8,7 +8,7 @@ use lume::{
     },
     configuration_service::Session,
     model::{FeedOrigin, IncomingArticle, SmartFilter, View},
-    retention,
+    retention_service as retention,
     store::Store,
 };
 use std::{path::Path, sync::atomic::AtomicBool, time::Instant};

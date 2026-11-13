@@ -6,8 +6,7 @@
 //! ingest cannot make a later 304 conceal missing content. Cache reclamation
 //! is explicit and protects personal context.
 
-mod backup;
-mod backups;
+mod backup_schedule;
 mod cancellation;
 mod collections;
 mod comments;
@@ -15,6 +14,7 @@ mod configuration;
 mod contention;
 pub(crate) use contention::is_contention;
 mod deletion;
+mod disk_usage;
 mod documents;
 mod export;
 mod extraction;
@@ -36,7 +36,7 @@ mod retention;
 pub(crate) use retention::{Plan as RetentionPlan, Step as RetentionStep};
 mod recommendations;
 mod servers;
-mod storage;
+mod snapshots;
 mod study;
 mod web_pages;
 mod workspace;

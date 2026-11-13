@@ -30,7 +30,7 @@ pub(super) fn stage(
     check_cancel(cancel)?;
     let images = source.parent().context("Library directory")?.join("images");
     let _offline_lock = if include_offline {
-        Some(Lock(crate::offline::lock(&images)?))
+        Some(Lock(crate::offline_service::lock(&images)?))
     } else {
         None
     };

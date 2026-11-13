@@ -2,6 +2,7 @@
 
 mod cli;
 mod configuration;
+mod configuration_arguments;
 mod data_dir;
 mod terminal;
 
@@ -46,14 +47,23 @@ fn main() -> Result<()> {
     let config_path = if cli.demo {
         None
     } else {
-        Some(configuration::path(&cli)?)
+        Some(configuration::path(
+            cli.config.as_deref(),
+            cli.database.as_deref(),
+            cli.data_dir.as_deref(),
+        )?)
     };
-    if configuration::inspect(
-        cli.command.as_ref(),
-        config_path.as_deref(),
-        cli.demo,
-    )? {
-        return Ok(());
+    if let Some(Command::Config { command }) = &cli.command {
+        anyhow::ensure!(
+            !cli.demo,
+            "Configuration commands require a real library"
+        );
+        let path = config_path.as_deref().ok_or_else(|| {
+            anyhow::anyhow!("Configuration path is unavailable")
+        })?;
+        if configuration::inspect(command.as_ref(), path)? {
+            return Ok(());
+        }
     }
     let (path, store) = open_library(&cli)?;
     run(cli, path, store, config_path)
@@ -63,7 +73,7 @@ fn main() -> Result<()> {
 fn snapshots(cli: &Cli) -> Result<bool> {
     if let Some(Command::Restore { snapshot, output }) = &cli.command {
         if snapshot.is_dir() {
-            lume::backups::restore(snapshot, output)?;
+            lume::backup_service::restore(snapshot, output)?;
         } else {
             Store::restore_snapshot(snapshot, output)?;
         }
@@ -81,7 +91,7 @@ fn snapshots(cli: &Cli) -> Result<bool> {
     }) = &cli.command
     {
         if *bundle || *include_offline {
-            lume::backups::snapshot_existing(
+            lume::backup_service::snapshot_existing(
                 &library_path(cli)?,
                 output,
                 *include_offline,

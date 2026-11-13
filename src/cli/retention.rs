@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
-use lume::{retention, store::Store};
+use lume::{retention_service, store::Store};
 use std::{path::Path, sync::atomic::AtomicBool};
 
 #[derive(Subcommand)]
@@ -36,22 +36,25 @@ pub(super) fn run(
         Command::Explain { article } => {
             print!("{}", store.explain_retention(article, now)?)
         }
-        Command::Status => print!("{}", retention::status(store)?),
+        Command::Status => print!("{}", retention_service::status(store)?),
         Command::Preset { name } => {
             if let Some(name) = name {
                 store.set_retention_preset(name.parse()?)?;
                 println!("Preset saved to TOML; automatic retention paused.");
-                print!("{}", retention::status(store)?);
+                print!("{}", retention_service::status(store)?);
             } else {
                 print!("{}", lume::config::retention::presets::GUIDE);
             }
         }
         Command::Preview => {
-            print!("{}", retention::preview(store, &images, now)?.text(true))
+            print!(
+                "{}",
+                retention_service::preview(store, &images, now)?.text(true)
+            )
         }
         Command::Apply => print!(
             "{}",
-            retention::apply(
+            retention_service::apply(
                 store,
                 &images,
                 now,
@@ -69,7 +72,7 @@ pub(super) fn automatic(store: &Store, path: &Path) -> Result<()> {
         .parent()
         .context("Library has no parent directory")?
         .join("images");
-    if let Some(report) = retention::automatic(
+    if let Some(report) = retention_service::automatic(
         store,
         &images,
         chrono::Utc::now().timestamp(),

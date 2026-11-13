@@ -1,4 +1,7 @@
 //! User-requested storage inspection and conservative recoverable-cache cleanup.
+//!
+//! Store owns SQLite accounting and bounded cache transactions. Neutral model
+//! results keep those persistence operations independent of this service.
 
 use std::{
     collections::BTreeSet,

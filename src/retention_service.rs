@@ -3,6 +3,9 @@
 //! Preview acknowledges a policy, not a stale deletion list. Each write batch
 //! rechecks personal protections and stops if another connection committed.
 //! Compact tombstones prevent publisher refreshes from resurrecting removals.
+//!
+//! Policy lives in `config::retention`; Store owns plans and atomic batches.
+//! Neutral counts and cancellation contracts never depend on this service.
 
 mod images;
 
@@ -13,52 +16,12 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-#[derive(Debug)]
-pub(crate) struct Canceled;
-impl std::fmt::Display for Canceled {
-    fn fmt(&self, output: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        output.write_str("Retention planning canceled")
-    }
-}
-impl std::error::Error for Canceled {}
-pub(crate) fn check_cancel(cancel: &AtomicBool) -> Result<()> {
-    if cancel.load(Ordering::Relaxed) {
-        return Err(Canceled.into());
-    }
-    Ok(())
-}
-
-/// Counts and logical bytes; reclaimed SQLite pages are reused, not vacuumed.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Report {
-    /// Articles eligible for removal, or actually removed during application.
-    pub articles: usize,
-    /// Unprotected Full caches eligible, or actually cleared.
-    pub full_texts: usize,
-    /// Full body bytes released or eligible.
-    pub full_bytes: u64,
-    /// Feed body bytes released or eligible.
-    pub feed_bytes: u64,
-    /// Ordinary image files removed or eligible; pinned copies are untouched.
-    pub images: usize,
-    /// Ordinary image bytes removed or eligible.
-    pub image_bytes: u64,
-    /// Cancellation stopped the pass between batches.
-    pub cancelled: bool,
-    /// A concurrent library change interrupted the captured plan.
-    pub interrupted: bool,
-}
+use crate::cancellation::{
+    RetentionCanceled as Canceled, check_retention as check_cancel,
+};
+pub use crate::model::retention::Report;
 
 impl Report {
-    pub(crate) fn add(&mut self, other: &Self) {
-        self.articles += other.articles;
-        self.full_texts += other.full_texts;
-        self.full_bytes += other.full_bytes;
-        self.feed_bytes += other.feed_bytes;
-        self.images += other.images;
-        self.image_bytes += other.image_bytes;
-    }
-
     /// Display what is counted without promising a smaller SQLite file.
     pub fn text(&self, preview: bool) -> String {
         format!(

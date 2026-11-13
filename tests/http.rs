@@ -758,7 +758,7 @@ fn offline_package_downloads_full_text_and_pins_validated_svg() -> Result<()> {
         server(200, html.as_bytes(), "Content-Type: text/html\r\n")?;
     let target = set_article_url(&mut store, &feed, &address)?;
     store.set_queued(target.article, true)?;
-    let plan = lume::offline::capture(
+    let plan = lume::offline_service::capture(
         &store,
         lume::model::View::Queue,
         lume::model::OfflineLimits::default(),
@@ -766,7 +766,7 @@ fn offline_package_downloads_full_text_and_pins_validated_svg() -> Result<()> {
     let images = directory.path().join("images");
     corrupt_image_caches(&images, &image)?;
 
-    let result = lume::offline::prepare(
+    let result = lume::offline_service::prepare(
         &store,
         &images,
         plan,
@@ -804,13 +804,13 @@ fn offline_failed_image_keeps_readable_text_and_reports_partial() -> Result<()>
         server(200, html.as_bytes(), "Content-Type: text/html\r\n")?;
     let target = set_article_url(&mut store, &feed, &address)?;
     store.set_queued(target.article, true)?;
-    let plan = lume::offline::capture(
+    let plan = lume::offline_service::capture(
         &store,
         lume::model::View::Queue,
         lume::model::OfflineLimits::default(),
     )?;
 
-    let result = lume::offline::prepare(
+    let result = lume::offline_service::prepare(
         &store,
         &directory.path().join("images"),
         plan,

@@ -5,6 +5,7 @@ use anyhow::{Result, ensure};
 use super::{Plan, fingerprint};
 use crate::{
     config::retention::{Policy, Retention},
+    model::retention::Report,
     store::Store,
 };
 use std::sync::atomic::AtomicBool;
@@ -43,7 +44,7 @@ impl Store {
         cancel: &AtomicBool,
         only: Option<i64>,
     ) -> Result<Plan> {
-        crate::retention::check_cancel(cancel)?;
+        crate::cancellation::check_retention(cancel)?;
         // Planning writes only TEMP tables. A read snapshot keeps large
         // previews from blocking personal edits on another WAL connection.
         let transaction = self.connection.unchecked_transaction()?;
@@ -99,7 +100,7 @@ impl Store {
         );
         let mut insert = self.connection.prepare_cached(&sql)?;
         if let Some(article) = only {
-            crate::retention::check_cancel(cancel)?;
+            crate::cancellation::check_retention(cancel)?;
             insert.execute(rusqlite::named_params! {
                 ":after": article.saturating_sub(1),
                 ":upper": article,
@@ -108,7 +109,7 @@ impl Store {
         }
         let mut after = 0_i64;
         loop {
-            crate::retention::check_cancel(cancel)?;
+            crate::cancellation::check_retention(cancel)?;
             let upper: Option<i64> = self.connection.query_row(
                 include_str!("../sql/retention/select_planning_boundary.sql"),
                 [after],
@@ -193,12 +194,12 @@ impl Store {
         Ok(())
     }
 
-    pub(crate) fn retention_counts(&self) -> Result<crate::retention::Report> {
+    pub(crate) fn retention_counts(&self) -> Result<Report> {
         Ok(self
             .connection
             .prepare_cached(include_str!("../sql/retention/select_counts.sql"))?
             .query_row([], |row| {
-                Ok(crate::retention::Report {
+                Ok(Report {
                     articles: row.get(0)?,
                     full_texts: row.get(1)?,
                     full_bytes: row.get(2)?,

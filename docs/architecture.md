@@ -514,8 +514,9 @@ and may coalesce; final results are acknowledged. Closing a report does not
 reopen it when work finishes. Dropping requests cancellation without waiting
 for HTTP; already admitted SQLite transactions finish atomically.
 
-`offline` captures at most 100 article identities and URLs from Read next or a
-personal folder. The existing extractor/decoder validate every new body/image.
+`offline_service` captures at most 100 article identities and URLs from Read
+next or a personal folder. The existing extractor/decoder validate every new
+body/image.
 An adjacent advisory file lock serializes preparations across processes.
 Checkpoints in SQLite retain per-item availability, errors and logical bytes;
 resume revalidates entries. A package defaults to 64 MiB and cannot exceed its
@@ -529,10 +530,10 @@ the pinned namespace once per preparation, not once per article. Capacity is
 updated only after atomic publication succeeds, so rejected pins cannot consume
 the budget available to later items.
 
-`storage` inspects text and disk usage on the same maintenance lane. Full-cache
-reclamation uses small IMMEDIATE transactions, protecting current personal,
-offline and session context, including recoverable note drafts. Clearing body
-bytes retains cache identities and
+`disk_usage` inspects text and disk usage on the same maintenance lane.
+Full-cache reclamation uses small IMMEDIATE transactions, protecting current
+personal, offline and session context, including recoverable note drafts.
+Clearing body bytes retains cache identities and
 fires the existing FTS/recommendation triggers. Image reclamation drains the
 durable dirty-reference queue and reads indexed image URLs. It removes only
 unreferenced owned regular files older than the scan. Short, version-checked
@@ -597,9 +598,18 @@ failed page set cannot publish a partial cursor. Explicit history restart keeps
 article identity, personal flags and notes. Global entry collection remains an
 investigation: a shared initial cap cannot replace independent feed coverage.
 
-`backups` owns optional snapshot bundles and rotation; `store/backup` owns the
-SQLite online-copy and isolated restore contracts. The maintenance lane caches
-due deadlines and checks durable successful-publication time after admission.
+`backup_service` owns optional bundles and rotation; `store/snapshots` owns the
+SQLite online-copy and isolated restore contracts. `config::backups` validates
+policy; `store/backup_schedule` persists policy and successful-run metadata.
+`retention_service` orchestrates policy previews and bounded application, while
+`config::retention` owns policy and `store/retention` owns plans and transactions.
+Neutral `model::retention` and `model::disk_usage` results keep Store independent
+of these services. Formatting implementations stay in the service modules;
+cooperative cancellation checks and distinct error types live in `cancellation`.
+CLI configuration arguments live in `configuration_arguments`; main dispatches
+diagnostics before Store creation and recovery before normal reconciliation.
+The maintenance lane caches due deadlines and checks durable successful
+publication time after admission.
 Its cross-process lock precedes the optional offline-package lock and the read
 snapshot; the offline lock is released before recording the successful run.
 Private same-filesystem staging, streamed SHA-256 and hard-link publication

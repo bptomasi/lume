@@ -92,7 +92,7 @@ pub enum PickerKind {
 #[derive(Clone, Debug)]
 pub enum ChoiceAction {
     /// Confirm an explicitly previewed recoverable-cache cleanup.
-    CleanCache(crate::storage::Cleanup),
+    CleanCache(crate::disk_usage::Cleanup),
     /// Apply a previewed retention policy; personal protections are rechecked.
     ApplyRetention,
     /// Start exactly the time-budget proposal that was previewed.

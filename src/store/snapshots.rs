@@ -3,6 +3,9 @@
 //! Creation uses the online backup API under a read snapshot. Restore validates
 //! an isolated copy before creating a new private destination; it never opens
 //! the active library or replaces an existing directory. Images are disposable.
+//!
+//! Bundle publication and rotation belong to `backup_service`; successful-run
+//! metadata belongs to `backup_schedule`. This owner only copies/restores SQLite.
 
 use std::{
     path::Path,
@@ -126,7 +129,7 @@ fn publish_snapshot(
     destination.pragma_update(None, "journal_mode", "DELETE")?;
     drop(destination);
     temporary.as_file().sync_all()?;
-    crate::backups::check_cancel(cancel)?;
+    crate::cancellation::check_backup(cancel)?;
     temporary
         .persist_noclobber(output)
         .context("Backup destination already exists or cannot be written")?;
@@ -142,7 +145,7 @@ fn copy(
     let deadline = Instant::now() + Duration::from_secs(30);
     let backup = Backup::new(source, destination)?;
     loop {
-        crate::backups::check_cancel(cancel)?;
+        crate::cancellation::check_backup(cancel)?;
         match backup.step(128)? {
             StepResult::Done => return Ok(()),
             StepResult::Busy | StepResult::Locked => {

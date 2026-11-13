@@ -145,10 +145,10 @@ fn image_cleanup_after_purge_keeps_shared_images_and_removes_orphans()
     crate::media::cache::write(&images, shared, b"shared")?;
     crate::media::cache::write(&images, unique, b"unique")?;
     store.purge_deleted(1)?;
-    crate::storage::clean(
+    crate::disk_usage::clean(
         &store,
         &images,
-        crate::storage::Cleanup::Images,
+        crate::disk_usage::Cleanup::Images,
         &cancel,
     )?;
     assert!(crate::media::cache::path(&images, shared).exists());

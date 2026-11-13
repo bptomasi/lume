@@ -1,7 +1,7 @@
 //! Explicit disk diagnostics share TUI accounting and never reclaim data.
 use anyhow::{Context, Result};
 use lume::{
-    storage::{self, Unit},
+    disk_usage::{self, Unit},
     store::Store,
 };
 use std::path::Path;
@@ -30,7 +30,7 @@ pub(super) fn run(
     } = arguments;
     let unit: Unit = unit.parse()?;
     if details || json {
-        let details = storage::details::inspect(store)?;
+        let details = disk_usage::details::inspect(store)?;
         if json {
             println!("{}", serde_json::to_string_pretty(&details)?);
         } else {
@@ -38,7 +38,7 @@ pub(super) fn run(
         }
     } else {
         let images = path.parent().context("Library directory")?.join("images");
-        print!("{}", storage::inspect_with_unit(store, &images, unit)?);
+        print!("{}", disk_usage::inspect_with_unit(store, &images, unit)?);
     }
     Ok(())
 }

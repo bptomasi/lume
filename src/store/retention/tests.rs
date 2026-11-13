@@ -1,7 +1,7 @@
 use crate::{
     config::retention::{Age, Policy, Retention},
     model::{ArticleQuery, FeedOrigin, IncomingArticle, SmartFilter, View},
-    retention,
+    retention_service as retention,
     store::Store,
 };
 use anyhow::{Context, Result};
@@ -1025,7 +1025,9 @@ fn point_inspection_materializes_only_the_requested_article_and_checks_active_re
         store
             .explain_retention_cancellable(2, NOW, None, &AtomicBool::new(true))
             .err()
-            .is_some_and(|error| error.is::<retention::Canceled>())
+            .is_some_and(
+                |error| error.is::<crate::cancellation::RetentionCanceled>()
+            )
     );
     Ok(())
 }

@@ -75,10 +75,10 @@ fn cleanup_removes_only_unprotected_full_text_and_updates_search() -> Result<()>
         "Distinctive quartzcache text.",
     )?;
     let images = directory.path().join("images");
-    lume::storage::clean(
+    lume::disk_usage::clean(
         &store,
         &images,
-        lume::storage::Cleanup::All,
+        lume::disk_usage::Cleanup::All,
         &AtomicBool::new(false),
     )?;
 
@@ -109,11 +109,14 @@ fn offline_checkpoints_protect_full_text_and_resume_without_network()
     let article = store.library()?.articles.remove(0);
     cache(&store, article.id, &article.url, "Full prepared content.")?;
     store.set_queued(article.id, true)?;
-    let state =
-        lume::offline::capture(&store, View::Queue, OfflineLimits::default())?;
+    let state = lume::offline_service::capture(
+        &store,
+        View::Queue,
+        OfflineLimits::default(),
+    )?;
     let images = directory.path().join("images");
 
-    let state = lume::offline::prepare(
+    let state = lume::offline_service::prepare(
         &store,
         &images,
         state,
@@ -125,10 +128,10 @@ fn offline_checkpoints_protect_full_text_and_resume_without_network()
     assert_eq!(state.items[0].bytes, 22);
     assert!(!state.running);
     store.set_queued(article.id, false)?;
-    lume::storage::clean(
+    lume::disk_usage::clean(
         &store,
         &images,
-        lume::storage::Cleanup::All,
+        lume::disk_usage::Cleanup::All,
         &AtomicBool::new(false),
     )?;
     assert!(
@@ -138,7 +141,7 @@ fn offline_checkpoints_protect_full_text_and_resume_without_network()
             .body
             .is_empty()
     );
-    lume::offline::release(&store, &images)?;
+    lume::offline_service::release(&store, &images)?;
     assert!(store.offline_state()?.is_none());
     assert_eq!(store.article(article.id)?.id, article.id);
     Ok(())
@@ -150,10 +153,13 @@ fn cancelled_offline_capture_is_resumable_and_does_not_claim_completion()
     let (directory, store, _) = common::seeded_store()?;
     let article = store.library()?.articles.remove(0);
     store.set_queued(article.id, true)?;
-    let state =
-        lume::offline::capture(&store, View::Queue, OfflineLimits::default())?;
+    let state = lume::offline_service::capture(
+        &store,
+        View::Queue,
+        OfflineLimits::default(),
+    )?;
 
-    let result = lume::offline::prepare(
+    let result = lume::offline_service::prepare(
         &store,
         &directory.path().join("images"),
         state,
@@ -166,8 +172,12 @@ fn cancelled_offline_capture_is_resumable_and_does_not_claim_completion()
     assert_eq!(result.items[0].status, OfflineStatus::Pending);
     assert!(store.offline_state()?.context("Checkpoint")?.cancelled);
     assert!(
-        lume::offline::capture(&store, View::All, OfflineLimits::default())
-            .is_err()
+        lume::offline_service::capture(
+            &store,
+            View::All,
+            OfflineLimits::default()
+        )
+        .is_err()
     );
     Ok(())
 }
@@ -230,10 +240,10 @@ fn every_personal_context_protects_its_full_text_from_cleanup() -> Result<()> {
         cache(&store, article.id, &article.url, "Protected full content.")?;
         protect_cache(&store, &article, protection)?;
 
-        lume::storage::clean(
+        lume::disk_usage::clean(
             &store,
             &directory.path().join("images"),
-            lume::storage::Cleanup::All,
+            lume::disk_usage::Cleanup::All,
             &AtomicBool::new(false),
         )?;
 
@@ -353,10 +363,10 @@ fn orphan_image_cleanup_preserves_references_pinned_bytes_and_foreign_files()
     lume::media::cache::write(&images.join("offline"), pinned, svg)?;
     std::fs::write(images.join("unrelated.txt"), "Foreign file")?;
 
-    lume::storage::clean(
+    lume::disk_usage::clean(
         &store,
         &images,
-        lume::storage::Cleanup::Images,
+        lume::disk_usage::Cleanup::Images,
         &AtomicBool::new(false),
     )?;
 
@@ -396,10 +406,10 @@ fn a_recoverable_full_source_draft_protects_its_cache_revision() -> Result<()> {
         initial_kind: None,
     })?;
 
-    lume::storage::clean(
+    lume::disk_usage::clean(
         &store,
         &directory.path().join("images"),
-        lume::storage::Cleanup::All,
+        lume::disk_usage::Cleanup::All,
         &AtomicBool::new(false),
     )?;
 

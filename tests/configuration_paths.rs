@@ -107,3 +107,46 @@ fn assert_path(output: &std::process::Output, expected: &Path) -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn diagnostics_bypass_library_creation_and_recovery_bypasses_broken_toml()
+-> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let root = directory.path();
+    let database = root.join("library.sqlite3");
+    let document = database.with_extension("toml");
+    std::fs::write(&document, "invalid = [")?;
+    let output = cli(root)
+        .arg("--database")
+        .arg(&database)
+        .arg("config")
+        .output()?;
+    assert_path(&output, &document)?;
+    assert!(!database.exists());
+    let output = cli(root)
+        .arg("--database")
+        .arg(&database)
+        .args(["config", "check"])
+        .output()?;
+    assert!(!output.status.success());
+    assert!(!database.exists());
+
+    let store = lume::store::Store::open(&database)?;
+    let folder = store.create_collection("Retained definitions")?;
+    drop(store);
+    let output = cli(root)
+        .arg("--database")
+        .arg(&database)
+        .args(["config", "recover", "library"])
+        .output()?;
+    ensure!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let recovered = lume::config::read_document(&document)?;
+    assert_eq!(recovered.folders[0].name, "Retained definitions");
+    let reopened = lume::store::Store::open(&database)?;
+    assert_eq!(reopened.library()?.collections[0].id, folder);
+    Ok(())
+}

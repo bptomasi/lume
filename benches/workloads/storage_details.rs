@@ -17,7 +17,7 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
         "storage diagnostics · articles={count} · publisher bytes={}",
         publisher_bytes
     );
-    let measured = lume::storage::details::inspect(&store)?;
+    let measured = lume::disk_usage::details::inspect(&store)?;
     println!(
         "FTS duplication: {}",
         serde_json::to_string(&measured.duplication)?
@@ -25,12 +25,17 @@ pub(super) fn run(iterations: usize, stress: bool) -> Result<()> {
     super::measure(
         "source/table/FTS snapshot diagnostics",
         iterations.min(8),
-        || verify(&lume::storage::details::inspect(&store)?, publisher_bytes),
+        || {
+            verify(
+                &lume::disk_usage::details::inspect(&store)?,
+                publisher_bytes,
+            )
+        },
     )
 }
 
 fn verify(
-    details: &lume::storage::details::Details,
+    details: &lume::disk_usage::details::Details,
     publisher_bytes: usize,
 ) -> Result<()> {
     ensure!(
@@ -47,7 +52,7 @@ fn verify(
         "Missing physical FTS pages"
     );
     ensure!(
-        details.text(lume::storage::Unit::MiB).contains("1.000×"),
+        details.text(lume::disk_usage::Unit::MiB).contains("1.000×"),
         "Ratio disappeared"
     );
     Ok(())

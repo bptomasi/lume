@@ -50,10 +50,10 @@ fn empty_cleanup(
 ) -> Result<()> {
     let images = root.join("images");
     super::measure("empty image-cache cleanup", iterations, || {
-        let report = lume::storage::clean(
+        let report = lume::disk_usage::clean(
             store,
             &images,
-            lume::storage::Cleanup::Images,
+            lume::disk_usage::Cleanup::Images,
             &AtomicBool::new(false),
         )?;
         ensure!(report.contains("Removed 0 orphaned"), "Wrong file count");

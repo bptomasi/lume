@@ -1,5 +1,9 @@
 //! Opt-in local bundles: coherent WAL snapshots, checked offline copies and owned rotation.
 //! No worker runs while Lume is closed. Ordinary SQLite snapshots remain compatible.
+//!
+//! Bundle orchestration uses `config::backups` policy, Store snapshot copying
+//! and Store scheduling metadata; no SQLite implementation lives here.
+
 mod bundle;
 mod manifest;
 mod rotation;
@@ -9,24 +13,14 @@ use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::{
     path::{Path, PathBuf},
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::AtomicBool,
     time::Duration,
 };
 
-#[derive(Debug)]
-struct Canceled;
-impl std::fmt::Display for Canceled {
-    fn fmt(&self, output: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        output.write_str("Backup cancelled before publication")
-    }
-}
-impl std::error::Error for Canceled {}
-pub(crate) fn check_cancel(cancel: &AtomicBool) -> Result<()> {
-    if cancel.load(Ordering::Relaxed) {
-        return Err(Canceled.into());
-    }
-    Ok(())
-}
+use crate::cancellation::{
+    BackupCanceled as Canceled, check_backup as check_cancel,
+};
+
 fn owner(source: &Path) -> Result<String> {
     Ok(manifest::hex(&Sha256::digest(
         source.canonicalize()?.as_os_str().as_encoded_bytes(),

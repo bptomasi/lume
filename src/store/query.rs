@@ -127,7 +127,7 @@ impl Store {
             .collect::<rusqlite::Result<std::collections::BTreeSet<_>>>()?;
         let mut unique = std::collections::HashSet::new();
         for list in self.smart_lists()? {
-            crate::retention::check_cancel(cancel)?;
+            crate::cancellation::check_retention(cancel)?;
             if ignored.contains(&list.id) {
                 continue;
             }

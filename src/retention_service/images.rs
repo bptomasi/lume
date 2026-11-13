@@ -1,7 +1,7 @@
 //! Shared ordinary images survive while any protected or unexpired source needs them.
 
 use crate::{
-    retention::Report,
+    model::retention::Report,
     store::{RetentionPlan, Store},
 };
 use anyhow::{Context, Result, ensure};
@@ -29,7 +29,7 @@ pub(super) fn candidates(
     let Some(cutoff) = earliest_expiration(plan, now) else {
         return Ok(Vec::new());
     };
-    let mut files = crate::storage::files(directory)?;
+    let mut files = crate::disk_usage::files(directory)?;
     // Even the shortest configured lifetime cannot expire a newer file.
     // Do not hydrate or parse historical bodies when the whole cache is fresh.
     files.retain(|(_, _, modified)| old_enough(*modified, cutoff));

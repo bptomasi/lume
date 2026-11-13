@@ -5,8 +5,8 @@ use anyhow::{Context, Result, bail, ensure};
 use super::{App, Request, RetentionAction};
 use crate::{
     app::{Action, ChoiceAction, View},
+    disk_usage::Cleanup,
     model::OfflineLimits,
-    storage::Cleanup,
 };
 
 impl App {
@@ -119,7 +119,7 @@ impl App {
                 argument.strip_prefix("details").unwrap_or_default().trim();
             return self.submit_maintenance(Request::StorageDetails(
                 if unit.is_empty() {
-                    crate::storage::Unit::Auto
+                    crate::disk_usage::Unit::Auto
                 } else {
                     unit.parse()?
                 },
@@ -132,7 +132,7 @@ impl App {
 
         if argument.is_empty() || argument == "status" {
             return self.submit_maintenance(Request::Storage(
-                crate::storage::Unit::Auto,
+                crate::disk_usage::Unit::Auto,
             ));
         }
         if !argument.starts_with("clean ") {

@@ -322,11 +322,12 @@ fn retention_upgrade_adopts_legacy_dates_without_rewriting_owned_articles()
     store.save_retention_policy(&policy)?;
     let images = directory.path().join("images");
     assert_eq!(
-        crate::retention::preview(&store, &images, adopted)?.articles,
+        crate::retention_service::preview(&store, &images, adopted)?.articles,
         0
     );
     assert_eq!(
-        crate::retention::preview(&store, &images, adopted + 86_401)?.articles,
+        crate::retention_service::preview(&store, &images, adopted + 86_401)?
+            .articles,
         2
     );
     assert_eq!(store.body(1)?, "Original body");

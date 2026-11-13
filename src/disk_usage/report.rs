@@ -2,17 +2,7 @@
 
 use super::Unit;
 
-#[derive(Default)]
-pub(crate) struct Usage {
-    pub(crate) articles: u64,
-    pub(crate) feed: u64,
-    pub(crate) full: u64,
-    pub(crate) notes: u64,
-    pub(crate) comments: u64,
-    pub(crate) highlights: u64,
-    pub(crate) pages: u64,
-    pub(crate) free: u64,
-}
+use crate::model::disk_usage::Usage;
 
 pub(super) fn text(usage: &Usage, sizes: [u64; 5], unit: Unit) -> String {
     let total = sizes

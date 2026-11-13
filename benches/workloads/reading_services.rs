@@ -127,13 +127,16 @@ fn packages(iterations: usize, stress: bool) -> Result<()> {
     let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"><rect width="160" height="90" fill="orange"/></svg>"#;
     lume::media::cache::write(&images, "https://example.org/diagram.svg", svg)?;
     pinned_history(&images, svg, if stress { 2048 } else { 128 })?;
-    let captured =
-        lume::offline::capture(&store, View::Queue, OfflineLimits::default())?;
+    let captured = lume::offline_service::capture(
+        &store,
+        View::Queue,
+        OfflineLimits::default(),
+    )?;
     super::measure(
         "offline package: cached text + validated/pinned SVG",
         iterations,
         || {
-            let state = lume::offline::prepare(
+            let state = lume::offline_service::prepare(
                 &store,
                 &images,
                 captured.clone(),
@@ -181,10 +184,10 @@ fn cleanup(iterations: usize, stress: bool) -> Result<()> {
     for _ in 0..iterations {
         fill(&store, false, false)?;
         let started = Instant::now();
-        let report = lume::storage::clean(
+        let report = lume::disk_usage::clean(
             &store,
             &images,
-            lume::storage::Cleanup::All,
+            lume::disk_usage::Cleanup::All,
             &AtomicBool::new(false),
         )?;
         elapsed += started.elapsed();
@@ -200,7 +203,7 @@ fn cleanup(iterations: usize, stress: bool) -> Result<()> {
     );
     super::measure("storage report: SQLite + file usage", iterations, || {
         ensure!(
-            lume::storage::inspect(&store, &images)?
+            lume::disk_usage::inspect(&store, &images)?
                 .contains(&format!("Articles: {count}")),
             "Wrong report count"
         );

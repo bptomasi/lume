@@ -3,8 +3,8 @@ mod common;
 
 use anyhow::Result;
 use lume::{
+    disk_usage::{self, Cleanup, Unit},
     media::cache,
-    storage::{self, Cleanup, Unit},
 };
 use std::sync::atomic::AtomicBool;
 
@@ -44,7 +44,7 @@ fn report_separates_physical_totals_and_logical_content_in_all_units()
         Ok(total + std::fs::metadata(root.join(name))?.len())
     })?;
     for unit in [Unit::Auto, Unit::MiB, Unit::GiB, Unit::Bytes] {
-        let report = storage::inspect_with_unit(&store, &images, unit)?;
+        let report = disk_usage::inspect_with_unit(&store, &images, unit)?;
         assert!(report.contains(&format!(
             "Total library + image files: {}",
             unit.format(physical)
@@ -74,7 +74,7 @@ fn manual_image_cleanup_handles_long_galleries_and_protects_pinned_files()
     cache::write(&images, kept, b"kept")?;
     cache::write(&images, orphan, b"orphan")?;
     cache::write(&images.join("offline"), orphan, b"pinned")?;
-    let report = storage::clean(
+    let report = disk_usage::clean(
         &store,
         &images,
         Cleanup::Images,
@@ -98,7 +98,7 @@ fn detailed_accounting_measures_utf8_fts_and_archived_sources_without_writes()
     store.ingest(&feed, &feed.title, &parsed.articles)?;
     store.set_starred(store.library()?.articles[0].id, true)?;
     store.unsubscribe(feed.id)?;
-    let details = storage::details::inspect(&store)?;
+    let details = disk_usage::details::inspect(&store)?;
     assert_eq!(details.sources.len(), 1);
     assert_eq!(details.sources[0].articles, 1);
     assert_eq!(details.sources[0].feed_bytes, "á漢字 text".len() as u64);
@@ -138,7 +138,7 @@ fn empty_storage_reports_no_body_ratio_without_inventing_a_saving() -> Result<()
     let directory = tempfile::tempdir()?;
     let store =
         lume::store::Store::open(&directory.path().join("empty.sqlite3"))?;
-    let details = storage::details::inspect(&store)?;
+    let details = disk_usage::details::inspect(&store)?;
     assert_eq!(details.duplication.publisher_body_bytes, 0);
     assert!(details.duplication.fts_body_ratio.is_none());
     assert!(

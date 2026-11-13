@@ -3,6 +3,9 @@
 //! A cross-process file lock serializes packages. Checkpoints survive process
 //! interruption. Cancellation is checked between bounded HTTP requests; it
 //! cannot interrupt DNS or an already running request.
+//!
+//! Store owns durable checkpoints; this service coordinates fetching, image
+//! validation and pinned-file publication under the package lock.
 
 mod images;
 

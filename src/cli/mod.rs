@@ -36,7 +36,7 @@ pub(super) enum Command {
     /// Inspect, validate, export or recover declarative configuration.
     Config {
         #[command(subcommand)]
-        command: Option<crate::configuration::ConfigCommand>,
+        command: Option<crate::configuration_arguments::ConfigCommand>,
     },
     /// List subscriptions by title, with permanent IDs and collection errors.
     Feeds {
@@ -286,7 +286,7 @@ fn discover(url: &str, offline: bool) -> Result<()> {
 fn sync_library(store: &Store, path: &Path, offline: bool) -> Result<()> {
     network_enabled(offline)?;
     sync_subscriptions(path)?;
-    lume::backups::automatic(
+    lume::backup_service::automatic(
         store,
         chrono::Utc::now().timestamp(),
         &std::sync::atomic::AtomicBool::new(false),

@@ -21,7 +21,7 @@ pub(super) fn perform(
             retention(&store, &images, action, article, cancel)
         }
         Request::Offline { view, limits } => {
-            let state = crate::offline::capture(&store, view, limits)?;
+            let state = crate::offline_service::capture(&store, view, limits)?;
             prepare(&store, &images, state, cancel, progress)
         }
         Request::Resume => resume(&store, &images, cancel, progress),
@@ -29,15 +29,15 @@ pub(super) fn perform(
         Request::OfflineStatus => offline_status(&store),
         Request::StorageDetails(unit) => Ok(Outcome::Report(
             "Storage",
-            crate::storage::details::inspect(&store)?.text(unit),
+            crate::disk_usage::details::inspect(&store)?.text(unit),
         )),
         Request::Storage(unit) => Ok(Outcome::Report(
             "Storage",
-            crate::storage::inspect_with_unit(&store, &images, unit)?,
+            crate::disk_usage::inspect_with_unit(&store, &images, unit)?,
         )),
         Request::Clean(scope) => Ok(Outcome::Report(
             "Storage",
-            crate::storage::clean(&store, &images, scope, cancel)?,
+            crate::disk_usage::clean(&store, &images, scope, cancel)?,
         )),
         Request::Plan(budget) => {
             Ok(Outcome::Plan(store.plan_reading_session(budget)?))
@@ -46,9 +46,10 @@ pub(super) fn perform(
         Request::Session { advance } => session(&store, advance),
         Request::EndSession => end_session(&store),
         Request::Backup { automatic } => backup(&store, automatic, cancel),
-        Request::BackupStatus => {
-            Ok(Outcome::Report("Backups", crate::backups::status(&store)?))
-        }
+        Request::BackupStatus => Ok(Outcome::Report(
+            "Backups",
+            crate::backup_service::status(&store)?,
+        )),
     }
 }
 
@@ -67,24 +68,28 @@ fn retention(
         RetentionAction::Status => {
             return Ok(Outcome::Report(
                 "Retention",
-                crate::retention::status(store)?,
+                crate::retention_service::status(store)?,
             ));
         }
         RetentionAction::Preview => (
-            crate::retention::preview_cancellable(store, images, now, cancel)?,
+            crate::retention_service::preview_cancellable(
+                store, images, now, cancel,
+            )?,
             true,
         ),
         RetentionAction::Apply => (
-            crate::retention::apply(store, images, now, cancel, article)?,
+            crate::retention_service::apply(
+                store, images, now, cancel, article,
+            )?,
             false,
         ),
         RetentionAction::Automatic => {
-            let report = crate::retention::automatic(
+            let report = crate::retention_service::automatic(
                 store, images, now, cancel, article,
             )?;
             return Ok(Outcome::AutomaticRetention {
                 report,
-                delay: crate::retention::next_check(store, now)?,
+                delay: crate::retention_service::next_check(store, now)?,
             });
         }
     };
@@ -98,10 +103,13 @@ fn prepare(
     cancel: &AtomicBool,
     progress: impl Fn(String),
 ) -> Result<Outcome> {
-    let state =
-        crate::offline::prepare(store, images, state, cancel, |state| {
-            progress(report::offline(state))
-        })?;
+    let state = crate::offline_service::prepare(
+        store,
+        images,
+        state,
+        cancel,
+        |state| progress(report::offline(state)),
+    )?;
     Ok(Outcome::Report("Offline package", report::offline(&state)))
 }
 
@@ -157,7 +165,7 @@ fn end_session(store: &Store) -> Result<Outcome> {
 }
 
 fn release(store: &Store, images: &Path) -> Result<Outcome> {
-    crate::offline::release(store, images)?;
+    crate::offline_service::release(store, images)?;
     Ok(Outcome::Report(
         "Offline package",
         concat!(
@@ -182,13 +190,13 @@ fn backup(
 ) -> Result<Outcome> {
     let now = chrono::Utc::now().timestamp();
     let path = if automatic {
-        crate::backups::automatic(store, now, cancel)?
+        crate::backup_service::automatic(store, now, cancel)?
     } else {
-        crate::backups::run(store, now, cancel)?
+        crate::backup_service::run(store, now, cancel)?
     };
     Ok(Outcome::Backup {
         path,
-        delay: crate::backups::next_check(store, now)?,
+        delay: crate::backup_service::next_check(store, now)?,
         automatic,
     })
 }
@@ -215,7 +223,7 @@ fn explain(
     let text = match store
         .explain_retention_cancellable(article, now, active, cancel)
     {
-        Err(error) if error.is::<crate::retention::Canceled>() => {
+        Err(error) if error.is::<crate::cancellation::RetentionCanceled>() => {
             "Retention inspection cancelled; policy was not acknowledged."
                 .into()
         }

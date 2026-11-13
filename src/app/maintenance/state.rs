@@ -5,7 +5,7 @@ use std::{path::PathBuf, sync::atomic::Ordering, sync::mpsc};
 use anyhow::{Context, Result, ensure};
 
 use super::{Maintenance, Request, Update, diagnostics::Diagnostics};
-use crate::storage::Unit;
+use crate::disk_usage::Unit;
 
 #[derive(Default)]
 pub(in crate::app) struct MaintenanceState {

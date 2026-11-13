@@ -1,5 +1,8 @@
 //! Small data contracts shared by storage, collection and presentation.
 
+pub mod disk_usage;
+pub mod retention;
+
 mod auto_read;
 mod feed_candidate;
 pub use feed_candidate::FeedCandidate;

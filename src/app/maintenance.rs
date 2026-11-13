@@ -23,8 +23,8 @@ use std::{
 use anyhow::Result;
 
 use crate::{
+    disk_usage::Cleanup,
     model::{OfflineLimits, ReadingSession, View},
-    storage::Cleanup,
 };
 
 use super::{App, Mode};
@@ -43,8 +43,8 @@ pub(super) enum Request {
     Resume,
     Release,
     OfflineStatus,
-    Storage(crate::storage::Unit),
-    StorageDetails(crate::storage::Unit),
+    Storage(crate::disk_usage::Unit),
+    StorageDetails(crate::disk_usage::Unit),
     Backup {
         automatic: bool,
     },
@@ -81,11 +81,11 @@ enum Outcome {
     Plan(ReadingSession),
     Session(ReadingSession),
     Retention {
-        report: crate::retention::Report,
+        report: crate::model::retention::Report,
         preview: bool,
     },
     AutomaticRetention {
-        report: Option<crate::retention::Report>,
+        report: Option<crate::model::retention::Report>,
         delay: std::time::Duration,
     },
 }
@@ -323,7 +323,7 @@ Inspect the current checkpoint before retrying."#
 
     fn finish_retention(
         &mut self,
-        report: crate::retention::Report,
+        report: crate::model::retention::Report,
         preview: bool,
         visible: bool,
     ) -> Result<()> {

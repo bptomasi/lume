@@ -3,70 +3,32 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, ensure};
-use clap::{Subcommand, ValueEnum};
 use lume::{config, configuration_service::Session, store::Store};
 
-use crate::{Cli, cli::Command};
+use crate::configuration_arguments::{ConfigCommand, Recovery};
 
-#[derive(Subcommand)]
-pub(crate) enum ConfigCommand {
-    /// Print the effective configuration path without creating files.
-    Path,
-    /// Validate a document without opening or modifying the library.
-    Check {
-        /// Document to check; defaults to the effective configuration file.
-        file: Option<PathBuf>,
-    },
-    /// Format an existing TOML file without opening or modifying the library.
-    Format {
-        /// Document to format; defaults to the effective configuration file.
-        file: Option<PathBuf>,
-    },
-    /// Print the active document after finishing pending definition edits.
-    Show {
-        /// Explicitly include inline credentials in the displayed document.
-        #[arg(long)]
-        include_secrets: bool,
-    },
-    /// Export complete portable definitions, excluding personal reading data.
-    Export {
-        /// New destination; omit to print TOML to stdout.
-        output: Option<PathBuf>,
-        /// Explicitly include inline credentials in the exported definitions.
-        #[arg(long)]
-        include_secrets: bool,
-    },
-    /// Reconcile file and pending library edits, without collecting sources.
-    Reload,
-    /// Resolve a conflict, backing up both inputs before replacing definitions.
-    Recover {
-        /// Which input to retain as configuration authority.
-        #[arg(value_enum)]
-        source: Recovery,
-    },
-}
-
-#[derive(Clone, Copy, ValueEnum)]
-pub(crate) enum Recovery {
-    File,
-    Library,
-}
-
-pub(crate) fn path(cli: &Cli) -> Result<PathBuf> {
-    if let Some(path) = &cli.config {
-        return absolute(path.clone());
+pub(crate) fn path(
+    config: Option<&Path>,
+    database: Option<&Path>,
+    data_dir: Option<&Path>,
+) -> Result<PathBuf> {
+    if let Some(path) = config {
+        return absolute(path.to_path_buf());
     }
     if let Some(path) = std::env::var_os("LUME_CONFIG") {
         ensure!(!path.is_empty(), "LUME_CONFIG must not be empty");
         return absolute(path.into());
     }
-    if let Some(database) = &cli.database {
+    if let Some(database) = database {
         return absolute(database.with_extension("toml"));
     }
-    if cli.data_dir.is_some() || std::env::var_os("LUME_DATA_DIR").is_some() {
+    if data_dir.is_some() || std::env::var_os("LUME_DATA_DIR").is_some() {
         return absolute(
-            crate::data_dir::database_path(cli.data_dir.clone(), false)?
-                .with_file_name("config.toml"),
+            crate::data_dir::database_path(
+                data_dir.map(Path::to_path_buf),
+                false,
+            )?
+            .with_file_name("config.toml"),
         );
     }
     let directory = std::env::var_os("XDG_CONFIG_HOME")
@@ -98,15 +60,9 @@ fn absolute(path: PathBuf) -> Result<PathBuf> {
 }
 
 pub(crate) fn inspect(
-    command: Option<&Command>,
-    path: Option<&Path>,
-    demo: bool,
+    command: Option<&ConfigCommand>,
+    path: &Path,
 ) -> Result<bool> {
-    let Some(Command::Config { command }) = command else {
-        return Ok(false);
-    };
-    ensure!(!demo, "Configuration commands require a real library");
-    let path = path.context("Configuration path is unavailable")?;
     match command {
         None | Some(ConfigCommand::Path) => println!("{}", path.display()),
         Some(ConfigCommand::Check { file }) => {

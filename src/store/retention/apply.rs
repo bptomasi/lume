@@ -1,7 +1,7 @@
 //! Recheck authority before each bounded, separately committed action batch.
 
 use super::{Plan, protected_query};
-use crate::{retention::Report, store::Store};
+use crate::{model::retention::Report, store::Store};
 use anyhow::Result;
 use rusqlite::Transaction;
 
